@@ -1,0 +1,5 @@
+{
+  "name": "WhatsApp Flow Builder running",
+  "description": "A visual tool to create and manage WhatsApp conversational flows with support for various message types and webhooks, designed to integrate with a Node.js and Supabase backend.",
+  "requestFramePermissions": []
+}

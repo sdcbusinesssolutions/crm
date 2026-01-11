@@ -1,0 +1,2 @@
+ALTER TABLE whatsapp_templates 
+ADD COLUMN IF NOT EXISTS quality_score TEXT DEFAULT 'UNKNOWN';

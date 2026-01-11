@@ -1,0 +1,63 @@
+services:
+  whatsapp-app:
+    build: 
+      context: .
+      args:
+        - VITE_CLIENT_URL=${CLIENT_URL}
+        - VITE_SUPABASE_URL=${SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+    image: whatsapp-app:${IMAGE_TAG}
+    user: root
+    
+    # 🔄 SCALABILITY CONFIGURATION
+    deploy:
+      mode: replicated
+      replicas: 1  # ⚡ CHANGE THIS TO 2, 3, etc. TO SCALE UP!
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G     # Increased for performance
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+    
+    # Set container name to domain for easy identification
+    container_name: ${DOMAIN} 
+
+    # env_file:
+    #   - ./server/.env
+    
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - CLIENT_URL=${CLIENT_URL}
+      - APP_URL=${APP_URL}
+      - PORT=5000
+      - NODE_ENV=production
+      - VITE_CLIENT_URL=${CLIENT_URL}
+      - DOMAIN=${DOMAIN}
+    
+    volumes:
+      - ./server_logs/${DOMAIN}:/app/logs
+      - ./server_uploads/${DOMAIN}:/app/uploads
+      
+    labels:
+      - "traefik.enable=true"
+      # Load Balancer Rule (Round Robin by default)
+      - "traefik.http.routers.${ROUTER_NAME}.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${ROUTER_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${ROUTER_NAME}.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
+      
+      # Sticker / Session Stickiness (Optional)
+      # Keeps a user connected to the same container if needed
+      # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
+    
+    networks:
+      - traefik_network
+
+networks:
+  traefik_network:
+    external: true
+    name: ${TRAEFIK_NETWORK}

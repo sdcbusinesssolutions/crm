@@ -1,0 +1,86 @@
+
+# ==================================================================================
+# CENTRAL MULTI-SERVER DEPLOYMENT SCRIPT (ASCII ONLY)
+# ==================================================================================
+$ErrorActionPreference = "Stop"
+$csvFile = "domains.csv"
+
+# --- LOGGING SETUP ---
+$logDir = "deployment_logs"
+if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
+$logFile = "$logDir\deploy_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+Start-Transcript -Path $logFile -Append
+
+Write-Host "LOGGING STARTED: $logFile" -ForegroundColor Magenta
+# ---------------------
+
+# 1. Validation
+if (-not (Test-Path $csvFile)) {
+    Write-Host "ERROR: '$csvFile' not found." -ForegroundColor Red
+    exit 1
+}
+
+# 2. Build Code
+Write-Host "Packaging Code..." -ForegroundColor Cyan
+cmd /c "prepare_upload.bat" | Out-Null
+
+# 3. Pre-Flight Validation (Schema & Storage)
+Write-Host "Validating Databases..." -ForegroundColor Cyan
+node server/scripts/validate_deployment.js
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "DEPLOYMENT HALTED: Validation Failed." -ForegroundColor Red
+    exit 1
+}
+
+# 4. Setup Media Storage
+Write-Host "Configuring Supabase Storage..." -ForegroundColor Cyan
+node server/scripts/setup_multitenant_media.js
+
+# 4. Process CSV
+$allDomains = Import-Csv $csvFile
+$deployableDomains = $allDomains | Where-Object { $_.DeployEnabled -eq 'true' }
+if ($deployableDomains.Count -eq 0) {
+    Write-Host "WARNING: No domains enabled." -ForegroundColor Yellow
+    exit
+}
+
+$grouped = $deployableDomains | Group-Object VPSIp
+
+foreach ($group in $grouped) {
+    $vpsIp = $group.Name
+    $domains = $group.Group
+    $count = $domains.Count
+    
+    Write-Host "SERVER: $vpsIp ($count domains)" -ForegroundColor Cyan
+
+    $tempCsv = "domains_temp_$vpsIp.csv"
+    $domains | Export-Csv -Path $tempCsv -NoTypeInformation
+    $remoteDir = "/www/wwwroot/whatsapp-app"
+    
+    # Pre-Flight: Create Directory
+    Write-Host "Creating Remote Directory..."
+    ssh "root@$vpsIp" "mkdir -p $remoteDir"
+
+    # Upload Files
+    Write-Host "Uploading Files..."
+    scp "deploy-package.zip" "root@${vpsIp}:${remoteDir}/"
+    scp $tempCsv "root@${vpsIp}:${remoteDir}/domains.csv"
+    scp "remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
+
+    Remove-Item $tempCsv
+
+    # Execute
+    Write-Host "Running Deployment..."
+    
+    # Fix permissions
+    ssh "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh"
+    
+    # Run it
+    ssh -t "root@$vpsIp" "$remoteDir/remote_exec.sh $remoteDir"
+    
+    Write-Host "Done: $vpsIp" -ForegroundColor Green
+}
+
+Write-Host ""
+Write-Host "Finished!" -ForegroundColor Cyan
+Stop-Transcript

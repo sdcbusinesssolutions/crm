@@ -1,0 +1,58 @@
+# --- Dependencies we install inside image ---
+node_modules
+server/node_modules
+client/node_modules
+
+# --- Source Control & Config ---
+.git
+.gitignore
+.env
+.DS_Store
+.vscode/
+.idea/
+
+# --- Build Artifacts & Zips ---
+dist.zip
+server.zip
+deploy-package.zip
+*.log
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# --- Large Folders / Data (Mount these as volumes instead) ---
+server/uploads
+server/logs
+server/test_uploads
+server/tmp
+
+# --- Documentation & SQL Dumps (User requested removal) ---
+doc/
+docs/
+documentation/
+server/sql/
+server/db_sql/
+*.md
+*.sql
+*.txt
+# (Except license if you needed it, but user said remove MD)
+
+# --- Debug & Test Scripts ---
+debug_*.js
+test-*.js
+test_*.js
+check_*.js
+create_bucket.js
+download_db_data.js
+run_sql.js
+server_temp.js
+*.bat
+*.sh
+local_testing/
+__tests__/
+coverage/
+
+# --- Client Junk ---
+client/public/mock_images
+client/local_testing
+client/README.md

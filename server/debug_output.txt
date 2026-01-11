@@ -1,0 +1,12 @@
+--- Checking Contact Status for 917000698637 ---
+
+✅ FOUND 1 EXISTING CONTACT(S) IN DB:
+
+[Contact Record]
+- ID: f2ec2264-10e7-478f-ad4d-5e068f456d51
+- Name: 🙂
+- Phone: 917000698637
+- Email: null
+- Created At: 2025-12-29T05:52:42.52468+00:00
+
+CONCLUSION: The contact exists. The New Lead node is taking the 'Existing Contact' path.

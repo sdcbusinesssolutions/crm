@@ -1,0 +1,28 @@
+{
+  "id": "0a827d66-b334-4f7f-bf9e-04cdbd21c673",
+  "user_id": "5ae5999e-1eb2-4425-adf4-858156709d2d",
+  "name": "test2211form",
+  "language": "en_US",
+  "category": "MARKETING",
+  "template_type": "TEXT",
+  "header_format": null,
+  "header_text": "header2",
+  "header_media_handle": null,
+  "body_text": "Hello {{1}}, the issue related to {{2}} has been resolved. Please check and let us know if everything is working correctly.",
+  "footer_text": "footer",
+  "buttons": {
+    "type": "FORM",
+    "buttons": [
+      {
+        "text": "Fill Form",
+        "type": "FLOW",
+        "flow_id": "1683999415602677",
+        "navigate_screen": "QUESTION_ONE"
+      }
+    ]
+  },
+  "status": "APPROVED",
+  "meta_template_id": "1199562684920184",
+  "created_at": "2025-12-13T18:49:26.624377+00:00",
+  "updated_at": "2025-12-13T18:49:26.624377+00:00"
+}

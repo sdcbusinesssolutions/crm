@@ -1,0 +1,126 @@
+const { supabase, supabaseAdmin } = require('../../../lib/supabaseClient');
+
+module.exports = {
+    execute: async (session, node, context) => {
+        try {
+            const { action = 'add', tags } = node.data;
+            const phone = typeof session.contact_phone === 'string' ? session.contact_phone : String(session.contact_phone || '');
+            const userId = session.user_id;
+
+            if (!phone) {
+                console.error('[ManageTags] No phone number in session');
+                return { success: false, message: 'No phone number' };
+            }
+
+            const rpcClient = supabaseAdmin || supabase;
+
+            if (!Array.isArray(tags) || tags.length === 0) {
+                return { success: true, message: 'No tags to process or invalid format' };
+            }
+
+            console.log(`[ManageTags] Processing tags for User ${userId}, Phone ${phone}: ${action} [${tags.join(', ')}]`);
+
+            // 1. Get ALL matching contacts for this user (handle potential duplicates)
+            // We use .select() instead of .maybeSingle() to avoid crashing if duplicates exist (PGRST116)
+            const { data: contacts, error: fetchError } = await rpcClient
+                .from('contacts')
+                .select('*')
+                .eq('user_id', userId)
+                .eq('phone', phone);
+
+            if (fetchError) {
+                console.error('[ManageTags] Error fetching contacts:', fetchError);
+                throw fetchError;
+            }
+
+            // 2. If NO contact exists, create it (only if adding tags)
+            if (!contacts || contacts.length === 0) {
+                if (action === 'remove') {
+                    return { success: true, message: 'Contact not found, nothing to remove' };
+                }
+
+                console.log('[ManageTags] Contact not found, creating new contact for current user...');
+
+                const { data: newContact, error: createError } = await rpcClient
+                    .from('contacts')
+                    .insert([{
+                        user_id: userId,
+                        phone: phone,
+                        name: session.variables?.trigger?.name || phone, // Fallback to phone if name is missing
+                        tags: tags,
+                        status: 'New',
+                        source: 'flow_automation'
+                    }])
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('[ManageTags] Error creating contact:', createError);
+                    throw createError;
+                }
+                console.log('[ManageTags] Created contact with tags:', newContact.tags);
+                return { success: true, tags: newContact.tags };
+            }
+
+            // 3. Update ALL found contacts (in case of duplicates)
+            // We iterate through all matching records to ensure consistency
+            let finalTags = [];
+            let atLeastOneUpdated = false;
+
+            for (const contact of contacts) {
+                let currentTags = contact.tags || [];
+                let newTags = [...currentTags];
+
+                if (action === 'add') {
+                    // Add unique tags
+                    tags.forEach(t => {
+                        if (!newTags.includes(t)) newTags.push(t);
+                    });
+                } else if (action === 'remove') {
+                    // Remove tags
+                    newTags = newTags.filter(t => !tags.includes(t));
+                }
+
+                // Don't update if nothing changed
+                if (JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())) {
+                    finalTags = newTags; // Capture current state even if no change
+                    continue;
+                }
+
+                // Update this specific contact record
+                const { data: updatedContact, error: updateError } = await rpcClient
+                    .from('contacts')
+                    .update({ tags: newTags })
+                    .eq('id', contact.id)
+                    .select()
+                    .single();
+
+                if (updateError) {
+                    console.error(`[ManageTags] Failed to update contact ${contact.id}:`, updateError);
+                } else {
+                    console.log(`[ManageTags] Updated contact ${contact.id} tags:`, newTags);
+                    finalTags = newTags; // Keep track of latest state for return
+                    atLeastOneUpdated = true;
+                }
+            }
+
+            // 4. Also update conversation if it exists (for immediate UI sync if active)
+            // Only update if we actually touched something, or if we want to ensure consistency.
+            // Better to sync state if we have a valid finalTags list.
+            if (contacts.length > 0) {
+                await rpcClient
+                    .from('conversations')
+                    .update({ tags: finalTags }) // finalTags is an array (possibly empty), which allows clearing tags
+                    .eq('user_id', userId)
+                    .eq('contact_phone', phone);
+            }
+
+
+            return { success: true, tags: finalTags };
+
+        } catch (error) {
+            console.error('[ManageTags] Execution Error:', error);
+            return { success: false, error: error.message };
+        }
+    }
+};
