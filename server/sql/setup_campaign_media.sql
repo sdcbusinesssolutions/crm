@@ -40,6 +40,37 @@ CREATE INDEX IF NOT EXISTS idx_campaign_media_user_id ON campaign_media(user_id)
 -- If you have the 'storage' extension enabled and permissions, you can try:
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('campaign-media', 'campaign-media', true) ON CONFLICT DO NOTHING;
 
--- Storage Policies (if creating manually via SQL)
--- CREATE POLICY "Give users access to own folder 1ax3q2_0" ON storage.objects FOR SELECT TO public USING (bucket_id = 'campaign-media' AND auth.uid()::text = (storage.foldername(name))[1]);
--- (Adjust policies as needed for public access vs authenticated)
+-- =================================================================
+-- 2. STORAGE BUCKET POLICIES (Required for "4 Policies" count)
+-- =================================================================
+
+-- Ensure campaign-media bucket exists (handled by script, but good for completeness in SQL)
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('campaign-media', 'campaign-media', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Enable RLS for storage.objects
+ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
+
+-- Policy 1: Public Read Access
+CREATE POLICY "Public Access"
+ON storage.objects FOR SELECT
+USING ( bucket_id = 'campaign-media' );
+
+-- Policy 2: Authenticated Insert (Upload)
+CREATE POLICY "Authenticated Insert"
+ON storage.objects FOR INSERT
+WITH CHECK ( bucket_id = 'campaign-media' AND auth.role() = 'authenticated' );
+
+-- Policy 3: Owner Update
+CREATE POLICY "Owner Update"
+ON storage.objects FOR UPDATE
+USING ( bucket_id = 'campaign-media' AND auth.uid() = owner );
+
+-- Policy 4: Owner Delete
+CREATE POLICY "Owner Delete"
+ON storage.objects FOR DELETE
+USING ( bucket_id = 'campaign-media' AND auth.uid() = owner );
+
+-- Output confirmation
+SELECT 'Campaign Media Table and Storage Policies Configured Successfully' as status;

@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const { createClient } = require('@supabase/supabase-js');
 
 // Configure path to domains.csv
 const CSV_PATH = path.join(__dirname, '../../domains.csv');
@@ -17,38 +18,20 @@ function logToDomain(domain, message) {
     fs.appendFileSync(logFile, `[${timestamp}] [VALIDATION] ${message}\n`);
 }
 
-async function fetchRemoteSchema(url, key) {
-    try {
-        // PostgREST exposes OpenAPI spec at root
-        const response = await axios.get(`${url}/rest/v1/`, {
-            headers: {
-                'apikey': key,
-                'Authorization': `Bearer ${key}`
-            }
-        });
-        return response.data;
-    } catch (e) {
-        return null;
-    }
-}
+async function fetchDeepSchema(url, key) {
+    const supabase = createClient(url, key);
+    // Call the custom SQL function
+    const { data, error } = await supabase.rpc('get_schema_deep_info');
 
-function parseSchema(swagger) {
-    if (!swagger || !swagger.definitions) return {};
-
-    const relevantDefs = {};
-    for (const [tableName, def] of Object.entries(swagger.definitions)) {
-        relevantDefs[tableName] = {};
-        if (def.properties) {
-            for (const [colName, colProp] of Object.entries(def.properties)) {
-                relevantDefs[tableName][colName] = colProp.type || 'unknown';
-            }
-        }
+    if (error) {
+        // If function doesn't exist, we fall back or fail
+        return { error: error.message };
     }
-    return relevantDefs;
+    return { data };
 }
 
 async function validateSchemaIntegrity() {
-    console.log('🚀 Starting Deep Schema Comparison...');
+    console.log('🚀 Starting ULTIMATE Deep Schema Comparison (Tables, Policies, Triggers)...');
 
     if (!fs.existsSync(CSV_PATH)) {
         console.error(`❌ domains.csv not found.`);
@@ -86,67 +69,95 @@ async function validateSchemaIntegrity() {
 
     console.log(`Found ${uniqueDatabases.size} Unique Databases.`);
 
-    // 2. Fetch Schemas
+    // 2. Fetch Schemas via RPC
     const dbSchemas = new Map();
-    const failedFetches = [];
-
     let referenceSchema = null;
     let referenceUrl = '';
 
     for (const [url, data] of uniqueDatabases) {
-        console.log(`   Asking ${url} for Schema...`);
-        const swagger = await fetchRemoteSchema(url, data.key);
+        console.log(`   Asking ${url} for Deep Info...`);
+        const { data: schema, error } = await fetchDeepSchema(url, data.key);
 
-        if (!swagger) {
-            console.error(`   ❌ Failed to fetch Schema from ${url}`);
-            failedFetches.push(url);
+        if (error || !schema) {
+            console.error(`   ❌ Failed to fetch Deep Info from ${url}: ${error || 'Unknown'}`);
+            if (error && error.includes('function get_schema_deep_info() does not exist')) {
+                console.error('      💡 ACTION REQUIRED: Run server/sql/get_schema_info.sql on this database!');
+            }
+            data.domains.forEach(d => logToDomain(d, `❌ SKIP: Database missing 'get_schema_deep_info' function.`));
             continue;
         }
 
-        const simplified = parseSchema(swagger);
-        dbSchemas.set(url, simplified);
+        dbSchemas.set(url, schema);
 
-        if (!referenceSchema && Object.keys(simplified).length > 0) {
-            referenceSchema = simplified;
+        if (!referenceSchema) {
+            referenceSchema = schema;
             referenceUrl = url;
-            console.log(`\n🏆 Acquired Reference Schema from: ${referenceUrl} (${Object.keys(referenceSchema).length} tables)\n`);
+            console.log(`\n🏆 Acquired Reference Schema from: ${referenceUrl}`);
+            console.log(`      Tables: ${Object.keys(schema.tables || {}).length}`);
+            console.log(`      Policies: ${(schema.policies || []).length}`);
+            console.log(`      Triggers: ${(schema.triggers || []).length}\n`);
         }
     }
 
     if (!referenceSchema) {
-        console.error("❌ Could not fetch ANY schemas. Check keys/connectivity.");
-        process.exit(0); // Warn but don't crash deploy
+        console.log("❌ No valid schemas found. Please run the SQL setup script!");
+        process.exit(0);
     }
 
-    // 3. Compare All Against Reference
+    // 3. Compare
     let globalFail = false;
 
     for (const [url, data] of uniqueDatabases) {
-        if (failedFetches.includes(url)) {
-            data.domains.forEach(d => logToDomain(d, "❌ SKIP: Could not fetch schema from DB."));
+        const target = dbSchemas.get(url);
+        if (!target) {
+            data.domains.forEach(d => logToDomain(d, "❌ SKIP: Could not inspect DB (Missing RPC function?)"));
             continue;
         }
 
-        const targetSchema = dbSchemas.get(url);
         const diffs = [];
-        const missingTables = [];
 
-        // Compare Tables
-        for (const table of Object.keys(referenceSchema)) {
-            if (!targetSchema[table]) {
-                diffs.push(`❌ Missing Table: ${table}`);
-                missingTables.push(table);
+        // A. Compare Tables & Columns
+        const refTables = referenceSchema.tables || {};
+        const targetTables = target.tables || {};
+
+        for (const tName of Object.keys(refTables)) {
+            if (!targetTables[tName]) {
+                diffs.push(`❌ Missing Table: ${tName}`);
                 continue;
             }
-
-            // Compare Columns
-            const refCols = referenceSchema[table];
-            const targetCols = targetSchema[table];
-
-            for (const col of Object.keys(refCols)) {
-                if (!targetCols[col]) {
-                    diffs.push(`⚠️ Missing Column: ${table}.${col} (Type: ${refCols[col]})`);
+            // Columns
+            const refCols = refTables[tName];
+            const targetCols = targetTables[tName];
+            for (const cName of Object.keys(refCols)) {
+                if (!targetCols[cName]) {
+                    diffs.push(`⚠️ Missing Column: ${tName}.${cName}`);
                 }
+            }
+        }
+
+        // B. Compare Policies (RLS)
+        const refPolicies = referenceSchema.policies || [];
+        const targetPolicies = target.policies || [];
+
+        // We create a set of signatures "tablename:policyname"
+        const targetPolicySet = new Set(targetPolicies.map(p => `${p.table}:${p.policy_name}`));
+
+        for (const p of refPolicies) {
+            const signature = `${p.table}:${p.policy_name}`;
+            if (!targetPolicySet.has(signature)) {
+                diffs.push(`🔴 Missing RLS Policy: ${p.policy_name} ON ${p.table}`);
+            }
+        }
+
+        // C. Compare Triggers
+        const refTriggers = referenceSchema.triggers || [];
+        const targetTriggers = target.triggers || [];
+        const targetTriggerSet = new Set(targetTriggers.map(t => `${t.table}:${t.trigger_name}`));
+
+        for (const t of refTriggers) {
+            const signature = `${t.table}:${t.trigger_name}`;
+            if (!targetTriggerSet.has(signature)) {
+                diffs.push(`⚡ Missing Trigger: ${t.trigger_name} ON ${t.table}`);
             }
         }
 
@@ -155,8 +166,7 @@ async function validateSchemaIntegrity() {
             console.log(`   ✅ ${url}: Matches Reference.`);
             data.domains.forEach(d => {
                 logToDomain(d, "✅ Database Schema Integrity Check: PASS");
-                logToDomain(d, `   Matched ${Object.keys(targetSchema).length} tables vs Reference.`);
-                logToDomain(d, `   Verified Columns & Types match reference.`);
+                logToDomain(d, `   Verified Tables, Policies, and Triggers match reference.`);
             });
         } else {
             console.log(`   ⚠️ ${url}: ${diffs.length} Differences Found (See Logs).`);

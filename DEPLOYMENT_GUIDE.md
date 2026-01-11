@@ -84,8 +84,29 @@ Open PowerShell in the root directory and run:
 ## 4. Troubleshooting
 
 *   **"Missing Table: campaign_media"**: You forgot to run the SQL script in the dashboard. The automatic script handles *Storage Buckets* only, not *Database Tables*.
-*   **"Schema Mismatch"**: The validation script found a table or column missing in one of your white-label databases compared to the others. Check the log for the specific missing column.
-*   **SSH Errors**: Ensure your SSH Key is loaded in your local agent or the password in `domains.csv` is correct.
+*   **"SKIP: Schema Fetch Failed"**: 
+    *   **Cause**: The Supabase Service Key in `domains.csv` is invalid or expired.
+    *   **Fix**: Check the `deployment_logs` or console output. If you see `{"message":"Invalid API key"}`, generate a new Service Key in Supabase (Settings > API) and update `domains.csv`.
+
+*   **Git Push Errors ("object is corrupt")**: 
+    *   **Cause**: Local repository database corruption.
+    *   **Fix**: Refer to `GIT_RECOVERY_LOG.md` for the procedure used to repair the repo. In extreme cases, a fresh clone or re-init (as done on Jan 11, 2026) is required.
+
+---
+
+## 5. Quick Reference: domains.csv Format
+
+The `domains.csv` file MUST strictly follow this header and structure. **Order Matters.**
+
+```csv
+Domain,VPSIp,VPSPassword,DeployEnabled,SupabaseUrl,SupabaseServiceKey,VitePort,ServerPort,DnsLink
+cloudospire.in,145.79.15.115,your_ssh_pass,true,https://your-project.supabase.co,eyJ... (SERVICE_ROLE_KEY),5173,5000,cloudospire.in
+```
+
+*   **SupabaseServiceKey**: Must be the **SERVICE_ROLE** key (starts with `eyJ...`, usually long), NOT the Anon key. This is required for Storage Management and Schema Inspection.
+*   **DeployEnabled**: Set to `true` to include in deployment, `false` to skip.
+
+*   **SSL Errors ("Not Private")**: See `SSL_TROUBLESHOOTING.md`.
 
 ---
 **Automated by Antigravity**
