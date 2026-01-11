@@ -69,6 +69,9 @@ copy "auto_deploy.sh" "%BUILD_DIR%\" >nul
 copy "bulk_deploy.sh" "%BUILD_DIR%\" >nul
 copy "domains.csv" "%BUILD_DIR%\" >nul
 copy ".dockerignore" "%BUILD_DIR%\" >nul
+copy "docker-compose-backup.yml" "%BUILD_DIR%\" >nul
+mkdir "%BUILD_DIR%\backup"
+robocopy "backup" "%BUILD_DIR%\backup" /E
 
 REM 5. Create Zip from Clean Folder
 echo.

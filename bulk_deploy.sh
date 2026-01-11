@@ -127,4 +127,14 @@ EOF
 
 done
 
+
+# 5. Start Global Services (Backup)
+echo "💾 Starting Database Backup System..."
+if [ -f "docker-compose-backup.yml" ]; then
+    docker-compose -f docker-compose-backup.yml up -d --build --remove-orphans
+    echo "   ✅ Backup Service Running (Check with 'docker logs database_backup_worker')"
+else
+    echo "   ⚠️  docker-compose-backup.yml not found. Backup system skipped."
+fi
+
 echo "🎉 Bulk Deployment Finished!"

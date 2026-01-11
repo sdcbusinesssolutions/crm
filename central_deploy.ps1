@@ -14,6 +14,30 @@ Start-Transcript -Path $logFile -Append
 Write-Host "LOGGING STARTED: $logFile" -ForegroundColor Magenta
 # ---------------------
 
+# -------------------------------------------------------------------------
+# Step 1.5: 💾 Database Backup (Pre-Deployment)
+# -------------------------------------------------------------------------
+Write-Host "💾 Starting Pre-Deployment Database Backup..." -ForegroundColor Cyan
+if (Test-Path "docker-compose-backup.yml") {
+    # We use 'run --rm' to execute the script once and exit, ignoring the 'sleep' loop if possible, 
+    # but since the script loops, we might need to rely on the side-effect that it runs once on startup.
+    # Actually, the script loops forever. To run it *once* here, we should override the entrypoint or just let it run in background?
+    # Better: We'll rely on the standalone script 'server/scripts/backup_databases.ps1' for this synchronous task.
+    
+    if (Test-Path "server/scripts/backup_databases.ps1") {
+        cd "server/scripts"
+        try { ./backup_databases.ps1 -ErrorAction Stop } catch { Write-Warning "   [WARN] Local Backup Failed (pg_dump missing?): $_" }
+        cd ../..
+    }
+    else {
+        Write-Warning "   ⚠️  Backup script not found. Skipping."
+    }
+}
+else {
+    Write-Warning "   ⚠️  Backup configuration missing. Skipping."
+}
+# -------------------------------------------------------------------------
+
 # 1. Validation
 if (-not (Test-Path $csvFile)) {
     Write-Host "ERROR: '$csvFile' not found." -ForegroundColor Red
