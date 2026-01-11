@@ -32,27 +32,14 @@ const EngagementCard: React.FC<{ stats: DashboardStats | null }> = ({ stats }) =
                 })
             ) : (
                 // Mock Data for "Drip" visualization if no real campaigns exist yet
-                [
-                    { name: 'Welcome Drip', sent: 154, read: 120, rate: 78, color: 'from-emerald-400 to-emerald-600' },
-                    { name: 'Re-engagement', sent: 89, read: 45, rate: 51, color: 'from-amber-400 to-amber-600' },
-                    { name: 'Promo Blast #1', sent: 340, read: 210, rate: 62, color: 'from-blue-400 to-blue-600' }
-                ].map((camp, idx) => (
-                    <div key={idx} className="group">
-                        <div className="flex justify-between items-center mb-1">
-                            <div className="flex items-center gap-2">
-                                <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${camp.color}`}></div>
-                                <span className="text-xs font-bold text-slate-700">{camp.name}</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-500">{camp.rate}% Open</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
-                            <div
-                                className={`h-full rounded-full bg-gradient-to-r ${camp.color}`}
-                                style={{ width: `${camp.rate}%` }}
-                            ></div>
-                        </div>
+                <div className="flex flex-col items-center justify-center h-full py-8 text-center opacity-60">
+                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-2">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                        </svg>
                     </div>
-                ))
+                    <p className="text-xs font-bold text-slate-500">No campaigns sent yet</p>
+                </div>
             )}
         </div>
     );

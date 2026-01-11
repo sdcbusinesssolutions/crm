@@ -5,7 +5,7 @@ import { getLeads } from '../services/lead-management-api';
 import EngagementCard from './EngagementCard';
 
 // --- Types ---
-interface DashboardStats {
+export interface DashboardStats {
     summary: {
         totalContacts: number;
         activeLeads: number;

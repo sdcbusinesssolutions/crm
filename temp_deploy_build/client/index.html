@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WhatsApp Flow Builder</title>
+  <!-- Tailwind CSS -->
+  <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <!-- <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          borderRadius: {
+            'btn': 'var(--radius-btn)',
+          },
+          colors: {
+            brand: {
+              DEFAULT: 'var(--color-brand)',
+              50: 'rgb(var(--color-brand-rgb) / 0.05)',
+              100: 'rgb(var(--color-brand-rgb) / 0.1)',
+              200: 'rgb(var(--color-brand-rgb) / 0.2)',
+              300: 'rgb(var(--color-brand-rgb) / 0.3)',
+              400: 'rgb(var(--color-brand-rgb) / 0.6)',
+              500: 'var(--color-brand)',
+              600: 'var(--color-brand)',
+              700: 'rgb(var(--color-brand-rgb) / 0.8)',
+              800: 'rgb(var(--color-brand-rgb) / 0.9)',
+              900: 'rgb(var(--color-brand-rgb) / 1)',
+            },
+            canvas: {
+              bg: 'var(--color-bg)',
+              surface: 'var(--color-surface)',
+              text: 'var(--color-text)',
+            },
+            sidebar: {
+              text: 'var(--color-sidebar-text)',
+              active: 'var(--color-sidebar-active-bg)'
+            }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+          },
+          keyframes: {
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideUp: {
+              '0%': { transform: 'translateY(20px)', opacity: '0' },
+              '100%': { transform: 'translateY(0)', opacity: '1' },
+            }
+          }
+        }
+      }
+    }
+  </script> -->
+  <style>
+    :root {
+      /* Default Fallback Colors */
+      --color-brand: #ea580c;
+      --color-brand-rgb: 234 88 12;
+      --color-bg: #f8fafc;
+      --color-surface: #ffffff;
+      --color-text: #0f172a;
+      --color-sidebar-text: #475569;
+      --color-sidebar-active-bg: #fff7ed;
+      --radius-btn: 0.75rem;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+
+      background-color: var(--color-bg);
+      background-image: linear-gradient(to bottom, rgb(var(--color-brand-rgb) / 0.03) 0%, transparent 400px);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+
+      color: var(--color-text);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background-color: rgba(156, 163, 175, 0.5);
+      border-radius: 20px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(107, 114, 128, 0.8);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    body.dragging-node,
+    body.is-connecting {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body.is-connecting * {
+      cursor: crosshair !important;
+    }
+  </style>
+</head>
+
+<body class="overflow-hidden h-screen w-screen">
+  <div id="root" class="h-full w-full"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

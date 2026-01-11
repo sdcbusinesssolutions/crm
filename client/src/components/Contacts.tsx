@@ -7,7 +7,8 @@ import PipelineView from './PipelineView';
 import FormBuilder from './FormBuilder';
 import FollowUpManager from './FollowUpManager';
 import LeadDashboard from './LeadDashboard';
-import { getLeads, getPipelines } from '../services/lead-management-api';
+import { getPipelines } from '../services/lead-management-api';
+import { contactService } from '../services/contactService';
 import { contactGroupService } from '../services/contactGroupService';
 import { getForms, getTasks } from '../services/lead-management-api';
 import { inputFieldService } from '../services/inputFieldService';
@@ -21,13 +22,20 @@ interface ContactsProps {
 const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId }) => {
     const [activeTab, setActiveTab] = useState<string>(initialTab);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-    const [counts, setCounts] = useState({
-        contacts: 0,
-        groups: 0,
-        pipelines: 0,
-        forms: 0,
-        inputs: 0,
-        followUps: 0
+    const [counts, setCounts] = useState<{
+        contacts: number | null;
+        groups: number | null;
+        pipelines: number | null;
+        forms: number | null;
+        inputs: number | null;
+        followUps: number | null;
+    }>({
+        contacts: null,
+        groups: null,
+        pipelines: null,
+        forms: null,
+        inputs: null,
+        followUps: null
     });
 
     useEffect(() => {
@@ -39,7 +47,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             try {
                 // Fetch counts safely
                 const results = await Promise.allSettled([
-                    getLeads(),
+                    contactService.getContacts(),
                     contactGroupService.getGroups(),
                     getPipelines(),
                     getForms(),
@@ -47,7 +55,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                     getTasks()
                 ]);
 
-                const getValue = (result: any) => result.status === 'fulfilled' ? result.value.length : 0;
+                const getValue = (result: any) => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value.length : 0;
 
                 setCounts({
                     contacts: getValue(results[0]),
@@ -71,7 +79,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
 
     const renderContent = () => {
         switch (activeTab) {
-            case 'dashboard': return <LeadDashboard onNavigate={(tab) => setActiveTab(tab)} />;
+            case 'dashboard': return <LeadDashboard onNavigate={(tab) => setActiveTab(tab)} totalContactsCount={counts.contacts} />;
             case 'contacts': return <ContactList initialGroupFilter={selectedGroupId} onClearGroupFilter={() => setSelectedGroupId(null)} />;
             case 'groups': return <ContactGroups onGroupClick={handleGroupClick} />;
             case 'inputs': return <InputFields />;

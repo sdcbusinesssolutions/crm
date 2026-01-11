@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getPipelines, getKanbanBoard, getLeads, getTasks } from '../services/lead-management-api';
 import { Pipeline, KanbanBoard } from '../types/lead-management';
 import { contactGroupService } from '../services/contactGroupService';
@@ -22,9 +22,10 @@ const TrendingUpIconFallback = ({ className }: { className?: string }) => (
 
 interface LeadDashboardProps {
     onNavigate: (tab: string) => void;
+    totalContactsCount?: number | null;
 }
 
-const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate }) => {
+const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContactsCount }) => {
     const [loading, setLoading] = useState(true);
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
@@ -46,6 +47,19 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate }) => {
 
     // Store tag definitions for color mapping
     const [tagDefinitions, setTagDefinitions] = useState<Tag[]>([]);
+
+    // Ref to track latest prop value for async operations
+    const totalContactsCountRef = useRef(totalContactsCount);
+    useEffect(() => {
+        totalContactsCountRef.current = totalContactsCount;
+    }, [totalContactsCount]);
+
+    // Sync total contacts count from props if provided
+    useEffect(() => {
+        if (typeof totalContactsCount === 'number') {
+            setStats(prev => ({ ...prev, totalLeads: totalContactsCount }));
+        }
+    }, [totalContactsCount]);
 
     useEffect(() => {
         loadInitialData();
@@ -191,7 +205,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate }) => {
 
             setStats(prev => ({
                 ...prev,
-                totalLeads: total,
+                totalLeads: typeof totalContactsCountRef.current === 'number' ? totalContactsCountRef.current : globalLeads.length,
                 totalValue: val,
                 conversionRate: `${conversion}%`,
                 leadsByStage: stageStats,
