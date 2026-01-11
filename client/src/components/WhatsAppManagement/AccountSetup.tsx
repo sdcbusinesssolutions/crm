@@ -61,7 +61,12 @@ const AccountSetup: React.FC = () => {
             loadFacebookSdk(data.appId);
         } catch (error: any) {
             console.error('Failed to load embedded signup config', error);
-            setConfigError(error.message || 'Failed to load configuration');
+            const msg = error.message || '';
+            // Suppress "Disabled" error from UI
+            if (msg.includes('Embedded signup is disabled')) {
+                return;
+            }
+            setConfigError(msg || 'Failed to load configuration');
         }
     };
 
