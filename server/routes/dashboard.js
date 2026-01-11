@@ -24,7 +24,7 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         // 1. Fetch Counts (Parallel for performance)
         const [
-            { count: totalContacts, error: err1 },
+            { data: rawContacts, error: err1 },
             { count: totalLeads, error: err2 },
             { count: todayLeads, error: err3 },
             { data: pipelineData, error: err4 },
@@ -43,7 +43,7 @@ router.get('/stats', requireAuth, async (req, res) => {
             { data: integrationsRes, error: err17 }
         ] = await Promise.all([
             // Total Contacts
-            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            supabase.from('contacts').select('id, phone').eq('user_id', userId),
 
             // Total Active Leads
             supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
@@ -296,6 +296,17 @@ router.get('/stats', requireAuth, async (req, res) => {
                 else if (s === 'REJECTED') templateStats.rejected++;
                 else templateStats.pending++;
             });
+        }
+
+        // Calculate unique contacts (deduplicate by phone)
+        let totalContacts = 0;
+        if (rawContacts && Array.isArray(rawContacts)) {
+            const phones = new Set();
+            rawContacts.forEach(c => {
+                const key = c.phone ? String(c.phone).trim() : `id:${c.id}`;
+                phones.add(key);
+            });
+            totalContacts = phones.size;
         }
 
         // --- PROCESS PIPELINE STATS ---
