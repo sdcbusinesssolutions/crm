@@ -30,10 +30,11 @@ server/tmp
 doc/
 docs/
 documentation/
-server/sql/
+!server/sql/
 server/db_sql/
 *.md
 *.sql
+!server/sql/cleanup_old_logs.sql
 *.txt
 # (Except license if you needed it, but user said remove MD)
 

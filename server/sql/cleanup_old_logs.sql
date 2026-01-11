@@ -19,3 +19,10 @@ BEGIN
         DELETE FROM cron.job_run_details WHERE end_time < NOW() - INTERVAL '5 days';
     END IF;
 END $$;
+
+-- 4. Cleanup Storage Files (Buckets)
+-- Deletes files from 'campaign-media' uploaded more than 10 days ago.
+-- Deleting the row in storage.objects removes the file from the Supabase interface.
+DELETE FROM storage.objects 
+WHERE bucket_id = 'campaign-media' 
+  AND created_at < NOW() - INTERVAL '20 days';

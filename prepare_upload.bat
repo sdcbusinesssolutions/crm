@@ -61,6 +61,10 @@ echo.
 type "%BUILD_DIR%\server\.env"
 echo.
 
+REM 3c. Ensure SQL Scripts needed for Backup are present
+mkdir "%BUILD_DIR%\server\sql"
+copy "server\sql\cleanup_old_logs.sql" "%BUILD_DIR%\server\sql\" >nul
+
 REM 4. Copy Root Config Files
 echo 📄 Copying Configs...
 copy "docker-compose.yml" "%BUILD_DIR%\" >nul
