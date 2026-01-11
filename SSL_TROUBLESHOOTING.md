@@ -30,12 +30,9 @@ ssh root@145.79.15.115 "docker logs traefik --tail 50"
 
 *   **Error:** `"the router uses a non-existent resolver: mytlschallenge"`
     *   **Fix:** Your VPS's Traefik uses a different name (likely `myresolver` or `letsencrypt`).
-    *   **Action:** Edit `docker-compose.yml` (Line 50):
-        ```yaml
-        # Change 'mytlschallenge' to 'myresolver' OR 'letsencrypt'
-        - "traefik.http.routers.${ROUTER_NAME}.tls.certresolver=myresolver" 
-        ```
-    *   Then Re-Deploy: `.\central_deploy.ps1`
+    *   **Action:** Update **`domains.csv`**:
+        *   In the **CertResolver** column (last one), enter `myresolver` (or whatever name you found in logs).
+        *   Then Re-Deploy: `.\central_deploy.ps1`
 
 *   **Error:** `"Unable to obtain ACME certificate ... rate limited"`
     *   **Fix:** You deployed too many times. Wait 1 hour.

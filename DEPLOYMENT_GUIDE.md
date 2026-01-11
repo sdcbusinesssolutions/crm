@@ -99,8 +99,8 @@ Open PowerShell in the root directory and run:
 The `domains.csv` file MUST strictly follow this header and structure. **Order Matters.**
 
 ```csv
-Domain,VPSIp,VPSPassword,DeployEnabled,SupabaseUrl,SupabaseServiceKey,VitePort,ServerPort,DnsLink
-cloudospire.in,145.79.15.115,your_ssh_pass,true,https://your-project.supabase.co,eyJ... (SERVICE_ROLE_KEY),5173,5000,cloudospire.in
+Domain,VPSIp,VPSPassword,DeployEnabled,TraefikNetwork,SupabaseUrl,SupabaseKey,SupabaseServiceKey,CertResolver
+cloudospire.in,145.79.15.115,pass,true,n8n_default,https://url,key,service_key,mytlschallenge
 ```
 
 *   **SupabaseServiceKey**: Must be the **SERVICE_ROLE** key (starts with `eyJ...`, usually long), NOT the Anon key. This is required for Storage Management and Schema Inspection.

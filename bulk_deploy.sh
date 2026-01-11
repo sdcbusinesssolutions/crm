@@ -22,7 +22,7 @@ echo "------------------------------------------------------"
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
-tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey; do
+tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver; do
     
     # Aggressive cleaning of variables to remove spaces and newlines
     domain=$(echo "$domain" | tr -d '\r' | xargs)
@@ -33,8 +33,14 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     sbUrl=$(echo "$sbUrl" | tr -d '\r' | xargs)
     sbKey=$(echo "$sbKey" | tr -d '\r' | xargs)
     sbServiceKey=$(echo "$sbServiceKey" | tr -d '\r' | xargs)
+    certResolver=$(echo "$certResolver" | tr -d '\r' | xargs)
     
     if [ -z "$domain" ]; then continue; fi
+    
+    # Default CertResolver if missing
+    if [ -z "$certResolver" ]; then
+        certResolver="mytlschallenge"
+    fi
     
     # Skip if not enabled (Case insensitive check)
     if [[ "${deployEnabled,,}" != "true" ]]; then
@@ -53,8 +59,7 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
 
     echo "   🔎 DEBUG VARS for $domain:"
     echo "     - VPS: $vpsIp"
-    echo "     - Key (Anon) Length: ${#sbKey}"
-    echo "     - Key (Service) Length: ${#sbServiceKey}"
+    echo "     - Resolver: $certResolver"
 
     # 3. Generate Domain-Specific .env File
     # We use quotes around values to ensure cleanliness
@@ -64,6 +69,7 @@ DOMAIN="$domain"
 ROUTER_NAME="$safeName"
 IMAGE_TAG="$imageTag"
 TRAEFIK_NETWORK="$traefikNetwork"
+CERT_RESOLVER="$certResolver"
 CLIENT_URL="$appUrl"
 APP_URL="$appUrl"
 SUPABASE_URL="$sbUrl"
