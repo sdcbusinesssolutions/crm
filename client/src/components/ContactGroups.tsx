@@ -6,9 +6,10 @@ import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, UsersIcon, Chevro
 
 interface ContactGroupsProps {
     onGroupClick?: (groupId: string) => void;
+    onGroupCountUpdate?: (count: number) => void;
 }
 
-const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick }) => {
+const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCountUpdate }) => {
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
         return new Date(dateStr).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -25,6 +26,13 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingGroup, setEditingGroup] = useState<ContactGroup | null>(null);
     const [formData, setFormData] = useState<Partial<ContactGroup>>({ name: '', description: '', contactCount: 0 });
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'single' | 'bulk'; id?: string; count?: number }>({ isOpen: false, type: 'single' });
+
+    useEffect(() => {
+        if (onGroupCountUpdate) {
+            onGroupCountUpdate(groups.length);
+        }
+    }, [groups, onGroupCountUpdate]);
 
     useEffect(() => {
         loadGroups();
@@ -62,11 +70,20 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick }) => {
         await contactGroupService.saveGroup(newGroup); await loadGroups(); setIsModalOpen(false);
     };
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm("Are you sure?")) {
-            await contactGroupService.deleteGroup(id); await loadGroups();
-            const newSet = new Set(selectedIds); newSet.delete(id); setSelectedIds(newSet);
+    const handleDelete = (id: string) => {
+        setDeleteModal({ isOpen: true, type: 'single', id });
+    };
+
+    const proceedDelete = async () => {
+        if (deleteModal.type === 'single' && deleteModal.id) {
+            await contactGroupService.deleteGroup(deleteModal.id);
+            const newSet = new Set(selectedIds); newSet.delete(deleteModal.id); setSelectedIds(newSet);
+        } else if (deleteModal.type === 'bulk') {
+            for (const id of Array.from(selectedIds)) await contactGroupService.deleteGroup(id as string);
+            setSelectedIds(new Set());
         }
+        await loadGroups();
+        setDeleteModal({ isOpen: false, type: 'single' });
     };
 
     const handleArchive = async (group: ContactGroup) => {
@@ -91,16 +108,16 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick }) => {
     const handleBulkAction = async (action: 'delete' | 'archive') => {
         setIsBulkDropdownOpen(false);
         if (selectedIds.size === 0) return;
-        if (action === 'delete' && window.confirm(`Delete ${selectedIds.size} groups?`)) {
-            for (const id of Array.from(selectedIds)) await contactGroupService.deleteGroup(id as string);
+        if (action === 'delete') {
+            setDeleteModal({ isOpen: true, type: 'bulk', count: selectedIds.size });
         } else if (action === 'archive') {
             const groupsToUpdate = groups.filter(g => selectedIds.has(g.id));
             for (const group of groupsToUpdate) {
                 const newStatus = group.status === 'Active' ? 'Archive' : 'Active';
                 await contactGroupService.saveGroup({ ...group, status: newStatus });
             }
+            setSelectedIds(new Set()); await loadGroups();
         }
-        setSelectedIds(new Set()); await loadGroups();
     };
 
     const filteredGroups = groups.filter(g => (g.status || 'Active') === activeTab && g.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -216,6 +233,34 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick }) => {
                         <div className="px-6 py-5 bg-slate-50 border-t border-slate-200 flex justify-end space-x-3 rounded-b-2xl">
                             <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 bg-white border border-slate-200 rounded-btn font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 shadow-sm">Cancel</button>
                             <button type="submit" form="group-form" className="px-6 py-3 bg-brand-600 text-white rounded-btn font-bold hover:bg-brand-700 shadow-md shadow-brand-200 transition-transform transform hover:-translate-y-0.5">Save Group</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {deleteModal.isOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}></div>
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-scale-in border border-slate-100">
+                        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mb-4 mx-auto">
+                            <TrashIcon className="w-6 h-6 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Delete {deleteModal.type === 'single' ? 'Group' : `${deleteModal.count} Groups`}?</h3>
+                        <p className="text-sm text-slate-500 text-center mb-6">
+                            Are you sure you want to delete {deleteModal.type === 'single' ? 'this group' : 'these groups'}? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteModal({ ...deleteModal, isOpen: false })}
+                                className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-btn font-bold text-slate-700 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={proceedDelete}
+                                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-btn font-bold hover:bg-red-700 shadow-md shadow-red-200"
+                            >
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>

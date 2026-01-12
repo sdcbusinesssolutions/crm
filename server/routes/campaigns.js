@@ -66,7 +66,9 @@ router.post('/create', async (req, res) => {
         const { data: { user } } = await supabase.auth.getUser();
         const config = await getWhatsAppConfig(supabase, user.id);
 
-        let { title, templateId, templateName, languageCode, contactGroupId, scheduledAt, sendNow, variableMapping, mediaUrl, mediaType, locationHeader, carouselMediaUrls } = req.body;
+        logCampaignRequest('Create Request', req.body);
+
+        let { title, templateId, templateName, languageCode, contactGroupId, scheduledAt, sendNow, variableMapping, mediaUrl, mediaType, locationHeader, carouselMediaUrls, recipientType } = req.body;
 
         // Persist Carousel Media in Mapping
         if (carouselMediaUrls?.length) {
@@ -75,15 +77,65 @@ router.post('/create', async (req, res) => {
         }
 
         // Fetch Contacts
-        let query = supabase.from('contacts').select('id, phone, name, email').eq('user_id', user.id);
-        if (contactGroupId && contactGroupId !== 'all') query = query.contains('group_ids', [contactGroupId]);
+        let validContacts = [];
 
-        const { data: contacts } = await query;
-        if (!contacts?.length) return res.status(400).json({ error: 'No contacts found.' });
+        if (recipientType === 'manual') {
+            const manualNumbers = req.body.manualNumbers || [];
+            if (!manualNumbers.length) return res.status(400).json({ error: 'No numbers provided.' });
 
-        // Validate
-        const validContacts = contacts.map(c => ({ ...c, phone: c.phone.trim().replace(/\D/g, '') }))
-            .map(c => ({ ...c, phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}` }))
+            // 1. Normalize Numbers
+            const normalized = manualNumbers.map(num => {
+                const clean = num.toString().trim().replace(/\D/g, '');
+                return clean.startsWith('+') ? clean : `+${clean}`;
+            }).filter(isValidE164);
+
+            if (!normalized.length) return res.status(400).json({ error: 'No valid manual numbers found.' });
+
+            // 2. Deduplicate
+            const uniquePhones = [...new Set(normalized)];
+
+            // 3. Find Existing in DB
+            const { data: existingContacts, error: fetchErr } = await supabase
+                .from('contacts')
+                .select('id, phone, name, email')
+                .eq('user_id', user.id)
+                .in('phone', uniquePhones);
+
+            if (fetchErr) throw fetchErr;
+
+            // 4. Build Valid Contacts (Mix of Existing + Virtual)
+            // We consciously DO NOT insert new contacts yet, based on user request.
+            // We will attempt to queue them with ID=null. If DB fails, we handle it later.
+            const existingMap = new Map(existingContacts.map(c => [c.phone, c]));
+
+            validContacts = uniquePhones.map(phone => {
+                if (existingMap.has(phone)) return existingMap.get(phone);
+                return {
+                    id: null, // Virtual Contact
+                    user_id: user.id,
+                    phone: phone,
+                    name: 'Guest',
+                    email: null,
+                    is_virtual: true // Flag for later fallback
+                };
+            });
+
+        } else {
+            // Existing Group Logic
+            if (!contactGroupId) {
+                return res.status(400).json({ error: 'Audience Group is required when not using manual numbers.' });
+            }
+
+            let query = supabase.from('contacts').select('id, phone, name, email').eq('user_id', user.id);
+            if (contactGroupId !== 'all') query = query.contains('group_ids', [contactGroupId]);
+
+            const { data: contacts } = await query;
+            if (!contacts?.length) return res.status(400).json({ error: 'No contacts found.' });
+            validContacts = contacts;
+        }
+
+        // Validate E.164 (Double check for group contacts, though we did it for manual above too)
+        validContacts = validContacts.map(c => ({ ...c, phone: c.phone.trim().replace(/\D/g, '') }))
             .map(c => ({ ...c, phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}` }))
             .filter(c => isValidE164(c.phone));
 
@@ -117,18 +169,52 @@ router.post('/create', async (req, res) => {
 
         if (cErr) throw cErr;
 
-        // Add to Queue
-        const queue = uniqueContacts.map(c => ({
-            campaign_id: campaign.id, contact_id: c.id, phone_number: c.phone, status: 'PENDING'
+        // Add to Queue (With Fallback for Schema Constraints)
+        let queue = uniqueContacts.map(c => ({
+            campaign_id: campaign.id,
+            contact_id: c.id,
+            phone_number: c.phone,
+            status: 'PENDING'
         }));
-        const { error: qErr } = await supabase.from('campaign_queue').insert(queue);
-        if (qErr) throw qErr;
 
-        // if (sendNow) {
-        //     processCampaign(campaign.id, supabase, config).catch(e => console.error(e));
-        // }
+        const { error: qInitialErr } = await supabase.from('campaign_queue').insert(queue);
 
-        if (qErr) throw qErr;
+        if (qInitialErr) {
+            // Handle Not-Null Constraint on contact_id (Postgres Code 23502)
+            if (qInitialErr.code === '23502' || qInitialErr.message?.includes('contact_id')) {
+                console.warn('[Campaign] contact_id constraint detected. Creating auto-contacts for manual entries...');
+
+                const virtuals = uniqueContacts.filter(c => !c.id);
+                if (virtuals.length > 0) {
+                    const contactsToCreate = virtuals.map(c => ({
+                        user_id: user.id,
+                        phone: c.phone,
+                        name: `Manual ${new Date().toISOString().split('T')[0]}`,
+                        group_ids: []
+                    }));
+
+                    const { data: created, error: fallbackErr } = await supabase
+                        .from('contacts')
+                        .insert(contactsToCreate)
+                        .select('id, phone');
+
+                    if (fallbackErr) throw fallbackErr;
+
+                    // Update Queue Items with new IDs
+                    const phoneToId = new Map(created.map(c => [c.phone, c.id]));
+                    queue = queue.map(q => {
+                        if (q.contact_id) return q;
+                        return { ...q, contact_id: phoneToId.get(q.phone_number) };
+                    });
+
+                    // Retry
+                    const { error: retryErr } = await supabase.from('campaign_queue').insert(queue);
+                    if (retryErr) throw retryErr;
+                }
+            } else {
+                throw qInitialErr;
+            }
+        }
 
         // Log Campaign Creation
         try {

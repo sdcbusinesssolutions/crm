@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 
 // GET /api/contacts
 router.get('/', async (req, res) => {
@@ -219,14 +219,61 @@ router.post('/bulk-delete', async (req, res) => {
       return res.status(400).json({ error: 'No IDs provided for deletion' });
     }
 
-    const { error } = await supabase
+    // 1. Fetch Phones (needed for some lookups)
+    let phones = [];
+    try {
+      const { data: contactsData } = await supabaseAdmin
+        .from('contacts')
+        .select('phone')
+        .in('id', ids);
+      if (contactsData) phones = contactsData.map(c => c.phone).filter(Boolean);
+    } catch (e) { }
+
+    // 2. Strict Delete Dependencies (Tables that definitely have contact_id and must be cleared)
+    // CRITICAL: campaign_queue often blocks deletion. We delete by contact_id. 
+    // We do NOT filter by user_id here because campaign_queue might not have it, 
+    // and contact_id is sufficiently unique (UUID).
+    try {
+      const { error: qErr } = await supabaseAdmin
+        .from('campaign_queue')
+        .delete()
+        .in('contact_id', ids);
+
+      if (qErr) console.warn("[Bulk Delete] campaign_queue delete error:", qErr.message);
+    } catch (e) {
+      console.warn("[Bulk Delete] campaign_queue exception:", e.message);
+    }
+
+    try {
+      const { error: wfsErr } = await supabaseAdmin
+        .from('whatsapp_flow_submissions')
+        .delete()
+        .in('contact_id', ids); // Assuming this table has contact_id
+    } catch (e) { }
+
+    // 3. Try to Unlink/Delete other potential dependencies (Best Effort)
+    // The previous error logs showed 'contact_id' column missing for many tables.
+    // So we only try to update if we are sure, or just suppress errors.
+    // If conversations are linked via phone, we don't need to do anything if there is no FK.
+    // If there IS a FK on phone, we might have trouble. But standard setup is usually loose coupling on phone.
+
+    // We skip the generic 'update contact_id=null' loop because those tables apparently don't have that column.
+
+    // Final Delete using Admin to ensure RLS doesn't block it (though we still check user_id)
+    const { data: deleted, error } = await supabaseAdmin
       .from('contacts')
       .delete()
       .in('id', ids)
-      .eq('user_id', req.user.id);
+      .eq('user_id', req.user.id)
+      .select();
 
-    if (error) throw error;
-    res.json({ success: true, count: ids.length });
+    if (error) {
+      console.error("Final Bulk Delete Error:", error);
+      throw error;
+    }
+
+    console.log(`[Bulk Delete] Deleted ${deleted ? deleted.length : 0} contacts.`);
+    res.json({ success: true, count: deleted ? deleted.length : 0 });
   } catch (err) {
     console.error('Error bulk deleting contacts:', err);
     res.status(500).json({ error: err.message });
@@ -237,15 +284,93 @@ router.post('/bulk-delete', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
-    const { error } = await supabase
+    const id = req.params.id;
+    const userId = req.user.id; // Correctly get user ID from request
+
+    // 1. Verify Existence & Ownership (Admin bypass for lookup)
+    const { data: contact, error: fetchErr } = await supabaseAdmin
+      .from('contacts')
+      .select('id, user_id, phone')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+
+    if (contact.user_id !== userId) {
+      console.warn(`[Delete] Ownership mismatch for ${id}. Owner: ${contact.user_id}, Requestor: ${userId}`);
+      // Return 404 to hide existence, or 403. Be honest for debugging.
+      return res.status(403).json({ error: 'Unauthorized: You do not own this contact.' });
+    }
+
+    console.log(`[Delete] Deleting contact ${id} (Phone: ${contact.phone})...`);
+
+    // 2. Unlink Historical Data (Preserve History)
+    // We attempt to set contact_id = NULL. 
+    // Added 'messages' to this list.
+    const unlinkTables = [
+      'conversations',
+      'leads',
+      'tasks',
+      'notes',
+      'appointments',
+      'flow_sessions',
+      'messages'
+    ];
+
+    for (const table of unlinkTables) {
+      try {
+        await supabaseAdmin
+          .from(table)
+          .update({ contact_id: null })
+          .eq('contact_id', id);
+      } catch (e) {
+        // console.warn(`[Delete] Unlink failed for ${table}:`, e.message);
+      }
+    }
+
+    // 3. Unlink by Phone (Special handling for Conversation persistence)
+    // If we rely on phone linking, we might want to Leave the phone number in the conversation
+    // so the history is readable, but breaking the link to the (now deleted) contact UUID.
+    // However, if the contact is deleted, the 'contact_phone' column is just a string, so it persists fine.
+    // We don't need to nullify it.
+
+    // 4. Delete Strict Dependencies
+    // campaign_queue MUST be deleted as it implies a future action for this specific ID.
+    try {
+      await supabaseAdmin.from('campaign_queue').delete().eq('contact_id', id);
+    } catch (e) {
+      console.warn(`[Delete] Failed to clear campaign_queue:`, e.message);
+    }
+
+    // whatsapp_flow_submissions: Try unlink, else delete
+    try {
+      const { error: wfsErr } = await supabaseAdmin.from('whatsapp_flow_submissions').update({ contact_id: null }).eq('contact_id', id);
+      if (wfsErr) throw wfsErr;
+    } catch (e) {
+      try { await supabaseAdmin.from('whatsapp_flow_submissions').delete().eq('contact_id', id); } catch (del) { }
+    }
+
+    // 5. Final Delete
+    const { error: delErr, count } = await supabaseAdmin
       .from('contacts')
       .delete()
-      .eq('id', req.params.id)
-      .eq('user_id', req.user.id);
+      .eq('id', id);
+    // Removed .eq('user_id') here because we already verified ownership above 
+    // and we are using Admin client which doesn't know about the RLS context anyway in this call 
+    // (unless using setting request context, which we aren't).
+    // We rely on the initial check.
 
-    if (error) throw error;
+    if (delErr) {
+      console.error("[Delete] Final delete failed:", delErr);
+      throw delErr;
+    }
+
+    console.log(`[Delete] Successfully deleted contact ${id}`);
     res.json({ success: true });
   } catch (err) {
+    console.error('[Delete] Route error:', err);
     res.status(500).json({ error: err.message });
   }
 });

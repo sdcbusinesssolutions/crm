@@ -345,10 +345,41 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
         }
     };
 
+    const [recipientType, setRecipientType] = useState<'group' | 'manual'>('group');
+    const [manualInput, setManualInput] = useState('');
+
     const handleSubmit = async () => {
-        if (!selectedTemplate || !campaignTitle || !selectedGroup) {
-            setToast({ type: 'error', title: 'Validation Error', message: 'Please fill in all required fields.' });
+        if (!selectedTemplate || !campaignTitle) {
+            setToast({ type: 'error', title: 'Validation Error', message: 'Please fill in required fields.' });
             return;
+        }
+
+        if (recipientType === 'group' && !selectedGroup) {
+            setToast({ type: 'error', title: 'Validation Error', message: 'Please select an audience group.' });
+            return;
+        }
+
+        let processedManualNumbers: string[] = [];
+        if (recipientType === 'manual') {
+            if (!manualInput.trim()) {
+                setToast({ type: 'error', title: 'Validation Error', message: 'Please paste at least one phone number.' });
+                return;
+            }
+            // Split by comma or newline, trim, filter empty
+            processedManualNumbers = manualInput.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+
+            // Validate: Must start with 91 and be 12 digits total
+            // User requirement: "validate 91 ithere and 10 digight number validation"
+            const invalidNumbers = processedManualNumbers.filter(num => !/^91\d{10}$/.test(num));
+
+            if (invalidNumbers.length > 0) {
+                setToast({
+                    type: 'error',
+                    title: 'Invalid Numbers',
+                    message: `Found ${invalidNumbers.length} invalid numbers (e.g. ${invalidNumbers[0]}). Must start with 91 and be 12 digits.`
+                });
+                return;
+            }
         }
 
         // Validate Carousel Media
@@ -375,7 +406,11 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
                 templateId: selectedTemplate.id,
                 templateName: selectedTemplate.name,
                 languageCode: selectedTemplate.language,
-                contactGroupId: selectedGroup,
+
+                recipientType, // 'group' or 'manual'
+                contactGroupId: recipientType === 'group' ? selectedGroup : null,
+                manualNumbers: recipientType === 'manual' ? processedManualNumbers : [],
+
                 scheduledAt: sendNow ? null : scheduledAt,
                 sendNow,
                 phoneNumberId: selectedPhoneNumber,
@@ -677,19 +712,64 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
                                 />
                             </div>
 
-                            <div className="space-y-1">
-                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Audience Group</label>
-                                <select
-                                    value={selectedGroup}
-                                    onChange={(e) => setSelectedGroup(e.target.value)}
-                                    className="w-full px-4 py-3 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all appearance-none text-[var(--color-text)]"
-                                >
-                                    <option value="">Select Contacts Group</option>
-                                    <option value="all">All Contacts</option>
-                                    {groups.map(g => (
-                                        <option key={g.id} value={g.id}>{g.name}</option>
-                                    ))}
-                                </select>
+                            <div className="space-y-3">
+                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Recipients</label>
+
+                                <div className="flex items-center gap-6 mb-2">
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${recipientType === 'group' ? 'border-[var(--color-brand)]' : 'border-[var(--color-text)] opacity-40'}`}>
+                                            {recipientType === 'group' && <div className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            checked={recipientType === 'group'}
+                                            onChange={() => setRecipientType('group')}
+                                            className="hidden"
+                                        />
+                                        <span className={`text-sm font-bold ${recipientType === 'group' ? 'text-[var(--color-brand)]' : 'text-[var(--color-text)] opacity-60'} group-hover:opacity-100 transition-opacity`}>Select Group</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${recipientType === 'manual' ? 'border-[var(--color-brand)]' : 'border-[var(--color-text)] opacity-40'}`}>
+                                            {recipientType === 'manual' && <div className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            checked={recipientType === 'manual'}
+                                            onChange={() => setRecipientType('manual')}
+                                            className="hidden"
+                                        />
+                                        <span className={`text-sm font-bold ${recipientType === 'manual' ? 'text-[var(--color-brand)]' : 'text-[var(--color-text)] opacity-60'} group-hover:opacity-100 transition-opacity`}>Paste Numbers</span>
+                                    </label>
+                                </div>
+
+                                {recipientType === 'group' ? (
+                                    <div className="space-y-1">
+                                        <select
+                                            value={selectedGroup}
+                                            onChange={(e) => setSelectedGroup(e.target.value)}
+                                            className="w-full px-4 py-3 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all appearance-none text-[var(--color-text)]"
+                                        >
+                                            <option value="">Select Contacts Group</option>
+                                            <option value="all">All Contacts</option>
+                                            {groups.map(g => (
+                                                <option key={g.id} value={g.id}>{g.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        <textarea
+                                            value={manualInput}
+                                            onChange={(e) => setManualInput(e.target.value)}
+                                            placeholder="e.g. 919876543210, 918888888888"
+                                            rows={4}
+                                            className="w-full px-4 py-3 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all text-sm font-mono text-[var(--color-text)] placeholder-[var(--color-text)]/30 resize-none"
+                                        />
+                                        <p className="text-xs text-[var(--color-text)] opacity-50">
+                                            Enter comma separated numbers. Must include 91 prefix (12 digits total).
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-3 p-3 bg-[var(--color-bg)] rounded-[var(--radius-btn)] border border-[var(--color-border)]">

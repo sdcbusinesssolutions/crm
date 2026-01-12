@@ -16,17 +16,32 @@ router.get('/', async (req, res) => {
 
     const groupList = data || [];
 
-    // Attempt to fetch contacts for count, but don't fail if contact table missing
-    let contacts = [];
+    // Fetch contacts for accurate count (Deduplicated)
+    let uniqueContacts = [];
     try {
-      const { data: cData } = await supabase.from('contacts').select('group_ids').eq('user_id', req.user.id);
-      contacts = cData || [];
+      const { data: cData } = await supabase
+        .from('contacts')
+        .select('id, phone, group_ids')
+        .eq('user_id', req.user.id)
+        .order('created_at', { ascending: false }); // Added sort to match contacts.js
+
+      const rawContacts = cData || [];
+      const seenPhones = new Set();
+
+      // Apply same deduplication logic as in contacts.js
+      rawContacts.forEach(c => {
+        const key = c.phone ? String(c.phone).trim() : `id:${c.id}`;
+        if (!seenPhones.has(key)) {
+          seenPhones.add(key);
+          uniqueContacts.push(c);
+        }
+      });
     } catch (e) {
-      // ignore
+      console.error("Error calculating group counts:", e);
     }
 
     const formatted = groupList.map(g => {
-      const count = contacts.filter(c => c.group_ids && c.group_ids.includes(g.id)).length;
+      const count = uniqueContacts.filter(c => c.group_ids && c.group_ids.includes(g.id)).length;
       return {
         id: g.id,
         name: g.name,

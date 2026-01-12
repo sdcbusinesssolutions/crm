@@ -72,6 +72,20 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         fetchCounts();
     }, []);
 
+    const handleContactCountUpdate = (count: number) => {
+        setCounts(prev => {
+            if (prev.contacts === count) return prev;
+            return { ...prev, contacts: count };
+        });
+    };
+
+    const handleGroupCountUpdate = (count: number) => {
+        setCounts(prev => {
+            if (prev.groups === count) return prev;
+            return { ...prev, groups: count };
+        });
+    };
+
     const handleGroupClick = (groupId: string) => {
         setSelectedGroupId(groupId);
         setActiveTab('contacts');
@@ -80,8 +94,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard': return <LeadDashboard onNavigate={(tab) => setActiveTab(tab)} totalContactsCount={counts.contacts} />;
-            case 'contacts': return <ContactList initialGroupFilter={selectedGroupId} onClearGroupFilter={() => setSelectedGroupId(null)} />;
-            case 'groups': return <ContactGroups onGroupClick={handleGroupClick} />;
+            case 'contacts': return <ContactList initialGroupFilter={selectedGroupId} onClearGroupFilter={() => setSelectedGroupId(null)} onContactCountUpdate={handleContactCountUpdate} />;
+            case 'groups': return <ContactGroups onGroupClick={handleGroupClick} onGroupCountUpdate={handleGroupCountUpdate} />;
             case 'inputs': return <InputFields />;
             case 'pipelines': return <PipelineView initialPipelineId={initialPipelineId} />;
             case 'follow-up': return <FollowUpManager />;

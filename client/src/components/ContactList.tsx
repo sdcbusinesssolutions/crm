@@ -16,14 +16,22 @@ import { countries } from '../utils/countries';
 interface ContactListProps {
     initialGroupFilter?: string | null;
     onClearGroupFilter?: () => void;
+    onContactCountUpdate?: (count: number) => void;
 }
 
-const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGroupFilter }) => {
+const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGroupFilter, onContactCountUpdate }) => {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+
+    // Sync count with parent
+    useEffect(() => {
+        if (onContactCountUpdate) {
+            onContactCountUpdate(contacts.length);
+        }
+    }, [contacts, onContactCountUpdate]); // Dependencies
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
@@ -57,6 +65,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [formData, setFormData] = useState<Partial<Contact>>({ name: '', phone: '', email: '', status: 'New', tags: [], source: 'Manual', groupIds: [], customData: {} });
     const [tagInput, setTagInput] = useState('');
     const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+
+    // Delete Modal State
+    const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'single' | 'bulk'; id?: string; count?: number }>({ isOpen: false, type: 'single' });
 
     // Inline Creation State
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
@@ -287,11 +298,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         setIsModalOpen(false);
     };
 
-    const handleDelete = async (id: string) => {
-        if (window.confirm("Are you sure?")) {
-            await contactService.deleteContact(id); await loadContacts();
-            if (selectedIds.has(id)) { const newSet = new Set(selectedIds); newSet.delete(id); setSelectedIds(newSet); }
-        }
+    const handleDelete = (id: string) => {
+        setDeleteModal({ isOpen: true, type: 'single', id });
     };
 
     const handleSelectAll = () => {
@@ -308,19 +316,65 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         setSelectedIds(newSet);
     };
 
-    const handleBulkDelete = async () => {
+    const handleBulkDelete = () => {
         setIsBulkDropdownOpen(false);
         if (selectedIds.size === 0) return;
-        if (window.confirm(`Delete ${selectedIds.size} contacts?`)) {
-            try {
-                await contactService.bulkDeleteContacts(Array.from(selectedIds));
-                setSelectedIds(new Set());
-                await loadContacts();
-                setToast({ type: 'success', title: 'Deleted', message: `${selectedIds.size} contacts deleted successfully` });
-            } catch (e) {
-                console.error("Bulk delete failed", e);
-                setToast({ type: 'error', title: 'Error', message: 'Failed to delete selected contacts' });
+        setDeleteModal({ isOpen: true, type: 'bulk', count: selectedIds.size });
+    };
+
+    const proceedDelete = async () => {
+        setIsLoading(true);
+        try {
+            // Contextual Delete: If filtering by group, just remove from that group
+            if (selectedGroupFilter) {
+                const groupName = availableGroups.find(g => g.id === selectedGroupFilter)?.name || 'Group';
+
+                if (deleteModal.type === 'single' && deleteModal.id) {
+                    const contact = contacts.find(c => c.id === deleteModal.id);
+                    if (contact) {
+                        const newGroupIds = (contact.groupIds || []).filter(gid => gid !== selectedGroupFilter);
+                        // Update contact with new group list
+                        await contactService.saveContact({ ...contact, groupIds: newGroupIds });
+                        setToast({ type: 'success', title: 'Removed', message: `Removed from ${groupName}` });
+                    }
+                } else if (deleteModal.type === 'bulk') {
+                    // Start parallel updates
+                    const updates = contacts
+                        .filter(c => selectedIds.has(c.id))
+                        .map(c => {
+                            const newGroupIds = (c.groupIds || []).filter(gid => gid !== selectedGroupFilter);
+                            return contactService.saveContact({ ...c, groupIds: newGroupIds });
+                        });
+
+                    await Promise.all(updates);
+                    setToast({ type: 'success', title: 'Removed', message: `Removed ${updates.length} contacts from ${groupName}` });
+                    setSelectedIds(new Set());
+                }
             }
+            // Standard Delete: Delete from database
+            else {
+                if (deleteModal.type === 'single' && deleteModal.id) {
+                    await contactService.deleteContact(deleteModal.id);
+                    if (selectedIds.has(deleteModal.id)) {
+                        const newSet = new Set(selectedIds);
+                        newSet.delete(deleteModal.id);
+                        setSelectedIds(newSet);
+                    }
+                    setToast({ type: 'success', title: 'Deleted', message: 'Contact deleted successfully' });
+                } else if (deleteModal.type === 'bulk') {
+                    await contactService.bulkDeleteContacts(Array.from(selectedIds));
+                    setSelectedIds(new Set());
+                    setToast({ type: 'success', title: 'Deleted', message: `${selectedIds.size} contacts deleted successfully` });
+                }
+            }
+
+            await loadContacts();
+        } catch (e) {
+            console.error("Delete/Remove failed", e);
+            setToast({ type: 'error', title: 'Error', message: 'Failed to process request' });
+        } finally {
+            setIsLoading(false);
+            setDeleteModal({ isOpen: false, type: 'single' });
         }
     };
 
@@ -1003,16 +1057,64 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 </div>
             )}
 
+            {/* Delete Confirmation Modal */}
+            {deleteModal.isOpen && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+                        <div className="p-6">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto ${selectedGroupFilter ? 'bg-amber-100' : 'bg-red-100'}`}>
+                                <TrashIcon className={`w-6 h-6 ${selectedGroupFilter ? 'text-amber-600' : 'text-red-600'}`} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">
+                                {selectedGroupFilter
+                                    ? (deleteModal.type === 'bulk' ? `Remove ${deleteModal.count} from Group?` : 'Remove from Group?')
+                                    : (deleteModal.type === 'bulk' ? `Delete ${deleteModal.count} Contacts?` : 'Delete Contact?')
+                                }
+                            </h3>
+                            <p className="text-slate-500 text-center mb-6 text-sm">
+                                {selectedGroupFilter
+                                    ? (deleteModal.type === 'bulk'
+                                        ? "Are you sure you want to remove the selected contacts from this group? They will remain in your main contact list."
+                                        : "Are you sure you want to remove this contact from this group? It will remain in your main contact list.")
+                                    : (deleteModal.type === 'bulk'
+                                        ? "Are you sure you want to delete the selected contacts? This action cannot be undone."
+                                        : "Are you sure you want to delete this contact? This action cannot be undone.")
+                                }
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setDeleteModal({ isOpen: false, type: 'single' })}
+                                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={proceedDelete}
+                                    className={`flex-1 px-4 py-2.5 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${selectedGroupFilter ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-200' : 'bg-red-600 hover:bg-red-700 shadow-red-200'}`}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? 'Processing...' : (selectedGroupFilter ? 'Remove' : 'Delete')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Toast Notification */}
             {toast && (
-                <Toast
-                    type={toast.type}
-                    title={toast.title}
-                    message={toast.message}
-                    onClose={() => setToast(null)}
-                />
+                <div className="fixed bottom-4 right-4 z-[100] animate-fade-in-up">
+                    <Toast
+                        type={toast.type}
+                        title={toast.title}
+                        message={toast.message}
+                        onClose={() => setToast(null)}
+                    />
+                </div>
             )}
         </div>
     );
 };
+
 export default ContactList;
