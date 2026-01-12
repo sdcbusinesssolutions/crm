@@ -22,7 +22,7 @@ echo "------------------------------------------------------"
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
-tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver; do
+tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection; do
     
     # Aggressive cleaning of variables to remove spaces and newlines
     domain=$(echo "$domain" | tr -d '\r' | xargs)
