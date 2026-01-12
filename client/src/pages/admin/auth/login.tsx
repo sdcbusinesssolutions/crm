@@ -39,9 +39,7 @@ const Login = () => {
         <div className="login-container">
             <div className="login-card">
                 <div className="text-center mb-6">
-                    <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-orange-200">
-                        <span className="text-white font-bold text-xl">V</span>
-                    </div>
+
                     <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome Back</h2>
                     <p className="text-sm text-gray-500">Sign in to continue to your workspace.</p>
                 </div>

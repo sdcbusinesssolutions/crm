@@ -53,9 +53,7 @@ const AuthPage: React.FC = () => {
 
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 w-full max-w-md relative z-10 animate-slide-up">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-600 text-white rounded-xl shadow-lg shadow-brand-200 mb-4">
-                        <span className="font-bold text-xl">V</span>
-                    </div>
+
                     <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                         {isSignUp ? 'Create an Account' : 'Welcome Back'}
                     </h1>
