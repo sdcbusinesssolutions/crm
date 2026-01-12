@@ -74,27 +74,59 @@ router.post('/', async (req, res) => {
       status,
       source,
       tags: tags || [],
-      group_ids: groupIds || [],
+      // group_ids handled below to prevent wiping on partial updates
       custom_data: customData || {}
     };
 
-    let result;
     // Check if it's an update (has valid UUID) or insert (has temp ID or no ID)
     const isRealUuid = id && id.length === 36 && !id.startsWith('cnt-');
+
+    if (isRealUuid) {
+      // For updates, only include group_ids if explicitly provided
+      if (groupIds !== undefined) {
+        payload.group_ids = groupIds;
+      }
+    } else {
+      // For new contacts, default to empty array if not provided
+      payload.group_ids = groupIds || [];
+    }
+
+    let result;
 
     console.log(`Working with contact ID: ${id}, isUpdate: ${isRealUuid}`);
 
     if (isRealUuid) {
       console.log('Updating existing contact...');
 
-      // Store updated_at in custom_data since the column might not exist
+      // 1. Fetch existing contact to get current custom_data
+      const { data: existing, error: fetchErr } = await supabase
+        .from('contacts')
+        .select('custom_data')
+        .eq('id', id)
+        .single();
+
+      if (fetchErr) {
+        console.warn("Could not fetch existing custom_data for merge, proceeding with overwrite", fetchErr);
+      }
+
+      // 2. Merge existing data with new payload
+      const existingCustom = existing?.custom_data || {};
+      const newCustom = payload.custom_data || {};
+
       const now = new Date().toISOString();
-      const newCustomData = { ...(payload.custom_data || {}), updated_at: now };
-      const updatePayload = { ...payload, custom_data: newCustomData };
+      // Merge: Existing gets priority? No, New payload should overwrite collisions, but keep others.
+      const mergedCustomData = {
+        ...existingCustom,
+        ...newCustom,
+        updated_at: now
+      };
 
-      // Try to update without the root updated_at column first to avoid errors
-      // console.log('Update payload updated_at:', updatePayload.updated_at);
+      const updatePayload = {
+        ...payload,
+        custom_data: mergedCustomData
+      };
 
+      // 3. Perform Update
       const { data, error } = await supabase
         .from('contacts')
         .update(updatePayload)
@@ -109,14 +141,59 @@ router.post('/', async (req, res) => {
       console.log('Update successful, returned updated_at:', data?.custom_data?.updated_at);
       result = data;
     } else {
-      console.log('Inserting new contact...');
-      const { data, error } = await supabase
+      console.log('Inserting new contact (checking for duplicates first)...');
+
+      // 1. Check for duplicate phone number
+      const { data: duplicate, error: dupError } = await supabase
         .from('contacts')
-        .insert([payload])
-        .select()
-        .single();
-      if (error) throw error;
-      result = data;
+        .select('id, custom_data, group_ids')
+        .eq('user_id', user.id)
+        .eq('phone', payload.phone)
+        .maybeSingle();
+
+      if (duplicate) {
+        console.log(`Duplicate found (ID: ${duplicate.id}). Updating instead of inserting.`);
+
+        // 2. Setup Merge Logic for Duplicate
+        const existingCustom = duplicate.custom_data || {};
+        const newCustom = payload.custom_data || {};
+
+        // Merge Groups: Add new groups to existing ones
+        const existingGroups = duplicate.group_ids || [];
+        const newGroups = payload.group_ids || [];
+        const mergedGroups = [...new Set([...existingGroups, ...newGroups])];
+
+        const mergedCustomData = {
+          ...existingCustom,
+          ...newCustom,
+          updated_at: new Date().toISOString()
+        };
+
+        const updatePayload = {
+          ...payload,
+          group_ids: mergedGroups,
+          custom_data: mergedCustomData
+        };
+
+        const { data, error } = await supabase
+          .from('contacts')
+          .update(updatePayload)
+          .eq('id', duplicate.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        result = data;
+      } else {
+        // 3. Normal Insert
+        const { data, error } = await supabase
+          .from('contacts')
+          .insert([payload])
+          .select()
+          .single();
+        if (error) throw error;
+        result = data;
+      }
     }
 
 

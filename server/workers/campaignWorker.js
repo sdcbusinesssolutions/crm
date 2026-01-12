@@ -405,13 +405,75 @@ class CampaignWorker {
                         requiredKeys.forEach(key => {
                             const field = campaign.variable_mapping[key];
                             let value = '';
-                            if (field && item.contacts && item.contacts[field]) {
-                                value = item.contacts[field];
-                            } else if (field === 'phone') {
-                                value = item.phone_number;
-                            } else {
-                                value = field || ''; // Static text or fallback
+
+                            // Helper to resolve nested paths (e.g. custom_data.Age)
+                            // or direct properties (e.g. email, name)
+                            // Helper to resolve nested paths (e.g. custom_data.Age)
+                            // or direct properties (e.g. email, name)
+                            // Enhanced with Case-Insensitive fallback
+                            const resolvePath = (obj, path) => {
+                                if (!obj || !path) return undefined;
+                                const parts = path.split('.');
+
+                                let current = obj;
+                                for (const part of parts) {
+                                    if (current === null || current === undefined) return undefined;
+
+                                    // 1. Try Exact Match
+                                    if (current[part] !== undefined) {
+                                        current = current[part];
+                                        continue;
+                                    }
+
+                                    // 2. Try Case-Insensitive Match (only if current is an object)
+                                    if (typeof current === 'object' && !Array.isArray(current)) {
+                                        const keys = Object.keys(current);
+                                        const foundKey = keys.find(k => k.toLowerCase() === part.toLowerCase());
+                                        if (foundKey) {
+                                            current = current[foundKey];
+                                            continue;
+                                        }
+                                    }
+
+                                    return undefined; // Not found
+                                }
+                                return current;
+                            };
+
+                            if (field && item.contacts) {
+                                let resolved = resolvePath(item.contacts, field);
+
+                                // Fallback for common mis-mapping (e.g. custom_data.name -> name) created by Input Builder duplicates
+                                if ((resolved === undefined || resolved === null) && field.startsWith('custom_data.')) {
+                                    const leaf = field.split('.')[1];
+                                    // If we failed to find it in custom_data, check if it exists at root levels for valid standards
+                                    if (['name', 'phone', 'email', 'status', 'source'].includes(leaf)) {
+                                        resolved = item.contacts[leaf];
+                                    }
+                                }
+
+                                if (resolved !== undefined && resolved !== null) {
+                                    value = resolved;
+                                }
                             }
+
+                            // Fallbacks
+                            if (!value && field === 'phone') {
+                                value = item.phone_number;
+                            }
+
+                            // Handling missing values
+                            if (value === undefined || value === '' || value === null) {
+                                // If the field looks like a path (e.g. custom_data.X or name/email), send empty string to avoid leaking technical keys
+                                const isLikelyPath = field && (field.includes('.') || ['name', 'email', 'phone', 'status'].includes(field));
+                                if (isLikelyPath) {
+                                    value = '';
+                                } else {
+                                    // Otherwise, assume it's a static text string the user typed (e.g. "Welcome")
+                                    value = field || '';
+                                }
+                            }
+
                             bodyParams.push({
                                 type: "text",
                                 text: String(value)

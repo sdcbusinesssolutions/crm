@@ -4,20 +4,23 @@ import Toast from '../Toast';
 import { ChevronLeftIcon, ChevronDownIcon } from '../icons';
 import TemplatePreview from '../WhatsAppTemplates/TemplatePreview';
 import { themeService } from '../../services/themeService';
+import { inputFieldService } from '../../services/inputFieldService';
 
 interface CreateCampaignProps {
     onBack: () => void;
 }
 
-const CONTACT_FIELDS = [
+const DEFAULT_CONTACT_FIELDS = [
     { label: 'Contact Name', value: 'name' },
     { label: 'Phone Number', value: 'phone' },
     { label: 'Email Address', value: 'email' },
-    // Add more fields if available in your contact schema
+    { label: 'Status', value: 'status' },
+    { label: 'Source', value: 'source' },
+    { label: 'Tags', value: 'tags' },
 ];
 
 // Helper component for variable input
-const VariableInput = ({ variable, value, onChange }: { variable: string, value: string, onChange: (val: string) => void }) => {
+const VariableInput = ({ variable, value, onChange, options }: { variable: string, value: string, onChange: (val: string) => void, options: { label: string, value: string }[] }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -52,21 +55,29 @@ const VariableInput = ({ variable, value, onChange }: { variable: string, value:
                 </button>
 
                 {showDropdown && (
-                    <div ref={dropdownRef} className="absolute top-full right-0 mt-1 w-48 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden">
-                        <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase">Insert Contact Field</div>
-                        <div className="max-h-48 overflow-y-auto">
-                            {CONTACT_FIELDS.map(field => (
+                    <div ref={dropdownRef} className="absolute top-full right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col">
+                        <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
+                            Insert Contact Field
+                        </div>
+                        <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                            {options.map(field => (
                                 <button
                                     key={field.value}
                                     onClick={() => {
                                         onChange(field.value);
                                         setShowDropdown(false);
                                     }}
-                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-[var(--color-brand)] transition-colors"
+                                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-[var(--color-brand)] transition-colors border-b border-slate-50 last:border-0"
                                 >
-                                    {field.label}
+                                    <div className="font-medium">{field.label}</div>
+                                    <div className="text-[10px] text-slate-400 font-mono">{field.value}</div>
                                 </button>
                             ))}
+                            {options.length === 0 && (
+                                <div className="px-4 py-3 text-xs text-slate-400 text-center italic">
+                                    No fields available
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -79,6 +90,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
     const [templates, setTemplates] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
     const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
+    const [availableFields, setAvailableFields] = useState<any[]>(DEFAULT_CONTACT_FIELDS);
 
     // Form State
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
@@ -318,10 +330,11 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
             if (!session) return;
             const headers = { 'Authorization': `Bearer ${session.access_token}` };
 
-            const [tplRes, grpRes, phRes] = await Promise.all([
+            const [tplRes, grpRes, phRes, customFields] = await Promise.all([
                 fetch('/api/whatsapp/templates', { headers }),
                 fetch('/api/groups', { headers }),
-                fetch('/api/settings/whatsapp', { headers })
+                fetch('/api/settings/whatsapp', { headers }),
+                inputFieldService.getInputs()
             ]);
 
             if (tplRes.ok) {
@@ -337,6 +350,18 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
                 setPhoneNumbers(data || []);
                 if (data.length > 0) setSelectedPhoneNumber(data[0].phone_number_id);
             }
+
+            // Merge Custom Fields (Always running to ensure even if empty we get defaults)
+            const standardKeys = DEFAULT_CONTACT_FIELDS.map(d => d.value);
+            const formattedCustom = (customFields || [])
+                .filter((f: any) => !standardKeys.includes(f.name.toLowerCase()) && !['name', 'email', 'phone'].includes(f.name.toLowerCase()))
+                .map((f: any) => ({
+                    label: f.name,
+                    value: f.is_implicit ? `custom_data.${f.name}` : `custom_data.${f.name}`
+                }));
+
+            // Deduplicate if needed (though map uses IDs generally, here we rely on value str)
+            setAvailableFields([...DEFAULT_CONTACT_FIELDS, ...formattedCustom]);
 
         } catch (error) {
             console.error('Error loading data:', error);
@@ -531,6 +556,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
                                                 variable={v}
                                                 value={variableMapping[v] || ''}
                                                 onChange={(val) => setVariableMapping(prev => ({ ...prev, [v]: val }))}
+                                                options={availableFields}
                                             />
                                         ))}
                                     </div>
