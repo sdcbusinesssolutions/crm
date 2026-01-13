@@ -40,6 +40,7 @@ import { ContactForms } from './components/ContactForms/ContactForms';
 import ContactTags from './components/ContactTags';
 import WhatsAppApiSettings from './components/WhatsAppApiSettings';
 import CreateCampaignComponent from './components/Campaigns/CreateCampaign';
+import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAutomation';
 
 import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
@@ -56,6 +57,7 @@ const MainApp: React.FC = () => {
     const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
     const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
+    const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
 
     // Check for existing session on load and handle redirects
     useEffect(() => {
@@ -170,13 +172,17 @@ const MainApp: React.FC = () => {
             setIsTemplateBuilderOpen(false);
         }
 
-        // Reset Campaign Swtate
+        // Reset Campaign State
         if (item === 'Campaigns') {
             setIsCreatingCampaign(false);
             setCurrentCampaignId(null);
         } else {
             setIsCreatingCampaign(false);
             setCurrentCampaignId(null);
+        }
+
+        if (item !== 'Sheet Automation') {
+            setIsCreatingSheetAutomation(false);
         }
 
         setSidebarOpen(false); // Close sidebar on mobile when navigating
@@ -317,6 +323,31 @@ const MainApp: React.FC = () => {
 
         if (activeMenuItem === 'Integrations') {
             return <IntegrationsView />;
+        }
+
+        if (activeMenuItem === 'Sheet Automation') {
+            if (isCreatingSheetAutomation) {
+                return (
+                    <div className="p-8 h-full overflow-y-auto bg-slate-50">
+                        <div className="max-w-4xl mx-auto">
+                            <button onClick={() => setIsCreatingSheetAutomation(false)} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm">
+                                ← Back to List
+                            </button>
+                            <SheetAutomationWizard
+                                onClose={() => setIsCreatingSheetAutomation(false)}
+                                onSave={() => setIsCreatingSheetAutomation(false)}
+                            />
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <div className="p-8 h-full overflow-y-auto bg-slate-50">
+                    <div className="max-w-6xl mx-auto">
+                        <SheetAutomationList onCreate={() => setIsCreatingSheetAutomation(true)} onEdit={() => { }} />
+                    </div>
+                </div>
+            );
         }
 
         return (

@@ -42,7 +42,8 @@ export type MenuItem =
     | 'Knowledge Base'
     | 'Developers'
     | 'WhatsApp API'
-    | 'My Plan';
+    | 'My Plan'
+    | 'Sheet Automation';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -144,6 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'Columns': return <ListIcon className={baseClass} />;
             case 'Opts Management': return <CheckSquareIcon className={baseClass} />;
             case 'Webhook Events': return <WebhookIcon className={baseClass} />;
+            case 'Sheet Automation': return <ListIcon className={baseClass} />;
 
             case 'Branding & Appearance': return <EyeIcon className={baseClass} />;
             case 'WhatsApp API': return <CodeIcon className={baseClass} />;
@@ -326,6 +328,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                         {!isCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
+                        {renderItem('Sheet Automation', <ListIcon className="w-5 h-5" />)}
                         {renderItem('Manage', <BriefcaseIcon className="w-5 h-5" />, true)}
                         {!isCollapsed && isManageOpen && <div className="space-y-1 mt-1 mb-2">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                         {renderItem('Integrations', <LinkIcon className="w-5 h-5" />, false, false, false)}

@@ -201,7 +201,10 @@ router.use('/admin/settings', adminSettingsRoutes);
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);
 
+app.use('/api/sheet-automations', requireAuth, require('./routes/sheet_automations'));
+
 app.use('/api', router);
+
 app.use('/api/external', require('./routes/external_api')); // Dedicated External API Endpoint
 app.use('/.netlify/functions/server', router);
 // app.use('/', router); // DISABLED: This causes conflict with SPA routing (e.g. /admin/users hits API instead of React)
@@ -259,6 +262,13 @@ if (require.main === module) {
     } else {
       console.warn('⚠️ Campaign Worker not started: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     }
+
+    // Start Sheet Automation Scheduler
+    const SheetAutomationService = require('./services/SheetAutomationService');
+    setInterval(() => {
+      SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
+    }, 60000); // Check every minute
+
     // Log Automation Status
     const clientUrl = process.env.CLIENT_URL;
     if (!clientUrl) {
