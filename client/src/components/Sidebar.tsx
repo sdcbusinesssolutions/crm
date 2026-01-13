@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         const loadTheme = async () => {
             const theme = await themeService.getTheme();
             setLogoUrl(theme.logoUrl);
-            setAppName(theme.appName || 'UpShpoi');
+            setAppName(theme.appName || 'CRM');
             setAppNameImageUrl(theme.appNameImageUrl);
             setAppNameType(theme.appNameType || 'text');
             setSidebarDisplay(theme.sidebarDisplay || 'both');

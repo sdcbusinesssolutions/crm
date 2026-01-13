@@ -5,7 +5,7 @@ import { tokenService } from './tokenService';
 export const PRESETS: ThemeConfig[] = [
     {
         id: 'default',
-        name: 'UpShpoi Default',
+        name: 'Default',
         buttonStyle: 'rounded',
         maxFileSize: 16,
         sidebarDisplay: 'both',

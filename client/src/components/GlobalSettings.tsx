@@ -198,7 +198,7 @@ const GlobalSettings: React.FC = () => {
                                             value={theme.appName ?? ''}
                                             onChange={(e) => updateTheme({ appName: e.target.value })}
                                             className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-slate-900 font-bold focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all placeholder-slate-300"
-                                            placeholder="UpShpoi"
+                                            placeholder="Application Name"
                                         />
                                     )}
                                 </div>

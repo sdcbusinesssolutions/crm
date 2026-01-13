@@ -412,7 +412,7 @@ const MainApp: React.FC = () => {
                                 <div className="w-6 h-6 bg-brand-600 rounded-md flex items-center justify-center">
                                     <span className="text-white font-bold text-xs">V</span>
                                 </div>
-                                <span className="font-bold text-lg text-slate-800">UpShpoi</span>
+                                <span className="font-bold text-lg text-slate-800">CRM</span>
                             </div>
                         </div>
                     </div>
