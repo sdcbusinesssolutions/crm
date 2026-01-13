@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { MenuItem } from './Sidebar';
 import { getLeads } from '../services/lead-management-api';
 import EngagementCard from './EngagementCard';
+import { QRCodeCanvas } from 'qrcode.react';
 
 // --- Types ---
 export interface DashboardStats {
@@ -520,9 +521,6 @@ const WhatsAppScannerCard: React.FC<{
     const formattedPhone = displayPhone || (phone ? phone.replace(/\D/g, '').replace(/(\d{2})(\d{5})(\d{5})/, '+$1 $2 $3') : 'Not Connected');
     // Link for the QR code: wa.me/<number>
     const qrLink = phone ? `https://wa.me/${phone.replace(/\D/g, '')}` : 'https://whatsapp.com';
-    // Using a reliable public API for QR generation. 
-    // In a real prod environment with privacy concerns, we'd use a local lib like `qrcode.react`.
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrLink)}&bgcolor=FFFFFF&color=0f172a&qzone=0`;
 
     // Map tier to readable string
     const formatLimit = (tier: string) => {
@@ -580,9 +578,16 @@ const WhatsAppScannerCard: React.FC<{
             </div>
 
             {/* QR Code Area */}
-            <div onClick={onConnect} className="z-10 bg-white p-3 rounded-2xl shadow-2xl mt-6 transform transition-transform hover:scale-105 duration-300 cursor-pointer group">
+            <div onClick={onConnect} className="z-10 bg-white p-3 rounded-2xl shadow-2xl mt-6 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
                 {phone ? (
-                    <img src={qrImageUrl} alt="Scan to Chat" className="w-32 h-32 object-contain" />
+                    <QRCodeCanvas
+                        value={qrLink}
+                        size={128}
+                        level={"H"}
+                        className="w-32 h-32 object-contain"
+                        fgColor="#0f172a"
+                        bgColor="#FFFFFF"
+                    />
                 ) : (
                     <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-400 text-xs text-center p-2">
                         Configure in Settings
