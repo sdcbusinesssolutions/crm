@@ -227,6 +227,48 @@ const GlobalSettings: React.FC = () => {
                                     </div>
                                 </div>
 
+                                <div className="border-t border-slate-100 my-2"></div>
+                                {/* Favicon Settings */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Favicon</label>
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-16 h-16 rounded-2xl bg-slate-50 border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative group hover:border-brand-400 transition-colors">
+                                            {theme.faviconUrl ? (
+                                                <img src={theme.faviconUrl} alt="Favicon" className="w-8 h-8 object-contain" />
+                                            ) : (
+                                                <div className="w-4 h-4 bg-slate-300 rounded-full"></div>
+                                            )}
+                                        </div>
+                                        <div className="flex flex-col gap-3">
+                                            <input
+                                                type="file"
+                                                id="favicon-upload"
+                                                className="hidden"
+                                                accept="image/png,image/gif,image/jpeg,image/x-icon,image/svg+xml"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) {
+                                                        const reader = new FileReader();
+                                                        reader.onload = (event) => {
+                                                            updateTheme({ faviconUrl: event.target?.result as string });
+                                                        };
+                                                        reader.readAsDataURL(file);
+                                                    }
+                                                }}
+                                            />
+                                            <button onClick={() => document.getElementById('favicon-upload')?.click()} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 transform active:scale-95">
+                                                <UploadIcon className="w-4 h-4" /> Upload Favicon
+                                            </button>
+                                            {theme.faviconUrl && (
+                                                <button onClick={() => updateTheme({ faviconUrl: undefined })} className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-600 rounded-xl text-sm font-bold shadow-sm transition-all">
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-slate-400 mt-2">Recommended: 32x32px or 64x64px PNG/ICO.</p>
+                                </div>
+
                                 {/* Sidebar Header Display */}
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Sidebar Display Preference</label>
@@ -377,7 +419,7 @@ const GlobalSettings: React.FC = () => {
                     </div>
                 </div>
             </div>
-        </div >
+        </div>
     );
 };
 

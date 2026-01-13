@@ -177,5 +177,16 @@ export const themeService = {
             'pill': '9999px' // full rounded
         };
         root.style.setProperty('--radius-btn', radiusMap[theme.buttonStyle || 'rounded']);
+
+        // Favicon Application
+        if (theme.faviconUrl) {
+            let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = theme.faviconUrl;
+        }
     }
 };

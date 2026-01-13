@@ -525,6 +525,7 @@ export interface ThemeConfig {
   maxFileSize?: number; // New: Max file size in MB
   sidebarDisplay?: 'both' | 'logo_only' | 'name_only'; // New: Control what to show in sidebar header
   appNameImageUrl?: string; // New: Application Name Image URL
+  faviconUrl?: string; // New: Custom Favicon URL
   appNameType?: 'text' | 'image'; // New: Preference for App Name display
   colors: {
     brand: string; // Primary interactive color (Buttons, Links, Active States)
