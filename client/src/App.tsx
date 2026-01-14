@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
@@ -25,6 +24,7 @@ import { MenuIcon } from './components/icons';
 import { themeService } from './services/themeService';
 import FormPublicView from './components/FormPublicView';
 import WhatsAppManagement from './components/WhatsAppManagement';
+import AuthBridge from './components/WhatsAppManagement/AuthBridge';
 import WhatsAppForms from './components/WhatsAppForms';
 import WhatsAppFormBuilder from './components/WhatsAppFormBuilder';
 import { tokenService } from './services/tokenService';
@@ -455,6 +455,9 @@ const App: React.FC = () => {
 
                 {/* Google OAuth Callback */}
                 <Route path="/rest/oauth2-credential/callback" element={<GoogleCallbackPage />} />
+
+                {/* WhatsApp Central Auth Bridge */}
+                <Route path="/waba_auth_bridge" element={<AuthBridge />} />
 
                 {/* Main App Catch-All */}
                 <Route path="/*" element={<MainApp />} />

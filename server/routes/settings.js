@@ -574,12 +574,32 @@ router.put('/onboarding', async (req, res) => {
 const MetaOnboardingService = require('../services/MetaOnboardingService');
 
 // GET /settings/onboarding/config - Public config for embedded signup (App ID, Config ID)
+// GET /settings/onboarding/config - Public config for embedded signup (App ID, Config ID)
 router.get('/onboarding/config', async (req, res) => {
     try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+
+        // 1. Check for User-Specific Overrides (Allowing "Bring Your Own App")
+        const { data: userSettings, error: userError } = await supabase
+            .from('onboarding_settings')
+            .select('*')
+            .eq('user_id', userId)
+            .single();
+
+        if (userSettings && userSettings.embedded_enabled && userSettings.embedded_app_id && userSettings.embedded_config_id) {
+            console.log('DEBUG: Returning Custom User App Config for Embedded Signup');
+            return res.json({
+                appId: userSettings.embedded_app_id,
+                configId: userSettings.embedded_config_id,
+                isCustom: true // Signal frontend to use own domain bridge
+            });
+        }
+
+        // 2. Fallback to System Settings
         let settings;
         try {
             settings = await MetaOnboardingService.getSystemSettings();
-            console.log('DEBUG: Onboarding Settings Triggered:', JSON.stringify(settings));
         } catch (e) {
             // If settings missing, just return disabled state
             return res.status(403).json({ error: 'Embedded signup is not configured.' });
@@ -590,7 +610,9 @@ router.get('/onboarding/config', async (req, res) => {
         }
         res.json({
             appId: settings.embedded_app_id,
-            configId: settings.embedded_config_id
+            configId: settings.embedded_config_id,
+            bridgeDomain: settings.bridge_domain || 'https://cloudospire.in', // Default to CloudOspire
+            isCustom: false
         });
     } catch (error) {
         console.error('Error fetching onboarding config:', error);

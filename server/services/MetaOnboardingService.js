@@ -58,9 +58,16 @@ class MetaOnboardingService {
             console.log('Standard WABA fetch failed, trying debug_token strategy...');
         }
 
+
         // 2. Fallback: Use debug_token to find granular scopes
         try {
+            // Get settings and ensure they exist
             const settings = await this.getSystemSettings();
+            if (!settings || !settings.embedded_app_id || !settings.embedded_app_secret) {
+                console.log('Skipping debug_token fallback: Missing system app credentials');
+                return { data: [] };
+            }
+
             const appToken = `${settings.embedded_app_id}|${settings.embedded_app_secret}`;
 
             const debugRes = await axios.get(`${this.graphApiUrl}/debug_token`, {

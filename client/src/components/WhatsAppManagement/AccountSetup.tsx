@@ -30,7 +30,7 @@ const AccountSetup: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Embedded Signup State
-    const [embeddedConfig, setEmbeddedConfig] = useState<{ appId: string, configId: string } | null>(null);
+    const [embeddedConfig, setEmbeddedConfig] = useState<{ appId: string, configId: string, isCustom?: boolean, bridgeDomain?: string } | null>(null);
     const [configError, setConfigError] = useState<string | null>(null);
     const [sdkLoaded, setSdkLoaded] = useState(false);
     const [isCoexistenceEnabled, setIsCoexistenceEnabled] = useState(false); // Coexistence Mode toggle
@@ -58,7 +58,7 @@ const AccountSetup: React.FC = () => {
             const data = await settingsService.getEmbeddedSignupConfig();
             console.log('Embedded Config Loaded:', data);
             setEmbeddedConfig(data);
-            loadFacebookSdk(data.appId);
+
         } catch (error: any) {
             console.error('Failed to load embedded signup config', error);
             const msg = error.message || '';
@@ -70,85 +70,7 @@ const AccountSetup: React.FC = () => {
         }
     };
 
-    const loadFacebookSdk = (appId: string) => {
-        if ((window as any).FB) {
-            setSdkLoaded(true);
-            return;
-        }
 
-        (window as any).fbAsyncInit = function () {
-            (window as any).FB.init({
-                appId: appId,
-                cookie: true,
-                xfbml: true,
-                version: 'v20.0'
-            });
-            setSdkLoaded(true);
-        };
-
-        (function (d, s, id) {
-            var js, fjs = d.getElementsByTagName(s)[0];
-            if (d.getElementById(id)) { return; }
-            js = d.createElement(s) as HTMLScriptElement; js.id = id;
-            js.src = "https://connect.facebook.net/en_US/sdk.js";
-            fjs.parentNode?.insertBefore(js, fjs);
-        }(document, 'script', 'facebook-jssdk'));
-    };
-
-    const launchFacebookSignup = () => {
-        if (!embeddedConfig || !sdkLoaded) return;
-
-        (window as any).FB.login(async (response: any) => {
-            if (response.authResponse) {
-                const code = response.authResponse.code;
-                // Wait, standard FB login returns accessToken. 
-                // For Embedded Signup (WhatsApp), we configured the Login button to use a configuration_id.
-                // But calling FB.login() programmatically needs parameters.
-                // Actually, the "Login with Facebook" button for WhatsApp usually uses the JavaScript SDK with 'config_id'.
-
-                // However, capturing the response varies.
-                // Let's try standard handling, but we need the 'code' for server-side exchange if we want long-lived token.
-                // The PHP reference uses `code`.
-                // So we assume the frontend sends `code`.
-                // FB.login response contains `status`, `authResponse` {accessToken, userID, expiresIn, signedRequest, graphDomain, data_access_expiration_time}
-                // It does NOT strictly return 'code' unless we ask for 'response_type': 'code'??
-                // Wait, Embedded Signup guide says:
-                /*
-                  FB.login(function (response) {
-                    if (response.authResponse) {
-                       const code = response.authResponse.code;
-                       // ...
-                    } else {
-                       // User cancelled
-                    }
-                  }, {
-                    config_id: '<CONFIG_ID>', // The Onboarding Config ID
-                    response_type: 'code',    // Important for backend exchange
-                    override_default_response_type: true,
-                    extras: {
-                      setup: {},
-                      featureType: '',
-                      sessionInfoVersion: '2',
-                    }
-                  });
-                */
-
-                // Let's implement this strictly.
-
-            } else {
-                console.log('User cancelled login or did not fully authorize.');
-            }
-        }, {
-            config_id: embeddedConfig.configId,
-            response_type: 'code',
-            override_default_response_type: true,
-            extras: {
-                setup: {},
-                featureType: '',
-                sessionInfoVersion: '2',
-            }
-        });
-    };
 
     // We need a separate message listener for the "WhatsApp Onboarding" events if they come via window message?
     // Actually, the FB.login callback handles the initial auth.
@@ -166,54 +88,14 @@ const AccountSetup: React.FC = () => {
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            // Origin check omitted for brevity but recommended
             try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'WA_EMBEDDED_SIGNUP') {
-                    // Determine if we have waba_id, phone_number_id, etc.
-                    // This depends on how the popup sends data back.
-                    // The standard FB SDK `FB.login` with `config_id` returns the `code`.
-                    // The `waba_id` and `phone_number_id` are *not* automatically returned in the `authResponse` of `FB.login`.
-                    // They are only available if we use the *FBE* (Facebook Business Extension) or if we fetch them via API using the token.
+                const data = event.data;
+                if (!data) return;
 
-                    // HOWEVER, the PHP reference implies the client sends them.
-                    // Strategy: We will use the `code` to get the token on backend.
-                    // Then on backend we Fetch the WABA and Phone Numbers.
-                    // BUT if there are multiple numbers, we need to know which one the user selected.
-                    // If the user selects a number in the popup, does Meta return that selection?
-                    // 
-                    // Actually, if we use `config_id`, the flow guides them to select *one* number and one WABA.
-                    // The `FB.login` callback unfortunately only gives the code/token.
-                    // We might need to fetch the "Shared WABA" info.
-                    // 
-                    // Let's look at the PHP `getPhoneNumbers` call. It fetches ALL numbers.
-                    // `processEmbeddedSignUp` takes `phone_number_id` from request.
-                    // So the frontend MUST have it.
-                    // 
-                    // How to get `phone_number_id` in frontend?
-                    // Listen for the `message` event from the iframe/popup?
-                    // 
-                    // Alternative:
-                    // The `FB.login` callback `response` object might have `status: 'connected'` 
-                    // but finding the exact IDs is tricky without the FBE helper.
-                    // 
-                    // Let's try to assume the backend can fetch the list and if there is only 1, pick it.
-                    // If there are multiple, maybe backend returns a list for user to choose?
-                    // But the PHP ref implies it receives it.
-                    // 
-                    // Let's look at standard implementation:
-                    // window.addEventListener('message', (event) => {
-                    //    const data = JSON.parse(event.data);
-                    //    if (data.event === 'session_data_entered') { ... } 
-                    // })
-
-                    // I will stick to sending just the CODE first. The backend Logic I wrote expects waba_id/phone_id.
-                    // I will modify the backend to be smarter: IF waba_id/phone_id missing, Fetch list and return to frontend?
-                    // OR, simpler: The backend fetches the list. If > 0, pick the first one (most common case).
-                    // The PHP ref loops and finds the one matching request.
-
-                    // For this iteration, let's implement the `FB.login` and capture the `code`.
-                    // Then we will call the backend.
+                if (data.type === 'WA_BRIDGE_CODE') {
+                    const code = data.code;
+                    console.log('Received Code from Auth Bridge:', code);
+                    registerEmbeddedAccount(code);
                 }
             } catch (e) { }
         };
@@ -221,43 +103,41 @@ const AccountSetup: React.FC = () => {
         return () => window.removeEventListener('message', handleMessage);
     }, []);
 
+    const launchFacebookSignup = () => {
+        if (!embeddedConfig) {
+            console.error('Embedded config missing');
+            return;
+        }
+
+        // Determine Bridge Domain based on Configuration Type
+        // If Custom (User provided own ID), use own domain (window.location.origin)
+        // If System (Provider), use the configured bridge domain (or default to cloudospire.in)
+        const SYSTEM_BRIDGE_DOMAIN = embeddedConfig.bridgeDomain || 'https://cloudospire.in';
+        const BRIDGE_DOMAIN = embeddedConfig.isCustom ? window.location.origin : SYSTEM_BRIDGE_DOMAIN;
+
+        const bridgeUrl = new URL(`${BRIDGE_DOMAIN}/waba_auth_bridge`);
+
+        bridgeUrl.searchParams.append('app_id', embeddedConfig.appId);
+        bridgeUrl.searchParams.append('config_id', embeddedConfig.configId);
+        bridgeUrl.searchParams.append('origin', window.location.origin);
+        bridgeUrl.searchParams.append('is_coexistence', isCoexistenceEnabled ? 'true' : 'false');
+
+        // Center the popup
+        const width = 600;
+        const height = 800;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+
+        window.open(
+            bridgeUrl.toString(),
+            'WaAuthBridge',
+            `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,status=no,resizable=yes`
+        );
+    };
+
     const handleFacebookLogin = () => {
         console.log('Connect with Facebook clicked.');
-
-        if (!embeddedConfig) {
-            console.error('No embedded config found.');
-            alert('Configuration missing.');
-            return;
-        }
-
-        if (!(window as any).FB) {
-            console.error('FB Object not found in window.');
-            alert('Facebook SDK not loaded. Please disable ad-blockers.');
-            return;
-        }
-
-        console.log('Launching FB Login with Config ID:', embeddedConfig.configId);
-
-        (window as any).FB.login((response: any) => {
-            (async () => {
-                console.log('FB.login response:', response);
-                if (response.authResponse && response.authResponse.code) {
-                    const code = response.authResponse.code;
-                    console.log('Got Code:', code);
-                    registerEmbeddedAccount(code).catch(err => console.error(err));
-                } else {
-                    console.log('User cancelled or no code returned.');
-                }
-            })();
-        }, {
-            config_id: embeddedConfig.configId,
-            response_type: 'code',
-            override_default_response_type: true,
-            extras: isCoexistenceEnabled ? {
-                featureType: 'whatsapp_business_app_onboarding',
-                sessionInfoVersion: '3'
-            } : undefined
-        });
+        launchFacebookSignup();
     };
 
     const registerEmbeddedAccount = async (code: string) => {

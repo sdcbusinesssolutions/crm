@@ -30,12 +30,14 @@ exports.getOnboardingSettings = async (req, res) => {
 exports.updateOnboardingSettings = async (req, res) => {
     try {
         const SYSTEM_ID = 'system';
+
         const {
             manual_enabled,
             embedded_enabled,
             embedded_app_id,
             embedded_app_secret,
-            embedded_config_id
+            embedded_config_id,
+            bridge_domain
         } = req.body;
 
         // Upsert settings with system ID
@@ -48,6 +50,7 @@ exports.updateOnboardingSettings = async (req, res) => {
                 embedded_app_id,
                 embedded_app_secret,
                 embedded_config_id,
+                bridge_domain: bridge_domain || null,
                 updated_at: new Date().toISOString()
             }, { onConflict: 'user_id' })
             .select()

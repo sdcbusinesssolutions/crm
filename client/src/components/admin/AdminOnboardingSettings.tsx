@@ -5,11 +5,13 @@ const AdminOnboardingSettings = () => {
     const [manualEnabled, setManualEnabled] = useState(false);
     const [embeddedEnabled, setEmbeddedEnabled] = useState(false);
 
+
     // Config for Embedded
     const [signupConfig, setSignupConfig] = useState({
         appId: '',
         appSecret: '',
-        configId: ''
+        configId: '',
+        bridgeDomain: ''
     });
 
     const [isLoading, setIsLoading] = useState(true);
@@ -26,10 +28,12 @@ const AdminOnboardingSettings = () => {
             if (data) {
                 setManualEnabled(data.manual_enabled || false);
                 setEmbeddedEnabled(data.embedded_enabled || false);
+
                 setSignupConfig({
                     appId: data.embedded_app_id || '',
                     appSecret: data.embedded_app_secret || '',
-                    configId: data.embedded_config_id || ''
+                    configId: data.embedded_config_id || '',
+                    bridgeDomain: data.bridge_domain || ''
                 });
             }
         } catch (error) {
@@ -44,12 +48,14 @@ const AdminOnboardingSettings = () => {
         setIsSaving(true);
         setMessage(null);
         try {
+
             await adminSettingsService.saveOnboardingSettings({
                 manual_enabled: manualEnabled,
                 embedded_enabled: embeddedEnabled,
                 embedded_app_id: signupConfig.appId,
                 embedded_app_secret: signupConfig.appSecret,
-                embedded_config_id: signupConfig.configId
+                embedded_config_id: signupConfig.configId,
+                bridge_domain: signupConfig.bridgeDomain
             });
             showMessage('Onboarding settings saved successfully.', 'success');
         } catch (error) {
@@ -200,6 +206,7 @@ const AdminOnboardingSettings = () => {
                                 </div>
                             </div>
 
+
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">App Secret</label>
                                 <div className="relative">
@@ -212,6 +219,21 @@ const AdminOnboardingSettings = () => {
                                     />
                                 </div>
                                 <p className="text-[10px] text-gray-400 text-right">Never share your App Secret.</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bridge Domain (Optional)</label>
+                                <input
+                                    type="text"
+                                    placeholder="https://cloudospire.in"
+                                    value={signupConfig.bridgeDomain}
+                                    onChange={(e) => setSignupConfig({ ...signupConfig, bridgeDomain: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-300 font-mono text-sm"
+                                />
+                                <p className="text-[10px] text-gray-400">
+                                    The domain where the Auth Bridge is hosted. Defaults to <code>https://cloudospire.in</code>.
+                                    Change this only if you are white-labeling the bridge itself.
+                                </p>
                             </div>
                         </div>
                     </div>
