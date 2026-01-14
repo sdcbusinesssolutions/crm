@@ -46,17 +46,24 @@ class FacebookLeadService {
             }
 
             // Cache it
+            // Cache it
             this.cachedCredentials = {
                 appId: this.envAppId || data.embedded_app_id,
                 appSecret: this.envAppSecret || data.embedded_app_secret,
-                configId: this.envConfigId || data.embedded_config_id
+                // FORCE Lead Config ID as requested by user to ensure separation from WhatsApp Config
+                configId: '799224023176669'
             };
-            console.log('[FacebookLeadService] Credentials loaded from DB');
+            console.log('[FacebookLeadService] Credentials loaded. Config ID enforced: 799224023176669');
             return this.cachedCredentials;
 
         } catch (e) {
             console.error('[FacebookLeadService] Failed to fetch system app settings:', e.message);
-            return { appId: this.envAppId, appSecret: this.envAppSecret, configId: this.envConfigId };
+            // Even in error/fallback, try to provide the correct Config ID if possible, though appId might be missing
+            return {
+                appId: this.envAppId,
+                appSecret: this.envAppSecret,
+                configId: '799224023176669'
+            };
         }
     }
 

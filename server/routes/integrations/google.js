@@ -20,8 +20,8 @@ router.post('/auth-url', (req, res) => {
         const { clientId, redirectUrl } = req.body;
 
         // Allow passing overrides, otherwise use env
-        const effectiveClientId = clientId || process.env.GOOGLE_CLIENT_ID;
-        const effectiveRedirectUrl = redirectUrl || process.env.GOOGLE_REDIRECT_URL;
+        const effectiveClientId = (clientId || process.env.GOOGLE_CLIENT_ID || '').trim();
+        const effectiveRedirectUrl = (redirectUrl || process.env.GOOGLE_REDIRECT_URL || '').trim();
 
         if (!effectiveClientId || !effectiveRedirectUrl) {
             return res.status(400).json({ error: 'Missing Client ID or Redirect URL configuration' });
@@ -60,10 +60,10 @@ router.post('/exchange', async (req, res) => {
         const userId = req.user.id;
 
         // Use provided creds or fallback to env
-        const creds = {
-            clientId: clientId || process.env.GOOGLE_CLIENT_ID,
-            clientSecret: clientSecret || process.env.GOOGLE_CLIENT_SECRET,
-            redirectUrl: redirectUrl || process.env.GOOGLE_REDIRECT_URL
+        let creds = {
+            clientId: (clientId || process.env.GOOGLE_CLIENT_ID || '').trim(),
+            clientSecret: (clientSecret || process.env.GOOGLE_CLIENT_SECRET || '').trim(),
+            redirectUrl: (redirectUrl || process.env.GOOGLE_REDIRECT_URL || '').trim()
         };
 
         if (!code) return res.status(400).json({ error: 'Missing auth code' });
@@ -79,6 +79,7 @@ router.post('/exchange', async (req, res) => {
         );
 
         // A. Exchange
+        console.log(`[Google Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
         const { tokens } = await oauth2Client.getToken(code);
         oauth2Client.setCredentials(tokens);
 
@@ -95,10 +96,10 @@ router.post('/exchange', async (req, res) => {
         // because we need them later to refresh the token!
         const storedCredentials = {
             ...tokens,
-            // Only store these if they differ from Env? No, safer to store them if this connection relies on them.
-            params_client_id: clientId || null,
-            params_client_secret: clientSecret || null,
-            params_redirect_url: redirectUrl || null
+            // Store param overrides if they were provided in the request
+            params_client_id: clientId ? creds.clientId : null,
+            params_client_secret: clientSecret ? creds.clientSecret : null,
+            params_redirect_url: redirectUrl ? creds.redirectUrl : null
         };
 
         // D. Upsert to DB
@@ -137,8 +138,13 @@ router.post('/exchange', async (req, res) => {
         res.json({ success: true, name: finalConnectionName });
 
     } catch (error) {
-        console.error('Google Exchange Error:', error);
-        res.status(500).json({ error: error.message || 'Failed to exchange token' });
+        console.error('Google Exchange Error Details:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data
+        });
+        const errorMessage = error.response?.data?.error_description || error.message || 'Failed to exchange token';
+        res.status(500).json({ error: errorMessage, details: error.response?.data });
     }
 });
 

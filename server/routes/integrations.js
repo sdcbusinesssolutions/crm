@@ -106,28 +106,43 @@ router.post('/facebook/connect', async (req, res) => {
 
         const hasLeadsPermission = permissions.some(p => p.permission === 'leads_retrieval' && p.status === 'granted');
         const hasPagesPermission = permissions.some(p => p.permission === 'pages_show_list' && p.status === 'granted');
+        // Check for pages_manage_ads or similar if strict adherence is needed
+        const hasAdsPermission = permissions.some(p => (p.permission === 'pages_manage_ads' || p.permission === 'ads_management') && p.status === 'granted');
 
         console.log('[Facebook Connect] Permission check results:', {
             leads_retrieval: hasLeadsPermission,
-            pages_show_list: hasPagesPermission
+            pages_show_list: hasPagesPermission,
+            pages_manage_ads: hasAdsPermission
         });
 
-        if (!hasLeadsPermission || !hasPagesPermission) {
-            const missing = { leads_retrieval: !hasLeadsPermission, pages_show_list: !hasPagesPermission };
-            console.warn('[Facebook Connect] WARNING: Some permissions appear missing:', missing);
-            console.warn('[Facebook Connect] This might be expected with Config ID flow. Attempting to continue...');
+        if (!hasLeadsPermission || !hasPagesPermission || !hasAdsPermission) {
+            const missing = {
+                leads_retrieval: !hasLeadsPermission,
+                pages_show_list: !hasPagesPermission,
+                pages_manage_ads: !hasAdsPermission
+            };
+            console.warn('[Facebook Connect] WARNING: Critical permissions missing:', missing);
             logFacebookLeadEvent('CONNECT_PERMISSIONS_WARNING', { userId, missing });
-            // Don't block - Config ID might have permissions configured differently
-            // return res.status(403).json({
-            //     error: 'Required permissions missing. Please grant "leads_retrieval" and "pages_show_list" access.',
-            //     details: { leads_retrieval: hasLeadsPermission, pages_show_list: hasPagesPermission }
-            // });
+
+            // Should we block? If pages_show_list is missing, we definitely can't find pages.
+            // User Request: Force allow connection even if permissions appear missing, because Config ID might behave differently.
+            if (!hasPagesPermission) {
+                console.warn('[Facebook Connect] proceeding despite missing pages_show_list...');
+                // return res.status(403).json({
+                //    error: 'Missing "pages_show_list" permission. Please reconnect and ensure you select ALL pages.',
+                //    missing
+                // });
+            }
         }
 
         // 2. Fetch Pages
         console.log('[Facebook Connect] Fetching pages...');
         const pages = await facebookService.getPages(longLivedToken, userId);
         console.log(`[Facebook Connect] Fetched ${pages.length} pages`);
+
+        if (pages.length === 0) {
+            console.warn('[Facebook Connect] No pages found. This is likely due to permissions filtering (Graph API requires Manage/Show List to see them).');
+        }
 
         // 3. Save & Subscribe
         console.log('[Facebook Connect] Saving pages...');

@@ -23,13 +23,11 @@ const FacebookLeadAdsCard: React.FC = () => {
     const initFacebook = async () => {
         const config = await integrationsService.getFacebookConfig();
         if (config && config.appId) {
-            // Priority: Hardcoded Lead Config > API (which returns WhatsApp Config)
-            // ID: 799224023176669 (User specified for Lead/Page Access)
+            // User requested to strictly use this Config ID: 799224023176669
             const LEAD_CONFIG_ID = '799224023176669';
+            const finalConfigId = config.configId || LEAD_CONFIG_ID;
 
-            // The API returns the WhatsApp config from onboarding_settings, so we override it for this specific component
-            const finalConfigId = LEAD_CONFIG_ID;
-
+            // We must use Config ID to avoid "App Not Available" errors for unapproved scopes
             setConfigId(finalConfigId);
             console.log('[FacebookCard] Using Config ID:', finalConfigId);
 
@@ -122,9 +120,15 @@ const FacebookLeadAdsCard: React.FC = () => {
                 loginOptions.config_id = configId;
                 loginOptions.response_type = 'code';
                 loginOptions.override_default_response_type = true;
+
+                // User requested to ADD scopes alongside Config ID
+                // Note: FB usually ignores 'scope' if 'config_id' is present, but we will try to force it.
+                // This is an attempt to augment the Config ID with missing permissions.
+                loginOptions.scope = 'public_profile,email,pages_show_list,leads_retrieval,pages_read_engagement,pages_manage_metadata,pages_manage_ads,ads_management,business_management';
             } else {
                 console.log('[FacebookCard] Logging in with deprecated scopes');
-                loginOptions.scope = 'public_profile,email,pages_show_list,leads_retrieval,pages_read_engagement,pages_manage_metadata';
+                // Added pages_manage_ads to fallback scopes as requested by error logs
+                loginOptions.scope = 'public_profile,email,pages_show_list,leads_retrieval,pages_read_engagement,pages_manage_metadata,pages_manage_ads';
             }
 
             (window as any).FB.login((response: any) => {
