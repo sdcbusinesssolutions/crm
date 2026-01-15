@@ -357,6 +357,7 @@ const Users = () => {
                                         </th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">User Details</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Domain</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
@@ -396,6 +397,11 @@ const Users = () => {
                                                         }`}>
                                                     {user.status || 'Unknown'}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100 inline-block">
+                                                    {user.signupDomain || 'N/A'}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-xs font-mono text-slate-600">{user.mobile || 'N/A'}</div>

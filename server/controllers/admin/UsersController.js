@@ -354,17 +354,12 @@ exports.impersonateUser = async (req, res) => {
         // Or if we are testing domains locally with hosts file.
         // For production: construct https://{targetDomain}
 
-        let baseUrl = '';
+        // PROD MODE: Dynamic Redirect
+        // FORCE the link to point to the user's domain.
+        const protocol = targetDomain.includes('localhost') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${targetDomain}`;
 
-        if (process.env.NODE_ENV === 'development' || (req.headers.origin && req.headers.origin.includes('localhost'))) {
-            // DEV MODE: Just use the current origin or configured CLIENT_URL but warn
-            baseUrl = req.headers.origin || 'http://localhost:5173';
-            console.log(`[Dev Impersonation] Staying on ${baseUrl} (Target would be ${targetDomain})`);
-        } else {
-            // PROD MODE: Dynamic Redirect
-            baseUrl = `https://${targetDomain}`;
-            console.log(`[Prod Impersonation] Switching to ${baseUrl}`);
-        }
+        console.log(`[Impersonation] Targeting: ${baseUrl}`);
 
         console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
 
