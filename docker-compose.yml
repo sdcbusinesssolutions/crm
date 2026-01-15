@@ -7,6 +7,8 @@ services:
         - VITE_SUPABASE_URL=${SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
         - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
+        - VITE_MASTER_URL=${VITE_MASTER_URL}
+        - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
     image: whatsapp-app:${IMAGE_TAG}
     user: root
     

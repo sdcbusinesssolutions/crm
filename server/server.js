@@ -194,6 +194,7 @@ router.use('/upload', requireAuth, uploadRoutes);
 // Admin Routes (Mounted under /admin)
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
+app.use('/api/public-settings', require('./routes/publicSettings'));
 router.use('/admin/users', adminUserRoutes);
 router.use('/admin/plans', adminPlanRoutes);
 router.use('/admin/subscriptions', adminSubscriptionRoutes);

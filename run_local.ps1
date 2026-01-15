@@ -2,6 +2,88 @@
 
 Write-Host "Force Restarting WhatsApp Flow Builder & Admin Panel..." -ForegroundColor Cyan
 
+# ----------------------------------------------------------------------------------
+# 0. SELECT DOMAIN/DATABASE FROM CSV
+# ----------------------------------------------------------------------------------
+$csvFile = "domains.csv"
+if (Test-Path $csvFile) {
+    Write-Host "Reading '$csvFile' for configuration..." -ForegroundColor Cyan
+    
+    # Read CSV manually to handle quotes/commas if simple Import-Csv fails, 
+    # but Import-Csv is usually robust enough for this standard format.
+    $domains = Import-Csv $csvFile
+
+    # 1. Try Auto-Select based on 'RunLocal' == 'true'
+    $autoRows = $domains | Where-Object { $_.RunLocal -eq 'true' }
+    $selectedRow = $null
+
+    if ($autoRows) {
+        if ($autoRows -is [array]) { $selectedRow = $autoRows[0] } else { $selectedRow = $autoRows }
+        Write-Host "✅ Auto-selected configuration from CSV: $($selectedRow.Domain)" -ForegroundColor Green
+    }
+    else {
+        # 2. Fallback to Interactive Menu
+        Write-Host "------------------------------------------------"
+        Write-Host "AVAILABLE DOMAINS FOR LOCAL DEV (No 'RunLocal=true' found):" -ForegroundColor White
+        $i = 0
+        foreach ($row in $domains) {
+            $i++
+            Write-Host "  [$i] $($row.Domain)" -ForegroundColor Yellow
+        }
+        Write-Host "------------------------------------------------"
+
+        $validSelection = $false
+        while (-not $validSelection) {
+            $selection = Read-Host "Select a number to load configuration (1-$i)"
+            if ($selection -match '^\d+$' -and [int]$selection -ge 1 -and [int]$selection -le $i) {
+                $validSelection = $true
+                $selectedRow = $domains[([int]$selection) - 1]
+            }
+            else {
+                Write-Host "Invalid selection. Please try again." -ForegroundColor Red
+            }
+        }
+        Write-Host "✅ Selected: $($selectedRow.Domain)" -ForegroundColor Green
+    }
+
+    # Extract Values
+    $domain = $selectedRow.Domain
+    $sbUrl = $selectedRow.SupabaseUrl
+    $sbKey = $selectedRow.SupabaseKey
+    $sbService = $selectedRow.SupabaseServiceKey
+    $master = $selectedRow.MasterDomain
+
+    # Handle defaults or missing columns if any
+    if ([string]::IsNullOrWhiteSpace($master)) { $master = "https://$domain" }
+    
+    # Create valid local .env content
+    # Note: We hardcode Client/App URL to localhost for dev, but inject the DB creds
+    $envContent = @"
+PORT=5000
+NODE_ENV=development
+DOMAIN=$domain
+CLIENT_URL=http://localhost:3000
+APP_URL=http://localhost:3000
+SUPABASE_URL=$sbUrl
+SUPABASE_KEY=$sbKey
+SUPABASE_SERVICE_KEY=$sbService
+SUPABASE_ANON_KEY=$sbKey
+VITE_MASTER_URL=$master
+BRIDGE_DOMAIN=$master
+JWT_SECRET=super-secret-dev-jwt-key-change-in-prod
+"@
+
+    Write-Host "Updating local .env file..." -ForegroundColor Cyan
+    if (Test-Path ".env") { Copy-Item ".env" ".env.bak" -Force }
+    Set-Content -Path ".env" -Value $envContent
+    
+    Write-Host "New .env configured for '$domain'!" -ForegroundColor Green
+
+}
+else {
+    Write-Warning "domains.csv not found! Using existing .env if present."
+}
+
 # -----------------------------------------------------
 # 1. Kill ALL Node.js processes
 # -----------------------------------------------------
@@ -26,9 +108,9 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
 }
 
 # -----------------------------------------------------
-# Helper Function: Fix Corrupted node_modules
+# Helper Function: Repair Corrupted node_modules
 # -----------------------------------------------------
-function Fix-CorruptedNodeModules {
+function Repair-CorruptedNodeModules {
     param (
         [string]$Path
     )
@@ -51,7 +133,7 @@ function Fix-CorruptedNodeModules {
             
             # Rename corrupted folder
             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $backupPath = Join-Path $Path "node_modules_corrupted_$timestamp"
+            # $backupPath assignment is unused, removing to fix lint
             
             try {
                 Rename-Item -Path $nodeModulesPath -NewName "node_modules_corrupted_$timestamp" -ErrorAction SilentlyContinue
@@ -79,7 +161,7 @@ if (-not (Test-Path "server/node_modules")) {
     Write-Host "  Server node_modules not found" -ForegroundColor Yellow
     $serverNeedsInstall = $true
 }
-elseif (Fix-CorruptedNodeModules -Path "server") {
+elseif (Repair-CorruptedNodeModules -Path "server") {
     $serverNeedsInstall = $true
 }
 
@@ -102,7 +184,7 @@ if (-not (Test-Path "client/node_modules")) {
     Write-Host "  Client node_modules not found" -ForegroundColor Yellow
     $clientNeedsInstall = $true
 }
-elseif (Fix-CorruptedNodeModules -Path "client") {
+elseif (Repair-CorruptedNodeModules -Path "client") {
     $clientNeedsInstall = $true
 }
 
@@ -151,5 +233,6 @@ Write-Host "Application restarted successfully!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Backend:  http://localhost:5000" -ForegroundColor Yellow
 Write-Host "Frontend: http://localhost:3000" -ForegroundColor Yellow
+Write-Host "Admin:    Admin@$domain / Admin@12345" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Press Ctrl+C to stop the servers" -ForegroundColor Gray

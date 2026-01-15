@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase';
 // Admin Pages
 import AdminLogin from './pages/admin/auth/login';
 import AdminDashboard from './pages/admin/dashboard/Dashboard';
+import SuperDashboard from './pages/admin/SuperDashboard';
 import AdminUsers from './pages/admin/users/Users';
 import AdminPlans from './pages/admin/plans/Plans';
 import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
@@ -44,6 +45,7 @@ import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAu
 
 import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
+import AuthCentralCallback from './components/AuthCentralCallback';
 
 const MainApp: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
@@ -458,6 +460,9 @@ const App: React.FC = () => {
 
                 {/* WhatsApp Central Auth Bridge */}
                 <Route path="/waba_auth_bridge" element={<AuthBridge />} />
+
+                {/* Generic Multi-Domain Auth Callback */}
+                <Route path="/auth_callback" element={<AuthCentralCallback />} />
 
                 {/* Main App Catch-All */}
                 <Route path="/*" element={<MainApp />} />

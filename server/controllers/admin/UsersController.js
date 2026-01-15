@@ -6,46 +6,80 @@ exports.getUsers = async (req, res) => {
             return res.status(500).json({ message: 'Server misconfiguration: No DB Access' });
         }
 
-        const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+        // MULTI-TENANCY: Identify the domain of the Admin
+        const origin = req.headers.origin || req.headers.host || '';
+        // Strip protocol and port if needed, but simple includes check is robust enough for now
+        // Or strictly parse: new URL(origin).hostname
+        let requestDomain = origin;
+        try {
+            if (origin.startsWith('http')) {
+                requestDomain = new URL(origin).hostname;
+            }
+        } catch (e) { }
+
+        console.log(`[Admin] Fetching users for domain: ${requestDomain}`);
+
+        // Instead of auth.admin.listUsers() which is global, we query the new public.profiles table
+        // This table is synced via triggers and contains the 'signup_domain'
+        const { data: profiles, error } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            //.eq('signup_domain', requestDomain) // UNCOMMENT THIS TO ENFORCE STRICT ISOLATION
+            // For now, if we want to test without strict data, we can leave it open OR use soft match
+            // .ilike('signup_domain', `%${requestDomain}%`)
+            .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('SERVER ERROR: Failed to list users from Supabase.', error);
-            if (error.status === 401 || (error.status === 403 && error.code === 'not_admin') || error.message?.includes('service_role')) {
-                console.warn('⚠️ FALLBACK: Returning mock users because SUPABASE_SERVICE_KEY is invalid.');
-                // Fallback Mock Data so Admin Panel UI doesn't crash for the user
+            console.error('SERVER ERROR: Failed to list profiles.', error);
+            // Fallback for demo/mock if table doesn't exist yet
+            if (error.code === '42P01') {
+                console.warn('Profiles table missing, returning mocks.');
                 const mockUsers = [
-                    { id: 1, name: 'User1 (Mock - Config Error)', email: 'kd31967@gmail.com', status: 'Active', mobile: '8408907516', adminStatus: 'Config Error', createdOn: 'Tuesday 24th June 2025' },
-                    { id: 2, name: 'TEST (Mock)', email: 'abc@gmail.com', status: 'Active', mobile: '9373393645', adminStatus: 'Service Key', createdOn: 'Thursday 3rd July 2025' },
-                    { id: 3, name: 'ved (Mock - Banned)', email: 'devendrakumar1007@gmail.com', status: 'Inactive', mobile: '7000690637', adminStatus: 'Missing', createdOn: 'Sunday 24th August 2025', banned_until: '2099-01-01T00:00:00Z' }
+                    { id: 1, name: 'User1 (Mock)', email: 'demo@domain.com', status: 'Active', mobile: '1234567890', adminStatus: 'Config Error', createdOn: 'Today' }
                 ];
                 return res.json(mockUsers);
             }
             throw error;
         }
 
-        const mappedUsers = users.map(u => {
+        // Filter in memory for now if not strictly using .eq() above
+        // This ensures the admin only sees users who signed up on THEIR domain
+        // const filteredProfiles = profiles.filter(p => !p.signup_domain || p.signup_domain.includes(requestDomain));
+
+        // REVERTING TO DIRECT MAPPING for speed, assuming the profiles query handles it or we return all for 'master' admin
+        // Ideally: If Admin is 'Super Admin' (clickube.com), they might see all?
+
+        let targetProfiles = profiles;
+        // If strict white-labeling is required:
+        // SUPER ADMIN EXCEPTION: If the admin is on the MASTER DOMAIN (clickube.com), show EVERYTHING.
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+
+        if (requestDomain &&
+            !requestDomain.includes('localhost') &&
+            requestDomain !== MASTER_DOMAIN) {
+            console.log(`[Admin] Filtering users for Tenant: ${requestDomain}`);
+            targetProfiles = profiles.filter(p => p.signup_domain === requestDomain);
+        } else {
+            console.log(`[Admin] Super Admin Access (Master Domain or Localhost) - Showing ALL ${profiles.length} users.`);
+        }
+
+        const mappedUsers = targetProfiles.map(u => {
             const createdDate = new Date(u.created_at);
             const formattedDate = createdDate.toLocaleDateString('en-GB', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
-
-            const isBanned = u.banned_until && new Date(u.banned_until) > new Date();
-            let status = 'Pending';
-            if (u.email_confirmed_at) status = 'Active';
-            if (isBanned) status = 'Inactive';
 
             return {
                 id: u.id,
-                name: u.user_metadata?.full_name || u.user_metadata?.name || 'N/A',
+                name: 'User', // Profiles table might need name column sync or we fetch metadata
                 email: u.email,
-                status: status,
-                mobile: u.phone || u.user_metadata?.phone || 'N/A',
-                adminStatus: 'Standard', // Placeholder logic 
+                status: 'Active',
+                mobile: 'N/A',
+                // Add domain info so Super Admin knows where they came from
+                signupDomain: u.signup_domain,
+                adminStatus: u.role || 'Standard',
                 createdOn: formattedDate,
-                lastSignIn: u.last_sign_in_at
+                lastSignIn: null
             };
         });
 
@@ -79,7 +113,9 @@ exports.createUser = async (req, res) => {
             phone: mobile,
             user_metadata: {
                 full_name: name || '',
-                phone: mobile || ''
+                phone: mobile || '',
+                // Auto-tag admin-created users with the current request domain so they show up in the list
+                signup_domain: req.headers.origin ? new URL(req.headers.origin).hostname : 'manual_creation'
             }
         });
 
@@ -115,6 +151,42 @@ exports.toggleUserStatus = async (req, res) => {
 
         if (!supabaseAdmin) {
             return res.status(500).json({ message: 'Server configuration error.' });
+        }
+
+        // 1. Identify Requester (Admin)
+        const origin = req.headers.origin || req.headers.host || '';
+        let requestDomain = 'localhost';
+        try { if (origin.startsWith('http')) requestDomain = new URL(origin).hostname; } catch (e) { }
+
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = requestDomain === MASTER_DOMAIN || requestDomain.includes('localhost');
+
+        // 2. Identify Target User's Domain
+        // We need to fetch the user's profile or metadata to know where they belong
+        const { data: userProfile, error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain')
+            .eq('id', userId)
+            .single();
+
+        let targetDomain = 'unknown';
+        if (userProfile) {
+            targetDomain = userProfile.signup_domain;
+        } else {
+            // Fallback: Fetch from Auth User Metadata if profile missing
+            const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+            if (user && user.user_metadata) {
+                targetDomain = user.user_metadata.signup_domain || 'unknown';
+            }
+        }
+
+        // 3. ENFORCE PERMISSIONS
+        // If NOT Super Admin, they can ONLY touch users from their own domain
+        if (!isSuperAdmin && targetDomain !== requestDomain) {
+            console.warn(`[Security] Admin from ${requestDomain} tried to modify user from ${targetDomain}`);
+            return res.status(403).json({
+                message: 'Access Denied: You cannot manage users from other domains.'
+            });
         }
 
         let updateData = {};

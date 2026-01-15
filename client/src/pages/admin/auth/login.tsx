@@ -7,11 +7,25 @@ const Login = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    // IMPERSONATION HANDLING
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        if (token) {
+            console.log('Detected Admin Impersonation Token, attempting auto-login...');
+            handleLogin(null, token);
+        }
+    }, []);
+
+    const handleLogin = async (e: React.FormEvent | null, impersonationToken?: string) => {
+        if (e) e.preventDefault();
         setError('');
 
         try {
+            const body = impersonationToken
+                ? { impersonation_token: impersonationToken }
+                : { email, password };
+
             // Using /api/admin proxy which runs on port 5000 (main backend)
             // or directly 5000 if running locally
             const response = await fetch('/api/admin/auth/login', {
@@ -19,7 +33,7 @@ const Login = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify(body),
             });
 
             const data = await response.json();

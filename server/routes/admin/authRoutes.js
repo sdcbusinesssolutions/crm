@@ -5,6 +5,7 @@ const AdminAuthController = require('../../controllers/admin/AdminAuthController
 const { verifyAdminToken } = require('../../middleware/admin/authMiddleware');
 
 router.post('/login', AdminAuthController.loginAdmin);
+router.post('/impersonate-admin', verifyAdminToken, AdminAuthController.impersonateTenantAdmin); // New Super Admin Route
 router.get('/me', verifyAdminToken, AdminAuthController.getMe);
 
 module.exports = router;
