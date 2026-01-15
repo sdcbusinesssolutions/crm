@@ -77,8 +77,8 @@ const MainApp: React.FC = () => {
                 const rawCurrent = window.location.hostname || '';
 
                 // Normalize: Lowercase and strip 'www.'
-                const assignedDomain = rawAssigned.trim().toLowerCase().replace(/^www\./, '');
-                const currentDomain = rawCurrent.trim().toLowerCase().replace(/^www\./, '');
+                const assignedDomain = rawAssigned.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+                const currentDomain = rawCurrent.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
 
                 const isLocalhost = currentDomain.includes('localhost');
 
@@ -93,7 +93,7 @@ const MainApp: React.FC = () => {
 
                     // Force Redirect
                     const protocol = window.location.protocol;
-                    const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(currentSession.user.email || '')}&redirect_reason=domain_mismatch`;
+                    const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(currentSession.user.email || '')}&redirect_reason=domain_mismatch&expected=${assignedDomain}&actual=${currentDomain}`;
 
                     // Sign out from this wrong domain to clean up
                     await supabase.auth.signOut();

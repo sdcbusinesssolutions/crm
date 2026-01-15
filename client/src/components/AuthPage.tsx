@@ -72,10 +72,17 @@ const AuthPage: React.FC = () => {
                     const currentDomain = window.location.hostname;
 
                     // Normalize domains (ignore port for localhost)
-                    const isLocalhost = currentDomain.includes('localhost');
+                    const normalize = (d: string) => d.trim().toLowerCase()
+                        .replace(/^https?:\/\//, '')
+                        .replace(/^www\./, '');
+
+                    const assigned = normalize(assignedDomain || '');
+                    const current = normalize(currentDomain || '');
+
+                    const isLocalhost = current.includes('localhost') || current.includes('127.0.0.1');
 
                     // CHECK 1: If user belongs to a domain, they should be ON that domain.
-                    if (assignedDomain && assignedDomain !== currentDomain && !isLocalhost) {
+                    if (assigned && assigned !== current && !isLocalhost) {
                         // User is on the wrong domain (e.g., api@apiautomation.in on clickube.com)
 
                         // Action: Sign out and Redirect to the correct domain
@@ -84,9 +91,9 @@ const AuthPage: React.FC = () => {
                         // Construct redirect URL
                         // Warning: This assumes https for production.
                         const protocol = window.location.protocol;
-                        const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(email)}`;
+                        const targetUrl = `${protocol}//${assigned}/login?email=${encodeURIComponent(email)}&redirect_reason=domain_mismatch&expected=${assigned}&actual=${current}`;
 
-                        alert(`You belong to ${assignedDomain}. Redirecting you there...`);
+                        alert(`You belong to ${assigned}. Redirecting you there...`);
                         window.location.href = targetUrl;
                         return; // Stop execution
                     }
