@@ -109,22 +109,30 @@ const FacebookLeadAdsCard: React.FC = () => {
             return;
         }
 
+
         try {
             const loginOptions: any = {
-                return_scopes: true,
+                // If using config_id, do NOT set return_scopes: true in the same object blindly if it causes conflicts.
+                // However, standard flow allows it.
                 auth_type: 'rerequest'
             };
 
             if (configId) {
                 console.log('[FacebookCard] Logging in with Config ID:', configId);
                 loginOptions.config_id = configId;
+
+                // IMPORTANT: When using config_id, do NOT manually specify detailed scopes unless
+                // you are INTENTIONALLY trying to override/augment the config.
+                // The error logs suggest that 'leads_retrieval' etc. are missing.
+                // This means the Config ID itself (799...) does *NOT* include them in the Dev Portal.
+
+                // Strategy: We will force request the missing scopes explicitly.
+                // Note: If the App Review hasn't approved these, this might fail or show invalid scope error.
+                loginOptions.scope = 'public_profile,email,pages_show_list,leads_retrieval,pages_read_engagement,pages_manage_metadata,pages_manage_ads,ads_management,business_management';
+
                 loginOptions.response_type = 'code';
                 loginOptions.override_default_response_type = true;
 
-                // User requested to ADD scopes alongside Config ID
-                // Note: FB usually ignores 'scope' if 'config_id' is present, but we will try to force it.
-                // This is an attempt to augment the Config ID with missing permissions.
-                loginOptions.scope = 'public_profile,email,pages_show_list,leads_retrieval,pages_read_engagement,pages_manage_metadata,pages_manage_ads,ads_management,business_management';
             } else {
                 console.log('[FacebookCard] Logging in with deprecated scopes');
                 // Added pages_manage_ads to fallback scopes as requested by error logs
@@ -185,6 +193,7 @@ const FacebookLeadAdsCard: React.FC = () => {
             setConnecting(false);
             alert('Facebook Login Error: ' + e.message);
         }
+
     };
 
     // Manage Modal States
