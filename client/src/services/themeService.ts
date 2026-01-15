@@ -99,17 +99,31 @@ export const themeService = {
             try {
                 const headers = getAuthHeaders();
                 const response = await fetch(API_URL, { headers });
-                if (!response.ok) throw new Error('Failed to fetch theme');
+
+                // If 401/403, just return default without noise (user might be logging out/in)
+                if (response.status === 401 || response.status === 403) {
+                    return PRESETS[0];
+                }
+
+                if (!response.ok) throw new Error(`Failed to fetch theme: ${response.status}`);
 
                 const data = await response.json();
-                if (data && data.id) {
-                    cachedTheme = data;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); // Cache it
-                    return data;
+
+                // Check if data is valid ThemeConfig or wrapped in { data: ... }
+                const themeData = data.data || data; // Handle potentially wrapped response
+
+                if (themeData && (themeData.id || themeData.colors)) {
+                    cachedTheme = themeData;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(themeData));
+                    return themeData;
                 }
-                throw new Error('Invalid theme data');
+
+                throw new Error('Invalid theme data structure');
             } catch (e) {
-                console.error("Failed to load theme", e);
+                // Only log real errors (network, etc), not expected auth transitions
+                if ((e as Error).message !== 'Not authenticated') {
+                    console.warn("Theme load warning (using default):", (e as Error).message);
+                }
 
                 // Fallback to LocalStorage if fetch fails
                 if (stored) {
