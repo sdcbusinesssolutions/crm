@@ -73,7 +73,7 @@ const MainApp: React.FC = () => {
                 .single();
 
             if (profile) {
-                const rawAssigned = profile.signup_domain || '';
+                const rawAssigned = (profile as any).signup_domain || '';
                 const rawCurrent = window.location.hostname || '';
 
                 // Normalize: Lowercase, strip protocol (http/s), and strip 'www.'
@@ -523,6 +523,7 @@ const App: React.FC = () => {
                     <Route path="plans" element={<AdminPlans />} />
                     <Route path="subscriptions" element={<AdminSubscriptions />} />
                     <Route path="settings" element={<AdminSettings />} />
+                    <Route path="super" element={<SuperDashboard />} />
                 </Route>
 
                 {/* Public Form Route */}

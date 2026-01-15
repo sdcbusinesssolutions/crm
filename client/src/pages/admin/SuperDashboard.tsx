@@ -55,11 +55,58 @@ const SuperDashboard: React.FC = () => {
         }
     };
 
+    const [editingDomain, setEditingDomain] = useState<string | null>(null);
+    const [newLimit, setNewLimit] = useState<number>(10);
+
+    const openEditModal = (domain: string, currentLimit: number) => {
+        setEditingDomain(domain);
+        setNewLimit(currentLimit);
+    };
+
+    const saveLimit = async () => {
+        if (!editingDomain) return;
+        try {
+            const { error } = await supabase.rpc('update_tenant_limit' as any, {
+                target_domain: editingDomain,
+                new_limit: newLimit
+            } as any);
+            if (error) throw error;
+
+            // Refresh
+            fetchTenants();
+            setEditingDomain(null);
+        } catch (e) {
+            alert('Failed to update limit: ' + (e as Error).message);
+        }
+    };
+
     if (loading) return <div className="p-8">Loading Super Dashboard...</div>;
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
             <h1 className="text-3xl font-bold mb-6 text-gray-800">Super Admin Dashboard</h1>
+
+            {/* EDIT LIMIT MODAL */}
+            {editingDomain && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h3 className="text-xl font-bold mb-4">Edit User Limit</h3>
+                        <p className="text-gray-600 mb-4">Set max users for <b>{editingDomain}</b></p>
+
+                        <input
+                            type="number"
+                            className="w-full border p-2 rounded mb-4"
+                            value={newLimit}
+                            onChange={(e) => setNewLimit(parseInt(e.target.value))}
+                        />
+
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setEditingDomain(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                            <button onClick={saveLimit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Save Limit</button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -82,6 +129,12 @@ const SuperDashboard: React.FC = () => {
                                         {t.user_count}
                                     </span>
                                     <span className="text-gray-400"> / {t.user_limit}</span>
+                                    <button
+                                        onClick={() => openEditModal(t.domain, t.user_limit)}
+                                        className="ml-2 text-xs text-blue-500 hover:underline"
+                                    >
+                                        Edit
+                                    </button>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${t.plan_status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
