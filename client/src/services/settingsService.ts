@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { tokenService } from './tokenService';
 
 // Robust API URL resolution:
 // If provided VITE_API_URL is 'localhost' but we are visiting via Ngrok/Public IP,
@@ -17,10 +18,25 @@ if (typeof window !== 'undefined') {
 }
 
 const getHeaders = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    // Prefer tokenService which is synced with App.tsx state
+    const token = tokenService.getAccessToken();
+
+    // Fallback: Check Supabase session directly if tokenService is empty (rare edge case)
+    if (!token) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session.access_token}`
+            };
+        }
+        // If still no token, we can't authenticate.
+        throw new Error("Auth session missing! Please reload.");
+    }
+
     return {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token}`
+        'Authorization': `Bearer ${token}`
     };
 };
 
