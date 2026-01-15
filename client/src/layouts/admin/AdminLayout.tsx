@@ -58,13 +58,14 @@ const AdminLayout = () => {
                         { path: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
                         { path: '/admin/plans', label: 'Plans', icon: '📝' },
                         { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+                        { path: '/admin/super', label: 'Super Panel', icon: '🚀' },
                     ].map(item => (
                         <Link
                             key={item.path}
                             to={item.path}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${location.pathname === item.path
-                                    ? 'bg-[var(--primary-color)] text-white shadow-md shadow-[var(--primary-color)]/20'
-                                    : 'text-[var(--text-color)] hover:bg-[var(--bg-color)] hover:text-[var(--primary-color)]'
+                                ? 'bg-[var(--primary-color)] text-white shadow-md shadow-[var(--primary-color)]/20'
+                                : 'text-[var(--text-color)] hover:bg-[var(--bg-color)] hover:text-[var(--primary-color)]'
                                 }`}
                         >
                             <span>{item.icon}</span>
