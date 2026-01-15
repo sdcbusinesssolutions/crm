@@ -58,6 +58,29 @@ const SuperDashboard: React.FC = () => {
     const [editingDomain, setEditingDomain] = useState<string | null>(null);
     const [newLimit, setNewLimit] = useState<number>(10);
 
+    // New Tenant State
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [newTenantDomain, setNewTenantDomain] = useState('');
+
+    const addNewTenant = async () => {
+        if (!newTenantDomain) return;
+        try {
+            const { error } = await supabase.rpc('add_new_tenant' as any, {
+                new_domain: newTenantDomain,
+                initial_limit: 10,
+                plan_name: 'Free'
+            } as any);
+
+            if (error) throw error;
+
+            fetchTenants();
+            setIsAddModalOpen(false);
+            setNewTenantDomain('');
+        } catch (e) {
+            alert('Failed to add tenant: ' + (e as Error).message);
+        }
+    };
+
     const openEditModal = (domain: string, currentLimit: number) => {
         setEditingDomain(domain);
         setNewLimit(currentLimit);
@@ -84,7 +107,39 @@ const SuperDashboard: React.FC = () => {
 
     return (
         <div className="p-8 bg-gray-50 min-h-screen">
-            <h1 className="text-3xl font-bold mb-6 text-gray-800">Super Admin Dashboard</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800">Super Admin Dashboard</h1>
+                <button
+                    onClick={() => setIsAddModalOpen(true)}
+                    className="bg-brand-600 text-white px-4 py-2 rounded-lg hover:bg-brand-700 font-medium"
+                >
+                    + Add New Tenant
+                </button>
+            </div>
+
+            {/* ADD TENANT MODAL */}
+            {isAddModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h3 className="text-xl font-bold mb-4">Register New Tenant</h3>
+                        <p className="text-gray-600 mb-2 text-sm">Enter the domain name (e.g. myclient.com)</p>
+
+                        <input
+                            type="text"
+                            className="w-full border p-2 rounded mb-4"
+                            placeholder="example.com"
+                            value={newTenantDomain}
+                            onChange={(e) => setNewTenantDomain(e.target.value)}
+                        />
+
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>
+                            <button onClick={addNewTenant} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Add Tenant</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
 
             {/* EDIT LIMIT MODAL */}
             {editingDomain && (
