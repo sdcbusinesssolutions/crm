@@ -87,10 +87,80 @@ exports.loginAdmin = async (req, res) => {
         return res.json({ token, admin: { email, name: 'Administrator', domain: currentDomain } });
     }
 
-    // 2. (Optional) DB Logic
-    // If you add real DB admins later, you MUST ensure:
-    // const admin = await AdminModel.findOne({ email });
-    // if (admin.managed_domain !== currentDomain) return res.status(403).json({ message: 'Invalid Admin Domain' });
+    // 2. (Optional) Supabase Database Logic
+    // If the hardcoded check fails, we check against the real Supabase Auth
+    try {
+        const { supabase, supabaseAdmin } = require('../../lib/supabaseClient');
+
+        // A. Authenticate with Supabase Auth (Checks password)
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+
+        if (authError || !authData.user) {
+            console.warn(`[Admin Login Failed] Supabase Auth failed for ${email}: ${authError?.message}`);
+            return res.status(401).json({ message: 'Invalid credentials or incorrect domain.' });
+        }
+
+        // B. Fetch User Profile to check Role and Domain
+        // We use supabaseAdmin to bypass RLS and ensure we see the true record
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (!profile) {
+            return res.status(401).json({ message: 'User profile not found.' });
+        }
+
+        // C. Validate Role (Must be 'admin' or 'super_admin')
+        if (profile.role !== 'admin' && profile.role !== 'super_admin') {
+            return res.status(403).json({ message: 'Access Denied: You are not an Administrator.' });
+        }
+
+        // D. Validate Domain Match
+        // Normalize domains
+        const normalize = (d) => d ? d.trim().toLowerCase().replace(/^www\./, '') : '';
+        const normAssigned = normalize(profile.signup_domain);
+        const normCurrent = normalize(currentDomain);
+        const isLocalhost = normCurrent.includes('localhost') || normCurrent.includes('127.0.0.1');
+
+        // Allow Super Admin to login anywhere (optional, but good for management)
+        // OR Enforce strict tenancy even for admins.
+        // Let's enforce strict tenancy EXCEPT for localhost/Super Admin scenarios if needed.
+        // For now: Strict match.
+        if (normAssigned !== normCurrent && !isLocalhost && profile.role !== 'super_admin') {
+            console.warn(`[Admin Login Blocked] Domain Mismatch. Assigned: ${normAssigned}, Current: ${normCurrent}`);
+            return res.status(403).json({ message: 'Invalid Domain: You cannot access this dashboard.' });
+        }
+
+        // E. Success - Generate the Custom JWT used by this Admin Backend
+        const token = jwt.sign({
+            id: 'admin-' + currentDomain, // or profile.id
+            email: profile.email,
+            managed_domain: normAssigned,
+            role: profile.role,
+            is_supabase_user: true
+        }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+
+        console.log(`[Admin Login Success] ${email} logged in to ${currentDomain}`);
+
+        return res.json({
+            token,
+            admin: {
+                email: profile.email,
+                name: profile.full_name || 'Administrator',
+                domain: normAssigned,
+                role: profile.role
+            }
+        });
+
+    } catch (dbError) {
+        console.error("Supabase Login Logic Error:", dbError);
+        // Fallthrough to generic error
+    }
 
     console.warn(`[Admin Login Failed] Attempt: ${email} on domain ${currentDomain}`);
     res.status(401).json({ message: 'Invalid credentials or incorrect domain.' });
