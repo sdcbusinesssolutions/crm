@@ -162,21 +162,20 @@ const MainApp: React.FC = () => {
         } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log("Auth State Change:", event);
 
-            // For SIGNED_IN events, add a small delay to ensure the session is fully established
-            if (event === 'SIGNED_IN' && session) {
-                // Wait a bit for the session to be fully persisted
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Validate Domain
-                const isValid = await validateDomain(session);
-                if (!isValid) return;
-            }
-
+            // 1. Update State IMMEDIATELY to unblock UI (e.g. remove "Processing..." spinner)
             setSession(session);
             tokenService.setAccessToken(session?.access_token || null);
-
-            // Regardless of the event, if we get here, we are done loading
             setIsAuthLoading(false);
+
+            // 2. Perform Tenancy Check Asynchronously (Background)
+            // We don't want to block the initial UI render or causing race conditions with AuthPage
+            if (event === 'SIGNED_IN' && session) {
+                // Small delay to allow local storage propogation if needed
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // If validation fails, this will trigger a redirect/signout
+                validateDomain(session).catch(e => console.error("Async Domain Validation Error:", e));
+            }
 
             if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {
                 window.history.replaceState(null, '', ' ');
