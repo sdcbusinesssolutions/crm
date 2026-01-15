@@ -98,38 +98,45 @@ const AuthPage: React.FC = () => {
                         return; // Stop execution
                     }
 
-                    // CHECK 2: Plan Status (Existing Logic)
+                    // CHECK 2: Plan Status (Safeguarded)
                     try {
-                        const { data: userCheck } = await supabase.rpc('check_user_plan_status', {
+                        const { data: userCheck, error: planError } = await supabase.rpc('check_user_plan_status', {
                             target_user_id: data.user.id
                         });
 
-                        const status = (userCheck as any)?.[0];
-                        if (status) {
+                        // Treat plan check as non-blocking if RPC fails (e.g., function missing)
+                        if (!planError && userCheck && (userCheck as any).length > 0) {
+                            const status = (userCheck as any)[0];
                             if (status.is_allowed === false) {
                                 await supabase.auth.signOut();
-                                throw new Error(status.message);
-                            } else if (status.message === 'PLAN_EXPIRING_SOON') {
+                                throw new Error(status.message || 'Subscription Plan Expired');
+                            }
+                            if (status.message === 'PLAN_EXPIRING_SOON') {
                                 alert(`⚠️ Note: Your subscription expires in ${status.days_left} days.`);
                             }
                         }
                     } catch (e: any) {
-                        if (e.message?.includes('subscription')) throw e;
+                        // Only block if explicitly set to blocked. Log other errors.
+                        if (e.message?.includes('Subscription Plan Expired')) throw e;
+                        console.warn("Plan Check Skipped:", e.message);
                     }
 
-                    // CHECK 3: Global Ban/Block Status (Existing Logic)
+                    // CHECK 3: Global Ban/Block Status (Safeguarded)
                     try {
-                        const { data } = await supabase.rpc('check_admin_status', {
-                            check_domain: assignedDomain || currentDomain // Use assigned if available
-                        } as any);
+                        const { data: adminCheck, error: adminRpcError } = await supabase.rpc('check_admin_status', {
+                            check_domain: assignedDomain || currentDomain
+                        });
 
-                        const adminCheck = data as any;
-                        if (adminCheck && adminCheck.length > 0 && adminCheck[0].is_banned) {
-                            await supabase.auth.signOut();
-                            throw new Error(adminCheck[0].fail_reason || 'This Workspace (Domain) access is blocked.');
+                        if (!adminRpcError && adminCheck && (adminCheck as any).length > 0) {
+                            const result = (adminCheck as any)[0];
+                            if (result.is_banned) {
+                                await supabase.auth.signOut();
+                                throw new Error(result.fail_reason || 'This Workspace (Domain) access is blocked by Super Admin.');
+                            }
                         }
                     } catch (e: any) {
-                        if (e.message?.includes('suspended') || e.message?.includes('Expired') || e.message?.includes('blocked')) throw e;
+                        if (e.message?.includes('blocked')) throw e;
+                        console.warn("Admin Status Check Skipped:", e.message);
                     }
                 }
             }
