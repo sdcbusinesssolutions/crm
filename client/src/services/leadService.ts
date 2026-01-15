@@ -1,7 +1,16 @@
 import { supabase } from '../lib/supabase';
+import { tokenService } from './tokenService';
 
 // Helper to get auth headers
 const getHeaders = async () => {
+    const token = tokenService.getAccessToken();
+    if (token) {
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     return {
         'Content-Type': 'application/json',

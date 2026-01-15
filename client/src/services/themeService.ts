@@ -109,6 +109,8 @@ export const themeService = {
 
                 const data = await response.json();
 
+                if (!data) return PRESETS[0];
+
                 // Check if data is valid ThemeConfig or wrapped in { data: ... }
                 const themeData = data.data || data; // Handle potentially wrapped response
 
