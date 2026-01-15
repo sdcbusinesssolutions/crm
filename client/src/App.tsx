@@ -162,12 +162,25 @@ const MainApp: React.FC = () => {
         } = supabase.auth.onAuthStateChange(async (event, session) => {
             console.log("Auth State Change:", event);
 
-            // 1. Update State IMMEDIATELY to unblock UI (e.g. remove "Processing..." spinner)
+            // 1. Update State
             setSession(session);
             tokenService.setAccessToken(session?.access_token || null);
+
+            // 2. Race Condition Handler:
+            // If INITIAL_SESSION provides an expired (or nearly expired) token, 
+            // DO NOT unlock the UI yet. Wait for the inevitable TOKEN_REFRESHED event.
+            // This prevents API calls firing with dead tokens.
+            const now = Math.floor(Date.now() / 1000);
+            const isExpired = session?.expires_at && session.expires_at <= now;
+
+            if (event === 'INITIAL_SESSION' && isExpired) {
+                console.log("[Auth] Initial session expired. Waiting for refresh...");
+                return; // Keep loading...
+            }
+
             setIsAuthLoading(false);
 
-            // 2. Perform Tenancy Check Asynchronously (Background)
+            // 3. Perform Tenancy Check Asynchronously (Background)
             // We don't want to block the initial UI render or causing race conditions with AuthPage
             if (event === 'SIGNED_IN' && session) {
                 // Small delay to allow local storage propogation if needed
