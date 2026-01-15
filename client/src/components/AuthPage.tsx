@@ -44,10 +44,41 @@ const AuthPage: React.FC = () => {
                 });
                 if (error) throw error;
 
+                // --- TENANCY & REDIRECTION LOGIC ---
+                // Fetch the authoritative domain from the profiles table
+                // (User metadata might be stale or missing for older users)
                 if (data.user) {
-                    // 1. User Plan Check (Individual)
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('signup_domain, role')
+                        .eq('id', data.user.id)
+                        .single();
+
+                    const assignedDomain = profile?.signup_domain;
+                    const currentDomain = window.location.hostname;
+
+                    // Normalize domains (ignore port for localhost)
+                    const isLocalhost = currentDomain.includes('localhost');
+
+                    // CHECK 1: If user belongs to a domain, they should be ON that domain.
+                    if (assignedDomain && assignedDomain !== currentDomain && !isLocalhost) {
+                        // User is on the wrong domain (e.g., api@apiautomation.in on clickube.com)
+
+                        // Action: Sign out and Redirect to the correct domain
+                        await supabase.auth.signOut();
+
+                        // Construct redirect URL
+                        // Warning: This assumes https for production.
+                        const protocol = window.location.protocol;
+                        const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(email)}`;
+
+                        alert(`You belong to ${assignedDomain}. Redirecting you there...`);
+                        window.location.href = targetUrl;
+                        return; // Stop execution
+                    }
+
+                    // CHECK 2: Plan Status (Existing Logic)
                     try {
-                        // @ts-ignore
                         const { data: userCheck } = await supabase.rpc('check_user_plan_status', {
                             target_user_id: data.user.id
                         });
@@ -64,20 +95,11 @@ const AuthPage: React.FC = () => {
                     } catch (e: any) {
                         if (e.message?.includes('subscription')) throw e;
                     }
-                }
 
-                if (data.user?.user_metadata?.signup_domain) {
-                    const signupDomain = data.user.user_metadata.signup_domain;
-                    const currentDomain = window.location.hostname;
-
-                    if (!currentDomain.includes('localhost') && signupDomain !== currentDomain) {
-                        await supabase.auth.signOut();
-                        throw new Error(`Access Denied: Your account belongs to ${signupDomain}. Please login there.`);
-                    }
-
+                    // CHECK 3: Global Ban/Block Status (Existing Logic)
                     try {
                         const { data } = await supabase.rpc('check_admin_status', {
-                            check_domain: signupDomain
+                            check_domain: assignedDomain || currentDomain // Use assigned if available
                         } as any);
 
                         const adminCheck = data as any;

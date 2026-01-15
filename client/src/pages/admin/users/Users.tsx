@@ -21,12 +21,16 @@ const Users = () => {
     const [entriesPerPage] = useState(10);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+    // Domain / Tenant State (Super Admin Only)
+    const [domains, setDomains] = useState<any[]>([]);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
     // Toast State
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
 
     // Add User State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', mobile: '' });
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', mobile: '', signupDomain: '', isCustomDomain: false });
 
     // Edit User State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -39,8 +43,38 @@ const Users = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
+        // Quick check for Super Admin status (Master Domain)
+        const checkSuperAdmin = () => {
+            // @ts-ignore
+            const MASTER_URL = (import.meta as any).env.VITE_MASTER_URL || '';
+            const hostname = window.location.hostname;
+            const isMaster = MASTER_URL.includes(hostname) || hostname.includes('localhost');
+            setIsSuperAdmin(isMaster);
+            if (isMaster) fetchDomains();
+        };
+
+        checkSuperAdmin();
         fetchUsers();
     }, []);
+
+    const fetchDomains = async () => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/dashboard/tenants', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setDomains(data);
+                if (data.length > 0) {
+                    // Set default to first domain
+                    setNewUser(prev => ({ ...prev, signupDomain: data[0].domain }));
+                }
+            }
+        } catch (e) {
+            console.error("Failed to load domains", e);
+        }
+    };
 
     const fetchUsers = async () => {
         setIsLoading(true);
@@ -81,7 +115,7 @@ const Users = () => {
             if (res.ok) {
                 setToast({ type: 'success', title: 'Success', message: 'User created successfully' });
                 setIsAddModalOpen(false);
-                setNewUser({ name: '', email: '', password: '', mobile: '' });
+                setNewUser({ name: '', email: '', password: '', mobile: '', signupDomain: isSuperAdmin && domains.length > 0 ? domains[0].domain : '', isCustomDomain: false });
                 fetchUsers();
             } else {
                 setToast({ type: 'error', title: 'Error', message: data.message || 'Failed to create user' });
@@ -439,6 +473,71 @@ const Users = () => {
                 title="Add New User"
             >
                 <form onSubmit={handleCreateUser} className="space-y-4">
+                    {/* SUPER ADMIN: Domain Selection */}
+                    {/* SUPER ADMIN: Domain Selection */}
+                    {isSuperAdmin && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Assign to Workspace (Domain)</label>
+
+                            {/* Toggle between Dropdown and Custom Input */}
+                            <div className="flex gap-2 mb-2">
+                                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="domainType"
+                                        checked={!newUser.isCustomDomain}
+                                        onChange={() => setNewUser(prev => ({ ...prev, isCustomDomain: false, signupDomain: domains.length > 0 ? domains[0].domain : '' }))}
+                                        className="text-brand-600 focus:ring-brand-500"
+                                    />
+                                    Select from List
+                                </label>
+                                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="domainType"
+                                        checked={!!newUser.isCustomDomain}
+                                        onChange={() => setNewUser(prev => ({ ...prev, isCustomDomain: true, signupDomain: '' }))}
+                                        className="text-brand-600 focus:ring-brand-500"
+                                    />
+                                    Enter Manually
+                                </label>
+                            </div>
+
+                            {!newUser.isCustomDomain ? (
+                                <div className="relative">
+                                    <select
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 appearance-none bg-white"
+                                        value={newUser.signupDomain}
+                                        onChange={e => setNewUser({ ...newUser, signupDomain: e.target.value })}
+                                    >
+                                        {domains.map(d => (
+                                            <option key={d.domain} value={d.domain}>
+                                                {d.domain} ({d.brand_name || 'Unnamed'})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                                        <ChevronDownIcon className="w-4 h-4 text-slate-500" />
+                                    </div>
+                                </div>
+                            ) : (
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 bg-white"
+                                    value={newUser.signupDomain}
+                                    onChange={e => setNewUser({ ...newUser, signupDomain: e.target.value })}
+                                    placeholder="e.g. apiautomation.in"
+                                />
+                            )}
+
+                            <p className="text-xs text-slate-500 mt-1">
+                                {newUser.isCustomDomain
+                                    ? "Enter the exact domain name for this workspace."
+                                    : "Select an existing active workspace."}
+                            </p>
+                        </div>
+                    )}
+
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                         <input

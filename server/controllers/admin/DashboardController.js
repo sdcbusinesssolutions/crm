@@ -17,3 +17,27 @@ exports.getDashboardStats = (req, res) => {
     };
     res.json(stats);
 };
+
+const { supabaseAdmin } = require('../../lib/supabaseClient');
+
+exports.getTenantsList = async (req, res) => {
+    try {
+        if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
+
+        const { data, error } = await supabaseAdmin.rpc('get_all_tenants_summary');
+
+        if (error) {
+            console.error('Error fetching tenants:', error);
+            // Fallback for demo if RPC missing
+            return res.json([
+                { domain: 'clickube.com', brand_name: 'ClicKube (Master)', user_count: 0 },
+                { domain: 'apiautomation.in', brand_name: 'ApiAutomation', user_count: 0 }
+            ]);
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};

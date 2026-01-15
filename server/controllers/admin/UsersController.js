@@ -107,6 +107,24 @@ exports.createUser = async (req, res) => {
             return res.status(500).json({ message: 'Server configuration error: No DB Access.' });
         }
 
+        // --- DOMAIN LOGIC ---
+        // 1. Identify Requester Domain
+        const origin = req.headers.origin || req.headers.host || '';
+        let requesterDomain = 'localhost';
+        try { if (origin.startsWith('http')) requesterDomain = new URL(origin).hostname; } catch (e) { }
+
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = requesterDomain === MASTER_DOMAIN || requesterDomain.includes('localhost');
+
+        // 2. Determine Target Domain
+        // If Super Admin AND providing a specific domain, use it.
+        // Otherwise, force the user to be created in the current domain.
+        let targetDomain = requesterDomain;
+        if (req.body.signupDomain && isSuperAdmin) {
+            console.log(`[Super Admin] Explicitly creating user for domain: ${req.body.signupDomain}`);
+            targetDomain = req.body.signupDomain;
+        }
+
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             password: password,
@@ -115,8 +133,7 @@ exports.createUser = async (req, res) => {
             user_metadata: {
                 full_name: name || '',
                 phone: mobile || '',
-                // Auto-tag admin-created users with the current request domain so they show up in the list
-                signup_domain: req.headers.origin ? new URL(req.headers.origin).hostname : 'manual_creation'
+                signup_domain: targetDomain
             }
         });
 
@@ -299,29 +316,43 @@ exports.impersonateUser = async (req, res) => {
         }
 
         // =========================================================================
-        // DYNAMIC URL DETECTION (No Hardcoding)
+        // DYNAMIC URL DETECTION (Tenancy Aware)
         // =========================================================================
-        // Strictly use COMPLIANCE with user request: Always read from env file
-        // Do not fallback to localhost to ensure production uses the correct domain
-        const clientUrl = process.env.CLIENT_URL ? process.env.CLIENT_URL.trim() : '';
 
-        if (!clientUrl) {
-            console.error('CRITICAL ERROR: CLIENT_URL is not defined in environment variables.');
-            // Return meaningful error so admin knows to fix the env file
-            return res.status(500).json({
-                message: 'Server configuration error: CLIENT_URL is missing in .env file.'
-            });
+        // 1. Fetch Target User's Domain
+        const { data: userProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain')
+            .eq('email', email)
+            .single();
+
+        let targetDomain = userProfile ? userProfile.signup_domain : 'clickube.com';
+
+        // Handle Localhost vs Production Logic
+        // If we are on localhost, we likely want to stay on localhost but maybe different port? 
+        // Or if we are testing domains locally with hosts file.
+        // For production: construct https://{targetDomain}
+
+        let baseUrl = '';
+
+        if (process.env.NODE_ENV === 'development' || (req.headers.origin && req.headers.origin.includes('localhost'))) {
+            // DEV MODE: Just use the current origin or configured CLIENT_URL but warn
+            baseUrl = req.headers.origin || 'http://localhost:5173';
+            console.log(`[Dev Impersonation] Staying on ${baseUrl} (Target would be ${targetDomain})`);
+        } else {
+            // PROD MODE: Dynamic Redirect
+            baseUrl = `https://${targetDomain}`;
+            console.log(`[Prod Impersonation] Switching to ${baseUrl}`);
         }
 
-        console.log(`Impersonation: Redirecting to: '${clientUrl}'`);
+        console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
 
-        // Generate a magic link for the user (Revision: Forced Update)
-        // 'magiclink' type generates a link that logs the user in
+        // Generate a magic link for the user
         const { data, error } = await supabaseAdmin.auth.admin.generateLink({
             type: 'magiclink',
             email: email,
             options: {
-                redirectTo: `${clientUrl}?impersonated=true`
+                redirectTo: `${baseUrl}?impersonated=true`
             }
         });
 
