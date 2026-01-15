@@ -23,23 +23,31 @@ class MetaOnboardingService {
         this.graphApiUrl = 'https://graph.facebook.com/v20.0';
     }
 
-    async getSystemSettings() {
+    async getSystemSettings(targetDomain = 'clickube.com') {
         if (!supabaseAdmin) {
             console.error('MetaOnboardingService: Cannot fetch settings. Supabase Admin client not initialized.');
             throw new Error('System configuration error: Database connection not available.');
         }
 
+        console.log(`[MetaService] Fetching ID for domain: ${targetDomain}`);
+
         const { data, error } = await supabaseAdmin
             .from('onboarding_settings')
             .select('*')
             .eq('user_id', 'system')
+            .eq('domain', targetDomain) // Filter by domain
             .single();
 
-        if (error || !data) throw new Error('System onboarding settings not configured.');
+        if (error || !data) {
+            console.warn(`[MetaService] No settings found for ${targetDomain}. Trying fallback to master.`);
+            // STRICT ISOLATION VS FALLBACK?
+            // For now, fail if not found to ensure isolation.
+            throw new Error(`System onboarding settings not configured for ${targetDomain}.`);
+        }
         return data;
     }
 
-    async getWabas(accessToken) {
+    async getWabas(accessToken, targetDomain = 'clickube.com') {
         try {
             logOnboardingEvent('FETCH_WABAS_START', { accessToken: accessToken ? '***' : 'missing' });
             // 1. Try standard edge
@@ -62,7 +70,7 @@ class MetaOnboardingService {
         // 2. Fallback: Use debug_token to find granular scopes
         try {
             // Get settings and ensure they exist
-            const settings = await this.getSystemSettings();
+            const settings = await this.getSystemSettings(targetDomain);
             if (!settings || !settings.embedded_app_id || !settings.embedded_app_secret) {
                 console.log('Skipping debug_token fallback: Missing system app credentials');
                 return { data: [] };
@@ -103,8 +111,8 @@ class MetaOnboardingService {
         }
     }
 
-    async exchangeCodeForToken(code) {
-        const settings = await this.getSystemSettings();
+    async exchangeCodeForToken(code, targetDomain = 'clickube.com') {
+        const settings = await this.getSystemSettings(targetDomain);
 
         try {
             logOnboardingEvent('EXCHANGE_TOKEN_START', { code: code ? '***' : 'missing' });

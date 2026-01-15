@@ -575,10 +575,19 @@ const MetaOnboardingService = require('../services/MetaOnboardingService');
 
 // GET /settings/onboarding/config - Public config for embedded signup (App ID, Config ID)
 // GET /settings/onboarding/config - Public config for embedded signup (App ID, Config ID)
+// GET /settings/onboarding/config - Public config for embedded signup (App ID, Config ID)
 router.get('/onboarding/config', async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
+
+        // Domain Extraction
+        const origin = req.headers.origin || req.headers.host || '';
+        let domain = 'clickube.com';
+        try { if (origin.startsWith('http')) domain = new URL(origin).hostname; else domain = origin.split(':')[0]; } catch (e) { }
+        domain = domain.replace(/^www\./, '').toLowerCase();
+        if (domain.includes('localhost') || domain.includes('127.0.0.1')) domain = 'clickube.com';
+
 
         // 1. Check for User-Specific Overrides (Allowing "Bring Your Own App")
         const { data: userSettings, error: userError } = await supabase
@@ -596,13 +605,14 @@ router.get('/onboarding/config', async (req, res) => {
             });
         }
 
-        // 2. Fallback to System Settings
+        // 2. Fallback to System Settings (Domain Aware)
         let settings;
         try {
-            settings = await MetaOnboardingService.getSystemSettings();
+            settings = await MetaOnboardingService.getSystemSettings(domain);
         } catch (e) {
             // If settings missing, just return disabled state
-            return res.status(403).json({ error: 'Embedded signup is not configured.' });
+            console.warn(`[Onboarding] Config missing for ${domain}: ${e.message}`);
+            return res.status(403).json({ error: 'Embedded signup is not configured for this domain.' });
         }
 
         if (!settings.embedded_enabled) {
@@ -627,12 +637,19 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
         const supabase = getAuthenticatedSupabase(req);
         const { code, setup_mode } = req.body; // setup_mode could be 'phone' or 'waba'
 
+        // Domain Extraction
+        const origin = req.headers.origin || req.headers.host || '';
+        let domain = 'clickube.com';
+        try { if (origin.startsWith('http')) domain = new URL(origin).hostname; else domain = origin.split(':')[0]; } catch (e) { }
+        domain = domain.replace(/^www\./, '').toLowerCase();
+        if (domain.includes('localhost') || domain.includes('127.0.0.1')) domain = 'clickube.com';
+
         if (!code) return res.status(400).json({ error: 'Authorization code is required.' });
 
-        logOnboardingEvent('SIGNUP_FLOW_START', { userId, setup_mode });
+        logOnboardingEvent('SIGNUP_FLOW_START', { userId, setup_mode, domain });
 
-        // 1. Exchange Code for Token
-        const tokenData = await MetaOnboardingService.exchangeCodeForToken(code);
+        // 1. Exchange Code for Token (Pass Domain)
+        const tokenData = await MetaOnboardingService.exchangeCodeForToken(code, domain);
         const accessToken = tokenData.access_token;
 
         // Auto-detect Logic
@@ -640,7 +657,8 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
 
         if (waba_id === 'auto_detect' || !waba_id) {
             console.log('Auto-detecting WABA...');
-            const wabaData = await MetaOnboardingService.getWabas(accessToken);
+            // Pass Domain for fallback lookup
+            const wabaData = await MetaOnboardingService.getWabas(accessToken, domain);
             if (wabaData.data && wabaData.data.length > 0) {
                 waba_id = wabaData.data[0].id;
                 logOnboardingEvent('WABA_AUTODETECT', { userId, wabaId: waba_id, count: wabaData.data.length });
@@ -739,8 +757,8 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
         }
 
         // 7. Save to Database
-        // We need the system App ID for the record
-        const sysSettings = await MetaOnboardingService.getSystemSettings();
+        // We need the system App ID for the record (DOMAIN AWARE)
+        const sysSettings = await MetaOnboardingService.getSystemSettings(domain);
 
         const { data, error } = await supabase
             .from('whatsapp_config')
