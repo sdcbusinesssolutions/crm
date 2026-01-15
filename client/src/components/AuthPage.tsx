@@ -29,7 +29,10 @@ const AuthPage: React.FC = () => {
                         // @ts-ignore
                         emailRedirectTo: (import.meta as any).env.VITE_MASTER_URL
                             ? `${(import.meta as any).env.VITE_MASTER_URL}/auth_callback?next=${window.location.origin}`
-                            : window.location.origin
+                            : window.location.origin,
+                        data: {
+                            signup_domain: window.location.hostname
+                        }
                     }
                 });
                 if (error) throw error;

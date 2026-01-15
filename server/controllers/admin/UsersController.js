@@ -31,13 +31,14 @@ exports.getUsers = async (req, res) => {
 
         if (error) {
             console.error('SERVER ERROR: Failed to list profiles.', error);
-            // Fallback for demo/mock if table doesn't exist yet
-            if (error.code === '42P01') {
-                console.warn('Profiles table missing, returning mocks.');
-                const mockUsers = [
-                    { id: 1, name: 'User1 (Mock)', email: 'demo@domain.com', status: 'Active', mobile: '1234567890', adminStatus: 'Config Error', createdOn: 'Today' }
-                ];
-                return res.json(mockUsers);
+            // Handle Schema Cache Error (PGRST205) or Undefined Table (42P01)
+            if (error.code === 'PGRST205' || error.code === '42P01') {
+                console.warn('⚠️ WARNING: public.profiles table not found or schema cache stale.');
+                console.warn('👉 ACTION REQUIRED: Run "server/sql/200_combined_multi_tenancy.sql" in your Supabase SQL Editor.');
+                console.warn('👉 OR: Restart your Supabase project to refresh the schema cache.');
+
+                // Return empty array to keep UI valid instead of crashing
+                return res.json([]);
             }
             throw error;
         }
