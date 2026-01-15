@@ -96,8 +96,8 @@ exports.getUsers = async (req, res) => {
 
 exports.createUser = async (req, res) => {
     try {
-        const { email, password, name, mobile } = req.body;
-        console.log('Create User Request:', { email, name, mobile });
+        const { email, password, name, mobile, role } = req.body;
+        console.log('Create User Request:', { email, name, mobile, role });
 
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required.' });
@@ -125,6 +125,9 @@ exports.createUser = async (req, res) => {
             targetDomain = req.body.signupDomain;
         }
 
+        const userRole = role === 'admin' ? 'admin' : 'user';
+
+        // 3. Create User in Supabase Auth
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
             email: email,
             password: password,
@@ -133,7 +136,8 @@ exports.createUser = async (req, res) => {
             user_metadata: {
                 full_name: name || '',
                 phone: mobile || '',
-                signup_domain: targetDomain
+                signup_domain: targetDomain,
+                role: userRole // Pass role to metadata
             }
         });
 
@@ -142,13 +146,30 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ message: 'Failed to create user.', error: error.message });
         }
 
+        // 4. Force Update Profile (To ensure correct Role & Domain)
+        // The trigger 'handle_new_user' might run async or might miss the role default.
+        // We explicitly set it here to be safe and immediate.
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+                signup_domain: targetDomain,
+                role: userRole
+            })
+            .eq('id', data.user.id);
+
+        if (profileError) {
+            console.error('Profile Update Warning:', profileError);
+            // Verify if row exists, if not insert it? Trigger should have handled it.
+        }
+
         res.status(201).json({
             message: 'User created successfully.',
             user: {
                 id: data.user.id,
                 email: data.user.email,
                 name: data.user.user_metadata?.full_name,
-                status: 'Active'
+                status: 'Active',
+                role: userRole
             }
         });
 

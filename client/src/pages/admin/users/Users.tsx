@@ -30,7 +30,7 @@ const Users = () => {
 
     // Add User State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', mobile: '', signupDomain: '', isCustomDomain: false });
+    const [newUser, setNewUser] = useState({ name: '', email: '', password: '', mobile: '', signupDomain: '', role: 'user', isCustomDomain: false });
 
     // Edit User State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -115,7 +115,7 @@ const Users = () => {
             if (res.ok) {
                 setToast({ type: 'success', title: 'Success', message: 'User created successfully' });
                 setIsAddModalOpen(false);
-                setNewUser({ name: '', email: '', password: '', mobile: '', signupDomain: isSuperAdmin && domains.length > 0 ? domains[0].domain : '', isCustomDomain: false });
+                setNewUser({ name: '', email: '', password: '', mobile: '', signupDomain: isSuperAdmin && domains.length > 0 ? domains[0].domain : '', role: 'user', isCustomDomain: false });
                 fetchUsers();
             } else {
                 setToast({ type: 'error', title: 'Error', message: data.message || 'Failed to create user' });
@@ -474,7 +474,6 @@ const Users = () => {
             >
                 <form onSubmit={handleCreateUser} className="space-y-4">
                     {/* SUPER ADMIN: Domain Selection */}
-                    {/* SUPER ADMIN: Domain Selection */}
                     {isSuperAdmin && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Assign to Workspace (Domain)</label>
@@ -537,6 +536,23 @@ const Users = () => {
                             </p>
                         </div>
                     )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">User Role</label>
+                        <select
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 bg-white"
+                            value={newUser.role}
+                            onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                        >
+                            <option value="user">Tenant User (Standard)</option>
+                            <option value="admin">Tenant Admin (Full Access)</option>
+                        </select>
+                        <p className="text-xs text-slate-500 mt-1">
+                            {newUser.role === 'admin'
+                                ? "Can manage users, settings, and billing for this workspace."
+                                : "Standard access to configured features only."}
+                        </p>
+                    </div>
 
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
@@ -671,12 +687,12 @@ const Users = () => {
             <Modal
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
-                title="Delete User"
-                size="sm"
+                title="Confirm Delete"
             >
                 <div className="space-y-4">
                     <p className="text-slate-600">
-                        Are you sure you want to permanently delete <strong>{deletingUser?.name}</strong>? This action cannot be undone.
+                        Are you sure you want to delete user <span className="font-bold text-slate-900">{deletingUser?.name}</span>?
+                        This action cannot be undone.
                     </p>
                     <div className="flex justify-end gap-3 pt-4">
                         <button

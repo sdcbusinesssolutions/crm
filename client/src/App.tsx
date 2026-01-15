@@ -61,6 +61,50 @@ const MainApp: React.FC = () => {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
 
+    // Domain Validation Logic
+    const validateDomain = async (currentSession: Session) => {
+        if (!currentSession?.user) return;
+
+        try {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('signup_domain, role')
+                .eq('id', currentSession.user.id)
+                .single();
+
+            if (profile) {
+                const assignedDomain = profile.signup_domain;
+                const role = profile.role;
+                const currentDomain = window.location.hostname;
+                const isLocalhost = currentDomain.includes('localhost');
+
+                // MASTER ADMIN EXCEPTION:
+                // If user is 'super_admin' or similar, they might be allowed everywhere.
+                // But for now, we assume strict tenancy unless localhost.
+
+                // STRICT CHECK:
+                if (assignedDomain && assignedDomain !== currentDomain && !isLocalhost) {
+                    // Check if current domain is Master Domain (clickube.com)
+                    // If user lands on Master, redirect them to their Tenant.
+                    console.warn(`[Tenancy] Domain mismatch! User belongs to ${assignedDomain} but is on ${currentDomain}`);
+
+                    // Force Redirect
+                    const protocol = window.location.protocol;
+                    const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(currentSession.user.email || '')}&redirect_reason=domain_mismatch`;
+
+                    // Sign out from this wrong domain to clean up
+                    await supabase.auth.signOut();
+
+                    window.location.href = targetUrl;
+                    return false; // Validation failed
+                }
+            }
+        } catch (e) {
+            console.error("Domain validation error:", e);
+        }
+        return true; // Validation passed
+    };
+
     // Check for existing session on load and handle redirects
     useEffect(() => {
         // Check if we are coming back from an auth redirect (email link)
@@ -82,6 +126,10 @@ const MainApp: React.FC = () => {
                     console.warn("Session check warning:", error.message);
                 }
                 if (session) {
+                    // Validate Domain BEFORE setting session
+                    const isValid = await validateDomain(session);
+                    if (!isValid) return; // Stop loading if redirecting
+
                     setSession(session);
                     tokenService.setAccessToken(session.access_token);
                     // If we processed a hash, clean up the URL
@@ -109,6 +157,10 @@ const MainApp: React.FC = () => {
             if (event === 'SIGNED_IN' && session) {
                 // Wait a bit for the session to be fully persisted
                 await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Validate Domain
+                const isValid = await validateDomain(session);
+                if (!isValid) return;
             }
 
             setSession(session);
