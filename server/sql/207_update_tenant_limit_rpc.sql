@@ -6,17 +6,15 @@
 CREATE OR REPLACE FUNCTION public.update_tenant_limit(target_domain TEXT, new_limit INTEGER)
 RETURNS VOID AS $$
 DECLARE
-    caller_domain TEXT;
+    caller_role TEXT;
 BEGIN
-    -- 1. Security Check: Only allow Super Admin (Master Domain)
-    -- Get the domain of the executing user
-    SELECT signup_domain INTO caller_domain
+    -- 1. Security Check: Only allow Super Admin (Role-Based)
+    SELECT role INTO caller_role
     FROM public.profiles
     WHERE id = auth.uid();
 
-    -- Check if domain is authorized (e.g. clickube.com)
-    -- You can also check for role = 'super_admin' if you implement roles later
-    IF caller_domain NOT IN ('clickube.com', 'localhost') THEN
+    -- Check if role is 'super_admin'
+    IF caller_role IS DISTINCT FROM 'super_admin' THEN
         RAISE EXCEPTION 'Access Denied: Only Super Admins can update limits.';
     END IF;
 
