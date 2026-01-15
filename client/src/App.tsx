@@ -61,7 +61,7 @@ const MainApp: React.FC = () => {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
 
-    // Domain Validation Logic
+    // Domain Validation Logic (ROBUST & DEBUGGABLE)
     const validateDomain = async (currentSession: Session) => {
         if (!currentSession?.user) return;
 
@@ -73,20 +73,23 @@ const MainApp: React.FC = () => {
                 .single();
 
             if (profile) {
-                const assignedDomain = profile.signup_domain;
-                const role = profile.role;
-                const currentDomain = window.location.hostname;
+                const rawAssigned = profile.signup_domain || '';
+                const rawCurrent = window.location.hostname || '';
+
+                // Normalize: Lowercase and strip 'www.'
+                const assignedDomain = rawAssigned.trim().toLowerCase().replace(/^www\./, '');
+                const currentDomain = rawCurrent.trim().toLowerCase().replace(/^www\./, '');
+
                 const isLocalhost = currentDomain.includes('localhost');
 
-                // MASTER ADMIN EXCEPTION:
-                // If user is 'super_admin' or similar, they might be allowed everywhere.
-                // But for now, we assume strict tenancy unless localhost.
+                // Debug Logging for User/Dev (Visible in Browser Console)
+                console.log(`[Tenancy Check] User: ${currentSession.user.email}`);
+                console.log(`[Tenancy Check] Assigned: "${assignedDomain}" (Raw: "${rawAssigned}")`);
+                console.log(`[Tenancy Check] Current:  "${currentDomain}" (Raw: "${rawCurrent}")`);
 
                 // STRICT CHECK:
                 if (assignedDomain && assignedDomain !== currentDomain && !isLocalhost) {
-                    // Check if current domain is Master Domain (clickube.com)
-                    // If user lands on Master, redirect them to their Tenant.
-                    console.warn(`[Tenancy] Domain mismatch! User belongs to ${assignedDomain} but is on ${currentDomain}`);
+                    console.warn(`[Tenancy] Domain mismatch! Redirecting...`);
 
                     // Force Redirect
                     const protocol = window.location.protocol;
@@ -98,6 +101,8 @@ const MainApp: React.FC = () => {
                     window.location.href = targetUrl;
                     return false; // Validation failed
                 }
+            } else {
+                console.warn("[Tenancy Check] No profile found for user.");
             }
         } catch (e) {
             console.error("Domain validation error:", e);

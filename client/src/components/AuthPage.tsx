@@ -12,6 +12,20 @@ const AuthPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
 
+    // Parse URL params for redirect messages
+    React.useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const reason = params.get('redirect_reason');
+        const emailParam = params.get('email');
+        if (emailParam) setEmail(emailParam);
+
+        if (reason === 'domain_mismatch') {
+            setError('Please log in from your assigned workspace domain.');
+        } else if (reason === 'session_expired') {
+            setError('Your session has expired. Please log in again.');
+        }
+    }, []);
+
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
