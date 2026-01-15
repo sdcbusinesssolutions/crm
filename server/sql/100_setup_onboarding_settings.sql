@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.onboarding_settings (
     embedded_config_id TEXT,
     
     -- New field to specify the bridge domain (e.g., 'https://cloudospire.in')
-    -- If NULL, defaults to 'https://cloudospire.in' in code, or can be set to 'https://client-domain.com'
+    -- If NULL, defaults to process.env.BRIDGE_DOMAIN or 'https://cloudospire.in' in code
     bridge_domain TEXT, 
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,

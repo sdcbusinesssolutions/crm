@@ -22,7 +22,9 @@ echo "------------------------------------------------------"
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
-tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection; do
+# 2. Loop Through CSV (Skipping Header)
+# Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
+tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection bridgeDomain; do
     
     # Aggressive cleaning of variables to remove spaces and newlines
     domain=$(echo "$domain" | tr -d '\r' | xargs)
@@ -34,6 +36,7 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     sbKey=$(echo "$sbKey" | tr -d '\r' | xargs)
     sbServiceKey=$(echo "$sbServiceKey" | tr -d '\r' | xargs)
     certResolver=$(echo "$certResolver" | tr -d '\r' | xargs)
+    bridgeDomain=$(echo "$bridgeDomain" | tr -d '\r' | xargs)
     
     if [ -z "$domain" ]; then continue; fi
     
@@ -41,6 +44,13 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     if [ -z "$certResolver" ]; then
         certResolver="mytlschallenge"
     fi
+
+    # Default BridgeDomain to current domain if missing
+    if [ -z "$bridgeDomain" ]; then
+         bridgeDomain="https://$domain"
+    fi
+
+
     
     # Skip if not enabled (Case insensitive check)
     if [[ "${deployEnabled,,}" != "true" ]]; then
@@ -75,6 +85,7 @@ APP_URL="$appUrl"
 SUPABASE_URL="$sbUrl"
 SUPABASE_KEY="$sbKey"
 SUPABASE_SERVICE_KEY="$sbServiceKey"
+BRIDGE_DOMAIN="$bridgeDomain"
 EOF
 
     echo "   📄 Config: $envFileName generated"

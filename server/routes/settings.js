@@ -611,7 +611,7 @@ router.get('/onboarding/config', async (req, res) => {
         res.json({
             appId: settings.embedded_app_id,
             configId: settings.embedded_config_id,
-            bridgeDomain: settings.bridge_domain || 'https://cloudospire.in', // Default to CloudOspire
+            bridgeDomain: settings.bridge_domain || process.env.BRIDGE_DOMAIN,
             isCustom: false
         });
     } catch (error) {

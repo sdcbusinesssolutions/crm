@@ -187,7 +187,7 @@ const AdminOnboardingSettings = () => {
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Meta App ID</label>
                                     <input
-                                        type="text"
+                                        type="password"
                                         placeholder="e.g. 1234567890"
                                         value={signupConfig.appId}
                                         onChange={(e) => setSignupConfig({ ...signupConfig, appId: e.target.value })}
@@ -197,7 +197,7 @@ const AdminOnboardingSettings = () => {
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Config ID</label>
                                     <input
-                                        type="text"
+                                        type="password"
                                         placeholder="Obtained from Developer Portal"
                                         value={signupConfig.configId}
                                         onChange={(e) => setSignupConfig({ ...signupConfig, configId: e.target.value })}
@@ -224,16 +224,12 @@ const AdminOnboardingSettings = () => {
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bridge Domain (Optional)</label>
                                 <input
-                                    type="text"
-                                    placeholder="https://cloudospire.in"
+                                    type="password"
+                                    placeholder={import.meta.env.BRIDGE_DOMAIN}
                                     value={signupConfig.bridgeDomain}
                                     onChange={(e) => setSignupConfig({ ...signupConfig, bridgeDomain: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-300 font-mono text-sm"
                                 />
-                                <p className="text-[10px] text-gray-400">
-                                    The domain where the Auth Bridge is hosted. Defaults to <code>https://cloudospire.in</code>.
-                                    Change this only if you are white-labeling the bridge itself.
-                                </p>
                             </div>
                         </div>
                     </div>

@@ -6,6 +6,7 @@ services:
         - VITE_CLIENT_URL=${CLIENT_URL}
         - VITE_SUPABASE_URL=${SUPABASE_URL}
         - VITE_SUPABASE_ANON_KEY=${SUPABASE_KEY}
+        - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
     image: whatsapp-app:${IMAGE_TAG}
     user: root
     
@@ -37,6 +38,7 @@ services:
       - NODE_ENV=production
       - VITE_CLIENT_URL=${CLIENT_URL}
       - DOMAIN=${DOMAIN}
+      - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
