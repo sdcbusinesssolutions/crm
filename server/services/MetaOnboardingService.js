@@ -31,19 +31,33 @@ class MetaOnboardingService {
 
         console.log(`[MetaService] Fetching ID for domain: ${targetDomain}`);
 
-        const { data, error } = await supabaseAdmin
+        let { data, error } = await supabaseAdmin
             .from('onboarding_settings')
             .select('*')
             .eq('user_id', 'system')
-            .eq('domain', targetDomain) // Filter by domain
+            .eq('domain', targetDomain)
             .single();
 
         if (error || !data) {
-            console.warn(`[MetaService] No settings found for ${targetDomain}. Trying fallback to master.`);
-            // STRICT ISOLATION VS FALLBACK?
-            // For now, fail if not found to ensure isolation.
-            throw new Error(`System onboarding settings not configured for ${targetDomain}.`);
+            console.warn(`[MetaService] No settings found for ${targetDomain}. Trying fallback to master (clickube.com).`);
+
+            // Fallback to Master Domain (Inheritance)
+            const { data: masterData, error: masterError } = await supabaseAdmin
+                .from('onboarding_settings')
+                .select('*')
+                .eq('user_id', 'system')
+                .eq('domain', 'clickube.com')
+                .single();
+
+            if (masterError || !masterData) {
+                // Both missing
+                throw new Error(`System onboarding settings not configured for ${targetDomain} or master.`);
+            }
+
+            console.log(`[MetaService] Using master settings for ${targetDomain}`);
+            return masterData;
         }
+
         return data;
     }
 
