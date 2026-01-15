@@ -146,6 +146,7 @@ const whatsappTemplatesRoutes = require('./routes/whatsapp_templates');
 const campaignsRoutes = require('./routes/campaigns');
 const dashboardRoutes = require('./routes/dashboard');
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
+const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 
 // Admin Routes
 const adminAuthRoutes = require('./routes/admin/authRoutes');
@@ -160,6 +161,7 @@ const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 router.use('/forms', formRoutes);
 router.use('/', webhookRoutes); // Meta Webhook (Mounted at root to match /api/:userId/:phoneId/webhook)
 router.use('/webhooks', incomingWebhookRoutes); // Dynamic Incoming Webhooks
+router.use('/client-logs', clientLogRoutes); // Public Client Logging
 
 // Protected Routes
 router.use('/dashboard', requireAuth, dashboardRoutes);

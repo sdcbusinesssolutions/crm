@@ -13,13 +13,27 @@ const AuthBridge: React.FC = () => {
     const state = searchParams.get('state') || '';
     const isCoexistence = searchParams.get('is_coexistence') === 'true';
 
+    const logToServer = async (level: string, message: string, details?: any) => {
+        try {
+            // Fire and forget log
+            fetch('/api/client-logs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level, message, details, timestamp: new Date().toISOString() })
+            }).catch(e => console.error('Log failed', e));
+        } catch (e) { }
+    };
+
     useEffect(() => {
         if (!appId || !configId) {
-            setError('Missing configuration parameters (app_id or config_id).');
+            const err = 'Missing configuration parameters (app_id or config_id).';
+            setError(err);
+            logToServer('ERROR', 'Initialization Failed', { appId, configId, error: err });
             return;
         }
 
         // Load Facebook SDK
+        logToServer('INFO', 'Loading Facebook SDK', { appId });
         loadFacebookSdk(appId);
     }, [appId, configId]);
 
@@ -43,30 +57,33 @@ const AuthBridge: React.FC = () => {
     };
 
     const initFacebook = (appId: string) => {
+        logToServer('INFO', 'Initializing FB SDK');
         (window as any).FB.init({
             appId: appId,
             cookie: true,
             xfbml: true,
             version: 'v20.0'
         });
-        setStatus('Ready to connect.');
-        // Optional: Auto-click if we want, but better to let user click to ensure no popup blocking inside FB flow
-        // handleLogin(); 
+        setStatus('Redirecting to Facebook...');
+        handleLogin(); // Auto-redirect
     };
 
     const handleLogin = () => {
         if (!configId) return;
 
         console.log('Starting FB Login flow on Bridge...');
-        setStatus('Waiting for Facebook...');
+        logToServer('INFO', 'Starting FB Login Flow');
+        setStatus('Redirecting to Facebook...');
 
         (window as any).FB.login((response: any) => {
             console.log('Bridge FB Response:', response);
             if (response.authResponse) {
                 const code = response.authResponse.code;
+                logToServer('SUCCESS', 'FB Login Successful', { codePrefix: code?.substring(0, 5) });
                 sendBack(code);
             } else {
                 setStatus('User cancelled login.');
+                logToServer('WARN', 'User Cancelled Login', { response });
                 console.log('User cancelled login or did not fully authorize.');
             }
         }, {
@@ -83,16 +100,19 @@ const AuthBridge: React.FC = () => {
 
     const sendBack = (code: string) => {
         if (!window.opener) {
-            setStatus('Error: No parent window found. Please close this and try again.');
+            const err = 'Error: No parent window found.';
+            setStatus(err);
+            logToServer('ERROR', 'No Parent Window', { origin: window.location.origin });
             return;
         }
-
 
         const message = {
             type: 'WA_BRIDGE_CODE',
             code: code,
             state: state
         };
+
+        logToServer('INFO', 'Sending Code to Parent', { targetOrigin: origin || '*' });
 
         // We use '*' to allow the child to send to the parent even if domains differ.
         // In a strict environment, we should validation 'origin' param matches trusted list.
@@ -128,17 +148,11 @@ const AuthBridge: React.FC = () => {
                         {error}
                     </div>
                 ) : (
-                    <>
-                        <button
-                            onClick={handleLogin}
-                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all shadow-md active:scale-95"
-                        >
-                            Continue with Facebook
-                        </button>
-                        <p className="mt-4 text-xs text-slate-400">
-                            {status}
-                        </p>
-                    </>
+                    <div className="flex flex-col items-center justify-center p-8">
+                        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p className="text-sm font-medium text-slate-600">Redirecting to Facebook...</p>
+                        <p className="text-xs text-slate-400 mt-2">Please disable your popup blocker if nothing happens.</p>
+                    </div>
                 )}
             </div>
             <p className="mt-8 text-xs text-slate-400">

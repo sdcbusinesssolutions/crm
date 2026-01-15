@@ -239,6 +239,12 @@ function logFacebookLeadEvent(type, data) {
     _logToFile('facebook_lead_logs', type, data, MAX_FACEBOOK_LEAD_LOG_SIZE);
 }
 
+const MAX_AUTH_BRIDGE_LOG_SIZE = 2 * 1024 * 1024; // 2MB
+
+function logAuthBridgeEvent(type, data) {
+    _logToFile('auth_bridge', type, data, MAX_AUTH_BRIDGE_LOG_SIZE);
+}
+
 module.exports = {
     logCampaignRequest,
     logInboxMessage,
@@ -249,5 +255,6 @@ module.exports = {
     logFormBuilderEvent,
     logWhatsAppFormEvent,
     logFacebookLeadEvent,
+    logAuthBridgeEvent,
     overrideConsole
 };
