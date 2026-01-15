@@ -17,10 +17,17 @@ const AuthPage: React.FC = () => {
         const params = new URLSearchParams(window.location.search);
         const reason = params.get('redirect_reason');
         const emailParam = params.get('email');
+        const actualDomain = params.get('actual');
+
         if (emailParam) setEmail(emailParam);
 
         if (reason === 'domain_mismatch') {
-            setError('Please log in from your assigned workspace domain.');
+            if (actualDomain && actualDomain !== window.location.hostname) {
+                // Informational: They were moved here from somewhere else.
+                setMessage(`Security Redirect: You were moved from ${actualDomain} to your assigned workspace.`);
+            } else {
+                setError('Please log in from your assigned workspace domain.');
+            }
         } else if (reason === 'session_expired') {
             setError('Your session has expired. Please log in again.');
         }

@@ -76,11 +76,15 @@ const MainApp: React.FC = () => {
                 const rawAssigned = profile.signup_domain || '';
                 const rawCurrent = window.location.hostname || '';
 
-                // Normalize: Lowercase and strip 'www.'
-                const assignedDomain = rawAssigned.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
-                const currentDomain = rawCurrent.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '');
+                // Normalize: Lowercase, strip protocol (http/s), and strip 'www.'
+                const checkNormalize = (d: string) => d.trim().toLowerCase()
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '');
 
-                const isLocalhost = currentDomain.includes('localhost');
+                const assignedDomain = checkNormalize(rawAssigned);
+                const currentDomain = checkNormalize(rawCurrent);
+
+                const isLocalhost = currentDomain.includes('localhost') || currentDomain.includes('127.0.0.1');
 
                 // Debug Logging for User/Dev (Visible in Browser Console)
                 console.log(`[Tenancy Check] User: ${currentSession.user.email}`);
