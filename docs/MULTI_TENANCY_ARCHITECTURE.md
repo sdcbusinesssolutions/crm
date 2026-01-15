@@ -9,10 +9,10 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 - **Isolation**: Row-Level Security (RLS) & API-Level Filtering based on `user_id` and `signup_domain`.
 - **Authentication**: Centralized "Bounce" strategy via a **Master Domain**.
 - **Admin Hierarchy**: 
-    - **Super Admin** (Master Domain/Provider): Controls everything & everyone.
-    - **Tenant Admin** (Client Domain): Controls ONLY their own users.
+    - **Super Admin** (Master Domain/Provider): Controls everything, can create users for ANY tenant manually.
+    - **Tenant Admin** (Client Domain): Controls ONLY their own users (users registered on their domain).
     - **Cascade Blocking**: Banning a Tenant Admin automatically bans all their users.
-    - **Impersonation**: Super Admin can instantly log in as any Tenant Admin.
+    - **Impersonation**: Super Admin can instantly log in as any Tenant Admin (redirects to *their* domain).
 
 ---
 
@@ -27,9 +27,10 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
     *   System redirects to `https://clickube.com/auth_callback` (Master).
     *   Supabase authenticates user on `clickube.com`.
     *   `AuthCentralCallback` component extracts tokens and bounces user BACK to `https://chatmat.in/#access_token=...`.
-2.  **Configuration**:
-    *   `domains.csv`: Contains a `MasterDomain` column for every tenant.
-    *   `bulk_deploy.sh`: Injects `VITE_MASTER_URL` into the container environment based on the CSV.
+2.  **Strict Redirection & Isolation (Updated)**:
+    *   **Login Check**: When a user logs in, the system fetches their authoritative `signup_domain` from the `profiles` table (ignoring any stale metadata).
+    *   **Enforcement**: If `assignedDomain !== currentDomain`, the user is **automatically signed out** and redirected to the login page of their *correct* domain.
+    *   **Security**: This prevents an `apiautomation.in` user from accessing the `clickube.com` dashboard, effectively isolating the tenancy experience.
 
 ### B. Deployment Configuration - **IMPLEMENTED**
 **Problem**: Automated deployment of multiple distinct domains to a single VPS or Cluster.
@@ -54,16 +55,15 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
     *   `chatmat.in` -> Shows Green Theme + ChatMat Logo.
     *   `clickube.com` -> Shows Blue Theme + ClicKube Logo.
 
-### D. Super Admin Dashboard - **IMPLEMENTED**
-**Problem**: Managing 100 tenants via SQL is inefficient.
+### D. Super Admin Dashboard & User Management - **IMPLEMENTED**
+**Problem**: Managing 100 tenants via SQL is inefficient; need granular control over user creation.
 **Solution**: A dedicated UI for the Provider.
 
 1.  **Location**: `/admin/super-dashboard` (Protected Route).
 2.  **Capabilities**:
     *   List all Tenants (Domains).
-    *   View User Counts vs Quotas (`tenant_limits`).
-    *   View Plan Status & Expiry (`tenant_plans`).
-    *   **Impersonate Button**: One-click jump into any tenant's admin panel.
+    *   **Manual User Creation**: Super Admin (on Master Domain) can create users for *any* specific tenant via a dropdown or manual entry.
+    *   **Impersonate Button**: One-click jump into any tenant's admin panel (Context-Aware Redirect).
 
 ### E. Tenant Limits & Quotas - **IMPLEMENTED**
 **Problem**: Restrict user signup counts per tenant.
@@ -75,11 +75,11 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 **Solution**: `public.tenant_plans` table + `check_admin_status` RPC.
 *   Checked on every login. Use `expires_at` date to auto-block access.
 
-### G. Admin Impersonation - **IMPLEMENTED**
-**Problem**: Troubleshooting tenant issues.
+### G. Admin Impersonation (Context-Aware) - **IMPLEMENTED**
+**Problem**: Troubleshooting tenant issues without breaking session context.
 **Solution**: `impersonateTenantAdmin` API.
-*   Generates a short-lived (5m) JWT.
-*   Used to bypass password login on the target domain.
+*   Generates a magic link.
+*   **Dynamic Redirect**: Detects the target user's `signup_domain`. If it's `apiautomation.in`, the Super Admin is redirected to `https://apiautomation.in/login...` (not the Master Domain). This ensures they see exactly what the client sees.
 
 ---
 
@@ -98,7 +98,7 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 
 ## 5. Security Model
 1.  **Data Isolation**: Inherently enforced via RLS (Row Level Security) and API Controllers checking `signup_domain`.
-2.  **Cross-Domain Protection**: Application logic prevents a user from `chatmat.in` logging into `clickube.com`.
+2.  **Cross-Domain Protection**: Application logic prevents a user from `chatmat.in` logging into `clickube.com` (Strict Redirection).
 3.  **Admin Rights**: Super Admin Logic is strictly bounded to the `VITE_MASTER_URL` hostname or `localhost`.
 
 ---
