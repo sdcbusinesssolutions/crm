@@ -25,7 +25,25 @@ RETURNS TABLE(
 ) 
 SECURITY DEFINER
 AS $$
+DECLARE
+    caller_role TEXT;
+    caller_uid UUID;
 BEGIN
+    caller_uid := auth.uid();
+    
+    SELECT role INTO caller_role
+    FROM public.profiles
+    WHERE id = caller_uid;
+
+    RAISE NOTICE 'get_all_tenants_summary called by: % (Role: %)', caller_uid, caller_role;
+
+    -- SECURITY CHECK
+    IF LOWER(TRIM(BOTH FROM COALESCE(caller_role, ''))) IS DISTINCT FROM 'super_admin' THEN
+        -- If NOT super admin, return empty or raise error?
+        -- Raising error is safer to alert the frontend.
+        RAISE EXCEPTION 'Access Denied: Super Admin role required. Your role: %', COALESCE(caller_role, 'None');
+    END IF;
+
     RETURN QUERY
     SELECT 
         ds.domain,

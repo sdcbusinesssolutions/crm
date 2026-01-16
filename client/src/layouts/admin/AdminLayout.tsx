@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import '../../styles/admin/main.css';
 import { themeService, PRESETS } from '../../services/themeService';
 import { ThemeConfig } from '../../types';
@@ -8,6 +9,25 @@ const AdminLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [theme, setTheme] = useState<ThemeConfig>(PRESETS[0]);
+    const [isAdminSuper, setIsAdminSuper] = useState(false);
+
+    useEffect(() => {
+        const checkRole = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (data && data.role === 'super_admin') {
+                    setIsAdminSuper(true);
+                }
+            }
+        };
+        checkRole();
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('adminToken');
@@ -39,7 +59,17 @@ const AdminLayout = () => {
         return () => window.removeEventListener('admin-theme-changed', handleStorageChange);
     }, []);
 
-    const isActive = (path: string) => location.pathname.includes(path) ? 'active' : '';
+    const menuItems = [
+        { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+        { path: '/admin/users', label: 'Users', icon: '👥' },
+        { path: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
+        { path: '/admin/plans', label: 'Plans', icon: '📝' },
+        { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+    ];
+
+    if (isAdminSuper) {
+        menuItems.push({ path: '/admin/super', label: 'Super Panel', icon: '🚀' });
+    }
 
     return (
         <div className="admin-layout flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] font-sans">
@@ -52,14 +82,7 @@ const AdminLayout = () => {
                 </div>
 
                 <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-                    {[
-                        { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
-                        { path: '/admin/users', label: 'Users', icon: '👥' },
-                        { path: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
-                        { path: '/admin/plans', label: 'Plans', icon: '📝' },
-                        { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
-                        { path: '/admin/super', label: 'Super Panel', icon: '🚀' },
-                    ].map(item => (
+                    {menuItems.map(item => (
                         <Link
                             key={item.path}
                             to={item.path}
