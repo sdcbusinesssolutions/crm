@@ -11,7 +11,7 @@ echo Timestamp: %TIMESTAMP%
 echo ==========================================
 
 :: Set the Connection String (Escaped % as %% for Batch)
-set "DB_URL=postgresql://postgres.dkibqgamuxjzhiwxcfzd:sonuDEV%%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
+set "DB_URL=postgresql://postgres.ssckorsnhjhzqxyukexm:sonuDEV%%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
 :: 1. Dump Roles
 echo.
