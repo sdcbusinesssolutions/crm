@@ -223,8 +223,10 @@ Stick to the **Shared Cluster Architecture**. It limits overhead costs to <$100/
 
 Users often ask: *"How can one Node.js process serve 100 different domains?"*
 
-### The Magic of "Logical Isolation"
-Unlike physical factories where you need a separate machine for each product, a Web Server is like a **Stateless Kiosk**.
+### The Magic of "Logical Isolation" (Current Architecture)
+**NO MAJOR CHANGES REQUIRED.** This is how your system is **ALREADY BUILT**.
+
+Unlike physical factories where you need a separate machine for each product, your Node.js Web Server acts like a **Stateless Kiosk**.
 
 1.  **Incoming Request**:
     *   User A visits `chatmat.in`.
