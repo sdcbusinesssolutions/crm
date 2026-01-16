@@ -70,7 +70,10 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 ### F. Admin Impersonation (Context-Aware) - **IMPLEMENTED**
 *   **Impersonate**: One-click jump into any tenant's admin panel as if you were them.
 *   **Context**: Redirects Super Admin to `tenant-domain.com`, preserving the tenant's context.
-*   **Magic Token Handling**: The system now securely propagates the login token across domain redirects (fixing the "login loop" issue), verifying it via Supabase Magic Link OTP.
+*   **Bounce Strategy (NEW)**: 
+    *   Backend generates a Magic Link pointing to Master Domain (`clickube.com`) with `?bounce=target_domain`.
+    *   Master App intercepts this, extracts the session token, and immediately redirects the user to `target_domain/#access_token=...`.
+    *   This ensures the token is correctly handed over across domains without relying on flaky URL parameters.
 
 ### G. User Management Enhancements - **IMPLEMENTED**
 *   **Direct Super Admin Creation**: Super Admins can now assign the `super_admin` role directly from the "Add User" UI.
