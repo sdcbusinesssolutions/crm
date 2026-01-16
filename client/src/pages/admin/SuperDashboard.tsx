@@ -103,6 +103,16 @@ const SuperDashboard: React.FC = () => {
         }
     };
 
+    const deleteTenant = async (domain: string) => {
+        try {
+            const { error } = await supabase.rpc('delete_tenant' as any, { target_domain: domain });
+            if (error) throw error;
+            fetchTenants();
+        } catch (e) {
+            alert('Failed to delete tenant: ' + (e as Error).message);
+        }
+    };
+
     if (loading) return <div className="p-8">Loading Super Dashboard...</div>;
 
     return (
@@ -207,8 +217,15 @@ const SuperDashboard: React.FC = () => {
                                     >
                                         Impersonate Admin
                                     </button>
-                                    <button className="text-gray-400 hover:text-gray-600" onClick={() => alert('Feature coming soon: Edit Plan')}>
-                                        Edit Plan
+                                    <button
+                                        onClick={() => {
+                                            if (confirm(`Are you sure you want to PERMANENTLY DELETE tenant ${t.domain}? This cannot be undone.`)) {
+                                                deleteTenant(t.domain);
+                                            }
+                                        }}
+                                        className="text-red-500 hover:text-red-700 font-bold"
+                                    >
+                                        Delete
                                     </button>
                                 </td>
                             </tr>
