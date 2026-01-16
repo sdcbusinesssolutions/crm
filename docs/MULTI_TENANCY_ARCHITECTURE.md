@@ -101,3 +101,65 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 1.  **RBAC**: Critical functions (`add_tenant`, `update_limit`, `delete_tenant`) REQUIRE `super_admin` role.
 2.  **RLS**: Users can ONLY see data for their own `signup_domain`.
 3.  **Isolation**: Users blocked from logging into wrong domains; Tokens strictly validated.
+
+---
+
+## 6. Scaling & Cost Analysis (Target: 100 Tenants / 5,000 Users)
+
+### A. Workload Estimation
+*   **Total Tenants**: 100 Domains
+*   **Users per Tenant**: 50 Users
+*   **Total User Base**: 5,000 Users
+*   **Concurrency**: Assuming 10% active at once = **500 Concurrent Users**.
+*   **Campaign Load**: High burst traffic. If 10 tenants trigger campaigns simultaneously, the system must handle thousands of outgoing webhook events per minute.
+
+### B. Infrastructure Requirements
+
+#### 1. Database (Supabase)
+*   **Tier**: **Pro Plan ($25/mo)** is sufficient for 5k Users (limit is 100k MAU).
+*   **Storage**: 5,000 users generates low relational data volume (< 1GB). Media storage (WhatsApp images) will be the main cost driver.
+*   **bottleneck**: CPU usage on Row-Level Security (RLS) policies during high-concurrency campaigns.
+
+#### 2. Compute (VPS / Backend)
+*   **Strategy**: A "White-Label Cluster" using a strong single node or load-balanced setup.
+*   **Recommended Spec (Hetzner/Contabo/DigitalOcean)**:
+    *   **CPU**: 8 vCPU (High Performance recommended for encryption/hashing)
+    *   **RAM**: 32 GB (Node.js loves RAM, plus caching)
+    *   **Network**: 1 Gbps port (Vital for WhatsApp API webhooks)
+*   **Software Stack**:
+    *   **Traefik**: Handling 100 SSL certificates automatically (Let's Encrypt).
+    *   **Redis**: CRITICAL for queuing WhatsApp messages. Do NOT send directly from API.
+    *   **Node.js Cluster**: Use PM2 to run specific instances for incoming webhooks vs. API Workload.
+
+### C. Monthly Cost Projection (Estimated)
+
+| Component | Service Provider | Spec / Tier | Est. Cost |
+| :--- | :--- | :--- | :--- |
+| **Database** | Supabase | Pro Plan (8GB Disk, 100k MAU) | **$25.00** |
+| **Compute** | Contabo / Hetzner | 8 vCPU / 30GB RAM / 1TB SSD | **$35.00** |
+| **Media Storage** | Supabase Storage / S3 | 100GB (User Uploads) | **$20.00** |
+| **Domain/DNS** | Cloudflare | Free Tier (Unlimited Zones) | **$0.00** |
+| **Misc** | Backup / Monitoring | S3 Backup + Uptime Kuma | **$10.00** |
+| **TOTAL** | | | **~$90.00 / Month** |
+
+*Cost per Tenant: **$0.90 / Month** (Excellent Margin)*
+
+### D. Scaling Roadmap
+
+#### Phase 1: Single "Super Node" (Current)
+*   **Capacity**: Up to ~10,000 Users / 200 Tenants.
+*   **Architecture**: All services (API, Traefik, Redis) on one large VPS.
+*   **Pros**: Simple deployment, lowest latency.
+*   **Cons**: Single point of failure.
+
+#### Phase 2: Horizontal split (Service Decoupling)
+*   **Trigger**: CPU > 70% during campaigns.
+*   **Action**: Move **Redis & Background Workers** (Campaign Senders) to a separate VP.
+*   **Benefit**: User UI remains fast even when massive campaigns are running.
+
+#### Phase 3: High Availability (Traffic > 50k Users)
+*   **Trigger**: Database Connections maxing out.
+*   **Action**:
+    1.  Use **Supabase Read Replicas** (Enterprise feature).
+    2.  Load Balance API across 3+ VPS nodes using Traefik or AWS ALB.
+    3.  Implement `pgbouncer` for connection pooling.
