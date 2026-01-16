@@ -216,3 +216,33 @@ As traffic grows beyond 50k users, you might need Replicas.
 
 ### D. Summary Recommendation
 Stick to the **Shared Cluster Architecture**. It limits overhead costs to <$100/mo, allowing you to maximize profit margins while charging tenants $50-$200/mo. Only move to Docker Isolation or Dedicated DB Replicas for Premium Enterprise Clients who pay for the infrastructure.
+
+---
+
+## 8. Technical Mechanics: How One Docker Container Handles 100 Tenants
+
+Users often ask: *"How can one Node.js process serve 100 different domains?"*
+
+### The Magic of "Logical Isolation"
+Unlike physical factories where you need a separate machine for each product, a Web Server is like a **Stateless Kiosk**.
+
+1.  **Incoming Request**:
+    *   User A visits `chatmat.in`.
+    *   User B visits `crm-master.com`.
+    *   Both requests hit the **SAME** IP address and the **SAME** Docker container on port 3001.
+
+2.  **Identification (The Host Header)**:
+    *   The Node.js server looks at `req.headers.host`.
+    *   If host is `chatmat.in`, it sets `tenant_id = 'chatmat'`.
+    *   If host is `crm-master.com`, it sets `tenant_id = 'crm'`.
+
+3.  **Data Retrieval (Context)**:
+    *   When the code asks the Database: *"Get me the users"*, it implicitly adds: *"...WHERE domain = current_tenant_id"*.
+    *   **Result**: The server processes thousands of mixed requests per second, but each request only ever touches its own data slice.
+
+4.  **Memory Efficiency**:
+    *   The server does **NOT** load 100 websites into RAM.
+    *   It loads **1 Application Codebase** into RAM.
+    *   It processes requests sequentially/concurrently using the same code, just changing the *variables* (Branding, Colors, Data) for that millisecond.
+
+**Analogy**: Think of a single ATM machine. It serves customers from 100 different banks. It doesn't need 100 different slots. It just reads your card (Domain) and talks to the right bank account (Database Row).
