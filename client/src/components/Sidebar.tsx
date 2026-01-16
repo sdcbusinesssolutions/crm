@@ -292,7 +292,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                                 ) : logoUrl ? (
                                     <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
                                 ) : (
-                                    <span className="font-bold text-lg">V</span>
+                                    <span className="font-bold text-lg">{appName ? appName[0].toUpperCase() : 'C'}</span>
                                 )}
                             </div>
                         )}
