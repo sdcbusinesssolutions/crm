@@ -16,8 +16,8 @@ BEGIN
     -- 1. Security Check: Only Super Admin
     SELECT role INTO caller_role FROM public.profiles WHERE id = auth.uid();
     
-    IF caller_role IS DISTINCT FROM 'super_admin' THEN
-        RAISE EXCEPTION 'Access Denied: Only Super Admins can add tenants.';
+    IF LOWER(TRIM(BOTH FROM COALESCE(caller_role, ''))) IS DISTINCT FROM 'super_admin' THEN
+        RAISE EXCEPTION 'Access Denied: Only Super Admins can add tenants. Your role: %', caller_role;
     END IF;
 
     -- 2. Normalize Domain

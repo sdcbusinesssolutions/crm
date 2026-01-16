@@ -13,9 +13,9 @@ BEGIN
     FROM public.profiles
     WHERE id = auth.uid();
 
-    -- Check if role is 'super_admin'
-    IF caller_role IS DISTINCT FROM 'super_admin' THEN
-        RAISE EXCEPTION 'Access Denied: Only Super Admins can update limits.';
+    -- Check if role is 'super_admin' (Case insensitive, trimmed)
+    IF LOWER(TRIM(BOTH FROM COALESCE(caller_role, ''))) IS DISTINCT FROM 'super_admin' THEN
+        RAISE EXCEPTION 'Access Denied: Only Super Admins can update limits. Your role: %', caller_role;
     END IF;
 
     -- 2. Execute Update
