@@ -18,6 +18,7 @@ DECLARE
     my_limit INTEGER;
     my_plan TEXT;
     my_expiry TIMESTAMPTZ;
+    my_count BIGINT;
 BEGIN
     -- 1. Get Current User's Domain
     SELECT signup_domain INTO my_domain
@@ -40,8 +41,8 @@ BEGIN
     -- Default Plan
     IF my_plan IS NULL THEN my_plan := 'Free'; END IF;
 
-    -- 4. Get User Count
-    SELECT COUNT(*) INTO user_count
+    -- 4. Get User Count (Dynamic)
+    SELECT COUNT(*) INTO my_count
     FROM public.profiles
     WHERE signup_domain = my_domain;
 
@@ -53,7 +54,7 @@ BEGIN
     END IF;
 
     RETURN QUERY SELECT 
-        user_count, 
+        my_count, 
         my_limit, 
         my_plan, 
         days_left;
