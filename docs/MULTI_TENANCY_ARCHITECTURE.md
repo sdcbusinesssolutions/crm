@@ -46,7 +46,7 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 2.  **Frontend**: `ThemeContext` automatically fetches settings based on `window.location.hostname`.
 
 ### D. Super Admin Provisioning & Limits - **IMPLEMENTED**
-**Problem**: Need granular control over tenants (Limits, Manual Creation).
+**Problem**: Need granular control over tenants (Limits, Manual Creation, Deletion).
 **Solution**: **Super Panel** (`/admin/super`) + Secure RPCs.
 
 1.  **Access Control**: restricted to users with `role = 'super_admin'`.
@@ -58,6 +58,11 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
     *   Feature: Restrict max users per domain.
     *   RPC: `update_tenant_limit(domain, new_limit)`.
     *   Enforcement: Database Trigger `check_tenant_limit` runs `BEFORE INSERT` on `profiles`. If limit is reached, signup fails.
+4.  **Delete Tenant Feature (New)**:
+    *   Button: **"Delete"** (Red) in Super Panel.
+    *   RPC: `delete_tenant(target_domain)`.
+    *   Action: **Irreversibly removes** all limits, plans, branding, and user profiles associated with the domain.
+    *   Safety: Prevents deletion of the Master Domain.
 
 ### E. Tenant Plans - **IMPLEMENTED**
 *   **Expiry Check**: `check_admin_status` runs on login. If `tenant_plans.expires_at` is passed, access is blocked for ALL users of that domain.
@@ -65,6 +70,11 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
 ### F. Admin Impersonation (Context-Aware) - **IMPLEMENTED**
 *   **Impersonate**: One-click jump into any tenant's admin panel as if you were them.
 *   **Context**: Redirects Super Admin to `tenant-domain.com`, preserving the tenant's context.
+*   **Magic Token Handling**: The system now securely propagates the login token across domain redirects (fixing the "login loop" issue), verifying it via Supabase Magic Link OTP.
+
+### G. User Management Enhancements - **IMPLEMENTED**
+*   **Direct Super Admin Creation**: Super Admins can now assign the `super_admin` role directly from the "Add User" UI.
+*   **Tenant Stats**: Dashboard now dynamically fetches `user_count` vs `user_limit` using a corrected aggregation RPC (`get_my_tenant_stats`).
 
 ---
 
@@ -73,15 +83,18 @@ The goal is to allow 100+ different domains (e.g., `chatmat.in`, `clickube.com`)
     1.  `200_combined_multi_tenancy.sql` (Base Setup)
     2.  `207_update_tenant_limit_rpc.sql` (Limit Update Logic)
     3.  `208_add_tenant_rpc.sql` (Add Tenant Logic)
-2.  **Assign Role**: Manually assign yourself as Super Admin:
+    4.  `209_get_my_tenant_stats.sql` (Stats Fix)
+    5.  `210_delete_tenant_rpc.sql` (Delete Tenant Logic)
+2.  **Assign Role (Initial)**: Manually assign yourself as Super Admin:
     ```sql
     UPDATE public.profiles SET role = 'super_admin' WHERE email = 'YOUR_EMAIL';
     ```
+    *Subsequent Super Admins can be added via UI.*
 3.  **Deploy**: Use `./bulk_deploy.sh` with your `domains.csv`.
 
 ---
 
 ## 5. Security Summary
-1.  **RBAC**: Critical functions (`add_tenant`, `update_limit`) REQUIRE `super_admin` role.
+1.  **RBAC**: Critical functions (`add_tenant`, `update_limit`, `delete_tenant`) REQUIRE `super_admin` role.
 2.  **RLS**: Users can ONLY see data for their own `signup_domain`.
-3.  **Isolation**: Users blocked from logging into wrong domains.
+3.  **Isolation**: Users blocked from logging into wrong domains; Tokens strictly validated.
