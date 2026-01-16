@@ -7,15 +7,21 @@ CREATE OR REPLACE FUNCTION public.update_tenant_limit(target_domain TEXT, new_li
 RETURNS VOID AS $$
 DECLARE
     caller_role TEXT;
+    caller_uid UUID;
 BEGIN
-    -- 1. Security Check: Only allow Super Admin (Role-Based)
+    -- 1. Security Check: Only allow Super Admin
+    caller_uid := auth.uid();
+    
     SELECT role INTO caller_role
     FROM public.profiles
-    WHERE id = auth.uid();
+    WHERE id = caller_uid;
+
+    -- Logging (visible in Supabase Logs)
+    RAISE NOTICE 'update_tenant_limit called by: % (Role: %)', caller_uid, caller_role;
 
     -- Check if role is 'super_admin' (Case insensitive, trimmed)
     IF LOWER(TRIM(BOTH FROM COALESCE(caller_role, ''))) IS DISTINCT FROM 'super_admin' THEN
-        RAISE EXCEPTION 'Access Denied: Only Super Admins can update limits. Your role: %', caller_role;
+        RAISE EXCEPTION 'Access Denied: You are not authorized. Caller: %, Role Found: %', caller_uid, COALESCE(caller_role, 'NULL');
     END IF;
 
     -- 2. Execute Update
