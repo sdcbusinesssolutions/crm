@@ -33,6 +33,42 @@ const AuthPage: React.FC = () => {
         }
     }, []);
 
+    // Handle Magic Link / Impersonation Token
+    React.useEffect(() => {
+        const autoLogin = async () => {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token');
+            const emailParam = params.get('email');
+
+            if (token && emailParam) {
+                setLoading(true);
+                setMessage('Authenticating via Magic Link...');
+
+                // Attempt Supabase Magic Link Verification
+                const { error } = await supabase.auth.verifyOtp({
+                    email: emailParam,
+                    token: token,
+                    type: 'magiclink'
+                });
+
+                if (error) {
+                    console.error("Magic Link Failed:", error);
+                    setError('Magic link is invalid or expired. Please allow the popup or try again.');
+                    setLoading(false);
+                    setMessage(null);
+                } else {
+                    // Success! The onAuthStateChange in App.tsx will handle the rest (user is now signed in)
+                    // converting from 'magiclink' to 'session'
+                    setMessage('Success! Redirecting...');
+
+                    // Clear URL params to avoid loops
+                    window.history.replaceState(null, '', window.location.pathname);
+                }
+            }
+        };
+        autoLogin();
+    }, []);
+
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);

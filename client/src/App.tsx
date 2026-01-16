@@ -97,7 +97,19 @@ const MainApp: React.FC = () => {
 
                     // Force Redirect
                     const protocol = window.location.protocol;
-                    const targetUrl = `${protocol}//${assignedDomain}/login?email=${encodeURIComponent(currentSession.user.email || '')}&redirect_reason=domain_mismatch&expected=${assignedDomain}&actual=${currentDomain}`;
+                    const cleanParams = new URLSearchParams(window.location.search);
+                    cleanParams.set('email', currentSession.user.email || '');
+                    cleanParams.set('redirect_reason', 'domain_mismatch');
+                    cleanParams.set('expected', assignedDomain);
+                    cleanParams.set('actual', currentDomain);
+
+                    // CRITICAL: Preserve 'token' if present (Magic URL / Impersonation)
+                    const magicToken = new URLSearchParams(window.location.search).get('token');
+                    if (magicToken) {
+                        cleanParams.set('token', magicToken);
+                    }
+
+                    const targetUrl = `${protocol}//${assignedDomain}/login?${cleanParams.toString()}`;
 
                     // Sign out from this wrong domain to clean up
                     await supabase.auth.signOut();
