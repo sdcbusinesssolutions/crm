@@ -39,7 +39,23 @@ const Login = () => {
             const data = await response.json();
 
             if (response.ok) {
+                // 1. Set Legacy Token (for existing APIs)
                 localStorage.setItem('adminToken', data.token);
+
+                // 2. Start Supabase Session (for RLS & Frontend Apps)
+                if (!impersonationToken) {
+                    const { supabase } = await import('../../../lib/supabase');
+                    const { error: sbError } = await supabase.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (sbError) {
+                        console.warn("Supabase Auth Sync Failed:", sbError.message);
+                        // Optional: don't block login if custom auth worked, but RLS features won't work.
+                    }
+                }
+
                 navigate('/admin/dashboard');
             } else {
                 setError(data.message || 'Login failed');
