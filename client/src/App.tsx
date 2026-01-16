@@ -48,6 +48,34 @@ import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
 
 const MainApp: React.FC = () => {
+    // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
+    // Handles cross-domain impersonation redirects from Supabase Magic Links
+    useLayoutEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const bounceTarget = params.get('bounce');
+
+        if (bounceTarget && window.location.hash.includes('access_token')) {
+            console.log("Interceptor: Bouncing session to", bounceTarget);
+
+            // Extract the hash from the current URL (Supabase put the tokens here)
+            const hash = window.location.hash; // e.g., #access_token=...&refresh_token=...
+
+            // Construct the final destination
+            // Ensure target doesn't already have a hash mixed in weirdly, but usually it's clean base URL from backend
+            let finalUrl = bounceTarget;
+
+            // If target has query params, we append hash at the end
+            // If target ends with slash, fine.
+
+            // We strip the 'bounce' param from the current URL to keep history clean (optional), 
+            // but we are redirecting anyway.
+
+            // Redirect immediately
+            window.location.href = `${finalUrl}${hash}`;
+            return;
+        }
+    }, []);
+
     const [session, setSession] = useState<Session | null>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
     const [activeMenuItem, setActiveMenuItem] = useState<MenuItem>('Dashboard');

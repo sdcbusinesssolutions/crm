@@ -364,11 +364,21 @@ exports.impersonateUser = async (req, res) => {
         console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
 
         // Generate a magic link for the user
+        // BOUNCE STRATEGY:
+        // 1. Redirect to Master Domain (whitelisted).
+        // 2. Append 'bounce' param with the final target.
+        // 3. Frontend on Master will forward the #access_token to the target.
+
+        const masterUrl = process.env.VITE_MASTER_URL || 'https://clickube.com';
+        const bounceUrl = `${masterUrl}?bounce=${encodeURIComponent(baseUrl)}`;
+
+        console.log(`[Impersonation] Bounce URL: ${bounceUrl}`);
+
         const { data, error } = await supabaseAdmin.auth.admin.generateLink({
             type: 'magiclink',
             email: email,
             options: {
-                redirectTo: `${baseUrl}?impersonated=true`
+                redirectTo: bounceUrl
             }
         });
 
