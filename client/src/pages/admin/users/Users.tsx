@@ -552,6 +552,7 @@ const Users = () => {
                         >
                             <option value="user">Tenant User (Standard)</option>
                             <option value="admin">Tenant Admin (Full Access)</option>
+                            {isSuperAdmin && <option value="super_admin">Super Admin (System Owner)</option>}
                         </select>
                         <p className="text-xs text-slate-500 mt-1">
                             {newUser.role === 'admin'
