@@ -465,7 +465,10 @@ class CampaignWorker {
                             // Handling missing values
                             if (value === undefined || value === '' || value === null) {
                                 // If the field looks like a path (e.g. custom_data.X or name/email), send empty string to avoid leaking technical keys
-                                const isLikelyPath = field && (field.includes('.') || ['name', 'email', 'phone', 'status'].includes(field));
+                                const isLikelyPath = field && (
+                                    field.toLowerCase().startsWith('custom_data.') ||
+                                    ['name', 'email', 'phone', 'status', 'source'].includes(field.toLowerCase())
+                                );
                                 if (isLikelyPath) {
                                     value = '';
                                 } else {
