@@ -289,18 +289,61 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack })
                         </div>
                     </div>
 
-                    {/* Overall Status */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Overall Message Status</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{overallSuccessPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{overallSuccess} Messages</p>
-                            </div>
-                            <div className="p-2 bg-blue-50 rounded-full text-blue-600">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    {/* Analytics Overview (Pie Chart) */}
+                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col justify-between">
+                        <div className="flex justify-between items-start mb-4">
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
+                            <div className="p-1.5 bg-indigo-50 rounded-full text-indigo-600">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                                 </svg>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                            {/* Pie Chart */}
+                            <div className="relative w-20 h-20 rounded-full flex-shrink-0 shadow-inner" style={{
+                                background: `conic-gradient(
+                                    #3b82f6 0% ${readPct}%, 
+                                    #22c55e ${readPct}% ${readPct + deliveredPct}%, 
+                                    #93c5fd ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
+                                    #ef4444 ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
+                                    #eab308 ${readPct + deliveredPct + sentPct + failedPct}% ${readPct + deliveredPct + sentPct + failedPct + processingPct}%,
+                                    #f3f4f6 ${readPct + deliveredPct + sentPct + failedPct + processingPct}% 100%
+                                )`
+                            }}>
+                                <div className="absolute inset-0 m-[15%] bg-white rounded-full flex items-center justify-center shadow-sm">
+                                    <span className="text-[10px] font-bold text-slate-600">{overallSuccessPct}%</span>
+                                </div>
+                            </div>
+
+                            {/* Legend */}
+                            <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    <span className="text-slate-600">Read ({read})</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                    <span className="text-slate-600">Deliv ({delivered})</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-blue-300"></span>
+                                    <span className="text-slate-600">Sent ({sent})</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    <span className="text-slate-600">Fail ({failed})</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                    <span className="text-slate-600">Proc ({processing})</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-gray-100 border border-gray-200"></span>
+                                    <span className="text-slate-400">Pend ({total - (read + delivered + sent + failed + processing)})</span>
+                                </div>
                             </div>
                         </div>
                     </div>

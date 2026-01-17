@@ -245,13 +245,20 @@ router.get('/:id', async (req, res) => {
 
         // Stats
         // Use independent queries to avoid any builder reuse issues
-        const [total, sent, delivered, read, failed] = await Promise.all([
+        const [total, sent, delivered, read, failed, processing] = await Promise.all([
             supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id),
             supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).ilike('status', '%SENT%'),
             supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).ilike('status', '%DELIVERED%'),
             supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).ilike('status', '%READ%'),
-            supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).ilike('status', '%FAILED%')
+            supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).ilike('status', '%FAILED%'),
+            supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).in('status', ['PROCESSING', 'PENDING']) // Group pending/processing? Or separate? Let's just do PROCESSING.
         ]);
+
+        // Actually, let's be more precise.
+        // PENDING is important.
+        const pending = await supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).eq('status', 'PENDING');
+        const processingCount = await supabase.from('campaign_queue').select('*', { count: 'exact', head: true }).eq('campaign_id', req.params.id).eq('status', 'PROCESSING');
+
 
         res.json({
             ...data,
@@ -260,7 +267,9 @@ router.get('/:id', async (req, res) => {
                 sent: sent.count || 0,
                 delivered: delivered.count || 0,
                 read: read.count || 0,
-                failed: failed.count || 0
+                failed: failed.count || 0,
+                processing: processingCount.count || 0,
+                pending: pending.count || 0
             }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -288,6 +297,63 @@ router.get('/:id/queue', async (req, res) => {
             totalPages: Math.ceil(count / limit)
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /:id/export - Export Campaign Report
+router.get('/:id/export', async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+
+        // Fetch all queue items with contact details
+        const { data, error } = await supabase
+            .from('campaign_queue')
+            .select(`
+                *,
+                contacts ( name, phone, email )
+            `)
+            .eq('campaign_id', req.params.id)
+            .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+
+        // CSV Header
+        const headers = ['Contact Name', 'Phone Number', 'Status', 'Message ID', 'Error Message', 'Sent At', 'Last Update'];
+        const rows = [headers.join(',')];
+
+        // CSV Rows
+        data.forEach(item => {
+            const escape = (text) => `"${String(text || '').replace(/"/g, '""')}"`;
+
+            const name = item.contacts?.name || 'Unknown';
+            const phone = item.phone_number || '';
+            const status = item.status || 'PENDING';
+            const msgId = item.message_id || '';
+            const errorMsg = item.error_message || '';
+            const sentAt = item.sent_at ? new Date(item.sent_at).toISOString() : '';
+            const updatedAt = item.updated_at ? new Date(item.updated_at).toISOString() : '';
+
+            const row = [
+                escape(name),
+                escape(phone),
+                escape(status),
+                escape(msgId),
+                escape(errorMsg),
+                escape(sentAt),
+                escape(updatedAt)
+            ];
+            rows.push(row.join(','));
+        });
+
+        const csvContent = rows.join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="campaign_${req.params.id}_report.csv"`);
+        res.send(csvContent);
+
+    } catch (e) {
+        console.error('Export Error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 module.exports = router;
