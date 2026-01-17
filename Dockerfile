@@ -6,19 +6,9 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm ci --quiet
 COPY client/ ./
-ARG VITE_CLIENT_URL
-ENV VITE_CLIENT_URL=$VITE_CLIENT_URL
 
-ARG VITE_SUPABASE_URL
-ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
-
-ARG VITE_SUPABASE_ANON_KEY
-ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
-
-ARG VITE_BRIDGE_DOMAIN
-ENV VITE_BRIDGE_DOMAIN=$VITE_BRIDGE_DOMAIN
-ARG VITE_MASTER_URL
-ENV VITE_MASTER_URL=$VITE_MASTER_URL
+# NOTE: We DO NOT bake env vars here anymore.
+# They are injected at runtime via config.js
 RUN npm run build
 
 # ==========================================
@@ -64,6 +54,10 @@ COPY --from=frontend-builder /app/client/dist ./public_html
 # 4. Create necessary mutable directories
 RUN mkdir -p logs uploads
 
+# Copy Entrypoint Script
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 # 5. Set Environment Variables
 ENV NODE_ENV=production
 ENV PORT=5000
@@ -71,6 +65,9 @@ ENV CLIENT_BUILD_PATH=/app/public_html
 
 # Expose Port
 EXPOSE 5000
+
+# Use Entrypoint to inject config before starting
+ENTRYPOINT ["./entrypoint.sh"]
 
 # Run the binary
 CMD ["./server-app"]

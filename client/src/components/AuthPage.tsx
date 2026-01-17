@@ -184,7 +184,19 @@ const AuthPage: React.FC = () => {
                 }
             }
         } catch (err: any) {
-            setError(err.message || 'An unexpected error occurred');
+            let errorMsg = err.message || 'An unexpected error occurred';
+
+            // Handle generic Supabase/Postgres trigger errors
+            if (errorMsg.includes('Database error saving new user')) {
+                // This usually typically means the 'check_tenant_limit' trigger failed
+                errorMsg = 'Signup Failed: This workspace has reached its user limit. Please contact the administrator.';
+            }
+            else if (errorMsg.includes('Signup Limit Reached')) {
+                // If the raw Postgres exception leaks through, clean it up
+                errorMsg = errorMsg.replace('Database error: ', '');
+            }
+
+            setError(errorMsg);
         } finally {
             setLoading(false);
         }

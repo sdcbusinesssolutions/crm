@@ -1,8 +1,9 @@
 import { supabase } from '../lib/supabase';
+import { AppConfig } from '../AppConfig';
 
 // Helper to determine API URL
 // Logic copied from settingsService to ensure Ngrok compatibility
-let API_URL = import.meta.env.VITE_API_URL || '/api';
+let API_URL = AppConfig.VITE_API_URL || '/api';
 if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const apiIsLocal = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');

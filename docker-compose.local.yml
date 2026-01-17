@@ -12,3 +12,11 @@ services:
     environment:
       - PORT=5000
       - NODE_ENV=production
+      # Config Generation Variables
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - CLIENT_URL=http://localhost:5000
+      - API_URL=/api
+      - VITE_MASTER_URL=http://localhost:5000
+      - BRIDGE_DOMAIN=http://localhost:5000

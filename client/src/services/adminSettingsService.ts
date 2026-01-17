@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+import { AppConfig } from '../AppConfig';
+
+const API_URL = AppConfig.VITE_API_URL || '/api';
 
 const getHeaders = () => {
     const token = localStorage.getItem('adminToken');

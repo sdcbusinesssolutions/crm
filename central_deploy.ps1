@@ -44,9 +44,22 @@ if (-not (Test-Path $csvFile)) {
     exit 1
 }
 
-# 2. Build Code
+# 5. Execute Prepare Upload Batch
 Write-Host "Packaging Code..." -ForegroundColor Cyan
-cmd /c "prepare_upload.bat" | Out-Null
+cmd /c prepare_upload.bat
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Packaging failed!"
+    exit 1
+}
+
+# 5.1 Verification
+if (-not (Test-Path "deploy-package.zip")) {
+    Write-Error "❌ CRITICAL ERROR: deploy-package.zip was not created."
+    Write-Host "   Possible causes:" -ForegroundColor Yellow
+    Write-Host "   1. A file is locked by another process (VS Code, Node.js, etc.)" -ForegroundColor Yellow
+    Write-Host "   2. See the error message above (e.g. 'process cannot access file')." -ForegroundColor Yellow
+    exit 1
+}
 
 # 3. Pre-Flight Validation (Schema & Storage)
 Write-Host "Validating Databases..." -ForegroundColor Cyan

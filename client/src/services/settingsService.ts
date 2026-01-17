@@ -1,10 +1,11 @@
 import { supabase } from '../lib/supabase';
 import { tokenService } from './tokenService';
+import { AppConfig } from '../AppConfig';
 
 // Robust API URL resolution:
 // If provided VITE_API_URL is 'localhost' but we are visiting via Ngrok/Public IP,
 // we MUST use relative path '/api' to leverage the Vite Proxy and avoid Mixed Content (HTTPS -> HTTP) errors.
-let API_URL = import.meta.env.VITE_API_URL || '/api';
+let API_URL = AppConfig.VITE_API_URL || '/api';
 
 if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';

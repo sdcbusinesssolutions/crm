@@ -41,6 +41,7 @@ services:
       - VITE_CLIENT_URL=${CLIENT_URL}
       - DOMAIN=${DOMAIN}
       - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
+      - VITE_MASTER_URL=${VITE_MASTER_URL}
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs

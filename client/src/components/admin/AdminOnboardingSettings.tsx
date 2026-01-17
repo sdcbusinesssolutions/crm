@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { adminSettingsService } from '../../services/adminSettingsService';
+import { AppConfig } from '../../AppConfig';
 
 const AdminOnboardingSettings = () => {
     const [manualEnabled, setManualEnabled] = useState(false);
@@ -123,8 +124,8 @@ const AdminOnboardingSettings = () => {
 
             {/* Alert Message */}
             {message && (
-                <div className={`p-4 rounded-xl border flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
-                    } animate-slide-in`}>
+                <div className={`p - 4 rounded - xl border flex items - center gap - 3 ${message.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+                    } animate - slide -in `}>
                     <span className="text-lg">{message.type === 'success' ? '✅' : '⚠️'}</span>
                     <span className="font-medium text-sm">{message.text}</span>
                 </div>
@@ -133,14 +134,14 @@ const AdminOnboardingSettings = () => {
             <div className="grid grid-cols-1 gap-6">
 
                 {/* Manual Onboarding Card */}
-                <div className={`relative group transition-all duration-300 rounded-2xl border p-6 bg-white overflow-hidden
+                <div className={`relative group transition - all duration - 300 rounded - 2xl border p - 6 bg - white overflow - hidden
                     ${manualEnabled ? 'border-[var(--primary-color)] ring-1 ring-[var(--primary-color)] shadow-md' : 'border-gray-200 hover:border-gray-300 shadow-sm'}
-                `}>
+`}>
                     <div className="flex items-start justify-between">
                         <div className="flex gap-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-colors
+                            <div className={`w - 12 h - 12 rounded - xl flex items - center justify - center text - 2xl transition - colors
                                 ${manualEnabled ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}
-                             `}>
+`}>
                                 📝
                             </div>
                             <div>
@@ -157,15 +158,15 @@ const AdminOnboardingSettings = () => {
                 </div>
 
                 {/* Embedded Signup Card */}
-                <div className={`relative group transition-all duration-300 rounded-2xl border p-6 bg-white overflow-hidden
+                <div className={`relative group transition - all duration - 300 rounded - 2xl border p - 6 bg - white overflow - hidden
                     ${embeddedEnabled ? 'border-blue-500 ring-1 ring-blue-500 shadow-md' : 'border-gray-200 hover:border-gray-300 shadow-sm'}
-                `}>
+`}>
                     {/* Header */}
                     <div className="flex items-start justify-between mb-6">
                         <div className="flex gap-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl transition-colors
+                            <div className={`w - 12 h - 12 rounded - xl flex items - center justify - center text - 2xl transition - colors
                                 ${embeddedEnabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}
-                             `}>
+`}>
                                 🚀
                             </div>
                             <div>
@@ -181,7 +182,7 @@ const AdminOnboardingSettings = () => {
                     </div>
 
                     {/* Configuration Form (Collapsible) */}
-                    <div className={`transition-all duration-500 ease-in-out overflow-hidden ${embeddedEnabled ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-50'}`}>
+                    <div className={`transition - all duration - 500 ease -in -out overflow - hidden ${embeddedEnabled ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-50'} `}>
                         <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div className="space-y-1.5">

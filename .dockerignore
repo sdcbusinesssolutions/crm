@@ -57,3 +57,4 @@ coverage/
 client/public/mock_images
 client/local_testing
 client/README.md
+!entrypoint.sh

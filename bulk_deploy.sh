@@ -22,6 +22,11 @@ echo "------------------------------------------------------"
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
+# 1.5 Build Shared Image ONCE
+export IMAGE_TAG="latest"
+echo "🏗️  Building Shared Docker Image (whatsapp-app:$IMAGE_TAG)..."
+docker build -t "whatsapp-app:$IMAGE_TAG" .
+
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
 tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain; do
@@ -66,7 +71,7 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     # Generate Unique Identifiers
     safeName=${domain//./_}       # cloudospire_in
     projectParam=$safeName        # Docker Project Name
-    imageTag="prod-$safeName"     # Unique Image Tag
+    # imageTag="prod-$safeName"   # <--- REMOVED: We use shared 'latest' tag now
     appUrl="https://$domain"
     envFileName=".env.$safeName"
 
@@ -82,7 +87,7 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
 PORT=5000
 DOMAIN="$domain"
 ROUTER_NAME="$safeName"
-IMAGE_TAG="$imageTag"
+IMAGE_TAG="$IMAGE_TAG"
 TRAEFIK_NETWORK="$traefikNetwork"
 CERT_RESOLVER="$certResolver"
 CLIENT_URL="$appUrl"
@@ -109,7 +114,7 @@ EOF
     fi
 
     # 4. Run Docker Compose
-    echo "   🐳 Building isolated image ($imageTag)..."
+    echo "   🐳 Starting container for $domain..."
     
     # CRITICAL FIX: docker-compose behaves best when the file is named exactly ".env"
     # This guarantees that variables like ${ROUTER_NAME} in docker-compose.yml are substituted correctly.
@@ -128,7 +133,8 @@ EOF
     docker rm -f "$domain" 2>/dev/null || true
 
     # 4. Run Docker Compose (Now it will naturally read .env)
-    docker-compose -p "$projectParam" up -d --build
+    # NOTE: removed --build since we built 'latest' once at the top
+    docker-compose -p "$projectParam" up -d
     
     # 4. Cleanup (optional, but good to keep distinct files)
     # mv .env.bak .env  <-- We leave it as is or restore? 
@@ -143,6 +149,17 @@ EOF
     echo "------------------------------------------------------"
 
 done
+
+
+# 4.5 Cleanup OLD Domain-Specific Images (Migration Cleanup)
+echo "🧹 Cleaning up OLD per-domain images (whatsapp-app:prod-*)..."
+# List all images matching 'whatsapp-app:prod-*' and delete them using xargs
+# This is safe because the NEW containers will be running on 'whatsapp-app:latest'
+docker images "whatsapp-app" --format "{{.Repository}}:{{.Tag}}" | grep "prod-" | xargs -r docker rmi -f
+
+# Also prune dangling images (standard hygiene)
+docker image prune -f
+
 
 
 # 5. Start Global Services (Backup)
