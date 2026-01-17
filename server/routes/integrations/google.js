@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../../lib/supabaseClient');
+const { logGoogleEvent } = require('../../utils/logger');
 
 // Helper to get Google Creds (Prefer Body > Env)
 const getGoogleCreds = (reqBody) => {
@@ -59,11 +60,14 @@ router.post('/exchange', async (req, res) => {
         const { code, clientId, clientSecret, redirectUrl, connectionName } = req.body;
         const userId = req.user.id;
 
+        // Helper to sanitize inputs (remove quotes which cause "Invalid host defined options" and whitespace)
+        const clean = (str) => (str || '').replace(/['"]/g, '').trim();
+
         // Use provided creds or fallback to env
         let creds = {
-            clientId: (clientId || process.env.GOOGLE_CLIENT_ID || '').trim(),
-            clientSecret: (clientSecret || process.env.GOOGLE_CLIENT_SECRET || '').trim(),
-            redirectUrl: (redirectUrl || process.env.GOOGLE_REDIRECT_URL || '').trim()
+            clientId: clean(clientId || process.env.GOOGLE_CLIENT_ID),
+            clientSecret: clean(clientSecret || process.env.GOOGLE_CLIENT_SECRET),
+            redirectUrl: clean(redirectUrl || process.env.GOOGLE_REDIRECT_URL)
         };
 
         if (!code) return res.status(400).json({ error: 'Missing auth code' });
@@ -80,6 +84,14 @@ router.post('/exchange', async (req, res) => {
 
         // A. Exchange
         console.log(`[Google Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
+
+        logGoogleEvent('EXCHANGE_START', {
+            redirectUrl: creds.redirectUrl,
+            clientIdPrefix: creds.clientId ? creds.clientId.substring(0, 10) + '...' : 'MISSING',
+            hasClientSecret: !!creds.clientSecret,
+            codeLength: code ? code.length : 0
+        });
+
         const { tokens } = await oauth2Client.getToken(code);
         oauth2Client.setCredentials(tokens);
 
@@ -137,12 +149,26 @@ router.post('/exchange', async (req, res) => {
 
         res.json({ success: true, name: finalConnectionName });
 
+        logGoogleEvent('EXCHANGE_SUCCESS', {
+            connectionName: finalConnectionName,
+            userId: userId,
+            email: email
+        });
+
     } catch (error) {
-        console.error('Google Exchange Error Details:', {
+        const errorDetails = {
             message: error.message,
             code: error.code,
             response: error.response?.data
+        };
+
+        console.error('Google Exchange Error Details:', errorDetails);
+
+        logGoogleEvent('EXCHANGE_ERROR', {
+            error: error.message,
+            details: errorDetails
         });
+
         const errorMessage = error.response?.data?.error_description || error.message || 'Failed to exchange token';
         res.status(500).json({ error: errorMessage, details: error.response?.data });
     }

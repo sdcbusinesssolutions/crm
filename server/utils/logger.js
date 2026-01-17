@@ -245,6 +245,12 @@ function logAuthBridgeEvent(type, data) {
     _logToFile('auth_bridge', type, data, MAX_AUTH_BRIDGE_LOG_SIZE);
 }
 
+const MAX_GOOGLE_LOG_SIZE = 2 * 1024 * 1024; // 2MB
+
+function logGoogleEvent(type, data) {
+    _logToFile('google_integrations', type, data, MAX_GOOGLE_LOG_SIZE);
+}
+
 module.exports = {
     logCampaignRequest,
     logInboxMessage,
@@ -256,5 +262,6 @@ module.exports = {
     logWhatsAppFormEvent,
     logFacebookLeadEvent,
     logAuthBridgeEvent,
+    logGoogleEvent,
     overrideConsole
 };
