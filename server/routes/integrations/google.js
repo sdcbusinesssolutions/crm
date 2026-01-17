@@ -282,14 +282,10 @@ router.delete('/connections/:id', async (req, res) => {
 // 5. Sheets & Columns (Proxy)
 // These routes need to recover the correct ClientID/Secret from the stored credentials
 // to properly refresh tokens if needed.
-const getAuthForConnection = async (req) => {
+// Helper to getting tokens from DB
+const getLastCredentials = async (req) => {
     const { connectionId, tokens: rawTokens } = req.body;
     const userId = req.user.id;
-
-    let authTokens = rawTokens;
-    let clientId = process.env.GOOGLE_CLIENT_ID;
-    let clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    let redirectUrl = process.env.GOOGLE_REDIRECT_URL;
 
     if (connectionId) {
         const { data, error } = await supabaseAdmin
@@ -300,60 +296,123 @@ const getAuthForConnection = async (req) => {
             .single();
 
         if (error || !data) throw new Error('Connection not found');
-        authTokens = data.credentials;
-
-        // Check if this connection has custom creds
-        if (authTokens.params_client_id) clientId = authTokens.params_client_id;
-        if (authTokens.params_client_secret) clientSecret = authTokens.params_client_secret;
-        if (authTokens.params_redirect_url) redirectUrl = authTokens.params_redirect_url;
+        return data.credentials;
     }
 
-    if (!authTokens) throw new Error('Missing tokens or connectionId');
-
-    const { google } = require('googleapis');
-    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUrl);
-    oauth2Client.setCredentials(authTokens);
-
-    return oauth2Client;
+    if (rawTokens) return rawTokens;
+    throw new Error('No credentials provided');
 };
+
+const { logGoogleSheetEvent } = require('../../utils/logger');
 
 router.post('/sheets', async (req, res) => {
     try {
         const { spreadsheetId } = req.body;
-        if (!spreadsheetId) return res.status(400).json({ error: 'Missing spreadsheetId' });
 
-        const authClient = await getAuthForConnection(req);
-        const { google } = require('googleapis');
-        const sheets = google.sheets({ version: 'v4', auth: authClient });
+        logGoogleSheetEvent('FTECH_SHEETS_START', {
+            spreadsheetId,
+            userId: req.user.id
+        });
 
-        const response = await sheets.spreadsheets.get({ spreadsheetId });
+        if (!spreadsheetId) {
+            const error = 'Missing spreadsheetId';
+            logGoogleSheetEvent('FETCH_SHEETS_ERROR', { error });
+            return res.status(400).json({ error });
+        }
+
+        const creds = await getLastCredentials(req);
+
+        // Manual Axios Call to Sheets API
+        const axios = require('axios');
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?includeGridData=false`;
+
+        console.log(`[Google Sheets] Fetching metadata via Axios: ${url}`);
+
+        const response = await axios.get(url, {
+            headers: { Authorization: `Bearer ${creds.access_token}` }
+        });
+
         const sheetNames = response.data.sheets.map(s => s.properties.title);
+
+        logGoogleSheetEvent('FETCH_SHEETS_SUCCESS', {
+            spreadsheetId,
+            sheetCount: sheetNames.length,
+            sheets: sheetNames
+        });
+
         res.json({ sheets: sheetNames });
+
     } catch (error) {
-        console.error('Fetch Sheets Error:', error);
-        res.status(500).json({ error: 'Failed to fetch sheets: ' + error.message });
+        const msg = error.response?.data?.error?.message || error.message;
+        const details = error.response?.data || {};
+
+        console.error('Fetch Sheets Error:', details);
+
+        logGoogleSheetEvent('FETCH_SHEETS_FAIL', {
+            spreadsheetId: req.body.spreadsheetId,
+            error: msg,
+            details: details
+        });
+
+        res.status(500).json({ error: 'Failed to fetch sheets: ' + msg });
     }
 });
 
 router.post('/columns', async (req, res) => {
     try {
         const { spreadsheetId, sheetName } = req.body;
-        if (!spreadsheetId || !sheetName) return res.status(400).json({ error: 'Missing requirements' });
 
-        const authClient = await getAuthForConnection(req);
-        const { google } = require('googleapis');
-        const sheets = google.sheets({ version: 'v4', auth: authClient });
-
-        const response = await sheets.spreadsheets.values.get({
+        logGoogleSheetEvent('FETCH_COLUMNS_START', {
             spreadsheetId,
-            range: `${sheetName}!1:1`
+            sheetName,
+            userId: req.user.id
+        });
+
+        if (!spreadsheetId || !sheetName) {
+            const error = 'Missing requirements';
+            logGoogleSheetEvent('FETCH_COLUMNS_ERROR', { error, body: req.body });
+            return res.status(400).json({ error });
+        }
+
+        const creds = await getLastCredentials(req); // Get latest tokens
+
+        // Manual Axios Call to Sheets API
+        const axios = require('axios');
+        // Range A1:Z1 typically covers the headers
+        const encodedSheet = encodeURIComponent(sheetName);
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!1:1`;
+
+        console.log(`[Google Sheets] Fetching columns via Axios: ${url}`);
+
+        const response = await axios.get(url, {
+            headers: { Authorization: `Bearer ${creds.access_token}` }
         });
 
         const columns = response.data.values ? response.data.values[0] : [];
+
+        logGoogleSheetEvent('FETCH_COLUMNS_SUCCESS', {
+            spreadsheetId,
+            sheetName,
+            columnCount: columns.length,
+            columns: columns
+        });
+
         res.json({ columns });
+
     } catch (error) {
-        console.error('Fetch Columns Error:', error);
-        res.status(500).json({ error: 'Failed to fetch columns: ' + error.message });
+        const msg = error.response?.data?.error?.message || error.message;
+        const details = error.response?.data || {};
+
+        console.error('Fetch Columns Error:', details);
+
+        logGoogleSheetEvent('FETCH_COLUMNS_FAIL', {
+            spreadsheetId: req.body.spreadsheetId,
+            sheetName: req.body.sheetName,
+            error: msg,
+            details: details
+        });
+
+        res.status(500).json({ error: 'Failed to fetch columns: ' + msg });
     }
 });
 

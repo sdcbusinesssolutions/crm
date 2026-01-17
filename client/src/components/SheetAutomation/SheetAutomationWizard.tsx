@@ -59,10 +59,16 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         }
     };
 
+    const [isFetchingSheets, setIsFetchingSheets] = useState(false);
+
     // --- Actions ---
     const handleSheetSelect = async (spreadsheetId: string) => {
-        setFormData({ ...formData, spreadsheet_id: spreadsheetId, sheet_name: '' });
-        // Fetch Tabs
+        if (!spreadsheetId) return;
+
+        setIsFetchingSheets(true);
+        setSheetTabs([]);
+        setFormData(prev => ({ ...prev, spreadsheet_id: spreadsheetId, sheet_name: '' }));
+
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
 
@@ -71,27 +77,46 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ connectionId: formData.connection_id, spreadsheetId })
         });
+
+        setIsFetchingSheets(false);
+
         if (res.ok) {
             const data = await res.json();
-            setSheetTabs(data.sheets);
+            setSheetTabs(data.sheets || []);
+
+            // Auto-select first sheet if available to improve UX
+            if (data.sheets && data.sheets.length > 0) {
+                const firstSheet = data.sheets[0];
+                setFormData(prev => ({ ...prev, sheet_name: firstSheet }));
+                handleTabSelect(firstSheet);
+            }
+        } else {
+            setSheetTabs([]); // Clear sheets on error
+            alert('Failed to fetch sheets. Please check the Spreadsheet ID and try again.');
         }
     };
 
     const handleTabSelect = async (sheetName: string) => {
-        setFormData({ ...formData, sheet_name: sheetName });
+        setFormData(prev => ({ ...prev, sheet_name: sheetName }));
         // Fetch Columns
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
 
         setIsLoading(true);
         try {
+            console.log('Fetching columns for:', {
+                connectionId: formData.connection_id,
+                spreadsheetId: formData.spreadsheet_id,
+                sheetName: sheetName
+            });
+
             const res = await fetch('/api/integrations/google/columns', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     connectionId: formData.connection_id,
                     spreadsheetId: formData.spreadsheet_id,
-                    sheetName
+                    sheetName: sheetName
                 })
             });
             if (res.ok) {
@@ -100,6 +125,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 if (data.columns && data.columns.length > 0) {
                     setColumns(data.columns);
                 } else {
+                    setColumns([]);
                     alert('No columns found in the first row of this sheet.');
                 }
             } else {
@@ -113,6 +139,27 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleNext = () => {
+        // Validation Logic
+        if (step === 1) {
+            if (!formData.name) return alert('Please enter a schedule name');
+        }
+        if (step === 2) {
+            if (!formData.connection_id) return alert('Please select a Google Account');
+            if (!formData.spreadsheet_id) return alert('Please enter a Spreadsheet ID');
+            if (isFetchingSheets) return alert('Please wait while sheets are being fetched...');
+            if (!formData.sheet_name) return alert('Please select a Sheet Tab');
+        }
+        if (step === 3) {
+            if (!formData.trigger_column) return alert('Please select a column to check');
+        }
+        if (step === 4) {
+            if (!formData.template_id) return alert('Please select a message template');
+        }
+
+        setStep(step + 1);
     };
 
     const handleTemplateSelect = (templateId: string) => {
@@ -279,16 +326,26 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Spreadsheet ID</label>
-                            <input
-                                className="w-full border border-slate-300 rounded px-3 py-2"
-                                placeholder="Paste Spreadsheet ID here"
-                                value={formData.spreadsheet_id}
-                                onChange={e => setFormData({ ...formData, spreadsheet_id: e.target.value })}
-                                onBlur={() => handleSheetSelect(formData.spreadsheet_id)}
-                            />
+                            <div className="flex gap-2">
+                                <input
+                                    className="flex-1 border border-slate-300 rounded px-3 py-2"
+                                    placeholder="Paste Spreadsheet ID here"
+                                    value={formData.spreadsheet_id}
+                                    onChange={e => setFormData({ ...formData, spreadsheet_id: e.target.value })}
+                                />
+                                <button
+                                    onClick={() => handleSheetSelect(formData.spreadsheet_id)}
+                                    disabled={isFetchingSheets || !formData.spreadsheet_id}
+                                    className="px-4 py-2 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 text-sm font-medium whitespace-nowrap"
+                                >
+                                    {isFetchingSheets ? 'Fetching...' : 'Fetch Sheets'}
+                                </button>
+                            </div>
                             <p className="text-xs text-slate-400 mt-1">Paste ID from URL: docs.google.com/spreadsheets/d/<b>SpreadsheetID</b>/edit</p>
                         </div>
-                        {sheetTabs.length > 0 && (
+                        {isFetchingSheets && <p className="text-sm text-center text-slate-500 italic">Finding sheets...</p>}
+
+                        {!isFetchingSheets && sheetTabs.length > 0 && (
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Sheet Tab</label>
                                 <select
@@ -299,6 +356,12 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     <option value="">Select Tab</option>
                                     {sheetTabs.map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
+                            </div>
+                        )}
+
+                        {!isFetchingSheets && formData.spreadsheet_id && sheetTabs.length === 0 && (
+                            <div className="p-3 bg-blue-50 text-blue-700 text-sm rounded border border-blue-100">
+                                Click "Fetch Sheets" to load the tabs from your spreadsheet.
                             </div>
                         )}
                     </div>
@@ -419,7 +482,6 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         )}
                     </div>
                 )}
-
             </div>
 
             {/* Footer */}
@@ -431,7 +493,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 )}
 
                 {step < 6 ? (
-                    <button onClick={() => setStep(step + 1)} className="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">
+                    <button onClick={handleNext} className="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">
                         Next
                     </button>
                 ) : (
