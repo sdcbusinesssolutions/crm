@@ -8,6 +8,11 @@ import { inputFieldService } from '../../services/inputFieldService';
 
 interface CreateCampaignProps {
     onBack: () => void;
+    initialData?: {
+        templateId?: string;
+        manualNumbers?: string[];
+        title?: string;
+    }
 }
 
 const DEFAULT_CONTACT_FIELDS = [
@@ -86,7 +91,7 @@ const VariableInput = ({ variable, value, onChange, options }: { variable: strin
     );
 };
 
-const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
+const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) => {
     const [templates, setTemplates] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
     const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
@@ -94,7 +99,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
 
     // Form State
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
-    const [campaignTitle, setCampaignTitle] = useState('');
+    const [campaignTitle, setCampaignTitle] = useState(initialData?.title || '');
     const [selectedGroup, setSelectedGroup] = useState('');
     const [restrictLanguage, setRestrictLanguage] = useState(false);
     const [sendNow, setSendNow] = useState(true);
@@ -123,10 +128,30 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
     // Mobile Tab State
     const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
 
+    const [recipientType, setRecipientType] = useState<'group' | 'manual'>('group');
+    const [manualInput, setManualInput] = useState('');
+
     useEffect(() => {
         fetchData();
         loadBusinessProfile();
     }, []);
+
+    // Handle Initial Data (Retargeting)
+    useEffect(() => {
+        if (initialData && templates.length > 0) {
+            if (initialData.templateId) {
+                const tpl = templates.find(t => t.id === initialData.templateId);
+                if (tpl) setSelectedTemplate(tpl);
+            }
+            if (initialData.manualNumbers && initialData.manualNumbers.length > 0) {
+                setRecipientType('manual');
+                setManualInput(initialData.manualNumbers.join(', '));
+            }
+            if (initialData.title) {
+                setCampaignTitle(initialData.title);
+            }
+        }
+    }, [initialData, templates]);
 
     const loadBusinessProfile = async () => {
         try {
@@ -369,9 +394,6 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack }) => {
             setIsLoading(false);
         }
     };
-
-    const [recipientType, setRecipientType] = useState<'group' | 'manual'>('group');
-    const [manualInput, setManualInput] = useState('');
 
     const handleSubmit = async () => {
         if (!selectedTemplate || !campaignTitle) {

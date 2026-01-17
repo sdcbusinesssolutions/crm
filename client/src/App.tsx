@@ -88,6 +88,11 @@ const MainApp: React.FC = () => {
     const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
+    const [createCampaignData, setCreateCampaignData] = useState<{
+        templateId?: string;
+        manualNumbers?: string[];
+        title?: string;
+    } | undefined>(undefined);
 
     // Domain Validation Logic (ROBUST & DEBUGGABLE)
     const validateDomain = async (currentSession: Session) => {
@@ -290,9 +295,11 @@ const MainApp: React.FC = () => {
         // Reset Campaign State
         if (item === 'Campaigns') {
             setIsCreatingCampaign(false);
+            setCreateCampaignData(undefined);
             setCurrentCampaignId(null);
         } else {
             setIsCreatingCampaign(false);
+            setCreateCampaignData(undefined);
             setCurrentCampaignId(null);
         }
 
@@ -344,12 +351,38 @@ const MainApp: React.FC = () => {
         // Prioritize Campaigns Check
         if (activeMenuItem === 'Campaigns') {
             if (currentCampaignId) {
-                return <CampaignDetails campaignId={currentCampaignId} onBack={() => setCurrentCampaignId(null)} />;
+                return (
+                    <CampaignDetails
+                        campaignId={currentCampaignId}
+                        onBack={() => setCurrentCampaignId(null)}
+                        onRetarget={(data) => {
+                            setCreateCampaignData(data);
+                            setIsCreatingCampaign(true);
+                            setCurrentCampaignId(null);
+                        }}
+                    />
+                );
             }
             if (isCreatingCampaign) {
-                return <CreateCampaignComponent onBack={() => setIsCreatingCampaign(false)} />;
+                return (
+                    <CreateCampaignComponent
+                        onBack={() => {
+                            setIsCreatingCampaign(false);
+                            setCreateCampaignData(undefined);
+                        }}
+                        initialData={createCampaignData}
+                    />
+                );
             }
-            return <CampaignList onCreate={() => setIsCreatingCampaign(true)} onSelect={(id) => setCurrentCampaignId(id)} />;
+            return (
+                <CampaignList
+                    onCreate={() => {
+                        setCreateCampaignData(undefined);
+                        setIsCreatingCampaign(true);
+                    }}
+                    onSelect={(id) => setCurrentCampaignId(id)}
+                />
+            );
         }
 
         if (activeMenuItem === 'Dashboard') {

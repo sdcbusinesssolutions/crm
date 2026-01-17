@@ -6,11 +6,10 @@ import Toast from '../Toast';
 interface CampaignDetailsProps {
     campaignId: string;
     onBack: () => void;
+    onRetarget: (data: { templateId: string, manualNumbers: string[], title: string }) => void;
 }
 
-
-
-const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack }) => {
+const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, onRetarget }) => {
     const [campaign, setCampaign] = useState<any>(null);
     const [queueItems, setQueueItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -188,8 +187,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack })
                             const data = await res.json();
 
                             if (data.phones?.length) {
-                                await navigator.clipboard.writeText(data.phones.join(', '));
-                                alert(`Copied ${data.phones.length} numbers to clipboard!`);
+                                const cleanPhones = data.phones.map((p: string) => p.replace(/^\+/, ''));
+                                await navigator.clipboard.writeText(cleanPhones.join(', '));
+                                alert(`Copied ${cleanPhones.length} numbers to clipboard!`);
                             } else {
                                 alert('No numbers found for current filter.');
                             }
@@ -199,6 +199,35 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack })
                         }
                     }} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
                         Copy Numbers
+                    </button>
+
+                    <button onClick={async () => {
+                        try {
+                            const { data: { session } } = await supabase.auth.getSession();
+                            if (!session) return;
+
+                            const query = new URLSearchParams({ status: statusFilter });
+                            const res = await fetch(`/api/campaigns/${campaignId}/phones?${query}`, {
+                                headers: { 'Authorization': `Bearer ${session.access_token}` }
+                            });
+                            const data = await res.json();
+
+                            if (data.phones?.length) {
+                                const cleanPhones = data.phones.map((p: string) => p.replace(/^\+/, ''));
+                                onRetarget({
+                                    templateId: campaign.template_id, // Use string template ID
+                                    manualNumbers: cleanPhones,
+                                    title: `Retarget: ${campaign.title} (${statusFilter === 'all' ? 'All' : statusFilter})`
+                                });
+                            } else {
+                                alert('No numbers found for current filter.');
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            alert('Failed to retarget.');
+                        }
+                    }} className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors shadow-sm">
+                        Retarget ({statusFilter === 'all' ? 'All' : statusFilter})
                     </button>
 
                     <button onClick={handleExport} className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors shadow-sm shadow-brand-200">
