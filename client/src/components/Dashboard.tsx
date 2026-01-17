@@ -752,9 +752,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline 
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                                 {[
                                     {
-                                        label: "Today's Leads",
-                                        value: stats?.summary.newLeadsToday || 0,
-                                        sub: 'New Potential',
+                                        label: "Today Followup",
+                                        value: stats?.taskStats?.today || 0,
+                                        sub: 'Pending Tasks',
                                         icon: Icons.Users,
                                         tintedBg: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
                                         glowShadow: 'hover:shadow-emerald-500/40 hover:border-emerald-200/50',
@@ -782,8 +782,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline 
                                         value: stats?.summary.totalTemplates || 0,
                                         sub: `${tStats.approved} Approved`,
                                         icon: Icons.Template,
-                                        tintedBg: 'bg-gradient-to-br from-blue-400 to-blue-600',
-                                        glowShadow: 'hover:shadow-blue-500/40 hover:border-blue-200/50',
+                                        tintedBg: 'bg-[#19AB9C]',
+                                        glowShadow: 'hover:shadow-[#19AB9C]/40 hover:border-[#19AB9C]/50',
                                         iconBg: 'bg-white/20',
                                         borderColor: 'border-white/20',
                                         iconColor: 'text-white',
@@ -808,14 +808,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline 
                                         value: stats?.summary.totalContacts || 0,
                                         sub: 'Lifetime Audience',
                                         icon: Icons.Users,
-                                        tintedBg: 'bg-gradient-to-br from-teal-400 to-teal-600',
-                                        glowShadow: 'hover:shadow-teal-500/40 hover:border-teal-200/50',
+                                        tintedBg: 'bg-[#3170EE]',
+                                        glowShadow: 'hover:shadow-blue-500/40 hover:border-blue-200/50',
                                         iconBg: 'bg-white/20',
                                         borderColor: 'border-white/20',
                                         iconColor: 'text-white',
                                         subColor: 'text-white bg-white/20',
                                         nav: 'Contacts',
-                                        isAvatarStyle: true
+                                        isAvatarStyle: true,
+                                        chartData: {
+                                            total: stats?.summary.totalContacts || 0,
+                                            today: stats?.summary.newLeadsToday || 0,
+                                            active: stats?.summary.activeLeads || 0
+                                        }
                                     },
                                     {
                                         label: 'Campaigns',
@@ -846,34 +851,75 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline 
                                 ].map((stat, i) => {
                                     if (stat.isAvatarStyle) {
                                         return (
+                                            // Custom Render for LEAD CRM Card
                                             <div
                                                 key={i}
                                                 onClick={() => handleNav(stat.nav as any)}
                                                 style={{ animationDelay: `${i * 100}ms` }}
-                                                className={`col-span-2 lg:col-span-2 relative overflow-hidden group p-8 rounded-3xl border transition-all duration-300 cursor-pointer animate-float hover:-translate-y-2 hover:scale-[1.02] ${stat.tintedBg} ${stat.borderColor} ${stat.glowShadow} hover:shadow-xl shadow-lg backdrop-blur-xl flex flex-row items-center justify-between`}
+                                                className={`col-span-2 lg:col-span-2 relative overflow-hidden group p-6 rounded-3xl border transition-all duration-300 cursor-pointer animate-float hover:-translate-y-2 hover:scale-[1.02] ${stat.tintedBg} ${stat.borderColor} ${stat.glowShadow} hover:shadow-xl shadow-lg backdrop-blur-xl flex flex-row items-center justify-between`}
                                             >
-                                                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-20 shine-effect" />
+                                                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
 
-                                                {/* Left Side: Text */}
-                                                <div className="flex flex-col items-start relative z-10 pl-2">
-                                                    <div className="flex items-center gap-3 mb-1">
-                                                        <div className={`p-2 rounded-xl bg-white/20 backdrop-blur-sm`}>
-                                                            <stat.icon className="w-6 h-6 text-slate-900" />
+                                                {/* Left Side: Icon & Title & Subtitle */}
+                                                <div className="flex flex-col justify-between h-full relative z-10 pl-2 py-1 gap-4">
+
+                                                    {/* Header Group */}
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md shadow-sm border border-white/10 flex items-center justify-center`}>
+                                                            <stat.icon className="w-7 h-7 text-white" />
                                                         </div>
-                                                        <div className="text-2xl font-black uppercase tracking-wider text-slate-900 drop-shadow-sm">{stat.label}</div>
+                                                        <div className="flex flex-col">
+                                                            <div className="text-3xl font-black uppercase tracking-tight text-white drop-shadow-sm leading-none">LEAD<br />CRM</div>
+                                                        </div>
                                                     </div>
 
-                                                    <div className={`mt-2 inline-block px-3 py-1 rounded-lg bg-white/20 backdrop-blur-sm text-[10px] font-bold tracking-wide border border-white/10 shadow-sm text-slate-900`}>
-                                                        {stat.sub}
+                                                    {/* Badge */}
+                                                    <div className="mt-auto">
+                                                        <div className={`inline-block px-3 py-1.5 rounded-lg bg-white/20 backdrop-blur-sm text-[11px] font-bold tracking-wider border border-white/10 text-white`}>
+                                                            {stat.sub}
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Right Side: Avatar */}
-                                                <div className="relative z-10 pr-2">
-                                                    <div className="w-28 h-28 rounded-full border-[5px] border-white flex flex-col items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 bg-white/10 backdrop-blur-md ring-1 ring-white/30">
-                                                        <div className="text-3xl font-black tracking-tight text-slate-900 leading-none drop-shadow-sm animate-blink-hard">{stat.value}</div>
-                                                        <div className="text-[10px] font-extrabold uppercase text-slate-900 mt-1 opacity-80">LEADS</div>
+                                                {/* Right Side: Two Circles (Total & Today) */}
+                                                <div className="relative z-10 pr-2 flex items-center gap-6">
+
+                                                    {/* Circle 1: Total Leads */}
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className="w-24 h-24 relative group-hover:scale-105 transition-transform duration-300">
+                                                            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90 drop-shadow-sm">
+                                                                <path className="text-white/30" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                                                                <path className="text-white"
+                                                                    strokeDasharray="100, 100"
+                                                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                                    fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+                                                                />
+                                                            </svg>
+                                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                                                                <div className="text-2xl font-black tracking-tight leading-none">{(stat as any).chartData?.total}</div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] font-black uppercase text-white tracking-wide">Total Leads</span>
                                                     </div>
+
+                                                    {/* Circle 2: Today's Leads */}
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <div className="w-24 h-24 relative group-hover:scale-105 transition-transform duration-300 delay-75">
+                                                            <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90 drop-shadow-sm">
+                                                                <path className="text-white/30" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                                                                <path className="text-white"
+                                                                    strokeDasharray="100, 100"
+                                                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                                                    fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"
+                                                                />
+                                                            </svg>
+                                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                                                                <div className="text-2xl font-black tracking-tight leading-none">{(stat as any).chartData?.today}</div>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] font-black uppercase text-white tracking-wide">Today</span>
+                                                    </div>
+
                                                 </div>
                                             </div>
                                         );
