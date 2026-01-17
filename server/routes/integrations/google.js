@@ -87,13 +87,18 @@ router.post('/exchange', async (req, res) => {
         console.log(`[Google Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
 
         // DEBUG: Check for Proxy Environment Variables that might break gaxios
-        if (process.env.HTTP_PROXY || process.env.HTTPS_PROXY) {
-            console.warn('[Google Exchange] Proxy detected:', {
-                http: !!process.env.HTTP_PROXY,
-                https: !!process.env.HTTPS_PROXY
-            });
-            // Should we delete them? For now just log.
-        }
+        // Gaxios/node-fetch will crash with "Invalid host defined options" if these are malformed.
+        // We delete them to be safe.
+        const proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
+        proxyVars.forEach(v => {
+            if (process.env[v]) {
+                console.warn(`[Google Exchange] Deleting detected proxy var: ${v}=${process.env[v]}`);
+                delete process.env[v];
+            }
+        });
+
+        // Ensure no_proxy is unset or strictly managed if we needed it (we don't)
+        // delete process.env.NO_PROXY; 
 
         logGoogleEvent('EXCHANGE_START', {
             redirectUrl: creds.redirectUrl,
@@ -105,16 +110,56 @@ router.post('/exchange', async (req, res) => {
         // Ensure code is a clean string
         const cleanCode = String(code).trim();
 
-        // Explicitly set options to avoid environment pollution?
-        // Note: googleapis uses 'gaxios'. 'Invalid host defined options' is typically a nodejs 'http' error.
+        // Force Gaxios options (undocumented hack but might help if it persists)
+        // oauth2Client.transporter.defaults.proxy = false; 
 
-        const { tokens } = await oauth2Client.getToken(cleanCode);
+        let tokens;
+        try {
+            const response = await oauth2Client.getToken(cleanCode);
+            tokens = response.tokens;
+        } catch (tokenError) {
+            console.error('[Google Exchange] oauth2Client.getToken failed. Attempting Axios fallback...', tokenError.message);
+
+            // FALLBACK: Manual Token Exchange via Axios
+            // This bypasses 'gaxios' (used by googleapis) which is prone to "Invalid host" errors in some ENV/Proxy setups.
+            try {
+                const axios = require('axios');
+                const tokenUrl = 'https://oauth2.googleapis.com/token';
+                const payload = {
+                    code: cleanCode,
+                    client_id: creds.clientId,
+                    client_secret: creds.clientSecret,
+                    redirect_uri: creds.redirectUrl,
+                    grant_type: 'authorization_code'
+                };
+
+                console.log('[Google Exchange] Sending manual Axios request to:', tokenUrl);
+                const { data } = await axios.post(tokenUrl, payload);
+                tokens = data;
+                console.log('[Google Exchange] Axios fallback SUCCESS!');
+            } catch (axiosError) {
+                console.error('[Google Exchange] Axios fallback FAILED:', axiosError.message);
+                if (axiosError.response) {
+                    console.error('Axios Response:', axiosError.response.data);
+                }
+                throw tokenError; // Throw the original error if fallback also fails
+            }
+        }
+
         oauth2Client.setCredentials(tokens);
 
-        // B. Get User Info
-        const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
-        const userInfo = await oauth2.userinfo.get();
-        const email = userInfo.data.email;
+        // B. Get User Info (Manual Axios Call - bypassing googleapis/gaxios completely)
+        const axios = require('axios');
+        console.log('[Google Exchange] Fetching User Info via Axios...');
+
+        // We use the access_token we just got (either from standard or fallback)
+        const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokens.access_token}` }
+        });
+
+        const userInfoData = userInfoResponse.data;
+        const email = userInfoData.email;
+        console.log('[Google Exchange] User Info fetched successfully:', email);
 
         // Use user-provided name or default to email
         const finalConnectionName = connectionName || email;
@@ -145,7 +190,7 @@ router.post('/exchange', async (req, res) => {
                 .from('user_integrations')
                 .update({
                     credentials: storedCredentials,
-                    metadata: userInfo.data,
+                    metadata: userInfoData,
                     updated_at: new Date()
                 })
                 .eq('id', existing.id);
@@ -157,7 +202,7 @@ router.post('/exchange', async (req, res) => {
                     provider: 'google',
                     connection_name: finalConnectionName,
                     credentials: storedCredentials,
-                    metadata: userInfo.data
+                    metadata: userInfoData
                 });
         }
 
