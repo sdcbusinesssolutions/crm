@@ -275,6 +275,30 @@ router.get('/:id', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /:id/phones - Extract phone numbers
+router.get('/:id/phones', async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+        const { status } = req.query;
+
+        let query = supabase
+            .from('campaign_queue')
+            .select('phone_number')
+            .eq('campaign_id', req.params.id);
+
+        if (status && status !== 'all') {
+            query = query.eq('status', status);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const phones = data.map(d => d.phone_number);
+        res.json({ phones });
+
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /:id/queue
 router.get('/:id/queue', async (req, res) => {
     try {
