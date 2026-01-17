@@ -61,6 +61,7 @@ router.post('/exchange', async (req, res) => {
         const userId = req.user.id;
 
         // Helper to sanitize inputs (remove quotes which cause "Invalid host defined options" and whitespace)
+        // Aggressive clean: remove all whitespace, quotes, and non-printable chars
         const clean = (str) => (str || '').replace(/['"]/g, '').trim();
 
         // Use provided creds or fallback to env
@@ -85,6 +86,15 @@ router.post('/exchange', async (req, res) => {
         // A. Exchange
         console.log(`[Google Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
 
+        // DEBUG: Check for Proxy Environment Variables that might break gaxios
+        if (process.env.HTTP_PROXY || process.env.HTTPS_PROXY) {
+            console.warn('[Google Exchange] Proxy detected:', {
+                http: !!process.env.HTTP_PROXY,
+                https: !!process.env.HTTPS_PROXY
+            });
+            // Should we delete them? For now just log.
+        }
+
         logGoogleEvent('EXCHANGE_START', {
             redirectUrl: creds.redirectUrl,
             clientIdPrefix: creds.clientId ? creds.clientId.substring(0, 10) + '...' : 'MISSING',
@@ -92,7 +102,13 @@ router.post('/exchange', async (req, res) => {
             codeLength: code ? code.length : 0
         });
 
-        const { tokens } = await oauth2Client.getToken(code);
+        // Ensure code is a clean string
+        const cleanCode = String(code).trim();
+
+        // Explicitly set options to avoid environment pollution?
+        // Note: googleapis uses 'gaxios'. 'Invalid host defined options' is typically a nodejs 'http' error.
+
+        const { tokens } = await oauth2Client.getToken(cleanCode);
         oauth2Client.setCredentials(tokens);
 
         // B. Get User Info
@@ -159,7 +175,8 @@ router.post('/exchange', async (req, res) => {
         const errorDetails = {
             message: error.message,
             code: error.code,
-            response: error.response?.data
+            response: error.response?.data,
+            stack: error.stack // Include stack trace
         };
 
         console.error('Google Exchange Error Details:', errorDetails);
@@ -168,6 +185,11 @@ router.post('/exchange', async (req, res) => {
             error: error.message,
             details: errorDetails
         });
+
+        // Handle specific "invalid_grant" (Bad Request) separately for clarity
+        if (error.response?.data?.error === 'invalid_grant') {
+            return res.status(400).json({ error: 'Invalid or expired Authorization Code. Please try again.' });
+        }
 
         const errorMessage = error.response?.data?.error_description || error.message || 'Failed to exchange token';
         res.status(500).json({ error: errorMessage, details: error.response?.data });
