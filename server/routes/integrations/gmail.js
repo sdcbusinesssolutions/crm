@@ -51,12 +51,16 @@ router.post('/exchange', async (req, res) => {
         const { code, clientId, clientSecret, redirectUrl, connectionName } = req.body;
         const userId = req.user.id;
 
+        // Helper to sanitize inputs (remove quotes which cause "Invalid host defined options" and whitespace)
+        // Aggressive clean: remove all whitespace, quotes, and non-printable chars
+        const clean = (str) => (str || '').replace(/['"]/g, '').trim();
+
         // Use provided creds or fallback to env
         // Assuming same env vars as Google unless specific ones provided
         const creds = {
-            clientId: clientId || process.env.GOOGLE_CLIENT_ID,
-            clientSecret: clientSecret || process.env.GOOGLE_CLIENT_SECRET,
-            redirectUrl: redirectUrl || process.env.GOOGLE_REDIRECT_URL
+            clientId: clean(clientId || process.env.GOOGLE_CLIENT_ID),
+            clientSecret: clean(clientSecret || process.env.GOOGLE_CLIENT_SECRET),
+            redirectUrl: clean(redirectUrl || process.env.GOOGLE_REDIRECT_URL)
         };
 
         if (!code) return res.status(400).json({ error: 'Missing auth code' });
@@ -72,13 +76,60 @@ router.post('/exchange', async (req, res) => {
         );
 
         // A. Exchange
-        const { tokens } = await oauth2Client.getToken(code);
+        console.log(`[Gmail Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
+
+        // DEBUG: Check for Proxy Environment Variables that might break gaxios
+        const proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
+        proxyVars.forEach(v => {
+            if (process.env[v]) {
+                console.warn(`[Gmail Exchange] Deleting detected proxy var: ${v}=${process.env[v]}`);
+                delete process.env[v];
+            }
+        });
+
+        // Ensure code is a clean string
+        const cleanCode = String(code).trim();
+        let tokens;
+
+        try {
+            const response = await oauth2Client.getToken(cleanCode);
+            tokens = response.tokens;
+        } catch (tokenError) {
+            console.error('[Gmail Exchange] oauth2Client.getToken failed. Attempting Axios fallback...', tokenError.message);
+            // FALLBACK: Manual Token Exchange via Axios
+            try {
+                const axios = require('axios');
+                const tokenUrl = 'https://oauth2.googleapis.com/token';
+                const payload = {
+                    code: cleanCode,
+                    client_id: creds.clientId,
+                    client_secret: creds.clientSecret,
+                    redirect_uri: creds.redirectUrl,
+                    grant_type: 'authorization_code'
+                };
+
+                const { data } = await axios.post(tokenUrl, payload);
+                tokens = data;
+                console.log('[Gmail Exchange] Axios fallback SUCCESS!');
+            } catch (axiosError) {
+                console.error('[Gmail Exchange] Axios fallback FAILED:', axiosError.message);
+                throw tokenError;
+            }
+        }
+
         oauth2Client.setCredentials(tokens);
 
-        // B. Get User Info
-        const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
-        const userInfo = await oauth2.userinfo.get();
-        const email = userInfo.data.email;
+        // B. Get User Info (Manual Axios Call - bypassing googleapis/gaxios completely)
+        const axios = require('axios');
+        console.log('[Gmail Exchange] Fetching User Info via Axios...');
+
+        const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokens.access_token}` }
+        });
+
+        const userInfoData = userInfoResponse.data;
+        const email = userInfoData.email;
+        console.log('[Gmail Exchange] User Info fetched successfully:', email);
 
         // Use user-provided name or default to email
         const finalConnectionName = connectionName || email;
@@ -106,7 +157,7 @@ router.post('/exchange', async (req, res) => {
                 .from('user_integrations')
                 .update({
                     credentials: storedCredentials,
-                    metadata: userInfo.data,
+                    metadata: userInfoData,
                     updated_at: new Date()
                 })
                 .eq('id', existing.id);
@@ -118,7 +169,7 @@ router.post('/exchange', async (req, res) => {
                     provider: 'gmail', // Important: Different provider string
                     connection_name: finalConnectionName,
                     credentials: storedCredentials,
-                    metadata: userInfo.data
+                    metadata: userInfoData
                 });
         }
 
