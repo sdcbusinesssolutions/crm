@@ -202,6 +202,26 @@ export const integrationsService = {
         return await res.json();
     },
 
+    async saveServiceAccount(payload: { connectionName: string, credentials: any }) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/google/service-account`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to save Service Account');
+        }
+        return await res.json();
+    },
+
     async deleteGoogleConnection(id: string) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('No session');

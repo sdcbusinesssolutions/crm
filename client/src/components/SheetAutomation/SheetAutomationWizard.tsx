@@ -18,11 +18,12 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         connection_id: '',
         spreadsheet_id: '',
         sheet_name: '',
-        trigger_column: '',
-        trigger_operator: 'equals',
-        trigger_value: 'Today',
+        connection_id: '',
+        spreadsheet_id: '',
+        sheet_name: '',
+        triggers: [{ column: '', operator: 'equals', value: '' }] as { column: string, operator: string, value: string }[],
         template_id: '',
-        mapping: {} as Record<string, string>
+        mapping: {} as Record<string, { type: 'static' | 'column', value: string }>
     });
 
     const [connections, setConnections] = useState<any[]>([]);
@@ -155,7 +156,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             if (!formData.sheet_name) return alert('Please select a Sheet Tab');
         }
         if (step === 3) {
-            if (!formData.trigger_column) return alert('Please select a column to check');
+            if (formData.triggers.length === 0) return alert('Please add at least one trigger condition');
+            const invalidInfo = formData.triggers.find(t => !t.column || !t.operator);
+            if (invalidInfo) return alert('Please complete all trigger conditions (Column and Operator are required)');
         }
         if (step === 4) {
             if (!formData.template_id) return alert('Please select a message template');
@@ -211,18 +214,14 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 time: formData.schedule_time,
                 days: [] // All days
             },
-            trigger_condition: {
-                column: formData.trigger_column,
-                operator: formData.trigger_operator,
-                value: formData.trigger_value
-            },
+            trigger_condition: formData.triggers, // Send array directly
             template_config: {
                 template_name: templates.find(t => t.id === formData.template_id)?.name,
                 language: 'en', // hardcoded
                 components: [] // Logic to map params
             },
             mapping_config: {
-                phone_col: formData.mapping['phone'] || columns[0], // fallback
+                phone_col: formData.mapping['phone']?.value || columns[0],
                 params: formData.mapping
             }
         };
@@ -278,35 +277,42 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Frequency</label>
                             <div className="flex border border-slate-300 rounded overflow-hidden">
-                                <button
-                                    onClick={() => setFormData({ ...formData, schedule_type: 'daily' })}
-                                    className={`flex-1 py-2 font-medium transition-colors ${formData.schedule_type === 'daily' ? 'bg-orange-50 text-orange-600' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    Every Day
-                                </button>
-                                <button
-                                    onClick={() => setFormData({ ...formData, schedule_type: 'weekly' })}
-                                    className={`flex-1 py-2 border-l border-slate-300 font-medium transition-colors ${formData.schedule_type === 'weekly' ? 'bg-orange-50 text-orange-600' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    Weekly
-                                </button>
-                                <button
-                                    onClick={() => setFormData({ ...formData, schedule_type: 'monthly' })}
-                                    className={`flex-1 py-2 border-l border-slate-300 font-medium transition-colors ${formData.schedule_type === 'monthly' ? 'bg-orange-50 text-orange-600' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    Monthly
-                                </button>
+                                {['daily', 'weekly', 'monthly', 'custom'].map((t) => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setFormData({ ...formData, schedule_type: t })}
+                                        className={`flex-1 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-slate-300
+                                            ${formData.schedule_type === t ? 'bg-orange-50 text-orange-600' : 'bg-white text-slate-600 hover:bg-slate-50'}
+                                        `}
+                                    >
+                                        {t === 'custom' ? 'One-Time' : t.charAt(0).toUpperCase() + t.slice(1)}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Time of day</label>
-                            <input
-                                type="time"
-                                value={formData.schedule_time}
-                                onChange={e => setFormData({ ...formData, schedule_time: e.target.value })}
-                                className="w-full border border-slate-300 rounded px-3 py-2"
-                            />
-                        </div>
+                        {formData.schedule_type === 'custom' ? (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Date & Time</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    onChange={e => {
+                                        // Store as "YYYY-MM-DD HH:mm"
+                                        setFormData({ ...formData, schedule_time: e.target.value });
+                                    }}
+                                />
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Time of day</label>
+                                <input
+                                    type="time"
+                                    value={formData.schedule_time}
+                                    onChange={e => setFormData({ ...formData, schedule_time: e.target.value })}
+                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -398,51 +404,164 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
                 {/* STEP 3: TRIGGER */}
                 {step === 3 && (
-                    <div className="max-w-2xl mx-auto flex items-center gap-4 bg-slate-50 p-6 rounded-lg border border-slate-200">
-                        {isLoading ? (
-                            <div className="text-sm text-slate-500 animate-pulse">Fetching columns...</div>
-                        ) : (
-                            <select
-                                className="flex-1 border border-slate-300 rounded px-3 py-2"
-                                value={formData.trigger_column}
-                                onChange={e => setFormData({ ...formData, trigger_column: e.target.value })}
-                            >
-                                <option value="">Select Column</option>
-                                {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        )}
+                    <div className="max-w-3xl mx-auto space-y-4">
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800 mb-4">
+                            Define the conditions that must be met for a message to be sent. All conditions must be true (AND logic).
+                        </div>
 
-                        <select
-                            className="w-40 border border-slate-300 rounded px-3 py-2"
-                            value={formData.trigger_operator}
-                            onChange={e => setFormData({ ...formData, trigger_operator: e.target.value })}
+                        {formData.triggers.map((trigger, index) => (
+                            <div key={index} className="flex items-start gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                {isLoading ? (
+                                    <div className="text-sm text-slate-500 animate-pulse py-2 px-3">Loading columns...</div>
+                                ) : (
+                                    <select
+                                        className="flex-1 w-1/3 border border-slate-300 rounded px-3 py-2 text-sm"
+                                        value={trigger.column}
+                                        onChange={e => {
+                                            const newTriggers = [...formData.triggers];
+                                            newTriggers[index].column = e.target.value;
+                                            setFormData({ ...formData, triggers: newTriggers });
+                                        }}
+                                    >
+                                        <option value="">Select Column</option>
+                                        {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                )}
+
+                                <select
+                                    className="w-1/3 border border-slate-300 rounded px-3 py-2 text-sm"
+                                    value={trigger.operator}
+                                    onChange={e => {
+                                        const newTriggers = [...formData.triggers];
+                                        newTriggers[index].operator = e.target.value;
+                                        // Reset value if operator doesn't need it
+                                        if (['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal'].includes(e.target.value)) {
+                                            newTriggers[index].value = '';
+                                        }
+                                        setFormData({ ...formData, triggers: newTriggers });
+                                    }}
+                                >
+                                    <optgroup label="General">
+                                        <option value="equals">Equals</option>
+                                        <option value="not_equals">Does Not Equal</option>
+                                        <option value="contains">Contains</option>
+                                        <option value="does_not_contain">Does Not Contain</option>
+                                        <option value="starts_with">Starts With</option>
+                                        <option value="ends_with">Ends With</option>
+                                        <option value="is_empty">Is Empty</option>
+                                        <option value="is_not_empty">Is Not Empty</option>
+                                    </optgroup>
+                                    <optgroup label="Date & Time (Dynamic)">
+                                        <option value="is_today">Is Today</option>
+                                        <option value="is_yesterday">Is Yesterday</option>
+                                        <option value="is_tomorrow">Is Tomorrow</option>
+                                        <option value="in_last_x_days">In Last X Days</option>
+                                        <option value="in_next_x_days">In Next X Days</option>
+                                        <option value="date_equals">Date Equals (Exact)</option>
+                                        <option value="date_before">Date Before</option>
+                                        <option value="date_after">Date After</option>
+                                        <option value="date_between">Date Between</option>
+                                    </optgroup>
+                                    <optgroup label="Anniversary (Ignore Year)">
+                                        <option value="day_month_equal">Birthday/Anniv. is Today</option>
+                                        <option value="day_month_before">Birthday has passed</option>
+                                        <option value="day_month_after">Birthday is coming</option>
+                                    </optgroup>
+                                    <optgroup label="Number">
+                                        <option value="greater_than">Greater Than</option>
+                                        <option value="less_than">Less Than</option>
+                                        <option value="greater_than_or_equal">Greater or Equal</option>
+                                        <option value="less_than_or_equal">Less or Equal</option>
+                                    </optgroup>
+                                </select>
+
+                                {/* Value Input - Dynamic based on operator */}
+                                {!['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal'].includes(trigger.operator) && (
+                                    <div className="w-1/3">
+                                        {['date_equals', 'date_before', 'date_after'].includes(trigger.operator) ? (
+                                            <input
+                                                type="date"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                value={trigger.value}
+                                                onChange={e => {
+                                                    const newTriggers = [...formData.triggers];
+                                                    newTriggers[index].value = e.target.value;
+                                                    setFormData({ ...formData, triggers: newTriggers });
+                                                }}
+                                            />
+                                        ) : ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? (
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm pr-10"
+                                                    placeholder="Days"
+                                                    value={trigger.value}
+                                                    onChange={e => {
+                                                        const newTriggers = [...formData.triggers];
+                                                        newTriggers[index].value = e.target.value;
+                                                        setFormData({ ...formData, triggers: newTriggers });
+                                                    }}
+                                                />
+                                                <span className="absolute right-3 top-2 text-xs text-slate-400">Days</span>
+                                            </div>
+                                        ) : ['date_between'].includes(trigger.operator) ? (
+                                            <input
+                                                type="text"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                placeholder="YYYY-MM-DD,YYYY-MM-DD"
+                                                title="Format: StartDate,EndDate"
+                                                value={trigger.value}
+                                                onChange={e => {
+                                                    const newTriggers = [...formData.triggers];
+                                                    newTriggers[index].value = e.target.value;
+                                                    setFormData({ ...formData, triggers: newTriggers });
+                                                }}
+                                            />
+                                        ) : (
+                                            <input
+                                                type="text"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                placeholder="Value"
+                                                value={trigger.value}
+                                                onChange={e => {
+                                                    const newTriggers = [...formData.triggers];
+                                                    newTriggers[index].value = e.target.value;
+                                                    setFormData({ ...formData, triggers: newTriggers });
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => {
+                                        const newTriggers = formData.triggers.filter((_, i) => i !== index);
+                                        setFormData({ ...formData, triggers: newTriggers });
+                                    }}
+                                    className="p-2 text-red-500 hover:bg-red-50 rounded"
+                                    title="Remove Condition"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+
+                        <button
+                            onClick={() => {
+                                setFormData({
+                                    ...formData,
+                                    triggers: [...formData.triggers, { column: '', operator: 'equals', value: '' }]
+                                });
+                            }}
+                            className="flex items-center gap-2 text-sm text-orange-600 font-medium hover:text-orange-700 font"
                         >
-                            <option value="equals">Equals</option>
-                            <option value="day_month_equal">Day Month Equal</option>
-                            <option value="contains">Contains</option>
-                            <option value="is_empty">Is Empty</option>
-                        </select>
-
-                        <select
-                            className="flex-1 border border-slate-300 rounded px-3 py-2"
-                            value={formData.trigger_value} // Reusing this for "Timestamp" or constant
-                            onChange={e => setFormData({ ...formData, trigger_value: e.target.value })}
-                        >
-                            <option value="Today">Today (Dynamic)</option>
-                            <option value="Yesterday">Yesterday</option>
-                            <option value="Custom">Custom Value (Type below)</option>
-                        </select>
-
-                        {/* If Custom, show input */}
-                        {formData.trigger_value === 'Custom' && (
-                            <input
-                                className="w-full mt-2 border border-slate-300 rounded px-3 py-2"
-                                placeholder="Enter custom value to match..."
-                                onChange={e => setFormData({ ...formData, trigger_value: e.target.value })} // This logic is slightly flawed as it overwrites 'Custom', need separate state or cleaner UI. 
-                            // Proper fix: 'trigger_value_type' + 'trigger_value_custom'
-                            // For quick fix: just let them type if it doesn't match predefined
-                            />
-                        )}
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                            Add Another Condition
+                        </button>
                     </div>
                 )}
 
@@ -460,6 +579,18 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                             </select>
                         </div>
+
+                        {formData.template_id && (
+                            <div className="bg-slate-50 p-4 rounded border border-slate-200 text-sm space-y-2">
+                                <h5 className="font-bold text-slate-700">Preview</h5>
+                                {templates.find(t => t.id === formData.template_id)?.components.map((c: any, i: number) => (
+                                    <div key={i}>
+                                        <span className="text-xs font-semibold text-slate-500 block uppercase">{c.type}</span>
+                                        <p className="whitespace-pre-wrap text-slate-700">{c.text || `[${c.format} Content]`}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -473,41 +604,95 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
                 {/* STEP 6: MAPPING */}
                 {step === 6 && (
-                    <div className="max-w-md mx-auto space-y-4">
-                        <h4 className="font-bold text-slate-700 mb-4">Map Sheet Columns to Variables</h4>
+                    <div className="max-w-2xl mx-auto space-y-6">
+                        <h4 className="font-bold text-slate-700 mb-4 border-b pb-2">Map Template Variables</h4>
 
-                        <div className="flex items-center gap-4">
-                            <span className="w-32 text-sm font-medium">Phone Number</span>
+                        {/* Phone Number is Always Column */}
+                        <div className="flex items-center gap-4 py-2">
+                            <span className="w-40 text-sm font-bold text-slate-800">Phone Number</span>
                             <span className="text-slate-400">→</span>
                             <select
-                                className="flex-1 border border-slate-300 rounded px-2 py-1"
-                                onChange={e => setFormData(p => ({ ...p, mapping: { ...p.mapping, phone: e.target.value } }))}
+                                className="flex-1 w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                                onChange={e => setFormData(p => ({
+                                    ...p,
+                                    mapping: { ...p.mapping, phone: { type: 'column', value: e.target.value } }
+                                }))}
                             >
-                                <option value="">Select Column</option>
+                                <option value="">Select Phone Column</option>
                                 {columns.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
 
+                        <div className="h-px bg-slate-100 my-2"></div>
+
                         {/* Dynamic Template Params */}
-                        {templateParams.map(param => (
-                            <div key={param} className="flex items-center gap-4">
-                                <span className="w-40 text-sm font-medium truncate" title={param}>
-                                    {param.replace(/_/g, ' ').toUpperCase()}
-                                </span>
-                                <span className="text-slate-400">→</span>
-                                <select
-                                    className="flex-1 border border-slate-300 rounded px-2 py-1"
-                                    value={formData.mapping[param] || ''}
-                                    onChange={e => setFormData(p => ({ ...p, mapping: { ...p.mapping, [param]: e.target.value } }))}
-                                >
-                                    <option value="">Select Column</option>
-                                    {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                        ))}
+                        {templateParams.map(param => {
+                            const currentMap = formData.mapping[param] || { type: 'column', value: '' };
+
+                            return (
+                                <div key={param} className="flex flex-col sm:flex-row sm:items-center gap-4 py-3 border-b border-slate-50 last:border-0">
+                                    <div className="w-40 shrink-0">
+                                        <span className="text-sm font-medium text-slate-700 block mb-1">
+                                            {param.replace(/_/g, ' ').toUpperCase()}
+                                        </span>
+                                        <div className="flex text-xs border border-slate-200 rounded overflow-hidden w-fit">
+                                            <button
+                                                onClick={() => setFormData(p => ({
+                                                    ...p,
+                                                    mapping: { ...p.mapping, [param]: { type: 'column', value: '' } }
+                                                }))}
+                                                className={`px-2 py-1 ${currentMap.type === 'column' ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-slate-50 text-slate-500'}`}
+                                            >
+                                                Column
+                                            </button>
+                                            <button
+                                                onClick={() => setFormData(p => ({
+                                                    ...p,
+                                                    mapping: { ...p.mapping, [param]: { type: 'static', value: '' } }
+                                                }))}
+                                                className={`px-2 py-1 border-l border-slate-200 ${currentMap.type === 'static' ? 'bg-blue-50 text-blue-600 font-bold' : 'bg-slate-50 text-slate-500'}`}
+                                            >
+                                                Static
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <span className="hidden sm:inline text-slate-400">→</span>
+
+                                    <div className="flex-1">
+                                        {currentMap.type === 'column' ? (
+                                            <select
+                                                className="w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                                                value={currentMap.value}
+                                                onChange={e => setFormData(p => ({
+                                                    ...p,
+                                                    mapping: { ...p.mapping, [param]: { type: 'column', value: e.target.value } }
+                                                }))}
+                                            >
+                                                <option value="">Select Column</option>
+                                                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type={param.includes('IMAGE') || param.includes('VIDEO') ? 'url' : 'text'}
+                                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                                placeholder={param.includes('IMAGE') ? "Paste Image URL..." : "Type custom value..."}
+                                                value={currentMap.value}
+                                                onChange={e => setFormData(p => ({
+                                                    ...p,
+                                                    mapping: { ...p.mapping, [param]: { type: 'static', value: e.target.value } }
+                                                }))}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
 
                         {templateParams.length === 0 && (
-                            <p className="text-sm text-slate-500 italic">No variables found in selected template.</p>
+                            <p className="text-sm text-slate-500 italic p-4 text-center bg-slate-50 rounded">
+                                No variable fields found in the selected template.
+                            </p>
                         )}
                     </div>
                 )}

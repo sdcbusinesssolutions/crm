@@ -2,6 +2,27 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const { google } = require('googleapis');
 
 const GoogleCalendarService = {
+    _getAuthClient(creds) {
+        if (creds.private_key && creds.client_email) {
+            console.log('[GoogleCalendarService] Using Service Account for Auth');
+            return new google.auth.JWT(
+                creds.client_email,
+                null,
+                creds.private_key,
+                ['https://www.googleapis.com/auth/calendar']
+            );
+        }
+
+        const oauth2Client = new google.auth.OAuth2(
+            creds.params_client_id || process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
+            creds.params_client_secret || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
+            creds.params_redirect_url || process.env.GOOGLE_CALENDAR_REDIRECT_URL || process.env.GOOGLE_REDIRECT_URL
+        );
+
+        oauth2Client.setCredentials(creds);
+        return oauth2Client;
+    },
+
     async createEvent(userId, connectionId, eventData) {
         const { summary, description, startTime, endTime, attendees, addMeetLink } = eventData;
 
@@ -18,17 +39,10 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const creds = integration.credentials;
-        const oauth2Client = new google.auth.OAuth2(
-            creds.params_client_id || process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
-            creds.params_client_secret || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
-            creds.params_redirect_url || process.env.GOOGLE_CALENDAR_REDIRECT_URL || process.env.GOOGLE_REDIRECT_URL
-        );
-
-        oauth2Client.setCredentials(creds);
+        const authClient = this._getAuthClient(integration.credentials);
 
         // 3. Create Event
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
 
         const resource = {
             summary,
@@ -48,7 +62,7 @@ const GoogleCalendarService = {
         }
 
         const result = await calendar.events.insert({
-            calendarId: 'primary',
+            calendarId: 'primary', // Service Account: Uses its own calendar unless impersonating. User: Uses user's primary.
             resource: resource,
             conferenceDataVersion: 1,
         });
@@ -62,7 +76,6 @@ const GoogleCalendarService = {
     },
 
     async checkAvailability(userId, connectionId, startTime, endTime) {
-        // ... (existing implementation)
         // 1. Get Integration
         const { data: integration, error } = await supabaseAdmin
             .from('user_integrations')
@@ -76,15 +89,8 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const creds = integration.credentials;
-        const oauth2Client = new google.auth.OAuth2(
-            creds.params_client_id || process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
-            creds.params_client_secret || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
-            creds.params_redirect_url || process.env.GOOGLE_CALENDAR_REDIRECT_URL || process.env.GOOGLE_REDIRECT_URL
-        );
-
-        oauth2Client.setCredentials(creds);
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+        const authClient = this._getAuthClient(integration.credentials);
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
 
         // 3. Query FreeBusy
         const response = await calendar.freebusy.query({
@@ -117,15 +123,8 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const creds = integration.credentials;
-        const oauth2Client = new google.auth.OAuth2(
-            creds.params_client_id || process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID,
-            creds.params_client_secret || process.env.GOOGLE_CALENDAR_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET,
-            creds.params_redirect_url || process.env.GOOGLE_CALENDAR_REDIRECT_URL || process.env.GOOGLE_REDIRECT_URL
-        );
-
-        oauth2Client.setCredentials(creds);
-        const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+        const authClient = this._getAuthClient(integration.credentials);
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
 
         // Calculate Range
         const start = startDate ? new Date(startDate) : new Date();

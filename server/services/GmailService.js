@@ -2,6 +2,27 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const { google } = require('googleapis');
 
 const GmailService = {
+    _getAuthClient(creds) {
+        if (creds.private_key && creds.client_email) {
+            console.log('[GmailService] Using Service Account for Auth');
+            return new google.auth.JWT(
+                creds.client_email,
+                null,
+                creds.private_key,
+                ['https://www.googleapis.com/auth/gmail.send']
+            );
+        }
+
+        const oauth2Client = new google.auth.OAuth2(
+            creds.params_client_id || process.env.GOOGLE_CLIENT_ID,
+            creds.params_client_secret || process.env.GOOGLE_CLIENT_SECRET,
+            creds.params_redirect_url || process.env.GOOGLE_REDIRECT_URL
+        );
+
+        oauth2Client.setCredentials(creds);
+        return oauth2Client;
+    },
+
     async sendEmail(userId, connectionId, to, subject, body) {
         if (!connectionId || !to || !subject || !body) {
             throw new Error('Missing required fields: connectionId, to, subject, body');
@@ -20,17 +41,10 @@ const GmailService = {
         }
 
         // 2. Setup Auth
-        const creds = integration.credentials;
-        const oauth2Client = new google.auth.OAuth2(
-            creds.params_client_id || process.env.GOOGLE_CLIENT_ID,
-            creds.params_client_secret || process.env.GOOGLE_CLIENT_SECRET,
-            creds.params_redirect_url || process.env.GOOGLE_REDIRECT_URL
-        );
-
-        oauth2Client.setCredentials(creds);
+        const authClient = this._getAuthClient(integration.credentials);
 
         // 3. Send Email
-        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+        const gmail = google.gmail({ version: 'v1', auth: authClient });
 
         // helper to encode
         const makeBody = (to, subject, message) => {

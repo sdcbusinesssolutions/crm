@@ -241,6 +241,57 @@ router.post('/exchange', async (req, res) => {
     }
 });
 
+// 2b. Save Service Account (Manual JSON)
+router.post('/service-account', async (req, res) => {
+    try {
+        const { connectionName, credentials } = req.body;
+        const userId = req.user.id;
+
+        if (!connectionName || !credentials || !credentials.private_key || !credentials.client_email) {
+            return res.status(400).json({ error: 'Invalid Service Account Data' });
+        }
+
+        const { data: existing } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('provider', 'google')
+            .eq('connection_name', connectionName)
+            .single();
+
+        let result;
+        if (existing) {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .update({
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' },
+                    updated_at: new Date()
+                })
+                .eq('id', existing.id);
+        } else {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .insert({
+                    user_id: userId,
+                    provider: 'google',
+                    connection_name: connectionName,
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' }
+                });
+        }
+
+        if (result.error) throw result.error;
+
+        res.json({ success: true });
+        logGoogleEvent('SERVICE_ACCOUNT_ADDED', { userId, connectionName, email: credentials.client_email });
+
+    } catch (error) {
+        console.error('Save Service Account Error:', error);
+        res.status(500).json({ error: 'Failed to save Service Account' });
+    }
+});
+
 // 3. List
 router.get('/connections', async (req, res) => {
     try {
@@ -307,11 +358,36 @@ const { logGoogleSheetEvent } = require('../../utils/logger');
 
 const fetchWithRefresh = async (url, creds, connectionId, userId) => {
     const axios = require('axios');
+
+    // 1. Service Account Check (JWT)
+    // If we have a private key, we use the googleapis JWT client to fetch a valid token.
+    // JWT clients handle their own refresh logic automatically via .authorize() or .getAccessToken()
+    if (creds.private_key && creds.client_email) {
+        try {
+            const { google } = require('googleapis');
+            const jwtClient = new google.auth.JWT(
+                creds.client_email,
+                null,
+                creds.private_key,
+                ['https://www.googleapis.com/auth/spreadsheets']
+            );
+            // Get a fresh token
+            const tokenResponse = await jwtClient.getAccessToken(); // Returns { token: '...', res: ... }
+            const accessToken = tokenResponse.token;
+
+            return await axios.get(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+        } catch (jwtError) {
+            console.error('[Google Integration] Service Account JWT Auth failed:', jwtError.message);
+            throw new Error('Service Account Authentication Failed: ' + jwtError.message);
+        }
+    }
+
+    // 2. Standard OAuth2 Flow (User Account)
     try {
         return await axios.get(url, { headers: { Authorization: `Bearer ${creds.access_token}` } });
     } catch (error) {
         if (error.response && error.response.status === 401) {
-            console.log('[Google Integration] Token expired (401), attempting refresh...');
+            console.log('[Google Integration] OAuth Token expired (401), attempting refresh...');
 
             const { google } = require('googleapis');
             // Resolve config

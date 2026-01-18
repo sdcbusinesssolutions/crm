@@ -179,6 +179,56 @@ router.post('/exchange', async (req, res) => {
     }
 });
 
+// 2b. Save Service Account (Manual JSON)
+router.post('/service-account', async (req, res) => {
+    try {
+        const { connectionName, credentials } = req.body;
+        const userId = req.user.id;
+
+        if (!connectionName || !credentials || !credentials.private_key || !credentials.client_email) {
+            return res.status(400).json({ error: 'Invalid Service Account Data' });
+        }
+
+        const { data: existing } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('provider', 'google_calendar')
+            .eq('connection_name', connectionName)
+            .single();
+
+        let result;
+        if (existing) {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .update({
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' },
+                    updated_at: new Date()
+                })
+                .eq('id', existing.id);
+        } else {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .insert({
+                    user_id: userId,
+                    provider: 'google_calendar',
+                    connection_name: connectionName,
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' }
+                });
+        }
+
+        if (result.error) throw result.error;
+
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Save Calendar Service Account Error:', error);
+        res.status(500).json({ error: 'Failed to save Service Account' });
+    }
+});
+
 // 3. List
 router.get('/connections', async (req, res) => {
     try {

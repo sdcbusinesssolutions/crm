@@ -28,6 +28,21 @@ class SheetAutomationService {
         if (error || !integration) throw new Error('Google connection not found');
 
         const creds = integration.credentials;
+
+        // --- OPTION A: Service Account (Permanent, No Expiry) ---
+        // If the credentials JSON has 'private_key', treat it as a Service Account.
+        if (creds.private_key && creds.client_email) {
+            console.log('[SheetAutomation] Using Service Account for Auth');
+            const jwtClient = new google.auth.JWT(
+                creds.client_email,
+                null,
+                creds.private_key,
+                ['https://www.googleapis.com/auth/spreadsheets']
+            );
+            return jwtClient;
+        }
+
+        // --- OPTION B: OAuth2 (User Account) ---
         const oauth2Client = new google.auth.OAuth2(
             creds.params_client_id || process.env.GOOGLE_CLIENT_ID,
             creds.params_client_secret || process.env.GOOGLE_CLIENT_SECRET,
@@ -35,6 +50,34 @@ class SheetAutomationService {
         );
 
         oauth2Client.setCredentials(creds);
+
+        // PERSISTENCE LISTENER: (Only for OAuth)
+        // When googleapis refreshes the token automatically (upon 401), this event fires.
+        // We MUST save the new access_token (and refresh_token if rotated) to the DB.
+        // Otherwise, the Next execution will start with the old expired token again, force a refresh again, 
+        // and if refresh_token rotates/expires, we lose access.
+        oauth2Client.on('tokens', async (tokens) => {
+            console.log('[SheetAutomation] Token Refresh Event triggered.');
+
+            // Merge new tokens with existing creds
+            // (tokens event might only return access_token, so we keep old refresh_token unless new one provided)
+            const newCreds = { ...creds, ...tokens };
+
+            const { error: updateError } = await supabaseAdmin
+                .from('user_integrations')
+                .update({
+                    credentials: newCreds,
+                    updated_at: new Date()
+                })
+                .eq('id', connectionId);
+
+            if (updateError) {
+                console.error('[SheetAutomation] Failed to persist refreshed token:', updateError.message);
+            } else {
+                console.log('[SheetAutomation] Refreshed tokens persisted to DB.');
+            }
+        });
+
         return oauth2Client;
     }
 
@@ -203,26 +246,173 @@ class SheetAutomationService {
         return obj;
     }
 
-    checkCondition(condition, rowObj) {
-        if (!condition || !condition.column) return true; // No condition = always run? (Dangerous), assume true for now or enforce condition.
+    checkCondition(conditionOrConditions, rowObj) {
+        if (!conditionOrConditions) return true; // No condition = always run
+
+        // Support Multiple Conditions (AND Logic)
+        if (Array.isArray(conditionOrConditions)) {
+            // Return true only if ALL conditions are met
+            return conditionOrConditions.every(cond => this.checkSingleCondition(cond, rowObj));
+        }
+
+        return this.checkSingleCondition(conditionOrConditions, rowObj);
+    }
+
+    checkSingleCondition(condition, rowObj) {
+        if (!condition || !condition.column) return true;
 
         const val = rowObj[condition.column];
-        const op = condition.operator; // equals, contains, is_today, is_empty
+        const op = condition.operator; // equals, contains, is_today, is_empty, etc.
+        const targetVal = condition.value;
 
-        if (op === 'is_empty') return !val || val.trim() === '';
-        if (op === 'is_not_empty') return val && val.trim() !== '';
-        if (op === 'equals') return val == condition.value;
+        // --- Basic String/General Checks ---
+        if (op === 'is_empty') return !val || val.toString().trim() === '';
+        if (op === 'is_not_empty') return val && val.toString().trim() !== '';
 
-        if (op === 'day_month_equal') {
-            // Check if Date(val) has same Day/Month as Today (Ignore Year)
-            // val format could be anything. Assume standard date parsable.
-            if (!val) return false;
-            const d = new Date(val);
-            const now = new Date();
-            return d.getDate() === now.getDate() && d.getMonth() === now.getMonth();
+        // For other checks, if value is empty, usually returns false (except 'is_empty')
+        // unless we want strict typed checks.
+        if (val === undefined || val === null) return false;
+
+        const strVal = String(val).toLowerCase();
+        const strTarget = String(targetVal || '').toLowerCase();
+
+        if (op === 'equals') return strVal === strTarget;
+        if (op === 'not_equals') return strVal !== strTarget;
+        if (op === 'contains') return strVal.includes(strTarget);
+        if (op === 'does_not_contain') return !strVal.includes(strTarget);
+        if (op === 'starts_with') return strVal.startsWith(strTarget);
+        if (op === 'ends_with') return strVal.endsWith(strTarget);
+
+        // --- Numeric Checks ---
+        // Attempt to parse numbers
+        const numVal = parseFloat(val);
+        const numTarget = parseFloat(targetVal);
+        if (!isNaN(numVal) && !isNaN(numTarget)) {
+            if (op === 'greater_than') return numVal > numTarget;
+            if (op === 'less_than') return numVal < numTarget;
+            if (op === 'greater_than_or_equal') return numVal >= numTarget;
+            if (op === 'less_than_or_equal') return numVal <= numTarget;
+        }
+
+        // --- Date Checks ---
+        // We use a helper to parse potential dates
+        const dateVal = this.parseDate(val);
+        const now = new Date();
+
+        // Setup comparison dates based on operator
+        if (op === 'is_today') {
+            return this.isSameDay(dateVal, now);
+        }
+        if (op === 'is_yesterday') {
+            const yest = new Date();
+            yest.setDate(now.getDate() - 1);
+            return this.isSameDay(dateVal, yest);
+        }
+        if (op === 'is_tomorrow') {
+            const tom = new Date();
+            tom.setDate(now.getDate() + 1);
+            return this.isSameDay(dateVal, tom);
+        }
+        if (op === 'in_last_x_days') {
+            if (!dateVal) return false;
+            const days = parseInt(targetVal) || 0;
+            const threshold = new Date();
+            threshold.setDate(now.getDate() - days);
+            // Check if dateVal is between threshold and now
+            return dateVal >= threshold && dateVal <= now;
+        }
+        if (op === 'in_next_x_days') {
+            if (!dateVal) return false;
+            const days = parseInt(targetVal) || 0;
+            const threshold = new Date();
+            threshold.setDate(now.getDate() + days);
+            return dateVal >= now && dateVal <= threshold;
+        }
+
+        // --- Standard Date Comparison ---
+        if (['date_equals', 'date_before', 'date_after', 'date_between'].includes(op)) {
+            if (!dateVal) return false;
+
+            // For these, we expect targetVal to be a date string
+            const dateTarget = this.parseDate(targetVal);
+
+            if (op === 'date_equals') return this.isSameDay(dateVal, dateTarget);
+
+            // For before/after, we usually compare timestamps or day-granularity?
+            // Let's use strict timestamp for generalized utility, but often users mean "Day Before"
+            // Let's strip time for robust "Day" comparison if the input was likely just a date.
+            // But strict is safer.
+            if (op === 'date_before') return dateVal < (dateTarget || now); // if no target, assume now? No, fail.
+            if (op === 'date_after') return dateVal > (dateTarget || now);
+
+            if (op === 'date_between') {
+                // targetVal expected format: "start_date,end_date"
+                const parts = String(targetVal).split(',');
+                if (parts.length === 2) {
+                    const start = this.parseDate(parts[0]);
+                    const end = this.parseDate(parts[1]);
+                    if (start && end) {
+                        return dateVal >= start && dateVal <= end;
+                    }
+                }
+                return false;
+            }
+        }
+
+        // --- Anniversary Checks (Day/Month only) ---
+        if (['day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
+            if (!dateVal) return false;
+
+            // Compare against TODAY
+            const dMonth = dateVal.getMonth();
+            const dDate = dateVal.getDate();
+            const nowMonth = now.getMonth();
+            const nowDate = now.getDate();
+
+            if (op === 'day_month_equal') {
+                return dMonth === nowMonth && dDate === nowDate;
+            }
+            if (op === 'day_month_after') {
+                // Check if the anniversary is AFTER today in the current year
+                if (dMonth > nowMonth) return true;
+                if (dMonth === nowMonth && dDate > nowDate) return true;
+                return false;
+            }
+            if (op === 'day_month_before') {
+                // Check if the anniversary is BEFORE today in the current year
+                if (dMonth < nowMonth) return true;
+                if (dMonth === nowMonth && dDate < nowDate) return true;
+                return false;
+            }
         }
 
         return false;
+    }
+
+    // --- Helpers ---
+
+    parseDate(val) {
+        if (!val) return null;
+        // 1. Try standard Date constructor
+        let d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
+
+        // 2. Try DD/MM/YYYY or DD-MM-YYYY (Common in Sheet data)
+        const parts = String(val).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (parts) {
+            // parts[1] is Day, parts[2] is Month, parts[3] is Year
+            // Note: Month is 0-indexed in JS Date
+            d = new Date(parts[3], parseInt(parts[2]) - 1, parts[1]);
+            if (!isNaN(d.getTime())) return d;
+        }
+        return null;
+    }
+
+    isSameDay(d1, d2) {
+        if (!d1 || !d2) return false;
+        return d1.getFullYear() === d2.getFullYear() &&
+            d1.getMonth() === d2.getMonth() &&
+            d1.getDate() === d2.getDate();
     }
 
     async sendMessage(auto, rowObj) {
@@ -256,7 +446,83 @@ class SheetAutomationService {
         };
 
         // ... Logic to hydrate templateObject using rowObj and mapping_config ...
-        // (Simplified for MVP: Just sending the raw template request with mapped params)
+
+        // 1. Map Params (Body Variables)
+        if (templateObject.components) {
+            templateObject.components = templateObject.components.map(comp => {
+                if (comp.type === 'BODY' && comp.parameters) {
+                    // This is where we inject the values.
+                    // But wait, the stored 'components' usually don't have 'parameters' yet if it's the raw template struct.
+                    // We need to BUILD the parameters array based on {{1}}, {{2}}.
+                    // actually, the 'components' from db might be the raw structure.
+                    // We need to construct the payload for API.
+                }
+                return comp;
+            });
+
+            // BETTER APPROACH: Construct the API payload anew based on configuration
+            const apiComponents = [];
+
+            // A. Header
+            const headerConfig = auto.template_config.components.find(c => c.type === 'HEADER');
+            if (headerConfig) {
+                const headerParams = [];
+                if (headerConfig.format === 'IMAGE') {
+                    const mapVal = this.getMappedValue(auto.mapping_config.params['HEADER_IMAGE'], rowObj);
+                    if (mapVal) headerParams.push({ type: 'image', image: { link: mapVal } });
+                } else if (headerConfig.format === 'VIDEO') {
+                    const mapVal = this.getMappedValue(auto.mapping_config.params['HEADER_VIDEO'], rowObj);
+                    if (mapVal) headerParams.push({ type: 'video', video: { link: mapVal } });
+                } else if (headerConfig.format === 'DOCUMENT') {
+                    const mapVal = this.getMappedValue(auto.mapping_config.params['HEADER_DOCUMENT'], rowObj);
+                    if (mapVal) headerParams.push({ type: 'document', document: { link: mapVal } });
+                } else if (headerConfig.format === 'TEXT' && headerConfig.text.includes('{{1}}')) {
+                    // Check for header variable
+                    const mapVal = this.getMappedValue(auto.mapping_config.params['header_variable_1'], rowObj);
+                    if (mapVal) headerParams.push({ type: 'text', text: mapVal });
+                }
+
+                if (headerParams.length > 0) {
+                    apiComponents.push({ type: 'header', parameters: headerParams });
+                }
+            }
+
+            // B. Body
+            const bodyConfig = auto.template_config.components.find(c => c.type === 'BODY');
+            if (bodyConfig) {
+                const bodyParams = [];
+                // Find all {{x}} variables in body text
+                const matches = bodyConfig.text.match(/{{(\d+)}}/g);
+                if (matches) {
+                    const uniqueVars = Array.from(new Set(matches)).sort(); // {{1}}, {{2}}
+                    // Whatsapp expects params in order 1, 2, 3...
+                    // We assume the template uses specific indices.
+                    // IMPORTANT: The API expects parameters to essentially match the order of appearance or index.
+                    // Usually it's strictly positional for {{1}}, {{2}}.
+
+                    // Let's iterate 1 to N based on max index found
+                    let maxIndex = 0;
+                    uniqueVars.forEach(v => {
+                        const idx = parseInt(v.replace(/[^\d]/g, ''));
+                        if (idx > maxIndex) maxIndex = idx;
+                    });
+
+                    for (let i = 1; i <= maxIndex; i++) {
+                        const paramKey = `body_variable_${i}`;
+                        let val = this.getMappedValue(auto.mapping_config.params[paramKey], rowObj);
+                        if (!val) val = '-'; // Fallback to hyphen if missing to prevent failure
+                        bodyParams.push({ type: 'text', text: val });
+                    }
+                }
+
+                if (bodyParams.length > 0) {
+                    apiComponents.push({ type: 'body', parameters: bodyParams });
+                }
+            }
+
+            // Overwrite components with built ones
+            templateObject.components = apiComponents;
+        }
 
         try {
             await whatsappService.sendMessage(
@@ -272,6 +538,25 @@ class SheetAutomationService {
         } catch (e) {
             console.error('[SheetAutomation] Send Failed:', e.message);
         }
+    }
+    getMappedValue(mapConfig, rowObj) {
+        if (!mapConfig) return null;
+
+        // Case 1: Complex Object (New Style: { type: 'static|column', value: '...' })
+        if (typeof mapConfig === 'object' && mapConfig !== null) {
+            if (mapConfig.type === 'static') {
+                return mapConfig.value;
+            } else if (mapConfig.type === 'column') {
+                return rowObj[mapConfig.value] || '';
+            }
+        }
+
+        // Case 2: Simple String (Legacy: just column name)
+        if (typeof mapConfig === 'string') {
+            return rowObj[mapConfig] || '';
+        }
+
+        return null;
     }
 }
 

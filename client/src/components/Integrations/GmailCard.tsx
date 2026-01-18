@@ -18,9 +18,11 @@ const GmailCard: React.FC = () => {
 
     // Auth Modal State
     const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authMethod, setAuthMethod] = useState<'oauth' | 'service_account'>('oauth');
     const [connectionName, setConnectionName] = useState('');
     const [clientId, setClientId] = useState('');
     const [clientSecret, setClientSecret] = useState('');
+    const [serviceAccountJson, setServiceAccountJson] = useState('');
 
     // Notification State
     const [notification, setNotification] = useState<{ isOpen: boolean, title: string, message: string, type: 'success' | 'error' | 'info' }>({
@@ -53,12 +55,56 @@ const GmailCard: React.FC = () => {
     };
 
     const initiateAuth = async () => {
-        if (!connectionName || !clientId || !clientSecret) {
-            showNotification('Validation Error', 'Please fill in all fields (Name, Client ID, Client Secret)', 'error');
+        if (!connectionName) {
+            showNotification('Validation Error', 'Please provide a Connection Name.', 'error');
             return;
         }
 
         setConnecting(true);
+
+        // --- OPTION A: SERVICE ACCOUNT JSON ---
+        if (authMethod === 'service_account') {
+            try {
+                if (!serviceAccountJson) throw new Error('Please paste your Service Account JSON.');
+
+                // Validate JSON
+                let saCreds;
+                try {
+                    saCreds = JSON.parse(serviceAccountJson);
+                } catch (e) {
+                    throw new Error('Invalid JSON format.');
+                }
+
+                if (!saCreds.private_key || !saCreds.client_email) {
+                    throw new Error('Invalid Service Account JSON. Missing private_key or client_email.');
+                }
+
+                await integrationsService.saveServiceAccount({
+                    connectionName,
+                    credentials: saCreds
+                });
+
+                setShowAuthModal(false);
+                setConnectionName('');
+                setServiceAccountJson('');
+                await loadConnections();
+                showNotification('Success', 'Service Account Connected!', 'success');
+                setConnecting(false);
+
+            } catch (e: any) {
+                showNotification('Connection Failed', e.message, 'error');
+                setConnecting(false);
+            }
+            return;
+        }
+
+        // --- OPTION B: OAUTH2 ---
+        if (!clientId || !clientSecret) {
+            showNotification('Validation Error', 'Please fill in Client ID and Client Secret.', 'error');
+            setConnecting(false);
+            return;
+        }
+
         try {
             // 1. Get Auth URL with custom Client ID
             const { url } = await integrationsService.getGmailAuthUrl(clientId, redirectUrl);
@@ -268,7 +314,7 @@ const GmailCard: React.FC = () => {
                             disabled={connecting}
                             className="px-4 py-2 bg-[var(--color-brand)] text-white font-bold rounded-lg shadow hover:opacity-90 flex items-center gap-2"
                         >
-                            {connecting ? 'Connecting...' : 'Connect Gmail Account'}
+                            {connecting ? 'Connecting...' : (authMethod === 'oauth' ? 'Connect Gmail Account' : 'Save Service Account')}
                         </button>
                     </>
                 }
@@ -282,38 +328,83 @@ const GmailCard: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Auth Method Toggle */}
+                    <div className="flex border-b border-slate-200 mb-4">
+                        <button
+                            className={`flex-1 pb-2 text-sm font-bold ${authMethod === 'oauth' ? 'text-[var(--color-brand)] border-b-2 border-[var(--color-brand)]' : 'text-slate-500'}`}
+                            onClick={() => setAuthMethod('oauth')}
+                        >
+                            OAuth2 (Client ID)
+                        </button>
+                        <button
+                            className={`flex-1 pb-2 text-sm font-bold ${authMethod === 'service_account' ? 'text-[var(--color-brand)] border-b-2 border-[var(--color-brand)]' : 'text-slate-500'}`}
+                            onClick={() => setAuthMethod('service_account')}
+                        >
+                            Service Account (Bot)
+                        </button>
+                    </div>
+
+                    {authMethod === 'service_account' && (
+                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 mb-4 text-xs text-slate-600">
+                            <p className="font-bold text-slate-800 mb-2">How to use Service Account for Gmail:</p>
+                            <ol className="list-decimal pl-4 space-y-1.5">
+                                <li>Create a Service Account and download the JSON key.</li>
+                                <li>Paste the JSON content below.</li>
+                                <li className="text-amber-700 font-bold border-l-2 border-amber-500 pl-2">
+                                    NOTE: For Gmail, Service Accounts often require Domain-Wide Delegation to impersonate a user, OR you must share specific resources. Standard Service Accounts cannot "log in" as you without delegation.
+                                </li>
+                            </ol>
+                        </div>
+                    )}
+
                     <div>
-                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Connection Name</label>
+                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">
+                            Connection Name <span className="text-red-500">*</span>
+                        </label>
                         <input
                             type="text"
                             className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none"
-                            placeholder="e.g. My Gmail"
+                            placeholder="e.g. My Gmail Integration"
                             value={connectionName}
                             onChange={e => setConnectionName(e.target.value)}
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Google Client ID</label>
-                        <input
-                            type="text"
-                            className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none"
-                            placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
-                            value={clientId}
-                            onChange={e => setClientId(e.target.value)}
-                        />
-                    </div>
+                    {authMethod === 'oauth' ? (
+                        <>
+                            <div>
+                                <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Google Client ID</label>
+                                <input
+                                    type="text"
+                                    className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none"
+                                    placeholder="xxxxxxxxxxxx.apps.googleusercontent.com"
+                                    value={clientId}
+                                    onChange={e => setClientId(e.target.value)}
+                                />
+                            </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Google Client Secret</label>
-                        <input
-                            type="password"
-                            className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none"
-                            placeholder="GOCSPX-xxxxxxxxxxxx"
-                            value={clientSecret}
-                            onChange={e => setClientSecret(e.target.value)}
-                        />
-                    </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Google Client Secret</label>
+                                <input
+                                    type="password"
+                                    className="w-full px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none"
+                                    placeholder="GOCSPX-xxxxxxxxxxxx"
+                                    value={clientSecret}
+                                    onChange={e => setClientSecret(e.target.value)}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-semibold text-[var(--color-text)] mb-1">Service Account JSON</label>
+                            <textarea
+                                className="w-full h-32 px-3 py-2 border border-[var(--color-border)] bg-[var(--color-input-bg)] rounded-lg focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none text-xs font-mono"
+                                placeholder={`{ "type": "service_account", "project_id": "...", ... }`}
+                                value={serviceAccountJson}
+                                onChange={e => setServiceAccountJson(e.target.value)}
+                            />
+                        </div>
+                    )}
                 </div>
             </Modal>
 
