@@ -60,6 +60,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
     };
 
     const [isFetchingSheets, setIsFetchingSheets] = useState(false);
+    const [manualSheetEntry, setManualSheetEntry] = useState(false);
 
     // --- Actions ---
     const handleSheetSelect = async (spreadsheetId: string) => {
@@ -92,7 +93,8 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             }
         } else {
             setSheetTabs([]); // Clear sheets on error
-            alert('Failed to fetch sheets. Please check the Spreadsheet ID and try again.');
+            const err = await res.json();
+            alert('Failed to fetch sheets: ' + (err.error || 'Please check the Spreadsheet ID and try again.'));
         }
     };
 
@@ -345,23 +347,50 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         </div>
                         {isFetchingSheets && <p className="text-sm text-center text-slate-500 italic">Finding sheets...</p>}
 
-                        {!isFetchingSheets && sheetTabs.length > 0 && (
+                        <div className="flex justify-between items-end mb-1">
+                            <label className="block text-sm font-medium text-slate-700">Sheet Tab</label>
+                            <button
+                                onClick={() => setManualSheetEntry(!manualSheetEntry)}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline pb-1"
+                            >
+                                {manualSheetEntry ? 'Select from list' : 'Enter manually'}
+                            </button>
+                        </div>
+
+                        {manualSheetEntry ? (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Sheet Tab</label>
-                                <select
+                                <input
                                     className="w-full border border-slate-300 rounded px-3 py-2"
+                                    placeholder="Type exactly as it appears (e.g. Sheet1)"
                                     value={formData.sheet_name}
-                                    onChange={e => handleTabSelect(e.target.value)}
-                                >
-                                    <option value="">Select Tab</option>
-                                    {sheetTabs.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
+                                    onChange={e => setFormData({ ...formData, sheet_name: e.target.value })}
+                                    onBlur={() => {
+                                        if (formData.sheet_name) handleTabSelect(formData.sheet_name);
+                                    }}
+                                />
+                                <p className="text-xs text-slate-500 mt-1">Press tab or click away to load columns.</p>
                             </div>
+                        ) : (
+                            <select
+                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                value={formData.sheet_name}
+                                onChange={e => handleTabSelect(e.target.value)}
+                                disabled={!manualSheetEntry && sheetTabs.length === 0}
+                            >
+                                <option value="">{sheetTabs.length === 0 ? 'No sheets loaded' : 'Select Tab'}</option>
+                                {sheetTabs.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
                         )}
 
-                        {!isFetchingSheets && formData.spreadsheet_id && sheetTabs.length === 0 && (
-                            <div className="p-3 bg-blue-50 text-blue-700 text-sm rounded border border-blue-100">
-                                Click "Fetch Sheets" to load the tabs from your spreadsheet.
+                        {!isFetchingSheets && formData.spreadsheet_id && sheetTabs.length === 0 && !manualSheetEntry && (
+                            <div className="mt-2 p-3 bg-blue-50 text-blue-700 text-sm rounded border border-blue-100 flex justify-between items-center">
+                                <span>Click "Fetch Sheets" above or enter manually.</span>
+                                <button
+                                    onClick={() => setManualSheetEntry(true)}
+                                    className="text-xs font-bold underline"
+                                >
+                                    Enter Manually
+                                </button>
                             </div>
                         )}
                     </div>

@@ -305,9 +305,71 @@ const getLastCredentials = async (req) => {
 
 const { logGoogleSheetEvent } = require('../../utils/logger');
 
+const fetchWithRefresh = async (url, creds, connectionId, userId) => {
+    const axios = require('axios');
+    try {
+        return await axios.get(url, { headers: { Authorization: `Bearer ${creds.access_token}` } });
+    } catch (error) {
+        if (error.response && error.response.status === 401) {
+            console.log('[Google Integration] Token expired (401), attempting refresh...');
+
+            const { google } = require('googleapis');
+            // Resolve config
+            const clientId = creds.params_client_id || process.env.GOOGLE_CLIENT_ID;
+            const clientSecret = creds.params_client_secret || process.env.GOOGLE_CLIENT_SECRET;
+            const redirectUrl = creds.params_redirect_url || process.env.GOOGLE_REDIRECT_URL;
+
+            if (!creds.refresh_token) {
+                console.warn('[Google Integration] No refresh token available. Cannot refresh.');
+                // Throw specific error for frontend to suggest reconnection
+                const err = new Error('Google Authorization Expired. Please Re-Connect Account.');
+                err.code = 'NO_REFRESH_TOKEN';
+                throw err;
+            }
+
+            const oauth2Client = new google.auth.OAuth2(
+                (clientId || '').trim(),
+                (clientSecret || '').trim(),
+                (redirectUrl || '').trim()
+            );
+
+            // Set credentials including refresh_token
+            oauth2Client.setCredentials(creds);
+
+            try {
+                const { credentials } = await oauth2Client.refreshAccessToken();
+                console.log('[Google Integration] Token refreshed successfully.');
+
+                // Update DB if this is a stored connection
+                if (connectionId) {
+                    const newCreds = { ...creds, ...credentials };
+                    await supabaseAdmin
+                        .from('user_integrations')
+                        .update({
+                            credentials: newCreds,
+                            updated_at: new Date()
+                        })
+                        .eq('id', connectionId);
+                }
+
+                // Retry Request with NEW token
+                return await axios.get(url, { headers: { Authorization: `Bearer ${credentials.access_token}` } });
+
+            } catch (refreshError) {
+                console.error('[Google Integration] Refresh failed:', refreshError.message);
+                const err = new Error('Google Session Expired. Please Re-Connect Account.');
+                err.code = 'REFRESH_FAILED';
+                err.originalError = refreshError.message;
+                throw err;
+            }
+        }
+        throw error;
+    }
+};
+
 router.post('/sheets', async (req, res) => {
     try {
-        const { spreadsheetId } = req.body;
+        const { spreadsheetId, connectionId } = req.body;
 
         logGoogleSheetEvent('FTECH_SHEETS_START', {
             spreadsheetId,
@@ -322,15 +384,12 @@ router.post('/sheets', async (req, res) => {
 
         const creds = await getLastCredentials(req);
 
-        // Manual Axios Call to Sheets API
-        const axios = require('axios');
+        // Manual Axios Call to Sheets API (via Helper)
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?includeGridData=false`;
 
         console.log(`[Google Sheets] Fetching metadata via Axios: ${url}`);
 
-        const response = await axios.get(url, {
-            headers: { Authorization: `Bearer ${creds.access_token}` }
-        });
+        const response = await fetchWithRefresh(url, creds, connectionId, req.user.id);
 
         const sheetNames = response.data.sheets.map(s => s.properties.title);
 
@@ -354,13 +413,17 @@ router.post('/sheets', async (req, res) => {
             details: details
         });
 
-        res.status(500).json({ error: 'Failed to fetch sheets: ' + msg });
+        if (error.code === 'NO_REFRESH_TOKEN' || error.code === 'REFRESH_FAILED') {
+            return res.status(401).json({ error: error.message });
+        }
+
+        res.status(500).json({ error: msg });
     }
 });
 
 router.post('/columns', async (req, res) => {
     try {
-        const { spreadsheetId, sheetName } = req.body;
+        const { spreadsheetId, sheetName, connectionId } = req.body;
 
         logGoogleSheetEvent('FETCH_COLUMNS_START', {
             spreadsheetId,
@@ -376,17 +439,14 @@ router.post('/columns', async (req, res) => {
 
         const creds = await getLastCredentials(req); // Get latest tokens
 
-        // Manual Axios Call to Sheets API
-        const axios = require('axios');
+        // Manual Axios Call to Sheets API (via Helper)
         // Range A1:Z1 typically covers the headers
         const encodedSheet = encodeURIComponent(sheetName);
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!1:1`;
 
         console.log(`[Google Sheets] Fetching columns via Axios: ${url}`);
 
-        const response = await axios.get(url, {
-            headers: { Authorization: `Bearer ${creds.access_token}` }
-        });
+        const response = await fetchWithRefresh(url, creds, connectionId, req.user.id);
 
         const columns = response.data.values ? response.data.values[0] : [];
 
@@ -412,7 +472,11 @@ router.post('/columns', async (req, res) => {
             details: details
         });
 
-        res.status(500).json({ error: 'Failed to fetch columns: ' + msg });
+        if (error.code === 'NO_REFRESH_TOKEN' || error.code === 'REFRESH_FAILED') {
+            return res.status(401).json({ error: error.message });
+        }
+
+        res.status(500).json({ error: msg });
     }
 });
 
