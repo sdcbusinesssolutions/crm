@@ -18,9 +18,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         connection_id: '',
         spreadsheet_id: '',
         sheet_name: '',
-        connection_id: '',
-        spreadsheet_id: '',
-        sheet_name: '',
+
         triggers: [{ column: '', operator: 'equals', value: '' }] as { column: string, operator: string, value: string }[],
         template_id: '',
         mapping: {} as Record<string, { type: 'static' | 'column', value: string }>

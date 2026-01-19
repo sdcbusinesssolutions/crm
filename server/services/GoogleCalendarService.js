@@ -2,15 +2,61 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const { google } = require('googleapis');
 
 const GoogleCalendarService = {
-    _getAuthClient(creds) {
+    async _getAuthClient(creds) {
         if (creds.private_key && creds.client_email) {
             console.log('[GoogleCalendarService] Using Service Account for Auth');
-            return new google.auth.JWT(
-                creds.client_email,
-                null,
-                creds.private_key,
-                ['https://www.googleapis.com/auth/calendar']
-            );
+
+            // AGGRESSIVE PROXY CLEANUP
+            ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'].forEach(v => {
+                if (process.env[v] !== undefined) delete process.env[v];
+            });
+            process.env.NO_PROXY = '*';
+
+            // Clean Key
+            let privateKey = creds.private_key;
+            if (typeof privateKey === 'string') {
+                if (privateKey.includes('\\n')) privateKey = privateKey.replace(/\\n/g, '\n');
+                privateKey = privateKey.replace(/^"|"$/g, '');
+            }
+
+            try {
+                // MANUAL JWT EXCHANGE (Bypassing Gaxios "Invalid Host")
+                const jwt = require('jsonwebtoken');
+                const axios = require('axios');
+
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    iss: creds.client_email,
+                    scope: 'https://www.googleapis.com/auth/calendar',
+                    aud: 'https://oauth2.googleapis.com/token',
+                    exp: now + 3600,
+                    iat: now
+                };
+
+                const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+
+                const exchangeUrl = 'https://oauth2.googleapis.com/token';
+                const exchangeParams = new URLSearchParams();
+                exchangeParams.append('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
+                exchangeParams.append('assertion', token);
+
+                const response = await axios.post(exchangeUrl, exchangeParams, { proxy: false });
+                const accessToken = response.data.access_token;
+
+                if (!accessToken) throw new Error('No access_token from Manual JWT');
+
+                console.log('[GoogleCalendarService] Manual JWT Exchange SUCCESS.');
+
+                // Wrap in OAuth2Client so google.calendar can use it
+                const oauth2Client = new google.auth.OAuth2();
+                oauth2Client.setCredentials({ access_token: accessToken });
+
+                return oauth2Client;
+
+            } catch (err) {
+                console.error('[GoogleCalendarService] Service Account Auth Error (Manual JWT):', err.message);
+                throw new Error(`Service Account Auth Failed: ${err.message}`);
+            }
         }
 
         const oauth2Client = new google.auth.OAuth2(
@@ -39,7 +85,7 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const authClient = this._getAuthClient(integration.credentials);
+        const authClient = await this._getAuthClient(integration.credentials);
 
         // 3. Create Event
         const calendar = google.calendar({ version: 'v3', auth: authClient });
@@ -89,7 +135,7 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const authClient = this._getAuthClient(integration.credentials);
+        const authClient = await this._getAuthClient(integration.credentials);
         const calendar = google.calendar({ version: 'v3', auth: authClient });
 
         // 3. Query FreeBusy
@@ -123,7 +169,7 @@ const GoogleCalendarService = {
         }
 
         // 2. Setup Auth
-        const authClient = this._getAuthClient(integration.credentials);
+        const authClient = await this._getAuthClient(integration.credentials);
         const calendar = google.calendar({ version: 'v3', auth: authClient });
 
         // Calculate Range

@@ -33,13 +33,58 @@ class SheetAutomationService {
         // If the credentials JSON has 'private_key', treat it as a Service Account.
         if (creds.private_key && creds.client_email) {
             console.log('[SheetAutomation] Using Service Account for Auth');
-            const jwtClient = new google.auth.JWT(
-                creds.client_email,
-                null,
-                creds.private_key,
-                ['https://www.googleapis.com/auth/spreadsheets']
-            );
-            return jwtClient;
+
+            // AGGRESSIVE PROXY CLEANUP
+            ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'].forEach(v => {
+                if (process.env[v] !== undefined) delete process.env[v];
+            });
+            process.env.NO_PROXY = '*';
+
+            // Clean Key
+            let privateKey = creds.private_key;
+            if (typeof privateKey === 'string') {
+                if (privateKey.includes('\\n')) privateKey = privateKey.replace(/\\n/g, '\n');
+                privateKey = privateKey.replace(/^"|"$/g, '');
+            }
+
+            try {
+                // MANUAL JWT EXCHANGE (Bypassing Gaxios "Invalid Host")
+                const jwt = require('jsonwebtoken');
+                const axios = require('axios');
+
+                const now = Math.floor(Date.now() / 1000);
+                const payload = {
+                    iss: creds.client_email,
+                    scope: 'https://www.googleapis.com/auth/spreadsheets',
+                    aud: 'https://oauth2.googleapis.com/token',
+                    exp: now + 3600,
+                    iat: now
+                };
+
+                const token = jwt.sign(payload, privateKey, { algorithm: 'RS256' });
+
+                const exchangeUrl = 'https://oauth2.googleapis.com/token';
+                const exchangeParams = new URLSearchParams();
+                exchangeParams.append('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
+                exchangeParams.append('assertion', token);
+
+                const response = await axios.post(exchangeUrl, exchangeParams, { proxy: false });
+                const accessToken = response.data.access_token;
+
+                if (!accessToken) throw new Error('No access_token from Manual JWT');
+
+                console.log('[SheetAutomation] Manual JWT Exchange SUCCESS.');
+
+                // Wrap in OAuth2Client so google.sheets can use it
+                const oauth2Client = new google.auth.OAuth2();
+                oauth2Client.setCredentials({ access_token: accessToken });
+
+                return oauth2Client;
+
+            } catch (err) {
+                console.error('[SheetAutomation] Service Account Auth Error (Manual JWT):', err.message);
+                throw new Error(`Service Account Auth Failed: ${err.message}`);
+            }
         }
 
         // --- OPTION B: OAuth2 (User Account) ---
@@ -50,6 +95,36 @@ class SheetAutomationService {
         );
 
         oauth2Client.setCredentials(creds);
+
+        // PROACTIVE REFRESH: Check if token is expired or expiring soon (within 5 mins)
+        // expiry_date is in milliseconds
+        const now = Date.now();
+        const EXPIRY_BUFFER = 5 * 60 * 1000;
+        const isExpiring = creds.expiry_date && (creds.expiry_date <= now + EXPIRY_BUFFER);
+
+        if (isExpiring && creds.refresh_token) {
+            console.log('[SheetAutomation] Token expiring soon, refreshing proactively...');
+            try {
+                const { credentials } = await oauth2Client.refreshAccessToken();
+
+                const newCreds = { ...creds, ...credentials };
+
+                // Update DB immediately
+                await supabaseAdmin
+                    .from('user_integrations')
+                    .update({
+                        credentials: newCreds,
+                        updated_at: new Date()
+                    })
+                    .eq('id', connectionId);
+
+                // Update client
+                oauth2Client.setCredentials(newCreds);
+                console.log('[SheetAutomation] Proactive refresh successful.');
+            } catch (err) {
+                console.error('[SheetAutomation] Proactive refresh failed:', err.message);
+            }
+        }
 
         // PERSISTENCE LISTENER: (Only for OAuth)
         // When googleapis refreshes the token automatically (upon 401), this event fires.

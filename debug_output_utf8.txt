@@ -1,0 +1,34 @@
+Fetching integrations...
+Found 4 integrations.
+
+ID: 9f4f9547-3e0b-42e8-b150-f92245d8a8b8
+Name: sheet1
+Provider: google
+- Saved Client ID: 943991049325-b0...
+- Saved Client Secret: YES (Masked)
+- Has Refresh Token: true
+- Expiry Date: 1767605913392 (2026-01-05T09:38:33.392Z)
+
+ID: ae4d9935-7d37-4a08-91cf-018f9471c983
+Name: sheet2
+Provider: google
+- Saved Client ID: 943991049325-b0...
+- Saved Client Secret: YES (Masked)
+- Has Refresh Token: true
+- Expiry Date: 1767606398125 (2026-01-05T09:46:38.125Z)
+
+ID: 3c051d0d-d1d0-4e41-b933-470ff558e62a
+Name: gmail1
+Provider: gmail
+- Saved Client ID: 943991049325-b0...
+- Saved Client Secret: YES (Masked)
+- Has Refresh Token: true
+- Expiry Date: 1767607566563 (2026-01-05T10:06:06.563Z)
+
+ID: 2a638d9e-4bdc-4424-9344-4133f57f5022
+Name: Cal-Api
+Provider: google_calendar
+- Saved Client ID: 943991049325-b0...
+- Saved Client Secret: YES (Masked)
+- Has Refresh Token: true
+- Expiry Date: 1767630614367 (2026-01-05T16:30:14.367Z)

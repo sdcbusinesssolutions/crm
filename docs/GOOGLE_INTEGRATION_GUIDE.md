@@ -64,6 +64,7 @@ Follow these steps to generate the JSON key required for Option B.
     4.  Paste the **Service Account Email**.
     5.  Set permission to **Editor**.
     6.  The bot can now access this specific sheet forever.
+    7.  **Multi-Account Note:** You can use the **SAME** Service Account (Bot) for multiple different people. Simply have User A and User B both share their separate sheets with the *same* bot email (`whatsapp-bot@...`). The bot will have access to both.
 
 ### Google Calendar
 *   **Use Case:** Creating events from leads/messages.

@@ -1,4 +1,17 @@
 
+// --- GLOBAL PROXY CLEANUP (Run ASAP) ---
+// Aggressively remove any proxy environment variables to prevent "Invalid host defined options"
+// errors in gaxios/googleapis/node-fetch.
+const proxyVars = [
+  'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy',
+  'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'
+];
+proxyVars.forEach(v => {
+  if (process.env[v] !== undefined) {
+    // console.log(`[Startup] Cleaning process.env.${v}`); // Commented out to reduce log noise
+    delete process.env[v];
+  }
+});
 
 const express = require('express');
 const cors = require('cors');
@@ -10,6 +23,9 @@ try {
     require('dotenv').config({ path: path.join(__dirname, '.env') });
   }
 } catch (e) { console.log('No .env file found, using process.env'); }
+
+
+
 // Import the shared static client for middleware verification
 const { supabase } = require('./lib/supabaseClient');
 const { overrideConsole } = require('./utils/logger');
