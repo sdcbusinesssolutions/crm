@@ -81,7 +81,10 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                     triggers: data.trigger_condition || [],
 
                     template_id: matchedTemplate ? matchedTemplate.id : '',
-                    mapping: data.mapping_config?.params || {}
+                    mapping: {
+                        ...(data.mapping_config?.params || {}),
+                        phone: { type: 'column', value: data.mapping_config?.phone_col || '' }
+                    }
                 });
 
                 // Trigger dependent fetches (Sheets, Columns, Template Params)
@@ -396,13 +399,13 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             {/* Header Steps */}
             <div className="flex items-center justify-between border-b border-slate-100 p-6">
                 <div className="flex space-x-4">
-                    {[1, 2, 3, 4, 5, 6].map(s => (
+                    {[1, 2, 3, 4, 5].map(s => (
                         <div key={s} className={`flex items-center space-x-2 ${step >= s ? 'opacity-100' : 'opacity-40'}`}>
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === s ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
                                 {s}
                             </div>
                             <span className="text-sm font-medium text-slate-700">
-                                {['Schedule', 'Sheet', 'Trigger', 'Message', 'Accounts', 'Cell Map'][s - 1]}
+                                {['Schedule', 'Sheet', 'Trigger', 'Message', 'Cell Map'][s - 1]}
                             </span>
                         </div>
                     ))}
@@ -726,6 +729,15 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                                 }}
                                             />
                                         )}
+                                        {/* Helper Text Hint */}
+                                        <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                                            {trigger.operator.includes('date') ? 'Format: YYYY-MM-DD (or Excel Date)' :
+                                                trigger.operator.includes('equals') ? 'Matches exact text (case-insensitive)' :
+                                                    trigger.operator.includes('contains') ? 'Matches partial text' :
+                                                        trigger.operator.includes('greater') || trigger.operator.includes('less') ? 'Compares numeric values' :
+                                                            ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? 'Enter number of days' :
+                                                                'Enter value to match'}
+                                        </p>
                                     </div>
                                 )}
 
@@ -790,16 +802,8 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                     </div>
                 )}
 
-                {/* STEP 5: ACCOUNTS (Optional, skipped for now or just confirmation) */}
+                {/* STEP 5: MAPPING (Formerly 6) */}
                 {step === 5 && (
-                    <div className="text-center text-slate-500 py-10">
-                        <p>Sending from: default configured WhatsApp Business Account.</p>
-                        <p className="text-sm mt-2">No additional configuration needed.</p>
-                    </div>
-                )}
-
-                {/* STEP 6: MAPPING */}
-                {step === 6 && (
                     <div className="max-w-2xl mx-auto space-y-6">
                         <h4 className="font-bold text-slate-700 mb-4 border-b pb-2">Map Template Variables</h4>
 
@@ -809,6 +813,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             <span className="text-slate-400">→</span>
                             <select
                                 className="flex-1 w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                                value={formData.mapping['phone']?.value || ''}
                                 onChange={e => setFormData(p => ({
                                     ...p,
                                     mapping: { ...p.mapping, phone: { type: 'column', value: e.target.value } }
@@ -902,7 +907,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                     </button>
                 )}
 
-                {step < 6 ? (
+                {step < 5 ? (
                     <button onClick={handleNext} className="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">
                         Next
                     </button>
