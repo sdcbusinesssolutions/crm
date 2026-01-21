@@ -1,88 +1,146 @@
-# Sheet Automation Reference
+# Google Sheet Automation - Comprehensive Guide & Example
 
-This document outlines the supported operators and condition structures for Google Sheet Automation triggers.
+This guide explains how to set up, schedule, and troubleshoot Google Sheet Automations, with a complete breakdown of the backend logic.
 
-## Condition Structure
+## 1. Quick Start: Creating an Automation
 
-The `trigger_condition` field in the automation configuration can be either a **Single Object** (legacy support) or an **Array of Objects** (recommended for multiple conditions).
+1.  **Connect Sheet**: Select your Spreadsheet and Sheet/Tab.
+2.  **Map Columns**:
+    *   **Phone Column**: Select the column containing phone numbers (e.g., `Phone`).
+    *   **Name Column**: Select the column for names (e.g., `Customer Name`).
+    *   **Variables**: Map any template variables (e.g., `{{1}}` -> `Order ID`).
+3.  **Set Trigger**:
+    *   **Type**: Choose between "On New Row" or "At Specific Time".
+    *   **Conditions**: (Optional) Add logic like `Date is_today` or `Status equals Pending`.
+4.  **Save & Active**: Ensure the status is set to "Active".
 
-### Single Condition
-```json
-{
-  "column": "Status",
-  "operator": "equals",
-  "value": "Pending"
-}
-```
+---
 
-### Multiple Conditions (AND Logic)
-All conditions must be true for the trigger to fire.
-```json
-[
-  {
-    "column": "Status",
-    "operator": "equals",
-    "value": "Pending"
-  },
-  {
-    "column": "Date",
-    "operator": "is_today",
-    "value": ""
-  }
-]
-```
+## 2. Trigger Types Explained (Important)
 
-## Supported Operators
+Choosing the correct trigger type is crucial for timing.
 
-### String / General
-| Operator | Description | Matches |
+### A. "At Specific Time" (Schedule)
+Use this if you want messages to go out at a **precise time** (e.g., 9:00 AM every day).
+*   **How it works**: The system checks the clock every minute.
+*   **Precision**: Runs within 1 minute of the target time.
+*   **Timezone**: Always follows **IST (India Standard Time)**.
+*   **Example**: "Send Happy Birthday at 9:00 AM if Birthday is Today".
+
+### B. "When a row is added" (New Row / Polling)
+Use this if you want messages to go out **as soon as data is added**.
+*   **How it works**: The system checks the sheet **Every 5 Minutes**.
+*   **Polling**: It calculates "Has 5 minutes passed since last check?".
+*   **Timing**: If you add a row at 12:01, it might trigger at 12:05.
+*   **Warning**: This mode **IGNORES** any "Time" setting (like 9:00 AM). It runs 24/7 on a 5-minute loop.
+
+---
+
+## 3. Conditions: How to Use Them (With Examples)
+
+Conditions act as filters. If a row does NOT meet the condition, the message is **Skipped**.
+
+| Operator | Meaning | Example Data | Will it Send? |
+| :--- | :--- | :--- | :--- |
+| **equals** | Exact Match | Status: "Pending" | **YES** (if condition is `Status equals Pending`) |
+| **not_equals** | Anything EXCEPT this | Status: "Paid" | **YES** (if condition is `Status not_equals Failed`) |
+| **contains** | Partial Match | Product: "iPhone 15 Pro" | **YES** (if condition is `Product contains iPhone`) |
+| **does_not_contain** | Exclude value | Note: "Do not call" | **NO** (if condition is `Note contains Call`) |
+| **starts_with** | Prefix Check | ID: "WAP-123" | **YES** (if condition is `ID starts_with WAP`) |
+| **ends_with** | Suffix Check | File: "invoice.pdf" | **YES** (if condition is `File ends_with .pdf`) |
+| **is_empty** | Check Blank Cell | Feedback: "" | **YES** (if condition is `Feedback is_empty`) |
+| **is_not_empty** | Ensure Value Exists | Phone: "9876543210" | **YES** (if condition is `Phone is_not_empty`) |
+
+### Date Conditions (Powerful)
+These are dynamic and change every day.
+
+| Operator | When to use | Example Scenario |
 | :--- | :--- | :--- |
-| `equals` | String equality (case-insensitive) | "Yes" == "yes" |
-| `not_equals` | String inequality | "Paid" != "Unpaid" |
-| `contains` | Substring match | "Hello World" contains "World" |
-| `does_not_contain` | Substring exclusion | "Hello World" !contains "Moon" |
-| `starts_with` | Prefix match | "Order-123" starts with "Order" |
-| `ends_with` | Suffix match | "image.png" ends with ".png" |
-| `is_empty` | Check if cell is empty | "" or null |
-| `is_not_empty` | Check if cell has value | "Any text" |
+| **is_today** | Same Day Events | Sending "Appointment Reminder" on the day. |
+| **is_tomorrow** | Pre-Alerts | Sending "Your Appointment is Tomorrow" reminder. |
+| **is_yesterday** | Follow-ups | Sending "Thank you for visiting yesterday". |
+| **in_last_x_days** | Recent Activity | "You signed up 3 days ago, need help?" |
+| **in_next_x_days** | Upcoming Deadlines | "Your subscription expires in 5 days." |
+| **date_equals** | Specific Static Date | "Join our Webinar on Dec 25th". |
+| **date_before** | Past Deadlines | "Your payment was due before Oct 1st". |
+| **date_after** | Future Release | "Available after Jan 1st". |
 
-### Metric / Number
-| Operator | Description | Logic |
+### Birthday & Anniversary (Recurring)
+These operators **Ignore the Year**. `1990-05-20` matches `2026-05-20`.
+
+| Operator | Use Case |
+| :--- | :--- |
+| **day_month_equal** | **Happy Birthday!** (Matches Day & Month) |
+| **day_month_before** | "Did we miss your birthday yesterday?" |
+| **day_month_after** | "Your birthday is coming soon!" |
+
+---
+
+## 4. Advanced Deduplication & Safety
+
+To prevent spamming customers, the system uses "smart history".
+
+### Deduplication Logic
+Before sending, the system calculates a "Fingerprint" (Hash) of the row data.
+
+| Schedule Type | Rule | Reset Time |
 | :--- | :--- | :--- |
-| `greater_than` | Numeric > | 10 > 5 |
-| `less_than` | Numeric < | 5 < 10 |
-| `greater_than_or_equal` | Numeric >= | 5 >= 5 |
-| `less_than_or_equal` | Numeric <= | 5 <= 5 |
+| **Manual (Test Button)** | **ALWAYS SEND** | N/A |
+| **Daily Schedule** | **Once Per Day** | Midnight IST |
+| **Weekly Schedule** | **Once Per Day** | Midnight IST |
+| **One-Time / Custom** | **Once Forever** | Never |
 
-### Date & Time
-The system attempts to parse dates in multiple formats (`YYYY-MM-DD`, `DD/MM/YYYY`, `MM/DD/YYYY`).
+### Retry Logic (Anti-Loop)
+*   **Scenario**: Invalid data (e.g., missing phone).
+*   **Behavior**: System tries -> Fails -> **Marks as "Processed" for today**.
+*   **Result**: It prevents infinite error loops.
+*   **Fix**: Correct data, then click **"Test / Trigger Now"**.
 
-| Operator | Description | Logic |
-| :--- | :--- | :--- |
-| `date_equals` | Precise date match | Row Date == Target Date |
-| `date_before` | Date is strictly before target | Row Date < Target Date |
-| `date_after` | Date is strictly after target | Row Date > Target Date |
-| `date_between` | Date is within range (inclusive) | Start <= Row Date <= End |
+---
 
-**Relative Dates (Dynamic)**
-| Operator | Description | Logic |
-| :--- | :--- | :--- |
-| `is_today` | Date matches today's date | Row Date == TODAY |
-| `is_yesterday` | Date matches yesterday | Row Date == TODAY - 1 |
-| `is_tomorrow` | Date matches tomorrow | Row Date == TODAY + 1 |
-| `in_last_x_days` | Relative past window | TODAY - X <= Row Date <= TODAY |
-| `in_next_x_days` | Relative future window | TODAY <= Row Date <= TODAY + X |
+## 5. Rescheduling Logic
 
-### Anniversary (Day/Month Only)
-Useful for Birthdays and Anniversaries. Ignores the Year.
+### Does rescheduling trigger immediately?
+No, rescheduling a "Daily" automation just updates **when** it will run next.
+*   **For Tomorrow**: It will trigger at the new time tomorrow.
+*   **For Today**:
+    *   If it **has NOT run yet today**, it will trigger at the new time.
+    *   If it **ALREADY ran today**, it will NOT trigger again today (Deduplication).
 
-| Operator | Description | Logic |
-| :--- | :--- | :--- |
-| `day_month_equal` | Birthday is today | Month/Day matches Today |
-| `day_month_before` | Birthday has passed this year | Month/Day < Today |
-| `day_month_after` | Birthday is yet to come this year | Month/Day > Today |
+---
 
-## Important Notes
-- **Empty Values**: Most operators return `false` if the cell value is empty (except `is_empty`, `not_equals`).
-- **Date Parsing**: The system is robust and attempts to parse `DD/MM/YYYY` (common outside US) and `MM/DD/YYYY`. Standard `YYYY-MM-DD` is always preferred.
-- **Multiple Conditions**: Currently supports **AND** logic (all conditions must be true).
+## 6. Complete Workflow Example
+
+**Goal**: Send a "Payment Reminder" via WhatsApp to anyone whose `Date` is today and `Status` is `Pending`.
+
+### Step 1: Sheet Data
+| Name | Phone | Date | Status |
+| :--- | :--- | :--- | :--- |
+| Alice | 919876543210 | 22-01-2026 | Pending |
+| Bob | 919876543211 | 22-01-2026 | Paid |
+
+### Step 2: Automation Config
+*   **Trigger Type**: "At Specific Time".
+*   **Schedule**: Daily at 10:00 AM.
+*   **Conditions**:
+    1.  `Date` **is_today**.
+    2.  `Status` **equals** `Pending`.
+
+### Step 3: Execution (10:00 AM IST)
+1.  **System wakes up** at 10:00 AM.
+2.  **Reads Sheet**: Finds Alice and Bob.
+3.  **Checks Conditions**:
+    *   **Alice**: Date is today (Yes). Status is Pending (Yes). -> **MATCH**.
+    *   **Bob**: Date is today (Yes). Status is Paid (No). -> **SKIP**.
+4.  **Dedupe**: Have I sent to Alice today? **No**.
+5.  **Action**: Sends WhatsApp message to Alice.
+
+---
+
+## 7. Troubleshooting Checklist
+
+1.  **Check Status**: Is the automation "Active" (Green Badge)?
+2.  **Check Schedule**: If it triggers at random times (e.g., 12:05) and ignores your 9:00 AM setting, you selected **"New Row"**. Change to **"Specific Time"**.
+3.  **Check Duplicates**: Do you have two automations targeting the same sheet? This causes double messages.
+4.  **Check Errors**: Look at "Action -> Edit" logs.
+
