@@ -226,62 +226,149 @@ class SheetAutomationService {
     }
 
     shouldRun(auto) {
+        // Enforce IST Timezone for all logic
         const now = new Date();
-        const lastRun = auto.last_run_at ? new Date(auto.last_run_at) : null;
+
+        // precise formatter for parsing numeric values from IST
+        const getISTPart = (part) => {
+            const f = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Kolkata',
+                [part]: 'numeric',
+                hour12: false
+            });
+            return parseInt(f.format(now));
+        };
+
+        const getISTString = (opts) => now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', ...opts });
+
+        const currentYear = getISTPart('year');
+        const currentMonth = getISTPart('month') - 1; // JS months are 0-11
+        const currentDateNum = getISTPart('day');
+        const currentHour = getISTPart('hour');
+        const currentMinute = getISTPart('minute');
+        // Weekday: "Mon", "Tue"
+        const currentDayStr = getISTString({ weekday: 'short' });
+
+        // const lastRun = auto.last_run_at ? new Date(auto.last_run_at) : null;
+        // NOTE: last_run_at is stored in UTC in DB usually. We need to compare "Is last run TODAY in IST?"
+        // So we convert last_run_at to IST components too.
+        let lastRunIST = null;
+        if (auto.last_run_at) {
+            const lr = new Date(auto.last_run_at);
+            const getLRP = (part) => parseInt(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', [part]: 'numeric', hour12: false }).format(lr));
+            lastRunIST = {
+                year: getLRP('year'),
+                month: getLRP('month') - 1,
+                day: getLRP('day')
+            };
+        }
+
+        const logReason = (reason) => {
+            // Only log valid candidates (has schedule_config) to avoid spam
+            if (auto.schedule_config) {
+                // console.log(`[Schedule Check] ${auto.name} (IST: ${currentHour}:${currentMinute}) - SKIPPED: ${reason}`);
+            }
+        };
 
         if (auto.automation_type === 'new_row') {
             // Poll every 5 minutes
-            if (!lastRun) return true;
-            const diffMinutes = (now - lastRun) / 1000 / 60;
+            if (!auto.last_run_at) return true;
+            const lastRunDate = new Date(auto.last_run_at);
+            const diffMinutes = (now - lastRunDate) / 1000 / 60;
             return diffMinutes >= 5;
         }
 
         if (auto.automation_type === 'schedule') {
-            if (!auto.schedule_config) return false;
+            if (!auto.schedule_config) {
+                logReason("No schedule config");
+                return false;
+            }
 
             const { time, days, frequency, day_of_month } = auto.schedule_config;
-            // frequency: daily, weekly, monthly
+            // frequency: daily, weekly, monthly, custom (One-Time)
+
+            // SPECIAL CASE: Custom / One-Time
+            if (frequency === 'custom') {
+                if (auto.last_run_at) {
+                    logReason("Custom schedule already ran once.");
+                    return false;
+                }
+                // Check time
+                if (!time) return true;
+                const [th, tm] = time.split(':').map(Number);
+                const isDue = (currentHour > th) || (currentHour === th && currentMinute >= tm);
+
+                if (isDue) {
+                    console.log(`[Schedule Check] MATCH (One-Time)! Executing ${auto.name}.`);
+                    return true;
+                }
+                logReason("One-Time: Waiting for time.");
+                return false;
+            }
 
             // 1. CHECK DATE (Day/Month/Week)
-            const currentDayStr = now.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon"
-            const currentDateNum = now.getDate();
-
             let isCorrectDate = false;
 
             if (frequency === 'weekly') {
-                // Must matches one of the days
                 if (days && days.includes(currentDayStr)) isCorrectDate = true;
+                else logReason(`Weekly mismatch. Today: ${currentDayStr}, Config: ${days}`);
             } else if (frequency === 'monthly') {
-                // Must match day of month
                 if (day_of_month && parseInt(day_of_month) === currentDateNum) isCorrectDate = true;
+                else logReason(`Monthly mismatch. Today: ${currentDateNum}, Config: ${day_of_month}`);
             } else {
-                // 'daily' or 'custom' (assuming custom is handled else, but daily runs every day)
+                // 'daily'
                 isCorrectDate = true;
             }
 
             if (!isCorrectDate) return false;
 
-            // 2. CHECK TIME match (Hourly granularity)
-            if (!time) return false;
+            // 2. CHECK TIME match (Hourly granularity check, but run immediately if passed)
+            // Logic: Run if CurrentTime >= ScheduledTime AND hasn't run today.
+            if (!time) {
+                logReason("No time configured");
+                return false;
+            }
             const [targetHour, targetMinute] = time.split(':').map(Number);
-            const currentHour = now.getHours();
-            const currentMinute = now.getMinutes();
 
-            // Check if we passed the scheduled time
-            const isTime = currentHour > targetHour || (currentHour === targetHour && currentMinute >= targetMinute);
-            if (!isTime) return false;
+            const isTimeDue = (currentHour > targetHour) || (currentHour === targetHour && currentMinute >= targetMinute);
 
-            // 3. CHECK LAST RUN (Prevent double run today)
-            // If it ran TODAY, don't run again.
-            if (lastRun) {
-                const sameYear = lastRun.getFullYear() === now.getFullYear();
-                const sameMonth = lastRun.getMonth() === now.getMonth();
-                const sameDate = lastRun.getDate() === now.getDate();
-                if (sameYear && sameMonth && sameDate) {
-                    return false; // Already ran today
+            if (!isTimeDue) {
+                logReason(`Not due yet. Current IST: ${currentHour}:${currentMinute}, Target: ${time}`);
+                return false;
+            }
+
+            // 3. CHECK LAST RUN (Prevent double run for THIS schedule instance)
+            if (lastRunIST) {
+                // If it ran on a DIFFERENT day, we ignore it (allow run).
+                // If it ran TODAY, we check if it ran *for this schedule* or a previous one.
+                if (lastRunIST.year === currentYear && lastRunIST.month === currentMonth && lastRunIST.day === currentDateNum) {
+
+                    // It ran today. But did it run *at or after* the target time?
+                    // If LastRunTime >= TargetTime, then we have already fulfilled this schedule.
+                    // If LastRunTime < TargetTime, it implies a previous (earlier) schedule or manual run, so we allow it.
+
+                    const lrDate = new Date(auto.last_run_at);
+                    const f = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: false });
+                    const parts = f.formatToParts(lrDate);
+                    const p = {};
+                    parts.forEach(x => p[x.type] = x.value);
+
+                    // Parse IST hour/min of the LAST RUN
+                    // Note: '24' hour format usually returns '0'-'23'. Check format.
+                    let lrHour = parseInt(p.hour);
+                    if (lrHour === 24) lrHour = 0; // Edge case just in case
+                    const lrMinute = parseInt(p.minute);
+
+                    const hasRunForThisSlot = (lrHour > targetHour) || (lrHour === targetHour && lrMinute >= targetMinute);
+
+                    if (hasRunForThisSlot) {
+                        logReason(`Already ran for this time slot today. Last: ${lrHour}:${lrMinute}, Target: ${time}`);
+                        return false;
+                    }
                 }
             }
 
+            console.log(`[Schedule Check] MATCH! Executing ${auto.name}. Current IST: ${currentHour}:${currentMinute}, Target: ${time}`);
             return true;
         }
 
@@ -363,31 +450,54 @@ class SheetAutomationService {
             // If trigger uses recurring date logic (e.g. Birthday), we deduct per day/year.
             // If trigger is static (e.g. Status=Paid), we deduct per LIFETIME (never send twice for same row state).
 
-            let isRecurringTrigger = false;
-            // Check if any condition implies recurrence
-            const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+            // Helper for IST Start of Day (Unique per execution to ensure freshness)
+            const getISTStart = () => {
+                const n = new Date();
+                const f = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric' });
+                const p = f.formatToParts(n);
+                const m = {};
+                p.forEach(x => m[x.type] = x.value);
+                // UTC args: Y, M-1, D. Subtract 5.5h (19800000ms) offset.
+                return new Date(Date.UTC(m.year, m.month - 1, m.day) - 19800000);
+            };
 
-            for (const cond of conditions) {
-                if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
-                    isRecurringTrigger = true;
-                    break;
-                }
-            }
+            let timeWindow = new Date(0); // Default: Lifetime Check (Never repeats)
+            let dedupeMode = 'LIFETIME';
 
-            let timeWindow = new Date(0); // Default: Lifetime Deduplication (Check All History)
-
-            if (isRecurringTrigger) {
-                timeWindow = new Date();
-                timeWindow.setHours(0, 0, 0, 0); // Window: Start of Today
-                console.log(`[SheetAuto] Recurring Trigger detected. Checking history since today's start.`);
+            // Bypass for Manual Trigger (Test Mode) -> Ignore History
+            if (isManual) {
+                timeWindow = new Date(); // Start "Now" (Effectively ignores all past history)
+                dedupeMode = 'NONE (MANUAL)';
             } else {
-                console.log(`[SheetAuto] Static Trigger detected. Checking LIFETIME history.`);
+                // Determine Mode based on Config
+                const freq = auto.schedule_config?.frequency;
+                let isRecurring = false;
+
+                // 1. Explicit Frequency
+                if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
+                    isRecurring = true;
+                }
+
+                // 2. Implicit Recurrence via Conditions (e.g. Birthday)
+                if (!isRecurring) {
+                    const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+                    for (const cond of conditions) {
+                        if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
+                            isRecurring = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isRecurring) {
+                    timeWindow = getISTStart();
+                    dedupeMode = 'TODAY (IST)';
+                }
+
+                // Frequency 'custom' falls back to Lifetime (0) unless overridden above.
             }
 
-            // Override for Custom Frequency (Explicit One-Time)
-            if (auto.schedule_config?.frequency === 'custom') {
-                timeWindow = new Date(0);
-            }
+            console.log(`[SheetAuto] Dedupe Mode: ${dedupeMode}. Window Start: ${timeWindow.toISOString()}`);
 
             const sentHashes = await this.getSentHashes(auto.id, timeWindow);
 
@@ -467,6 +577,7 @@ class SheetAutomationService {
                             await this.sendMessageWithHistory(auto, rowObj, rowHash);
                             logSummary.sent_successfully++;
                             console.log('[SheetAuto] Message Sent Successfully!');
+                            // Success -> Add to local dedupe set
                             sentHashes.add(rowHash);
                         } catch (e) {
                             if (e.message === 'Skipped: Duplicate Pending/Sent') {
@@ -475,6 +586,11 @@ class SheetAutomationService {
                             } else {
                                 logSummary.errors++;
                                 console.error('[SheetAuto] Send Error:', e.message);
+
+                                // CRITICAL: Even if it fails (e.g. invalid template), we MUST add to history
+                                // to prevent the scheduler from retrying this same bad row every minute forever.
+                                // Users can retry manually after fixing the data.
+                                sentHashes.add(rowHash);
                             }
                         }
                     } else {
@@ -487,16 +603,25 @@ class SheetAutomationService {
 
                 // Final Update with Stats
                 console.log('[SheetAuto] Job Completed. Summary:', logSummary);
-                await supabaseAdmin.from('sheet_automations').update({
-                    error_log: this.formatLog(logSummary),
-                    last_run_at: new Date()
-                }).eq('id', auto.id);
+
+                const updatePayload = {
+                    error_log: this.formatLog(logSummary)
+                };
+
+                // Only update last_run_at if it's a SCHEDULED run (not manual)
+                // This ensures manual testing doesn't block the daily schedule from triggering.
+                if (!isManual) {
+                    updatePayload.last_run_at = new Date();
+                }
+
+                await supabaseAdmin.from('sheet_automations').update(updatePayload).eq('id', auto.id);
             }
 
             // Log to File System
             logGoogleSheetEvent('EXECUTION_SUMMARY', {
                 automation_id: auto.id,
                 automation_name: auto.name,
+                is_manual: isManual,
                 recurring_mode: isRecurringTrigger,
                 ...logSummary
             });
@@ -621,14 +746,34 @@ class SheetAutomationService {
         const op = condition.operator;
         const targetVal = condition.value;
 
+        // --- Helper: IST Date (Start of Day) ---
+        // Returns a Date object representing the given date in IST timezone (at 00:00:00)
+        // Or strictly gets the Day/Month/Year components in IST.
+        const getISTComponents = (d) => {
+            if (!d || isNaN(d.getTime())) return null;
+            const f = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Kolkata',
+                year: 'numeric', month: 'numeric', day: 'numeric'
+            });
+            const parts = f.formatToParts(d);
+            // Format: "1/21/2026" usually. Parts map is safer.
+            const p = {};
+            parts.forEach(x => p[x.type] = x.value);
+            return {
+                year: parseInt(p.year),
+                month: parseInt(p.month) - 1, // 0-based
+                day: parseInt(p.day)
+            };
+        };
+
+        const now = new Date();
+        const istNow = getISTComponents(now); // Current IST date components
+
         // --- Basic String/General Checks ---
         if (op === 'is_empty') return !val || val.toString().trim() === '';
         if (op === 'is_not_empty') return val && val.toString().trim() !== '';
 
         if (!targetVal && !['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_before', 'day_month_after', 'day_month_equal'].includes(op)) {
-            // Unary date ops don't need targetVal, but binary ops do.
-            // If targetVal is required but missing, fail safely.
-            // console.warn(`[SheetAuto] Condition '${op}' skipped: No value provided.`);
             return false;
         }
 
@@ -653,58 +798,80 @@ class SheetAutomationService {
         }
 
         // --- Date Checks ---
-        const dateVal = this.parseDate(val);
-        const now = new Date();
+        const dateVal = this.parseDate(val); // This assumes the string from Sheet implies "Local Day".
+        // Since sheet dates (e.g. 21/01/2026) are usually "date only", we should treat them as "Target Date"
+        // We compare this "Target Date" against "IST Today".
 
         if (['is_today', 'is_yesterday', 'is_tomorrow', 'in_last_x_days', 'in_next_x_days', 'date_equals', 'date_before', 'date_after', 'date_between', 'day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
             if (!dateVal) {
-                console.log(`[SheetAuto] Condition '${op}' failed: Invalid date value '${val}' in column '${condition.column}'`);
+                // Console log is noisy, maybe limit it
+                // console.log(`Condition '${op}' invalid date: ${val}`);
                 return false;
             }
         }
 
-        if (op === 'is_today') {
-            const isMatch = this.isSameDay(dateVal, now);
-            console.log(`[SheetAuto] is_today Check: RowDate=${dateVal} Today=${now} Match=${isMatch}`);
-            return isMatch;
-        }
-        if (op === 'is_yesterday') {
-            const yest = new Date();
-            yest.setDate(now.getDate() - 1);
-            return this.isSameDay(dateVal, yest);
-        }
-        if (op === 'is_tomorrow') {
-            const tom = new Date();
-            tom.setDate(now.getDate() + 1);
-            return this.isSameDay(dateVal, tom);
-        }
+        // Helper to compare dates components
+        const isSameDate = (d1, d2Parts) => { // d1 is Date, d2Parts is {year, month, day} from IST
+            // We assume d1 (from sheet) is "YYYY-MM-DD 00:00:00 Local".
+            // We just compare components directly.
+            return d1.getFullYear() === d2Parts.year &&
+                d1.getMonth() === d2Parts.month &&
+                d1.getDate() === d2Parts.day;
+        };
+
+        // Shift IST Now for relative checks
+        const getRelativeIST = (offsetDays) => {
+            // Create a date object that *looks* like IST date
+            const d = new Date(istNow.year, istNow.month, istNow.day);
+            d.setDate(d.getDate() + offsetDays);
+            return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
+        };
+
+        if (op === 'is_today') return isSameDate(dateVal, istNow);
+        if (op === 'is_yesterday') return isSameDate(dateVal, getRelativeIST(-1));
+        if (op === 'is_tomorrow') return isSameDate(dateVal, getRelativeIST(1));
+
+        // Range Checks: Use timestamp comparison after setting both to Noon to avoid DST/TimeZone edge cases?
+        // Simpler: Compare YYYYMMDD integers.
+        const toInt = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+        const istNowInt = istNow.year * 10000 + (istNow.month + 1) * 100 + istNow.day;
+        const valInt = toInt(dateVal);
+
         if (op === 'in_last_x_days') {
             const days = parseInt(targetVal) || 0;
-            const threshold = new Date();
-            threshold.setDate(now.getDate() - days);
-            return dateVal >= threshold && dateVal <= now;
+            const thresholdObs = getRelativeIST(-days);
+            const thresholdInt = thresholdObs.year * 10000 + (thresholdObs.month + 1) * 100 + thresholdObs.day;
+            return valInt >= thresholdInt && valInt <= istNowInt;
         }
+
         if (op === 'in_next_x_days') {
             const days = parseInt(targetVal) || 0;
-            const threshold = new Date();
-            threshold.setDate(now.getDate() + days);
-            return dateVal >= now && dateVal <= threshold;
+            const thresholdObs = getRelativeIST(days);
+            const thresholdInt = thresholdObs.year * 10000 + (thresholdObs.month + 1) * 100 + thresholdObs.day;
+            return valInt >= istNowInt && valInt <= thresholdInt;
         }
 
         if (['date_equals', 'date_before', 'date_after', 'date_between'].includes(op)) {
-            const dateTarget = this.parseDate(targetVal);
+            // For explicit date comparisons, we assume targetVal is also YYYY-MM-DD provided by user (or UI).
+            // We parse it naively.
+            const targetDate = this.parseDate(targetVal);
+            if (!targetDate) return false;
 
-            if (op === 'date_equals') return this.isSameDay(dateVal, dateTarget);
-            if (op === 'date_before') return dateVal < (dateTarget || now);
-            if (op === 'date_after') return dateVal > (dateTarget || now);
+            const targetInt = toInt(targetDate);
+
+            if (op === 'date_equals') return valInt === targetInt;
+            if (op === 'date_before') return valInt < targetInt; // Strict before? "Date Before" usually means <
+            if (op === 'date_after') return valInt > targetInt;
 
             if (op === 'date_between') {
                 const parts = String(targetVal).split(',');
                 if (parts.length === 2) {
-                    const start = this.parseDate(parts[0]);
-                    const end = this.parseDate(parts[1]);
-                    if (start && end) {
-                        return dateVal >= start && dateVal <= end;
+                    const d1 = this.parseDate(parts[0]);
+                    const d2 = this.parseDate(parts[1]);
+                    if (d1 && d2) {
+                        const i1 = toInt(d1);
+                        const i2 = toInt(d2);
+                        return valInt >= i1 && valInt <= i2;
                     }
                 }
                 return false;
@@ -712,22 +879,13 @@ class SheetAutomationService {
         }
 
         if (['day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
-            const dMonth = dateVal.getMonth();
-            const dDate = dateVal.getDate();
-            const nowMonth = now.getMonth();
-            const nowDate = now.getDate();
+            // Birthday Logic: Compare MM * 100 + DD
+            const valMMDD = (dateVal.getMonth() + 1) * 100 + dateVal.getDate();
+            const istMMDD = (istNow.month + 1) * 100 + istNow.day;
 
-            if (op === 'day_month_equal') return dMonth === nowMonth && dDate === nowDate;
-            if (op === 'day_month_after') {
-                if (dMonth > nowMonth) return true;
-                if (dMonth === nowMonth && dDate > nowDate) return true;
-                return false;
-            }
-            if (op === 'day_month_before') {
-                if (dMonth < nowMonth) return true;
-                if (dMonth === nowMonth && dDate < nowDate) return true;
-                return false;
-            }
+            if (op === 'day_month_equal') return valMMDD === istMMDD;
+            if (op === 'day_month_after') return valMMDD > istMMDD;
+            if (op === 'day_month_before') return valMMDD < istMMDD;
         }
 
         return false;

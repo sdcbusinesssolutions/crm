@@ -20,7 +20,315 @@ const getGoogleCreds = (reqBody) => {
     };
 };
 
-// ... (Skip unchanged routes 1-4) ...
+// 1. Generate Auth URL
+router.post('/auth-url', (req, res) => {
+    try {
+        // We use POST so we can accept clientId/Secret in body safely if needed
+        const { clientId, redirectUrl } = req.body;
+
+        // Allow passing overrides, otherwise use env
+        const effectiveClientId = (clientId || process.env.GOOGLE_CLIENT_ID || '').trim();
+        const effectiveRedirectUrl = (redirectUrl || process.env.GOOGLE_REDIRECT_URL || '').trim();
+
+        if (!effectiveClientId || !effectiveRedirectUrl) {
+            return res.status(400).json({ error: 'Missing Client ID or Redirect URL configuration' });
+        }
+
+        const { google } = require('googleapis');
+        const oauth2Client = new google.auth.OAuth2(
+            effectiveClientId,
+            null, // Secret not needed for URL generation
+            effectiveRedirectUrl
+        );
+
+        const scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile'
+        ];
+
+        const url = oauth2Client.generateAuthUrl({
+            access_type: 'offline', // Essential for refresh_token
+            scope: scopes,
+            prompt: 'consent' // Force refresh token generation
+        });
+
+        res.json({ url });
+    } catch (error) {
+        console.error('Google Auth URL Error:', error);
+        res.status(500).json({ error: 'Failed to generate Auth URL' });
+    }
+});
+
+// 2. Exchange Code
+router.post('/exchange', async (req, res) => {
+    try {
+        const { code, clientId, clientSecret, redirectUrl, connectionName } = req.body;
+        const userId = req.user.id;
+
+        // Helper to sanitize inputs (remove quotes which cause "Invalid host defined options" and whitespace)
+        // Aggressive clean: remove all whitespace, quotes, and non-printable chars
+        const clean = (str) => (str || '').replace(/['"]/g, '').trim();
+
+        // Use provided creds or fallback to env
+        let creds = {
+            clientId: clean(clientId || process.env.GOOGLE_CLIENT_ID),
+            clientSecret: clean(clientSecret || process.env.GOOGLE_CLIENT_SECRET),
+            redirectUrl: clean(redirectUrl || process.env.GOOGLE_REDIRECT_URL)
+        };
+
+        if (!code) return res.status(400).json({ error: 'Missing auth code' });
+        if (!creds.clientId || !creds.clientSecret || !creds.redirectUrl) {
+            return res.status(400).json({ error: 'Missing Google Client configuration (ID, Secret, or Redirect URL)' });
+        }
+
+        const { google } = require('googleapis');
+        const oauth2Client = new google.auth.OAuth2(
+            creds.clientId,
+            creds.clientSecret,
+            creds.redirectUrl
+        );
+
+        // A. Exchange
+        console.log(`[Google Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
+
+        // DEBUG: Check for Proxy Environment Variables that might break gaxios
+        // Gaxios/node-fetch will crash with "Invalid host defined options" if these are malformed.
+        // We delete them to be safe.
+        const proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
+        proxyVars.forEach(v => {
+            if (process.env[v]) {
+                console.warn(`[Google Exchange] Deleting detected proxy var: ${v}=${process.env[v]}`);
+                delete process.env[v];
+            }
+        });
+
+        logGoogleEvent('EXCHANGE_START', {
+            redirectUrl: creds.redirectUrl,
+            clientIdPrefix: creds.clientId ? creds.clientId.substring(0, 10) + '...' : 'MISSING',
+            hasClientSecret: !!creds.clientSecret,
+            codeLength: code ? code.length : 0
+        });
+
+        // Ensure code is a clean string
+        const cleanCode = String(code).trim();
+
+        let tokens;
+        try {
+            const response = await oauth2Client.getToken(cleanCode);
+            tokens = response.tokens;
+        } catch (tokenError) {
+            console.error('[Google Exchange] oauth2Client.getToken failed. Attempting Axios fallback...', tokenError.message);
+
+            // FALLBACK: Manual Token Exchange via Axios
+            // This bypasses 'gaxios' (used by googleapis) which is prone to "Invalid host" errors in some ENV/Proxy setups.
+            try {
+                const axios = require('axios');
+                const tokenUrl = 'https://oauth2.googleapis.com/token';
+                const payload = {
+                    code: cleanCode,
+                    client_id: creds.clientId,
+                    client_secret: creds.clientSecret,
+                    redirect_uri: creds.redirectUrl,
+                    grant_type: 'authorization_code'
+                };
+
+                console.log('[Google Exchange] Sending manual Axios request to:', tokenUrl);
+                const { data } = await axios.post(tokenUrl, payload);
+                tokens = data;
+                console.log('[Google Exchange] Axios fallback SUCCESS!');
+            } catch (axiosError) {
+                console.error('[Google Exchange] Axios fallback FAILED:', axiosError.message);
+                if (axiosError.response) {
+                    console.error('Axios Response:', axiosError.response.data);
+                }
+                throw tokenError; // Throw the original error if fallback also fails
+            }
+        }
+
+        oauth2Client.setCredentials(tokens);
+
+        // B. Get User Info (Manual Axios Call - bypassing googleapis/gaxios completely)
+        const axios = require('axios');
+        console.log('[Google Exchange] Fetching User Info via Axios...');
+
+        // We use the access_token we just got (either from standard or fallback)
+        const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokens.access_token}` }
+        });
+
+        const userInfoData = userInfoResponse.data;
+        const email = userInfoData.email;
+        console.log('[Google Exchange] User Info fetched successfully:', email);
+
+        // Use user-provided name or default to email
+        const finalConnectionName = connectionName || email;
+
+        // C. Prepare Data to Save
+        // We MUST save the clientId/Secret if they were provided by the user, 
+        // because we need them later to refresh the token!
+        const storedCredentials = {
+            ...tokens,
+            // Store param overrides if they were provided in the request
+            params_client_id: clientId ? creds.clientId : null,
+            params_client_secret: clientSecret ? creds.clientSecret : null,
+            params_redirect_url: redirectUrl ? creds.redirectUrl : null
+        };
+
+        // D. Upsert to DB
+        const { data: existing } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('provider', 'google')
+            .eq('connection_name', finalConnectionName)
+            .single();
+
+        let result;
+        if (existing) {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .update({
+                    credentials: storedCredentials,
+                    metadata: userInfoData,
+                    updated_at: new Date()
+                })
+                .eq('id', existing.id);
+        } else {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .insert({
+                    user_id: userId,
+                    provider: 'google',
+                    connection_name: finalConnectionName,
+                    credentials: storedCredentials,
+                    metadata: userInfoData
+                });
+        }
+
+        if (result.error) throw result.error;
+
+        res.json({ success: true, name: finalConnectionName });
+
+        logGoogleEvent('EXCHANGE_SUCCESS', {
+            connectionName: finalConnectionName,
+            userId: userId,
+            email: email
+        });
+
+    } catch (error) {
+        const errorDetails = {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+            stack: error.stack // Include stack trace
+        };
+
+        console.error('Google Exchange Error Details:', errorDetails);
+
+        logGoogleEvent('EXCHANGE_ERROR', {
+            error: error.message,
+            details: errorDetails
+        });
+
+        // Handle specific "invalid_grant" (Bad Request) separately for clarity
+        if (error.response?.data?.error === 'invalid_grant') {
+            return res.status(400).json({ error: 'Invalid or expired Authorization Code. Please try again.' });
+        }
+
+        const errorMessage = error.response?.data?.error_description || error.message || 'Failed to exchange token';
+        res.status(500).json({ error: errorMessage, details: error.response?.data });
+    }
+});
+
+// 2b. Save Service Account (Manual JSON)
+router.post('/service-account', async (req, res) => {
+    try {
+        const { connectionName, credentials } = req.body;
+        const userId = req.user.id;
+
+        if (!connectionName || !credentials || !credentials.private_key || !credentials.client_email) {
+            return res.status(400).json({ error: 'Invalid Service Account Data' });
+        }
+
+        const { data: existing } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('provider', 'google')
+            .eq('connection_name', connectionName)
+            .single();
+
+        let result;
+        if (existing) {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .update({
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' },
+                    updated_at: new Date()
+                })
+                .eq('id', existing.id);
+        } else {
+            result = await supabaseAdmin
+                .from('user_integrations')
+                .insert({
+                    user_id: userId,
+                    provider: 'google',
+                    connection_name: connectionName,
+                    credentials,
+                    metadata: { email: credentials.client_email, type: 'service_account' }
+                });
+        }
+
+        if (result.error) throw result.error;
+
+        res.json({ success: true });
+        logGoogleEvent('SERVICE_ACCOUNT_ADDED', { userId, connectionName, email: credentials.client_email });
+
+    } catch (error) {
+        console.error('Save Service Account Error:', error);
+        res.status(500).json({ error: 'Failed to save Service Account' });
+    }
+});
+
+// 3. List
+router.get('/connections', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { data, error } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id, connection_name, created_at, updated_at')
+            .eq('user_id', userId)
+            .eq('provider', 'google');
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        console.error('List Connections Error:', error);
+        res.status(500).json({ error: 'Failed to list connections' });
+    }
+});
+
+// 4. Delete
+router.delete('/connections/:id', async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { id } = req.params;
+
+        const { error } = await supabaseAdmin
+            .from('user_integrations')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Delete Connection Error:', error);
+        res.status(500).json({ error: 'Failed to delete connection' });
+    }
+});
 
 // 5. Sheets & Columns (Proxy)
 // These routes need to recover the correct ClientID/Secret from the stored credentials

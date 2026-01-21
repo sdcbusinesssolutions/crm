@@ -121,8 +121,31 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+// Toggle Status (Active/Paused)
+router.patch('/:id/status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
 
-// Manual Trigger
+        if (!['active', 'paused'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status. Must be "active" or "paused".' });
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('sheet_automations')
+            .update({ status })
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error) {
+        console.error('[SheetAuto] Toggle Status Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 const SheetAutomationService = require('../services/SheetAutomationService');
 
 router.post('/:id/trigger', async (req, res) => {
