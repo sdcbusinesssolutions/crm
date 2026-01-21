@@ -60,8 +60,27 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
     };
 
     const handleTrigger = async (id: string) => {
-        // Future: Manual Trigger
-        alert('Manual trigger not yet implemented on backend.');
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            const token = session.session?.access_token;
+            if (!token) return;
+
+            const res = await fetch(`/api/sheet-automations/${id}/trigger`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                alert('Trigger executed successfully!');
+                fetchAutomations(); // Refresh status/last run
+            } else {
+                const err = await res.json();
+                alert('Trigger failed: ' + (err.error || 'Unknown error'));
+            }
+        } catch (e: any) {
+            console.error(e);
+            alert('Error triggering automation: ' + e.message);
+        }
     };
 
     if (isLoading) return <div className="p-8">Loading...</div>;

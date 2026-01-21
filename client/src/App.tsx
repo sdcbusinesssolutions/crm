@@ -88,6 +88,7 @@ const MainApp: React.FC = () => {
     const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
+    const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(null);
     const [createCampaignData, setCreateCampaignData] = useState<{
         templateId?: string;
         manualNumbers?: string[];
@@ -473,17 +474,35 @@ const MainApp: React.FC = () => {
             return <IntegrationsView />;
         }
 
+        // ... (rest of code)
+        // ...
+        // Note: I will only replace the render logic and state initialization part if possible, 
+        // or just the block where SheetAutomationWizard is rendered.
+
+        // I need to be careful with line numbers.
+        // Let's scroll down to SheetAutomation render block.
+
         if (activeMenuItem === 'Sheet Automation') {
             if (isCreatingSheetAutomation) {
                 return (
                     <div className="p-8 h-full overflow-y-auto bg-slate-50">
                         <div className="max-w-4xl mx-auto">
-                            <button onClick={() => setIsCreatingSheetAutomation(false)} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm">
+                            <button onClick={() => {
+                                setIsCreatingSheetAutomation(false);
+                                setEditingSheetAutomationId(null);
+                            }} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm">
                                 ← Back to List
                             </button>
                             <SheetAutomationWizard
-                                onClose={() => setIsCreatingSheetAutomation(false)}
-                                onSave={() => setIsCreatingSheetAutomation(false)}
+                                editId={editingSheetAutomationId || undefined}
+                                onClose={() => {
+                                    setIsCreatingSheetAutomation(false);
+                                    setEditingSheetAutomationId(null);
+                                }}
+                                onSave={() => {
+                                    setIsCreatingSheetAutomation(false);
+                                    setEditingSheetAutomationId(null);
+                                }}
                             />
                         </div>
                     </div>
@@ -492,7 +511,16 @@ const MainApp: React.FC = () => {
             return (
                 <div className="p-8 h-full overflow-y-auto bg-slate-50">
                     <div className="max-w-6xl mx-auto">
-                        <SheetAutomationList onCreate={() => setIsCreatingSheetAutomation(true)} onEdit={() => { }} />
+                        <SheetAutomationList
+                            onCreate={() => {
+                                setEditingSheetAutomationId(null);
+                                setIsCreatingSheetAutomation(true);
+                            }}
+                            onEdit={(id) => {
+                                setEditingSheetAutomationId(id);
+                                setIsCreatingSheetAutomation(true);
+                            }}
+                        />
                     </div>
                 </div>
             );

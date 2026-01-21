@@ -1,28 +1,31 @@
 
-// --- GLOBAL PROXY CLEANUP (Run ASAP) ---
-// Aggressively remove any proxy environment variables to prevent "Invalid host defined options"
-// errors in gaxios/googleapis/node-fetch.
-const proxyVars = [
-  'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy',
-  'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'
-];
-proxyVars.forEach(v => {
-  if (process.env[v] !== undefined) {
-    // console.log(`[Startup] Cleaning process.env.${v}`); // Commented out to reduce log noise
-    delete process.env[v];
-  }
-});
-
 const express = require('express');
 const cors = require('cors');
 const serverless = require('serverless-http');
 const path = require('path');
+
 // Load env vars only if not in production/Netlify (where they are injected)
 try {
   if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
     require('dotenv').config({ path: path.join(__dirname, '.env') });
   }
 } catch (e) { console.log('No .env file found, using process.env'); }
+
+// --- GLOBAL PROXY CLEANUP (Run AFTER .env load) ---
+// Aggressively remove any proxy environment variables to prevent "Invalid host defined options"
+// errors in gaxios/googleapis/node-fetch. These might be injected by dotenv or system.
+const proxyVars = [
+  'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy',
+  'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'
+];
+proxyVars.forEach(v => {
+  if (process.env[v] !== undefined) {
+    console.log(`[Startup] Cleaning process.env.${v}`);
+    delete process.env[v];
+  }
+});
+// Explicitly set NO_PROXY just in case
+process.env.NO_PROXY = 'googleapis.com,sheets.googleapis.com,oauth2.googleapis.com';
 
 
 

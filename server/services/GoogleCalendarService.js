@@ -7,10 +7,10 @@ const GoogleCalendarService = {
             console.log('[GoogleCalendarService] Using Service Account for Auth');
 
             // AGGRESSIVE PROXY CLEANUP
-            ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'].forEach(v => {
+            const proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'];
+            proxyVars.forEach(v => {
                 if (process.env[v] !== undefined) delete process.env[v];
             });
-            process.env.NO_PROXY = '*';
 
             // Clean Key
             let privateKey = creds.private_key;

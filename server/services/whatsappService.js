@@ -146,7 +146,7 @@ class WhatsAppService {
             return response.data;
 
         } catch (error) {
-            console.error('WhatsAppService Send Error:', error.response?.data || error.message);
+            console.error('WhatsAppService Send Error:', JSON.stringify(error.response?.data || error.message, null, 2));
             throw new Error(error.response?.data?.error?.message || error.message);
         }
     }

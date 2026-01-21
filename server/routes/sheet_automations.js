@@ -18,6 +18,25 @@ router.get('/', async (req, res) => {
     }
 });
 
+// Get Single Automation
+router.get('/:id', async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('sheet_automations')
+            .select('*')
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (error) throw error;
+        if (!data) return res.status(404).json({ error: 'Not found' });
+
+        res.json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Create Automation
 router.post('/', async (req, res) => {
     try {
@@ -32,6 +51,8 @@ router.post('/', async (req, res) => {
             template_config,
             mapping_config
         } = req.body;
+
+        console.log('[SheetAuto] Create Request:', JSON.stringify(req.body, null, 2));
 
         const { data, error } = await supabaseAdmin
             .from('sheet_automations')
@@ -51,10 +72,14 @@ router.post('/', async (req, res) => {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('[SheetAuto] Supabase Insert Error:', error);
+            throw error;
+        }
         res.json(data);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('[SheetAuto] Server Error:', error);
+        res.status(500).json({ error: error.message, details: error });
     }
 });
 
@@ -96,5 +121,21 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Manual Trigger
+const SheetAutomationService = require('../services/SheetAutomationService');
+
+router.post('/:id/trigger', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Verify ownership and trigger via Service
+        const result = await SheetAutomationService.triggerById(id, req.user.id);
+        res.json(result);
+    } catch (error) {
+        console.error('[SheetAuto] Manual Trigger Error:', { message: error.message, stack: error.stack });
+        res.status(500).json({ error: error.message });
+    }
+});
+
 
 module.exports = router;

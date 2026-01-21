@@ -2,6 +2,12 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const { google } = require('googleapis');
 const whatsappService = require('./whatsappService');
 const crypto = require('crypto');
+const axios = require('axios');
+const jwt = require('jsonwebtoken');
+const { logGoogleSheetEvent } = require('../utils/logger'); // Import Logger
+
+// Cache for Service Account Auth (Key: email, Value: { token, expiresAt })
+const serviceTokenCache = new Map();
 
 class SheetAutomationService {
 
@@ -17,6 +23,17 @@ class SheetAutomationService {
     }
 
     async getAuthClient(userId, connectionId) {
+        // GLOBAL PROXY CLEANUP (Critical for googleapis/gaxios)
+        // Ensure no proxy environment variables are set that could confuse Gaxios
+        // AGGRESSIVE PROXY CLEANUP (Critical for googleapis/gaxios)
+        // Ensure no proxy environment variables are set that could confuse Gaxios
+        ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy', 'npm_config_proxy', 'npm_config_https_proxy'].forEach(v => {
+            if (process.env[v] !== undefined) delete process.env[v];
+        });
+
+        // Explicitly tell Node/Gaxios to NOT use proxy for Google APIs by setting NO_PROXY to wildcard
+        process.env.NO_PROXY = '*';
+
         // Use existing logic to fetch integration
         const { data: integration, error } = await supabaseAdmin
             .from('user_integrations')
@@ -25,20 +42,41 @@ class SheetAutomationService {
             .eq('user_id', userId)
             .single();
 
-        if (error || !integration) throw new Error('Google connection not found');
+        if (error) {
+            console.error('[SheetAuto] Supabase fetch error:', error);
+            throw new Error('Database error while fetching integration');
+        }
+        if (!integration) {
+            console.warn('[SheetAuto] No integration found for:', { userId, connectionId });
+            throw new Error('No credentials provided');
+        }
 
         const creds = integration.credentials;
+        console.log(`[SheetAuto] Auth Check: private_key=${!!creds.private_key}, client_email=${!!creds.client_email}`);
 
         // --- OPTION A: Service Account (Permanent, No Expiry) ---
         // If the credentials JSON has 'private_key', treat it as a Service Account.
         if (creds.private_key && creds.client_email) {
             console.log('[SheetAutomation] Using Service Account for Auth');
 
-            // AGGRESSIVE PROXY CLEANUP
-            ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy'].forEach(v => {
-                if (process.env[v] !== undefined) delete process.env[v];
-            });
-            process.env.NO_PROXY = '*';
+            const email = creds.client_email;
+            const now = Math.floor(Date.now() / 1000);
+
+            // 1. CACHE CHECK
+            if (serviceTokenCache.has(email)) {
+                const cached = serviceTokenCache.get(email);
+                // Check valid with 5min buffer
+                if (cached.expiresAt > now + 300) {
+                    console.log('[SheetAutomation] Using Cached Service Token');
+                    const oauth2Client = new google.auth.OAuth2();
+                    oauth2Client.setCredentials({ access_token: cached.token });
+                    return oauth2Client;
+                }
+            }
+
+            // 2. EXCHANGE
+            // SERVICE ACCOUNT TOKEN REFRESH: Not needed manually. 
+            // We generate a fresh JWT for every execution session using the private key. This key never expires.
 
             // Clean Key
             let privateKey = creds.private_key;
@@ -49,10 +87,6 @@ class SheetAutomationService {
 
             try {
                 // MANUAL JWT EXCHANGE (Bypassing Gaxios "Invalid Host")
-                const jwt = require('jsonwebtoken');
-                const axios = require('axios');
-
-                const now = Math.floor(Date.now() / 1000);
                 const payload = {
                     iss: creds.client_email,
                     scope: 'https://www.googleapis.com/auth/spreadsheets',
@@ -68,12 +102,21 @@ class SheetAutomationService {
                 exchangeParams.append('grant_type', 'urn:ietf:params:oauth:grant-type:jwt-bearer');
                 exchangeParams.append('assertion', token);
 
-                const response = await axios.post(exchangeUrl, exchangeParams, { proxy: false });
+                const response = await axios.post(exchangeUrl, exchangeParams, {
+                    proxy: false
+                });
                 const accessToken = response.data.access_token;
+                const expiresIn = response.data.expires_in || 3600;
 
                 if (!accessToken) throw new Error('No access_token from Manual JWT');
 
                 console.log('[SheetAutomation] Manual JWT Exchange SUCCESS.');
+
+                // 3. CACHE UPDATE
+                serviceTokenCache.set(email, {
+                    token: accessToken,
+                    expiresAt: now + expiresIn
+                });
 
                 // Wrap in OAuth2Client so google.sheets can use it
                 const oauth2Client = new google.auth.OAuth2();
@@ -187,131 +230,369 @@ class SheetAutomationService {
         const lastRun = auto.last_run_at ? new Date(auto.last_run_at) : null;
 
         if (auto.automation_type === 'new_row') {
-            // Poll every 5 minutes for new rows?
-            // Or simplified: run if it hasn't run in X minutes
+            // Poll every 5 minutes
             if (!lastRun) return true;
             const diffMinutes = (now - lastRun) / 1000 / 60;
-            return diffMinutes >= 5; // Check every 5 mins
+            return diffMinutes >= 5;
         }
 
         if (auto.automation_type === 'schedule') {
             if (!auto.schedule_config) return false;
-            const { time, days } = auto.schedule_config; // time: "09:00", days: ["Mon", "Fri"]
 
-            // Check Day
-            const currentDay = now.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon"
-            if (days && days.length > 0 && !days.includes(currentDay)) return false;
+            const { time, days, frequency, day_of_month } = auto.schedule_config;
+            // frequency: daily, weekly, monthly
 
-            // Check Time (Hourly granularity or check if we passed the time today)
+            // 1. CHECK DATE (Day/Month/Week)
+            const currentDayStr = now.toLocaleDateString('en-US', { weekday: 'short' }); // "Mon"
+            const currentDateNum = now.getDate();
+
+            let isCorrectDate = false;
+
+            if (frequency === 'weekly') {
+                // Must matches one of the days
+                if (days && days.includes(currentDayStr)) isCorrectDate = true;
+            } else if (frequency === 'monthly') {
+                // Must match day of month
+                if (day_of_month && parseInt(day_of_month) === currentDateNum) isCorrectDate = true;
+            } else {
+                // 'daily' or 'custom' (assuming custom is handled else, but daily runs every day)
+                isCorrectDate = true;
+            }
+
+            if (!isCorrectDate) return false;
+
+            // 2. CHECK TIME match (Hourly granularity)
+            if (!time) return false;
             const [targetHour, targetMinute] = time.split(':').map(Number);
-
-            // Simple logic: Run if we are in the target minute window AND haven't run today
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
 
-            // If it already ran today, skip
-            if (lastRun && lastRun.getDate() === now.getDate() && lastRun.getMonth() === now.getMonth()) {
-                return false;
+            // Check if we passed the scheduled time
+            const isTime = currentHour > targetHour || (currentHour === targetHour && currentMinute >= targetMinute);
+            if (!isTime) return false;
+
+            // 3. CHECK LAST RUN (Prevent double run today)
+            // If it ran TODAY, don't run again.
+            if (lastRun) {
+                const sameYear = lastRun.getFullYear() === now.getFullYear();
+                const sameMonth = lastRun.getMonth() === now.getMonth();
+                const sameDate = lastRun.getDate() === now.getDate();
+                if (sameYear && sameMonth && sameDate) {
+                    return false; // Already ran today
+                }
             }
 
-            // Check if it's time (or slightly past time but robustly handled)
-            if (currentHour > targetHour || (currentHour === targetHour && currentMinute >= targetMinute)) {
-                return true;
-            }
+            return true;
         }
 
         return false;
     }
 
-    async executeJob(auto) {
-        // 1. Setup Google Sheets API
-        const auth = await this.getAuthClient(auto.user_id, auto.connection_id); // Assuming we store connection_id
-        const sheets = google.sheets({ version: 'v4', auth });
+    async triggerById(id, userId) {
+        // 1. Fetch Automation
+        const { data: auto, error } = await supabaseAdmin
+            .from('sheet_automations')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', userId)
+            .single();
 
-        // 2. Fetch Data
-        const range = `${auto.sheet_name}`; // Fetch whole sheet
-        const response = await sheets.spreadsheets.values.get({
-            spreadsheetId: auto.spreadsheet_id,
-            range,
-        });
+        if (error || !auto) throw new Error('Automation not found or access denied');
 
-        const rows = response.data.values;
-        if (!rows || rows.length < 2) return; // No header or data
+        console.log(`[SheetAutomation] Manual Trigger for ${auto.name} (${auto.id})`);
 
-        const headers = rows[0];
-        const dataRows = rows.slice(1);
+        // 2. Execute
+        // Pass a flag to indicate manual run if needed, but logic remains same
+        await this.executeJob(auto, true);
 
-        console.log(`[SheetAutomation] Found ${dataRows.length} rows.`);
+        return { success: true };
+    }
 
-        let processedCount = 0;
-
-        // 3. Automation Logic
-        if (auto.automation_type === 'new_row') {
-            // Logic: Process rows AFTER the last known index.
-            // We need to store 'last_processed_row_index' in 'auto' metadata
-            const lastIndex = auto.last_processed_row_index || 0;
-
-            // New rows are those with index >= lastIndex
-            // Note: 'rows' array is 0-indexed relative to dataRows (which excludes header)
-            // Actual sheet row for dataRows[i] is i + 2.
-
-            const newRows = dataRows.slice(lastIndex);
-
-            for (let i = 0; i < newRows.length; i++) {
-                const row = newRows[i];
-                const rowObj = this.mapRow(headers, row);
-                await this.sendMessage(auto, rowObj);
-                processedCount++;
-            }
-
-            // Update last index
-            await supabaseAdmin.from('sheet_automations').update({
-                last_processed_row_index: lastIndex + newRows.length,
-                last_run_at: new Date()
-            }).eq('id', auto.id);
-
-        } else if (auto.automation_type === 'schedule') {
-            // Logic: Iterate ALL, check trigger condition & log check
-
-            for (const row of dataRows) {
-                const rowObj = this.mapRow(headers, row);
-
-                // A. Check Trigger Condition
-                if (this.checkCondition(auto.trigger_condition, rowObj)) {
-
-                    // B. Check Write-back Status (if configured)
-                    // If user mapped a "Status" column, check if it says "Sent"
-                    // reusing the mapping_config.status_column
-                    const statusCol = auto.mapping_config?.status_column;
-                    if (statusCol && rowObj[statusCol]?.toLowerCase() === 'sent') {
-                        continue; // Already sent
-                    }
-
-                    // C. Fallback: Check Hash Log (if no write-back)
-                    // const rowHash = this.computeRowHash(rowObj);
-                    // Check DB if this hash was sent TODAY (for bday) or EVER?
-                    // For scheduling, usually we rely on "Is Today" + Log to prevent double send.
-
-                    // Send
-                    await this.sendMessage(auto, rowObj);
-
-                    // Update Status back to Sheet
-                    if (statusCol) {
-                        // We need row index.
-                        // dataRows index is `rows.indexOf(row) - 1`.
-                        // Real sheet index is +2. (Header is 1).
-                        // wait... `row` is a reference, indexOf allows invalidity.
-                        // Better use index in loop
-                    }
-                }
-            }
-
-            // Update last run
+    async executeJob(auto, isManual = false) {
+        // 1. LOCK: Update last_run_at immediately to prevent race conditions
+        if (!isManual) {
             await supabaseAdmin.from('sheet_automations').update({
                 last_run_at: new Date()
             }).eq('id', auto.id);
         }
+
+        const logSummary = {
+            total_rows: 0,
+            conditions_met: 0,
+            already_sent: 0,
+            sent_successfully: 0,
+            errors: 0
+        };
+
+        try {
+            // 2. Setup Auth (Get Token)
+            const authClient = await this.getAuthClient(auto.user_id, auto.connection_id);
+            const accessToken = authClient.credentials.access_token;
+
+            if (!accessToken) throw new Error('Failed to retrieve Access Token');
+
+            // 3. Fetch Data (Using Axios directly to bypass Gaxios/Proxy issues)
+            const spreadsheetId = auto.spreadsheet_id;
+            const range = encodeURIComponent(auto.sheet_name);
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
+
+            console.log(`[SheetAutomation] Fetching sheet data via Axios: ${url}`);
+
+            const response = await axios.get(url, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                proxy: false // FORCE NO PROXY
+            });
+
+            const rows = response.data.values;
+            if (!rows || rows.length < 2) {
+                console.log('[SheetAutomation] No data found in sheet.');
+                return;
+            }
+
+            const headers = rows[0];
+            const dataRows = rows.slice(1);
+            logSummary.total_rows = dataRows.length;
+
+            console.log(`[SheetAutomation] Found ${dataRows.length} rows for ${auto.name}.`);
+
+            // 4. History / Deduplication Setup
+            // Determine Deduplication Window based on Trigger Type
+            // If trigger uses recurring date logic (e.g. Birthday), we deduct per day/year.
+            // If trigger is static (e.g. Status=Paid), we deduct per LIFETIME (never send twice for same row state).
+
+            let isRecurringTrigger = false;
+            // Check if any condition implies recurrence
+            const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+
+            for (const cond of conditions) {
+                if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
+                    isRecurringTrigger = true;
+                    break;
+                }
+            }
+
+            let timeWindow = new Date(0); // Default: Lifetime Deduplication (Check All History)
+
+            if (isRecurringTrigger) {
+                timeWindow = new Date();
+                timeWindow.setHours(0, 0, 0, 0); // Window: Start of Today
+                console.log(`[SheetAuto] Recurring Trigger detected. Checking history since today's start.`);
+            } else {
+                console.log(`[SheetAuto] Static Trigger detected. Checking LIFETIME history.`);
+            }
+
+            // Override for Custom Frequency (Explicit One-Time)
+            if (auto.schedule_config?.frequency === 'custom') {
+                timeWindow = new Date(0);
+            }
+
+            const sentHashes = await this.getSentHashes(auto.id, timeWindow);
+
+            // 5. Processing Loop
+            const isScheduleLogic = auto.automation_type === 'schedule' || isManual;
+
+            if (!isScheduleLogic && auto.automation_type === 'new_row') {
+                const lastIndex = auto.last_processed_row_index || 0;
+                const newRows = dataRows.slice(lastIndex);
+
+                for (let i = 0; i < newRows.length; i++) {
+                    const row = newRows[i];
+                    const rowObj = this.mapRow(headers, row);
+
+                    try {
+                        await this.sendMessageWithHistory(auto, rowObj, null);
+                        logSummary.sent_successfully++;
+                    } catch (e) {
+                        // If reservation failed (duplicate), it throws 'Duplicate' error usually or we handle it?
+                        // sendMessageWithHistory handles the flow. If it throws, it means send failed or reserve failed.
+                        if (e.message !== 'Skipped: Duplicate Pending/Sent') {
+                            logSummary.errors++;
+                            console.error('Send Error:', e);
+                        } else {
+                            logSummary.already_sent++;
+                        }
+                    }
+                }
+
+                await supabaseAdmin.from('sheet_automations').update({
+                    last_processed_row_index: lastIndex + newRows.length,
+                    error_log: this.formatLog(logSummary)
+                }).eq('id', auto.id);
+
+            } else {
+                // Schedule or Manual Mode
+                for (const row of dataRows) {
+                    const rowObj = this.mapRow(headers, row);
+
+                    // DEBUG: Log first row to verifying mapping
+                    // console.log('[SheetAuto] Processing Row:', JSON.stringify(rowObj));
+
+                    // A. Check Trigger Condition
+                    const conditionMet = this.checkCondition(auto.trigger_condition, rowObj);
+                    if (conditionMet) {
+                        logSummary.conditions_met++;
+                        console.log(`[SheetAuto] Condition MET for row: Phone=${rowObj[auto.mapping_config?.phone_col]}`);
+
+                        // B. Check Write-back Status
+                        const statusCol = auto.mapping_config?.status_column;
+                        if (statusCol && rowObj[statusCol]?.toLowerCase() === 'sent') {
+                            logSummary.already_sent++;
+                            console.log('[SheetAuto] Skipped: Already marked as SENT in sheet.');
+                            continue;
+                        }
+
+                        // C. Check History Hash (Robust Deduplication)
+                        // C. Check History Hash (Robust Deduplication)
+                        let rowHash = this.computeRowHash(rowObj);
+
+                        // MANUAL TRIGGER: Force uniqueness to allow re-send and bypass DB constraints
+                        if (isManual) {
+                            rowHash = `${rowHash}_MANUAL_${Date.now()}`;
+                            console.log('[SheetAuto] Manual Trigger: Generated unique hash to force send.');
+                        } else {
+                            // SCHEDULE TRIGGER: Strict Deduplication
+                            if (sentHashes.has(rowHash)) {
+                                logSummary.already_sent++;
+                                console.log('[SheetAuto] Skipped: Duplicate hash in history.');
+                                continue;
+                            }
+                        }
+
+                        // Send with Reservation Pattern
+                        try {
+                            console.log('[SheetAuto] Attempting to Send Message...');
+                            await this.sendMessageWithHistory(auto, rowObj, rowHash);
+                            logSummary.sent_successfully++;
+                            console.log('[SheetAuto] Message Sent Successfully!');
+                            sentHashes.add(rowHash);
+                        } catch (e) {
+                            if (e.message === 'Skipped: Duplicate Pending/Sent') {
+                                logSummary.already_sent++;
+                                console.log('[SheetAuto] Skipped due to concurrency (Duplicate Pending).');
+                            } else {
+                                logSummary.errors++;
+                                console.error('[SheetAuto] Send Error:', e.message);
+                            }
+                        }
+                    } else {
+                        console.log(`[SheetAuto] Condition FAILED for row. Phone=${rowObj[auto.mapping_config?.phone_col] || 'N/A'}`);
+                        console.log(`   - Condition: ${JSON.stringify(auto.trigger_condition)}`);
+                        console.log(`   - Row Value: ${rowObj[auto.trigger_condition?.column]}`);
+                        console.log(`   - Parsed Date: ${this.parseDate(rowObj[auto.trigger_condition?.column])}`);
+                    }
+                }
+
+                // Final Update with Stats
+                console.log('[SheetAuto] Job Completed. Summary:', logSummary);
+                await supabaseAdmin.from('sheet_automations').update({
+                    error_log: this.formatLog(logSummary),
+                    last_run_at: new Date()
+                }).eq('id', auto.id);
+            }
+
+            // Log to File System
+            logGoogleSheetEvent('EXECUTION_SUMMARY', {
+                automation_id: auto.id,
+                automation_name: auto.name,
+                recurring_mode: isRecurringTrigger,
+                ...logSummary
+            });
+
+            return logSummary;
+
+        } catch (err) {
+            console.error(`[SheetAutomation] Job Failed:`, { message: err.message, stack: err.stack, code: err.code });
+            await supabaseAdmin.from('sheet_automations').update({
+                error_log: `CRITICAL FAILURE: ${err.message}`,
+                last_run_at: new Date()
+            }).eq('id', auto.id);
+            throw err;
+        }
     }
+
+    // --- Helpers for History ---
+
+    async getSentHashes(automationId, sinceDate) {
+        const { data, error } = await supabaseAdmin
+            .from('sheet_automation_history')
+            .select('row_hash')
+            .eq('automation_id', automationId)
+            .gte('sent_at', sinceDate.toISOString())
+            .in('status', ['sent', 'pending']); // Exclude 'failed' so they can retry
+
+        if (error) {
+            console.error('Error fetching history:', error);
+            return new Set();
+        }
+        return new Set(data.map(r => r.row_hash));
+    }
+
+    async sendMessageWithHistory(auto, rowObj, rowHash) {
+        const finalHash = rowHash || this.computeRowHash(rowObj);
+        const phoneCol = auto.mapping_config.phone_col;
+        const phone = rowObj[phoneCol] || 'unknown';
+
+        // 1. RESERVE: Insert 'pending' status
+        // Note: If multiple runners, this might fail on unique constraint? 
+        // We don't have a unique constraint on (automation_id, row_hash) in the table definition I made earlier.
+        // So we just check if it exists first? No, we rely on 'sentHashes' for in-memory batch.
+        // But for cross-process, we insert.
+
+        const { data: inserted, error: insertError } = await supabaseAdmin.from('sheet_automation_history').insert({
+            automation_id: auto.id,
+            row_hash: finalHash,
+            phone_number: phone,
+            status: 'pending',
+            sent_at: new Date(),
+            meta: { row_data: rowObj }
+        }).select().single();
+
+        if (insertError) {
+            // If sensitive, maybe fail? But usually we proceed. 
+            console.warn('[SheetAuto] History insert failed (Continuing):', insertError.message);
+            // If it's a unique constraint violation, it means another process already reserved/sent it.
+            // In this case, we should treat it as already sent/pending and skip.
+            if (insertError.code === '23505') { // Unique violation error code for PostgreSQL
+                throw new Error('Skipped: Duplicate Pending/Sent');
+            }
+        }
+        const historyId = inserted?.id;
+
+        try {
+            // 2. SEND
+            await this.sendMessage(auto, rowObj);
+
+            // 3. CONFIRM: Update to 'sent'
+            if (historyId) {
+                await supabaseAdmin.from('sheet_automation_history')
+                    .update({ status: 'sent' })
+                    .eq('id', historyId);
+            }
+        } catch (err) {
+            // 4. ROLLBACK: Update to 'failed'
+            if (historyId) {
+                await supabaseAdmin.from('sheet_automation_history')
+                    .update({ status: 'failed', meta: { row_data: rowObj, error: err.message } })
+                    .eq('id', historyId);
+            }
+            throw err;
+        }
+    }
+
+    computeRowHash(rowObj) {
+        // Robust Hash: Sort keys to ensure consistency regardless of insertion order
+        const keys = Object.keys(rowObj).sort();
+        // Create deterministic string: key:value|key:value...
+        // We use a simple concatenation for speed, but could use crypto for shorter storage if needed.
+        // For debugging, plain string is nicer but long. Let's use crypto for the DB storage.
+
+        const dataStr = keys.map(k => `${k}:${String(rowObj[k]).trim()}`).join('|');
+        return crypto.createHash('md5').update(dataStr).digest('hex');
+    }
+
 
     mapRow(headers, rowValues) {
         const obj = {};
@@ -337,18 +618,21 @@ class SheetAutomationService {
         if (!condition || !condition.column) return true;
 
         const val = rowObj[condition.column];
-        const op = condition.operator; // equals, contains, is_today, is_empty, etc.
+        const op = condition.operator;
         const targetVal = condition.value;
 
         // --- Basic String/General Checks ---
         if (op === 'is_empty') return !val || val.toString().trim() === '';
         if (op === 'is_not_empty') return val && val.toString().trim() !== '';
 
-        // For other checks, if value is empty, usually returns false (except 'is_empty')
-        // unless we want strict typed checks.
-        if (val === undefined || val === null) return false;
+        if (!targetVal && !['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_before', 'day_month_after', 'day_month_equal'].includes(op)) {
+            // Unary date ops don't need targetVal, but binary ops do.
+            // If targetVal is required but missing, fail safely.
+            // console.warn(`[SheetAuto] Condition '${op}' skipped: No value provided.`);
+            return false;
+        }
 
-        const strVal = String(val).toLowerCase();
+        const strVal = String(val || '').toLowerCase();
         const strTarget = String(targetVal || '').toLowerCase();
 
         if (op === 'equals') return strVal === strTarget;
@@ -359,7 +643,6 @@ class SheetAutomationService {
         if (op === 'ends_with') return strVal.endsWith(strTarget);
 
         // --- Numeric Checks ---
-        // Attempt to parse numbers
         const numVal = parseFloat(val);
         const numTarget = parseFloat(targetVal);
         if (!isNaN(numVal) && !isNaN(numTarget)) {
@@ -370,13 +653,20 @@ class SheetAutomationService {
         }
 
         // --- Date Checks ---
-        // We use a helper to parse potential dates
         const dateVal = this.parseDate(val);
         const now = new Date();
 
-        // Setup comparison dates based on operator
+        if (['is_today', 'is_yesterday', 'is_tomorrow', 'in_last_x_days', 'in_next_x_days', 'date_equals', 'date_before', 'date_after', 'date_between', 'day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
+            if (!dateVal) {
+                console.log(`[SheetAuto] Condition '${op}' failed: Invalid date value '${val}' in column '${condition.column}'`);
+                return false;
+            }
+        }
+
         if (op === 'is_today') {
-            return this.isSameDay(dateVal, now);
+            const isMatch = this.isSameDay(dateVal, now);
+            console.log(`[SheetAuto] is_today Check: RowDate=${dateVal} Today=${now} Match=${isMatch}`);
+            return isMatch;
         }
         if (op === 'is_yesterday') {
             const yest = new Date();
@@ -389,39 +679,26 @@ class SheetAutomationService {
             return this.isSameDay(dateVal, tom);
         }
         if (op === 'in_last_x_days') {
-            if (!dateVal) return false;
             const days = parseInt(targetVal) || 0;
             const threshold = new Date();
             threshold.setDate(now.getDate() - days);
-            // Check if dateVal is between threshold and now
             return dateVal >= threshold && dateVal <= now;
         }
         if (op === 'in_next_x_days') {
-            if (!dateVal) return false;
             const days = parseInt(targetVal) || 0;
             const threshold = new Date();
             threshold.setDate(now.getDate() + days);
             return dateVal >= now && dateVal <= threshold;
         }
 
-        // --- Standard Date Comparison ---
         if (['date_equals', 'date_before', 'date_after', 'date_between'].includes(op)) {
-            if (!dateVal) return false;
-
-            // For these, we expect targetVal to be a date string
             const dateTarget = this.parseDate(targetVal);
 
             if (op === 'date_equals') return this.isSameDay(dateVal, dateTarget);
-
-            // For before/after, we usually compare timestamps or day-granularity?
-            // Let's use strict timestamp for generalized utility, but often users mean "Day Before"
-            // Let's strip time for robust "Day" comparison if the input was likely just a date.
-            // But strict is safer.
-            if (op === 'date_before') return dateVal < (dateTarget || now); // if no target, assume now? No, fail.
+            if (op === 'date_before') return dateVal < (dateTarget || now);
             if (op === 'date_after') return dateVal > (dateTarget || now);
 
             if (op === 'date_between') {
-                // targetVal expected format: "start_date,end_date"
                 const parts = String(targetVal).split(',');
                 if (parts.length === 2) {
                     const start = this.parseDate(parts[0]);
@@ -434,27 +711,19 @@ class SheetAutomationService {
             }
         }
 
-        // --- Anniversary Checks (Day/Month only) ---
         if (['day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
-            if (!dateVal) return false;
-
-            // Compare against TODAY
             const dMonth = dateVal.getMonth();
             const dDate = dateVal.getDate();
             const nowMonth = now.getMonth();
             const nowDate = now.getDate();
 
-            if (op === 'day_month_equal') {
-                return dMonth === nowMonth && dDate === nowDate;
-            }
+            if (op === 'day_month_equal') return dMonth === nowMonth && dDate === nowDate;
             if (op === 'day_month_after') {
-                // Check if the anniversary is AFTER today in the current year
                 if (dMonth > nowMonth) return true;
                 if (dMonth === nowMonth && dDate > nowDate) return true;
                 return false;
             }
             if (op === 'day_month_before') {
-                // Check if the anniversary is BEFORE today in the current year
                 if (dMonth < nowMonth) return true;
                 if (dMonth === nowMonth && dDate < nowDate) return true;
                 return false;
@@ -463,6 +732,8 @@ class SheetAutomationService {
 
         return false;
     }
+
+
 
     // --- Helpers ---
 
@@ -480,6 +751,21 @@ class SheetAutomationService {
             d = new Date(parts[3], parseInt(parts[2]) - 1, parts[1]);
             if (!isNaN(d.getTime())) return d;
         }
+
+        // 3. Try DD-Mon-YYYY (e.g., 20-Jan-2026)
+        const textParts = String(val).match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{4})/);
+        if (textParts) {
+            const months = {
+                'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+                'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+            };
+            const monStr = textParts[2].toLowerCase();
+            if (months[monStr] !== undefined) {
+                d = new Date(textParts[3], months[monStr], textParts[1]);
+                if (!isNaN(d.getTime())) return d;
+            }
+        }
+
         return null;
     }
 
@@ -600,18 +886,58 @@ class SheetAutomationService {
         }
 
         try {
-            await whatsappService.sendMessage(
+            const logMeta = {
+                automation_id: auto.id,
+                automation_name: auto.name,
+                phone: phone,
+                template: templateObject.name,
+                row_data: rowObj // Include Sheet Row Data
+            };
+
+            console.log(`[SheetAuto] Sending WhatsApp Template: ${templateObject.name} to ${phone}`);
+
+            // Log Attempt to File
+            logGoogleSheetEvent('SEND_ATTEMPT', {
+                ...logMeta,
+                payload: templateObject
+            });
+
+            const response = await whatsappService.sendMessage(
                 auto.user_id,
                 phone,
                 'template',
                 templateObject
             );
 
+            console.log(`[SheetAuto] WhatsApp API responded Success for ${phone}`);
+
+            // Log Success to File
+            logGoogleSheetEvent('SEND_SUCCESS', {
+                ...logMeta,
+                response: response
+            });
+
             // If Write-back enabled:
             // Update Sheet (Logic needed here to find row again and write "Sent")
 
         } catch (e) {
             console.error('[SheetAutomation] Send Failed:', e.message);
+            const errorDetails = e.response && e.response.data ? e.response.data : e.message;
+            if (e.response && e.response.data) {
+                console.error('[SheetAutomation] API Error Data:', JSON.stringify(e.response.data));
+            }
+
+            // Log Failure to File
+            logGoogleSheetEvent('SEND_FAILURE', {
+                automation_id: auto.id,
+                automation_name: auto.name,
+                phone: phone,
+                template: templateObject.name,
+                row_data: rowObj, // Include Row Data on Error too
+                error: errorDetails
+            });
+
+            throw e; // Rethrow so it counts as error
         }
     }
     getMappedValue(mapConfig, rowObj) {
@@ -632,6 +958,9 @@ class SheetAutomationService {
         }
 
         return null;
+    }
+    formatLog(summary) {
+        return `Run complete: ${summary.sent_successfully} sent, ${summary.errors} errors, ${summary.already_sent} skipped.`;
     }
 }
 

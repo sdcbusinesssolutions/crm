@@ -5,10 +5,11 @@ import { themeService } from '../../services/themeService';
 interface SheetAutomationWizardProps {
     onClose: () => void;
     onSave: () => void;
-    initialData?: any; // For editing
+    initialData?: any;
+    editId?: string;
 }
 
-const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, onSave, initialData }) => {
+const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, onSave, initialData, editId }) => {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -18,6 +19,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         connection_id: '',
         spreadsheet_id: '',
         sheet_name: '',
+
+        schedule_days: [] as string[],
+        schedule_day_of_month: 1,
 
         triggers: [{ column: '', operator: 'equals', value: '' }] as { column: string, operator: string, value: string }[],
         template_id: '',
@@ -34,18 +38,130 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
     useEffect(() => {
         themeService.getTheme().then(t => setBrandColor(t.colors?.brand || '#ea580c'));
-        fetchConnections();
-        fetchTemplates();
-        if (initialData) {
-            setFormData(initialData); // Populate for edit
+        const init = async () => {
+            await fetchConnections();
+            const tmpls = await fetchTemplates(); // Return templates to use immediately
+
+            if (editId) {
+                fetchAutomationDetails(editId, tmpls);
+            } else if (initialData) {
+                setFormData(initialData);
+            }
+        };
+        init();
+    }, [editId]);
+
+    const fetchAutomationDetails = async (id: string, loadedTemplates: any[]) => {
+        setIsLoading(true);
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            const token = session.session?.access_token;
+            const res = await fetch(`/api/sheet-automations/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                // Map DB to Form
+                const sched = data.schedule_config || {};
+                const tmplConfig = data.template_config || {};
+
+                // Find Template ID by Name
+                const matchedTemplate = loadedTemplates?.find(t => t.name === tmplConfig.template_name);
+
+                // Initialize Form Data
+                setFormData({
+                    name: data.name,
+                    connection_id: data.connection_id,
+                    spreadsheet_id: data.spreadsheet_id,
+                    sheet_name: data.sheet_name, // Set initially
+
+                    schedule_type: sched.frequency || 'daily',
+                    schedule_time: sched.time || '09:00',
+                    schedule_days: sched.days || [],
+                    schedule_day_of_month: sched.day_of_month || 1,
+
+                    triggers: data.trigger_condition || [],
+
+                    template_id: matchedTemplate ? matchedTemplate.id : '',
+                    mapping: data.mapping_config?.params || {}
+                });
+
+                // Trigger dependent fetches (Sheets, Columns, Template Params)
+                if (data.connection_id && data.spreadsheet_id) {
+                    // Fetch Sheets List for Dropdown (Await to ensure consistency)
+                    // Pass preSelectedSheet so it doesn't get cleared
+                    await handleSheetSelect(data.spreadsheet_id, data.sheet_name, data.connection_id);
+
+                    // Fetch Columns for Mapping
+                    fetchColumnsForEdit(data.connection_id, data.spreadsheet_id, data.sheet_name);
+                }
+
+                if (matchedTemplate) {
+                    extractTemplateParams(matchedTemplate);
+                }
+            } else {
+                console.error("Failed to fetch automation details");
+            }
+        } catch (e) {
+            console.error('Error fetching details', e);
+        } finally {
+            setIsLoading(false);
         }
-    }, []);
+    };
+
+    // Helper to fetch columns without triggering full sheet list load
+    const fetchColumnsForEdit = async (connId: string, spreadId: string, sheetName: string) => {
+        if (!connId || !spreadId || !sheetName) return;
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
+        try {
+            const res = await fetch('/api/integrations/google/columns', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ connectionId: connId, spreadsheetId: spreadId, sheetName })
+            });
+            if (res.ok) {
+                const d = await res.json();
+                setColumns(d.columns || []);
+            }
+        } catch (e) { console.error(e); }
+    };
+
+    const extractTemplateParams = (tpl: any) => {
+        // Logic same as handleTemplateSelect but standalone
+        const params: string[] = [];
+        const headerComp = tpl.components.find((c: any) => c.type === 'HEADER');
+        if (headerComp) {
+            if (headerComp.format === 'IMAGE') params.push('HEADER_IMAGE');
+            else if (headerComp.format === 'VIDEO') params.push('HEADER_VIDEO');
+            else if (headerComp.format === 'DOCUMENT') params.push('HEADER_DOCUMENT');
+            else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.includes('{{1}}')) {
+                params.push('header_variable_1');
+            }
+        }
+        const bodyComp = tpl.components.find((c: any) => c.type === 'BODY');
+        if (bodyComp && bodyComp.text) {
+            const matches = bodyComp.text.match(/{{(\d+)}}/g);
+            if (matches) {
+                const unique = Array.from(new Set(matches)) as string[];
+                unique.forEach(m => params.push(`body_variable_${m.replace(/{|}/g, '')}`));
+            }
+        }
+        setTemplateParams(params);
+    };
+
 
     const fetchConnections = async () => {
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
-        const res = await fetch('/api/integrations/google/connections', { headers: { 'Authorization': `Bearer ${token}` } });
-        if (res.ok) setConnections(await res.json());
+        try {
+            const res = await fetch('/api/integrations/google/connections', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                setConnections(await res.json());
+            } else {
+                console.error("Failed to fetch connections", await res.text());
+            }
+        } catch (e) {
+            console.error("Error fetching connections", e);
+        }
     };
 
     const fetchTemplates = async () => {
@@ -54,46 +170,73 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         const res = await fetch('/api/whatsapp/templates?status=approved', { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) {
             const data = await res.json();
-            setTemplates(data.data || []);
+            const list = data.data || [];
+            setTemplates(list);
+            return list;
         }
+        return [];
     };
 
     const [isFetchingSheets, setIsFetchingSheets] = useState(false);
     const [manualSheetEntry, setManualSheetEntry] = useState(false);
 
     // --- Actions ---
-    const handleSheetSelect = async (spreadsheetId: string) => {
+    const handleSheetSelect = async (spreadsheetId: string, preSelectedSheet?: string, explicitConnectionId?: string) => {
+        const connId = explicitConnectionId || formData.connection_id;
         if (!spreadsheetId) return;
+        if (!connId) {
+            console.error("Missing Connection ID for fetchSheets");
+            return;
+        }
 
         setIsFetchingSheets(true);
         setSheetTabs([]);
-        setFormData(prev => ({ ...prev, spreadsheet_id: spreadsheetId, sheet_name: '' }));
+
+        // Preserve preSelectedSheet in state so it doesn't flicker to empty
+        setFormData(prev => ({
+            ...prev,
+            spreadsheet_id: spreadsheetId,
+            sheet_name: preSelectedSheet || '' // KEEP IT!
+        }));
 
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
 
-        const res = await fetch('/api/integrations/google/sheets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ connectionId: formData.connection_id, spreadsheetId })
-        });
+        try {
+            const res = await fetch('/api/integrations/google/sheets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ connectionId: connId, spreadsheetId })
+            });
 
-        setIsFetchingSheets(false);
+            if (res.ok) {
+                const data = await res.json();
+                setSheetTabs(data.sheets || []);
 
-        if (res.ok) {
-            const data = await res.json();
-            setSheetTabs(data.sheets || []);
-
-            // Auto-select first sheet if available to improve UX
-            if (data.sheets && data.sheets.length > 0) {
-                const firstSheet = data.sheets[0];
-                setFormData(prev => ({ ...prev, sheet_name: firstSheet }));
-                handleTabSelect(firstSheet);
+                // Auto-select logic / Validation
+                if (preSelectedSheet && data.sheets.includes(preSelectedSheet)) {
+                    // It's valid and already set in state, no need to touch
+                    // setFormData(prev => ({ ...prev, sheet_name: preSelectedSheet }));
+                } else if (data.sheets && data.sheets.length > 0) {
+                    // If preSelected was invalid or missing, default to first
+                    if (!preSelectedSheet || !data.sheets.includes(preSelectedSheet)) {
+                        const firstSheet = data.sheets[0];
+                        setFormData(prev => ({ ...prev, sheet_name: firstSheet }));
+                        // Only fetch cols if we changed it
+                        handleTabSelect(firstSheet);
+                    }
+                }
+            } else {
+                setSheetTabs([]); // Clear sheets on error
+                // If error, maybe keep manual entry?
+                const err = await res.json();
+                // alert('Failed to fetch sheets: ' + (err.error || 'Please check the Spreadsheet ID and try again.'));
+                console.error('Failed to fetch sheets:', err);
             }
-        } else {
-            setSheetTabs([]); // Clear sheets on error
-            const err = await res.json();
-            alert('Failed to fetch sheets: ' + (err.error || 'Please check the Spreadsheet ID and try again.'));
+        } catch (e) {
+            console.error('Sheet fetch error', e);
+        } finally {
+            setIsFetchingSheets(false);
         }
     };
 
@@ -209,14 +352,16 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             sheet_name: formData.sheet_name,
             automation_type: 'schedule', // hardcoded for MVP
             schedule_config: {
+                frequency: formData.schedule_type, // 'daily', 'weekly', 'monthly'
                 time: formData.schedule_time,
-                days: [] // All days
+                days: formData.schedule_days, // Array of days ['Mon', 'Fri']
+                day_of_month: formData.schedule_day_of_month // 1-31
             },
             trigger_condition: formData.triggers, // Send array directly
             template_config: {
                 template_name: templates.find(t => t.id === formData.template_id)?.name,
-                language: 'en', // hardcoded
-                components: [] // Logic to map params
+                language: templates.find(t => t.id === formData.template_id)?.language || 'en',
+                components: templates.find(t => t.id === formData.template_id)?.components || []
             },
             mapping_config: {
                 phone_col: formData.mapping['phone']?.value || columns[0],
@@ -227,8 +372,11 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         const { data: session } = await supabase.auth.getSession();
         const token = session.session?.access_token;
 
-        const res = await fetch('/api/sheet-automations', {
-            method: 'POST',
+        const url = editId ? `/api/sheet-automations/${editId}` : '/api/sheet-automations';
+        const method = editId ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(payload)
         });
@@ -236,7 +384,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         if (res.ok) {
             onSave();
         } else {
-            alert('Error saving automation');
+            const err = await res.json();
+            console.error('Save Error:', err);
+            alert('Error saving automation: ' + (err.error || err.message || JSON.stringify(err)));
         }
     };
 
@@ -288,6 +438,50 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 ))}
                             </div>
                         </div>
+
+                        {/* Weekly Day Selector */}
+                        {formData.schedule_type === 'weekly' && (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Run on Days</label>
+                                <div className="flex gap-2">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                        <button
+                                            key={day}
+                                            onClick={() => {
+                                                const currentDays = formData.schedule_days || [];
+                                                const newDays = currentDays.includes(day)
+                                                    ? currentDays.filter(d => d !== day)
+                                                    : [...currentDays, day];
+                                                setFormData({ ...formData, schedule_days: newDays });
+                                            }}
+                                            className={`w-10 h-10 rounded-full text-xs font-bold transition-all border ${(formData.schedule_days || []).includes(day)
+                                                ? 'bg-orange-500 text-white border-orange-600'
+                                                : 'bg-white text-slate-500 border-slate-300 hover:border-orange-300'
+                                                }`}
+                                        >
+                                            {day}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Monthly Day Selector */}
+                        {formData.schedule_type === 'monthly' && (
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Day of Month</label>
+                                <select
+                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    value={formData.schedule_day_of_month || 1}
+                                    onChange={e => setFormData({ ...formData, schedule_day_of_month: parseInt(e.target.value) })}
+                                >
+                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                        <option key={d} value={d}>{d}{d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         {formData.schedule_type === 'custom' ? (
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Date & Time</label>
@@ -295,7 +489,6 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     type="datetime-local"
                                     className="w-full border border-slate-300 rounded px-3 py-2"
                                     onChange={e => {
-                                        // Store as "YYYY-MM-DD HH:mm"
                                         setFormData({ ...formData, schedule_time: e.target.value });
                                     }}
                                 />
@@ -328,6 +521,11 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 {connections.map(c => (
                                     <option key={c.id} value={c.id}>{c.connection_name}</option>
                                 ))}
+                                {formData.connection_id && !connections.find(c => c.id === formData.connection_id) && (
+                                    <option value={formData.connection_id} disabled>
+                                        Unknown Connection (ID: {formData.connection_id.substring(0, 8)}...)
+                                    </option>
+                                )}
                             </select>
                         </div>
                         <div>
