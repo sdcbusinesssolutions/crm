@@ -78,17 +78,21 @@ const MainApp: React.FC = () => {
 
     const [session, setSession] = useState<Session | null>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
-    const [activeMenuItem, setActiveMenuItem] = useState<MenuItem>('Dashboard');
-    const [currentFlowId, setCurrentFlowId] = useState<string | null>(null);
-    const [currentWhatsAppFlowId, setCurrentWhatsAppFlowId] = useState<string | null>(null);
-    const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(null);
-    const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(false);
-    const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
-    const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(null);
-    const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
-    const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(false);
-    const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(null);
+    // State Initialization from URL Params (Persistence)
+    const [activeMenuItem, setActiveMenuItem] = useState<MenuItem>(() => {
+        const p = new URLSearchParams(window.location.search).get('view');
+        return (p as MenuItem) || 'Dashboard';
+    });
+    const [currentFlowId, setCurrentFlowId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('flowId'));
+    const [currentWhatsAppFlowId, setCurrentWhatsAppFlowId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('waFlowId'));
+    const [currentTemplateId, setCurrentTemplateId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('templateId'));
+    const [isTemplateBuilderOpen, setIsTemplateBuilderOpen] = useState(() => new URLSearchParams(window.location.search).get('templateBuilder') === 'true');
+    const [isCreatingCampaign, setIsCreatingCampaign] = useState(() => new URLSearchParams(window.location.search).get('createCampaign') === 'true');
+    const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('campaignId'));
+    const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('pipelineId'));
+    const [isSidebarOpen, setSidebarOpen] = useState(false); // UI state, no need to persist
+    const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(() => new URLSearchParams(window.location.search).get('createSheetAuto') === 'true');
+    const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('editSheetAutoId'));
     const [createCampaignData, setCreateCampaignData] = useState<{
         templateId?: string;
         manualNumbers?: string[];
@@ -262,6 +266,52 @@ const MainApp: React.FC = () => {
         };
         loadTheme();
     }, [session]);
+
+    // --- STATE PERSISTENCE EFFECT ---
+    // Synchronize current state to URL Query Params
+    useEffect(() => {
+        if (isAuthLoading || !session) return;
+
+        const params = new URLSearchParams(window.location.search);
+
+        // View
+        if (activeMenuItem && activeMenuItem !== 'Dashboard') params.set('view', activeMenuItem);
+        else params.delete('view');
+
+        // Flows
+        if (currentFlowId) params.set('flowId', currentFlowId); else params.delete('flowId');
+        if (currentWhatsAppFlowId) params.set('waFlowId', currentWhatsAppFlowId); else params.delete('waFlowId');
+
+        // Templates
+        if (currentTemplateId) params.set('templateId', currentTemplateId); else params.delete('templateId');
+        if (isTemplateBuilderOpen) params.set('templateBuilder', 'true'); else params.delete('templateBuilder');
+
+        // Campaigns
+        if (currentCampaignId) params.set('campaignId', currentCampaignId); else params.delete('campaignId');
+        if (isCreatingCampaign) params.set('createCampaign', 'true'); else params.delete('createCampaign');
+
+        // Pipelines
+        if (currentPipelineId) params.set('pipelineId', currentPipelineId); else params.delete('pipelineId');
+
+        // Sheet Automation
+        if (isCreatingSheetAutomation) params.set('createSheetAuto', 'true'); else params.delete('createSheetAuto');
+        if (editingSheetAutomationId) params.set('editSheetAutoId', editingSheetAutomationId); else params.delete('editSheetAutoId');
+
+        const newSearch = params.toString();
+        const currentSearch = window.location.search.replace('?', '');
+
+        // Only update if changed to avoid loops (though replaceState is cheap)
+        if (newSearch !== currentSearch) {
+            const newUrl = `${window.location.pathname}${newSearch ? '?' + newSearch : ''}${window.location.hash}`;
+            window.history.replaceState(null, '', newUrl);
+        }
+
+    }, [
+        activeMenuItem, currentFlowId, currentWhatsAppFlowId, currentTemplateId,
+        isTemplateBuilderOpen, currentCampaignId, isCreatingCampaign,
+        currentPipelineId, isCreatingSheetAutomation, editingSheetAutomationId,
+        isAuthLoading, session
+    ]);
 
     const handleNavigateToFlow = useCallback((flowId: string) => {
         setCurrentFlowId(flowId);
