@@ -643,6 +643,14 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     dbMessageText = extracted.button.text;
                 }
 
+                // Determine Preview Text for Inbox (Human Readable)
+                let lastMessagePreview = extracted.text || extracted.caption;
+                if (extracted.type === 'interactive') {
+                    lastMessagePreview = extracted.interactive?.title ? `↩️ ${extracted.interactive.title}` : 'Interactive Message';
+                } else if (!lastMessagePreview) {
+                    lastMessagePreview = `[${extracted.type}]`;
+                }
+
                 // --- MANUAL DB OPERATIONS (Bypass RPC to ensure Media Fields are saved) ---
 
                 // 1. Upsert Contact
@@ -694,7 +702,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     await supabaseAdmin
                         .from('conversations')
                         .update({
-                            last_message: dbMessageText || `[${extracted.type}]`,
+                            last_message: lastMessagePreview,
                             unread_count: (convData.unread_count || 0) + 1,
                             updated_at: new Date(extracted.timestamp * 1000).toISOString(),
                             contact_name: contactName !== '~' ? contactName : undefined
@@ -707,7 +715,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             user_id: userId,
                             contact_phone: contactPhone,
                             contact_name: contactName,
-                            last_message: dbMessageText || `[${extracted.type}]`,
+                            last_message: lastMessagePreview,
                             unread_count: 1,
                             updated_at: new Date(extracted.timestamp * 1000).toISOString(),
                         })

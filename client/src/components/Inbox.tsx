@@ -802,19 +802,20 @@ const Inbox: React.FC = () => {
                             {headerText && <div className="px-3 pt-3 pb-1 font-bold text-slate-900 leading-tight">{headerText}</div>}
 
                             <div className="p-3">
-                                {!bodyText && bodyParams && bodyParams.length > 0 && (
-                                    <div className="bg-orange-50 p-2 rounded text-xs text-orange-800 mb-2 border border-orange-100">
-                                        <strong>Params:</strong> {bodyParams.join(', ')}
-                                    </div>
-                                )}
-
                                 {bodyText ? (
                                     <div className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
                                         {formatWhatsAppText(bodyText)}
                                     </div>
                                 ) : (
-                                    <div className="text-sm text-slate-500 italic">
-                                        Template: {data.name}
+                                    <div className="flex flex-col gap-1">
+                                        <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 opacity-80">
+                                            <span>📄</span> {data.name}
+                                        </div>
+                                        {bodyParams && bodyParams.length > 0 && (
+                                            <div className="text-sm text-slate-600 bg-slate-50 px-2 py-1.5 rounded-md border border-slate-100 italic">
+                                                {bodyParams.join(', ')}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -1233,10 +1234,44 @@ const Inbox: React.FC = () => {
                                             if (txt.startsWith('{')) {
                                                 try {
                                                     const parsed = JSON.parse(txt);
-                                                    if (parsed.name) return `Template: ${parsed.name}`;
-                                                    if (parsed.type === 'list') return parsed.header?.text || parsed.body?.text || 'List Message';
-                                                    if (parsed.type === 'button') return parsed.body?.text || 'Button Message';
-                                                    if (parsed.type === 'flow') return parsed.header?.text || 'Flow Message';
+                                                    if (parsed.name) {
+                                                        // Template with params
+                                                        let preview = `📄 Template: ${parsed.name}`;
+                                                        try {
+                                                            const params: string[] = [];
+                                                            if (parsed.components) {
+                                                                parsed.components.forEach((c: any) => {
+                                                                    if (c.type === 'body' && c.parameters) {
+                                                                        c.parameters.forEach((p: any) => {
+                                                                            if (p.type === 'text') params.push(p.text);
+                                                                        });
+                                                                    }
+                                                                });
+                                                            }
+                                                            if (params.length > 0) preview += ` (${params.join(', ')})`;
+                                                        } catch (e) { }
+                                                        return preview;
+                                                    }
+                                                    if (parsed.type === 'list') return `📋 ${parsed.header?.text || parsed.body?.text || 'List Message'}`;
+                                                    if (parsed.type === 'button') return `🔘 ${parsed.body?.text || 'Button Message'}`;
+                                                    if (parsed.type === 'cta_url') return `🔗 ${parsed.body?.text || 'CTA Link'}`;
+                                                    if (parsed.type === 'flow') return `⚡ ${parsed.header?.text || 'Flow Message'}`;
+
+                                                    if (parsed.type === 'button_reply') return `↩️ ${parsed.button_reply?.title || 'Button Reply'}`;
+                                                    if (parsed.type === 'list_reply') return `📜 ${parsed.list_reply?.title || 'List Reply'}`;
+
+                                                    // Interactive Fallback
+                                                    if (parsed.type === 'interactive') {
+                                                        if (parsed.header?.type === 'image') return '📷 Interactive Image';
+                                                        if (parsed.header?.type === 'video') return '🎥 Interactive Video';
+
+                                                        // Fallback for deeply nested interactive types if structure differs
+                                                        if (parsed.interactive?.button_reply?.title) return `↩️ ${parsed.interactive.button_reply.title}`;
+                                                        if (parsed.interactive?.list_reply?.title) return `📜 ${parsed.interactive.list_reply.title}`;
+
+                                                        return 'Interactive Message';
+                                                    }
+
                                                     return 'Interactive Message';
                                                 } catch (e) { return txt; }
                                             }

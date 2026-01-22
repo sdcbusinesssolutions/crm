@@ -165,7 +165,13 @@ class WhatsAppService {
 
             if (type === 'text') textBody = typeof content === 'string' ? content : (content.body || '');
             else if (type === 'interactive') textBody = JSON.stringify(content);
-            else if (type === 'template') textBody = JSON.stringify(content);
+            else if (type === 'template') {
+                try {
+                    const hydrated = await this._hydrateTemplate(content, userId);
+                    if (hydrated) content = hydrated;
+                } catch (e) { console.warn('Template hydration failed:', e); }
+                textBody = JSON.stringify(content);
+            }
             else if (['image', 'video', 'document'].includes(type)) {
                 mediaUrl = content.link || null;
                 textBody = content.caption || null;
@@ -188,10 +194,116 @@ class WhatsAppService {
                 console.error('Error logging outbound message via RPC:', error);
             } else {
                 console.log(`Logged outbound ${type} message to DB (ID: ${whatsappMessageId})`);
+
+                // --- FIX: Update Conversation Last Message with Readable Preview ---
+                try {
+                    const previewText = this._generatePreviewText(type, content);
+                    const { error: updateError } = await rpcClient
+                        .from('conversations')
+                        .update({ last_message: previewText })
+                        .eq('user_id', userId)
+                        .eq('contact_phone', cleanPhone);
+
+                    if (updateError) console.error('Failed to update conversation preview:', updateError);
+                } catch (previewErr) {
+                    console.error('Error generating/updating preview:', previewErr);
+                }
             }
 
         } catch (err) {
             console.error('Exception logging outbound message:', err);
+        }
+    }
+
+    /**
+     * Helper to generate human-readable preview for Templates/Interactive messages
+     */
+    _generatePreviewText(type, content) {
+        try {
+            if (type === 'text') {
+                return typeof content === 'string' ? content : (content.body || 'Text Message');
+            }
+            if (type === 'image') return '📷 Image';
+            if (type === 'video') return '🎥 Video';
+            if (type === 'document') return '📄 Document';
+            if (type === 'audio') return '🎵 Audio';
+            if (type === 'sticker') return '💟 Sticker';
+
+            if (type === 'template') {
+                if (content._rendered_body) return content._rendered_body;
+                let preview = `📄 Template: ${content.name || 'Unknown'}`;
+                // Try to extract body params for context
+                try {
+                    const params = [];
+                    if (content.components) {
+                        content.components.forEach(c => {
+                            if (c.type === 'body' && c.parameters) {
+                                c.parameters.forEach(p => {
+                                    if (p.type === 'text') params.push(p.text);
+                                });
+                            }
+                        });
+                    }
+                    if (params.length > 0) {
+                        preview += ` (${params.join(', ')})`;
+                    }
+                } catch (e) { }
+                return preview;
+            }
+
+            if (type === 'interactive') {
+                try {
+                    if (content.type === 'button') return `🔘 ${content.body?.text || 'Interactive Button'}`;
+                    if (content.type === 'list') return `📋 ${content.body?.text || 'Interactive List'}`;
+                    if (content.type === 'cta_url') return `🔗 ${content.body?.text || 'Interactive CTA'}`;
+                } catch (e) { }
+                return 'Interactive Message';
+            }
+
+            return `Sent ${type}`;
+        } catch (e) {
+            return `Sent ${type}`;
+        }
+    }
+
+    /**
+     * Helper to hydrate template text from DB
+     */
+    async _hydrateTemplate(content, userId) {
+        if (!content || !content.name) return null;
+        try {
+            const { data: template } = await supabaseAdmin
+                .from('whatsapp_templates')
+                .select('body_text')
+                .eq('user_id', userId)
+                .eq('name', content.name)
+                //.eq('language', content.language?.code || 'en') 
+                .maybeSingle();
+
+            if (!template || !template.body_text) return null;
+
+            let bodyText = template.body_text;
+
+            // Simple Parameter Replacement
+            if (content.components) {
+                const bodyComp = content.components.find(c => c.type === 'body');
+                if (bodyComp && bodyComp.parameters) {
+                    bodyComp.parameters.forEach((param, index) => {
+                        const placeholder = `{{${index + 1}}}`;
+                        let value = '';
+                        if (param.type === 'text') value = param.text;
+                        else if (param.type === 'currency') value = `${param.currency.currency_code} ${param.currency.amount_1000 / 1000}`;
+                        else if (param.type === 'date_time') value = param.date_time.fallback_value;
+
+                        // Replace all occurrences
+                        bodyText = bodyText.split(placeholder).join(value);
+                    });
+                }
+            }
+
+            return { ...content, _rendered_body: bodyText };
+        } catch (e) {
+            return null;
         }
     }
 

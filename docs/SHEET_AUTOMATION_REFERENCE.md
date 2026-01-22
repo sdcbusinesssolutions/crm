@@ -144,3 +144,21 @@ No, rescheduling a "Daily" automation just updates **when** it will run next.
 3.  **Check Duplicates**: Do you have two automations targeting the same sheet? This causes double messages.
 4.  **Check Errors**: Look at "Action -> Edit" logs.
 
+## 8. Common Error Messages & Fixes
+
+### A. Error: `(#132000) Number of parameters does not match`
+*   **Message**: `body: number of localizable_params (0) does not match the expected number of params (2)`
+*   **What it means**: This happens when your WhatsApp template expects variables (like `{{1}}`, `{{2}}`), but the system sent **0 parameters**.
+*   **Why it happens**:
+    *   **Case Sensitivity**: The system couldn't find the 'BODY' component in your template configuration (Fixed in recent update).
+    *   **Empty Columns**: The column mapped to a variable (e.g., 'Name') was empty in the Google Sheet.
+*   **Fix**:
+    *   **Update Code**: Ensure your server is running the latest version (Patch applied Jan 2026).
+    *   **Default Behavior**: The system now strictly checks for parameters matching `{{x}}` and will send a placeholder `'-'` if the sheet cell is empty, preventing this error.
+
+### B. Error: `isRecurringTrigger is not defined`
+*   **Message**: `ReferenceError: isRecurringTrigger is not defined`
+*   **What it means**: A variable naming error in the logging function caused the job to crash right after execution.
+*   **Fix**: This was a code-level bug. It has been resolved by renaming the variable to `isRecurring`. If you see this, **Restart your Server** to apply the latest patch.
+
+
