@@ -1,0 +1,71 @@
+{
+  "id": "bdf1cfdf-f698-4372-bada-3a839dce9ea5",
+  "user_id": "38edee2f-04c5-4f4c-8ca1-baed6ed84711",
+  "name": "hh",
+  "spreadsheet_id": "1-W_5HrRwKzwZzCRb_LTo1w0MxU9E2__HMO1p9AnU78E",
+  "sheet_name": "Sheet1",
+  "automation_type": "schedule",
+  "schedule_config": {
+    "days": [],
+    "time": "00:33",
+    "frequency": "daily",
+    "day_of_month": 1
+  },
+  "trigger_condition": [
+    {
+      "value": "dev",
+      "column": "Name",
+      "operator": "contains"
+    }
+  ],
+  "template_config": {
+    "language": "en_US",
+    "components": [
+      {
+        "text": "header",
+        "type": "HEADER",
+        "format": "TEXT"
+      },
+      {
+        "text": "Hi {{1}}, thank you for your order!\r\nYour order {{2}} has been confirmed.\r\nWe’ll update you once it ships.",
+        "type": "BODY",
+        "example": {
+          "body_text": [
+            [
+              "val1",
+              "val2"
+            ]
+          ]
+        }
+      },
+      {
+        "text": "from",
+        "type": "FOOTER"
+      }
+    ],
+    "template_name": "uti"
+  },
+  "mapping_config": {
+    "params": {
+      "phone": {
+        "type": "column",
+        "value": "Phone"
+      },
+      "body_variable_1": {
+        "type": "static",
+        "value": "ram"
+      },
+      "body_variable_2": {
+        "type": "column",
+        "value": "Name"
+      }
+    },
+    "phone_col": "Phone"
+  },
+  "status": "active",
+  "last_run_at": "2026-01-22T00:33:50.023+00:00",
+  "created_at": "2026-01-20T13:45:34.450432+00:00",
+  "connection_id": "d76252c1-ce2b-49ad-99b4-c99c6d905c18",
+  "error_log": "CRITICAL FAILURE: Invalid host defined options",
+  "updated_at": "2026-01-20T13:45:34.450432+00:00"
+}

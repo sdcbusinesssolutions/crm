@@ -622,7 +622,8 @@ class SheetAutomationService {
                 automation_id: auto.id,
                 automation_name: auto.name,
                 is_manual: isManual,
-                recurring_mode: isRecurringTrigger,
+                recurring_mode: isRecurring ? 'YES' : 'NO',
+                dedupe_mode: dedupeMode,
                 ...logSummary
             });
 
@@ -983,7 +984,7 @@ class SheetAutomationService {
             const apiComponents = [];
 
             // A. Header
-            const headerConfig = auto.template_config.components.find(c => c.type === 'HEADER');
+            const headerConfig = auto.template_config.components.find(c => c.type && c.type.toUpperCase() === 'HEADER');
             if (headerConfig) {
                 const headerParams = [];
                 if (headerConfig.format === 'IMAGE') {
@@ -1007,36 +1008,42 @@ class SheetAutomationService {
             }
 
             // B. Body
-            const bodyConfig = auto.template_config.components.find(c => c.type === 'BODY');
+            const bodyConfig = auto.template_config.components.find(c => c.type && c.type.toUpperCase() === 'BODY');
             if (bodyConfig) {
+                console.log('[DEBUG] Body config found:', bodyConfig.text);
                 const bodyParams = [];
                 // Find all {{x}} variables in body text
                 const matches = bodyConfig.text.match(/{{(\d+)}}/g);
+                console.log('[DEBUG] Matches found:', matches);
+
                 if (matches) {
                     const uniqueVars = Array.from(new Set(matches)).sort(); // {{1}}, {{2}}
                     // Whatsapp expects params in order 1, 2, 3...
-                    // We assume the template uses specific indices.
-                    // IMPORTANT: The API expects parameters to essentially match the order of appearance or index.
-                    // Usually it's strictly positional for {{1}}, {{2}}.
 
-                    // Let's iterate 1 to N based on max index found
                     let maxIndex = 0;
                     uniqueVars.forEach(v => {
                         const idx = parseInt(v.replace(/[^\d]/g, ''));
                         if (idx > maxIndex) maxIndex = idx;
                     });
 
+                    console.log('[DEBUG] Max Index:', maxIndex);
+
                     for (let i = 1; i <= maxIndex; i++) {
                         const paramKey = `body_variable_${i}`;
                         let val = this.getMappedValue(auto.mapping_config.params[paramKey], rowObj);
-                        if (!val) val = '-'; // Fallback to hyphen if missing to prevent failure
+                        console.log(`[DEBUG] Mapping ${paramKey} -> ${val}`);
+                        if (!val) val = '-';
                         bodyParams.push({ type: 'text', text: val });
                     }
                 }
 
                 if (bodyParams.length > 0) {
                     apiComponents.push({ type: 'body', parameters: bodyParams });
+                } else {
+                    console.log('[DEBUG] Body params empty!');
                 }
+            } else {
+                console.log('[DEBUG] No BODY config found in template');
             }
 
             // Overwrite components with built ones
