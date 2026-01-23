@@ -219,22 +219,35 @@ router.get('/bulk-test', (req, res) => {
   res.json({ message: 'Bulk endpoint is accessible', user: req.user ? 'authenticated' : 'not authenticated' });
 });
 
+const { logCRMEvent, logContactImportEvent } = require('../utils/logger'); // Import Logger
+
 // POST /api/contacts/bulk
 router.post('/bulk', async (req, res) => {
   console.log('📦 Bulk import endpoint hit');
+  const startTime = Date.now();
+
   try {
     const supabase = getAuthenticatedSupabase(req);
     const user = req.user;
 
     if (!user || !user.id) {
       console.log('❌ User context missing');
+      logContactImportEvent('IMPORT_FAIL_AUTH', { ip: req.ip, error: 'User context missing' });
       return res.status(401).json({ error: 'User context missing' });
     }
 
     const contacts = req.body;
     console.log(`📊 Received ${Array.isArray(contacts) ? contacts.length : 0} contacts`);
 
+    // Log Request Start
+    logContactImportEvent('IMPORT_START', {
+      userId: user.id,
+      count: Array.isArray(contacts) ? contacts.length : 0,
+      timestamp: new Date().toISOString()
+    });
+
     if (!Array.isArray(contacts)) {
+      logContactImportEvent('IMPORT_FAIL_VALIDATION', { userId: user.id, error: 'Not an array' });
       return res.status(400).json({ error: 'Expected an array of contacts' });
     }
 
@@ -259,7 +272,10 @@ router.post('/bulk', async (req, res) => {
       .insert(payload)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      logContactImportEvent('IMPORT_DB_ERROR', { userId: user.id, error: error.message, code: error.code });
+      throw error;
+    }
 
     console.log(`✅ Successfully imported ${data.length} contacts`);
 
@@ -279,9 +295,18 @@ router.post('/bulk', async (req, res) => {
         .eq('user_id', user.id);
     }
 
+    // Log Success
+    const duration = Date.now() - startTime;
+    logContactImportEvent('IMPORT_SUCCESS', {
+      userId: user.id,
+      count: data.length,
+      durationMs: duration
+    });
+
     res.json(data);
   } catch (err) {
     console.error('Error bulk saving contacts:', err);
+    logContactImportEvent('IMPORT_EXCEPTION', { error: err.message, stack: err.stack });
     res.status(500).json({ error: err.message });
   }
 });

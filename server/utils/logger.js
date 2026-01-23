@@ -270,5 +270,6 @@ module.exports = {
     logAuthBridgeEvent,
     logGoogleEvent,
     logGoogleSheetEvent,
+    logContactImportEvent: (type, data) => _logToFile('contact_imports', type, data, 2 * 1024 * 1024),
     overrideConsole
 };
