@@ -15,9 +15,10 @@ interface Campaign {
 interface CampaignListProps {
     onCreate: () => void;
     onSelect: (id: string) => void;
+    onToggleSidebar?: () => void;
 }
 
-const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect }) => {
+const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggleSidebar }) => {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -70,17 +71,27 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect }) => {
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
 
     return (
-        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-6 md:p-10 bg-[var(--color-bg)] transition-colors duration-300">
-            <div className="max-w-7xl mx-auto space-y-8">
+        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-4 md:p-10 bg-[var(--color-bg)] transition-colors duration-300 container-mobile-fix">
+            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in">
-                    <div>
-                        <h1 className="text-4xl font-extrabold text-[var(--color-text)] tracking-tight">Campaigns</h1>
-                        <p className="text-[var(--color-text)] opacity-60 mt-2 text-lg font-medium">Manage and monitor your WhatsApp marketing campaigns.</p>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in pt-safe">
+                    <div className="flex items-center gap-3">
+                        {onToggleSidebar && (
+                            <button
+                                onClick={onToggleSidebar}
+                                className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            </button>
+                        )}
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--color-text)] tracking-tight">Campaigns</h1>
+                            <p className="text-[var(--color-text)] opacity-60 mt-2 text-base md:text-lg font-medium hidden md:block">Manage and monitor your WhatsApp marketing campaigns.</p>
+                        </div>
                     </div>
                     <button
                         onClick={onCreate}
-                        className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] text-sm font-bold shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+                        className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] text-sm font-bold shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 w-full md:w-auto"
                     >
                         <PlusIcon className="w-5 h-5" />
                         Create New Campaign

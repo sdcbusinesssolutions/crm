@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { flowService } from '../services/flowService';
 import { Flow } from '../types';
-import { UploadIcon, PlusIcon, CopyIcon, DownloadIcon, TrashIcon, SearchIcon, FilterIcon, EditIcon, TriggerIcon } from './icons';
+import { UploadIcon, PlusIcon, CopyIcon, DownloadIcon, TrashIcon, SearchIcon, FilterIcon, EditIcon, TriggerIcon, MenuIcon } from './icons';
 import Modal from './Modal';
 
 interface FlowListProps {
-    onNavigateToFlow: (flowId: string) => void
+    onNavigateToFlow: (flowId: string) => void;
+    onToggleSidebar?: () => void;
 }
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -36,7 +37,7 @@ const PublishToggle: React.FC<{ isPublished: boolean; onClick: (e: React.MouseEv
 
 
 
-const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow }) => {
+const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }) => {
 
     const [flows, setFlows] = useState<Flow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -246,12 +247,20 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow }) => {
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
     return (
-        <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden">
+        <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden container-mobile-fix">
             {/* Header - Fixed to Top */}
             <div className="bg-canvas-surface/80 backdrop-blur-md border-b border-slate-200 shrink-0 z-30 sticky top-0">
                 <div className="px-4 sm:px-8 py-6 max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
+                            {onToggleSidebar && (
+                                <button
+                                    onClick={onToggleSidebar}
+                                    className="lg:hidden p-2 -ml-1 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MenuIcon className="w-6 h-6" />
+                                </button>
+                            )}
                             <h1 className="text-2xl font-extrabold text-canvas-text tracking-tight">Flow Builder</h1>
                             {/* Server Status Indicator */}
                             <div

@@ -29,8 +29,8 @@ export type MenuItem =
     | 'Webhook Events'
     | 'Gallery'
     | 'FAQ Bot'
-    | 'Ai Chatbot'
-    | 'Ai Voice agent'
+    | 'FAQ Bot'
+    | 'AI Buddy'
     | 'Flows'
     | 'Pipelines'
     | 'Follow-up'
@@ -43,7 +43,8 @@ export type MenuItem =
     | 'Developers'
     | 'WhatsApp API'
     | 'My Plan'
-    | 'Sheet Automation';
+    | 'Sheet Automation'
+    | 'AI Buddy';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -65,6 +66,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     const [sidebarDisplay, setSidebarDisplay] = useState<'both' | 'logo_only' | 'name_only'>('both');
     const [isThemeLoaded, setIsThemeLoaded] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+    // LOGIC UPDATE: DETERMINE COLLAPSED STATE
+    // If the sidebar is technically "collapsed" (user preference on desktop), 
+    // but it is currently "open" as a mobile drawer (isOpen=true), 
+    // WE MUST RENDER THE EXPANDED VIEW.
+    const showCollapsed = isCollapsed && !isOpen;
 
     // Poll for theme changes
     useEffect(() => {
@@ -153,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'My Plan': return <BadgeIcon className={baseClass} />;
             case 'Integrations': return <LinkIcon className={baseClass} />;
             case 'Gallery': return <GalleryIcon className={baseClass} />;
-            case 'Ai Voice agent': return <MicrophoneIcon className={baseClass} />;
+            case 'AI Buddy': return <SparklesIcon className={baseClass} />;
             default: return null;
         }
     };
@@ -168,8 +175,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             finalIcon = getSubItemIcon(item, isActive);
         }
 
+        // --- LOGIC UPDATE: Use component-level 'showCollapsed' variable ---
+
         // --- COLLAPSED STATE STYLING (Applies to both Main and Sub items) ---
-        if (isCollapsed) {
+        if (showCollapsed) {
             // Visual Styling Updates:
             // Active: Brand Color Background, White Text.
             // Inactive: White Text, Brand Color on Hover.
@@ -245,7 +254,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             <div
                 key={item}
                 onClick={() => handleItemClick(item, hasSubmenu)}
-                title={isCollapsed ? displayLabel : ''}
+                title={showCollapsed ? displayLabel : ''}
                 className={`group flex items-center justify-between px-4 py-3 mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${isActive ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-600'
                     }`}
             >
@@ -271,22 +280,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     };
 
     // Rendering Helpers
-    const showLogo = sidebarDisplay !== 'name_only' || isCollapsed;
-    const showName = !isCollapsed && sidebarDisplay !== 'logo_only';
+    const showLogo = sidebarDisplay !== 'name_only' || showCollapsed;
+    const showName = !showCollapsed && sidebarDisplay !== 'logo_only';
 
     return (
         <>
-            {isOpen && <div className="fixed inset-0 bg-slate-900/40 z-40 md:hidden backdrop-blur-sm transition-opacity duration-300" onClick={onClose} />}
+            {isOpen && <div className="fixed inset-0 bg-slate-900/40 z-[290] lg:hidden backdrop-blur-sm transition-opacity duration-300" onClick={onClose} />}
             <div
-                className={`fixed inset-y-0 left-0 z-50 flex flex-col shadow-2xl md:shadow-none transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) 
-        ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 md:static md:h-full 
+                className={`fixed inset-y-0 left-0 z-[300] flex flex-col shadow-2xl lg:shadow-none transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) 
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:h-full 
         w-64 bg-canvas-surface border-r border-slate-200 
-        ${isCollapsed ? 'md:w-24 md:bg-[#064A3A] md:border-none' : ''}`}
+        ${isCollapsed ? 'lg:w-24 lg:bg-[#064A3A] lg:border-none' : ''}`}
             >
-                <div className={`px-4 py-5 flex items-center ${isCollapsed ? 'md:flex-col md:justify-center md:gap-4 justify-between' : 'justify-between'} border-b ${isCollapsed ? 'md:border-white/10 border-slate-100' : 'border-slate-100'}`}>
-                    <div className={`flex items-center ${isCollapsed ? 'md:justify-center' : 'space-x-2.5'} overflow-hidden`}>
+                <div className={`px-4 py-5 flex items-center ${showCollapsed ? 'lg:flex-col lg:justify-center lg:gap-4 justify-between' : 'justify-between'} border-b ${showCollapsed ? 'lg:border-white/10 border-slate-100' : 'border-slate-100'}`}>
+                    <div className={`flex items-center ${showCollapsed ? 'lg:justify-center' : 'space-x-2.5'} overflow-hidden`}>
                         {showLogo && (
-                            <div className={`relative flex items-center justify-center shadow-md text-white overflow-hidden shrink-0 ${isCollapsed ? 'md:w-10 md:h-10 md:bg-white/10' : ''} w-9 h-9 bg-brand-500 rounded-xl`}>
+                            <div className={`relative flex items-center justify-center shadow-md text-white overflow-hidden shrink-0 ${showCollapsed ? 'lg:w-10 lg:h-10 lg:bg-white/10' : ''} w-9 h-9 bg-brand-500 rounded-xl`}>
                                 {!isThemeLoaded ? (
                                     <div className="animate-pulse bg-white/20 w-full h-full" />
                                 ) : logoUrl ? (
@@ -308,8 +317,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             )
                         )}
                     </div>
-                    <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"><CloseIcon className="w-5 h-5" /></button>
-                    <button onClick={toggleSidebar} className={`hidden md:flex items-center justify-center p-1.5 rounded-lg transition-colors ${isCollapsed ? 'text-white/70 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
+                    <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"><CloseIcon className="w-5 h-5" /></button>
+                    <button onClick={toggleSidebar} className={`hidden lg:flex items-center justify-center p-1.5 rounded-lg transition-colors ${isCollapsed ? 'text-white/70 hover:bg-white/20 hover:text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
                         {isCollapsed ? <ChevronRightIcon className="w-4 h-4" /> : <ChevronLeftIcon className="w-4 h-4" />}
                     </button>
                 </div>
@@ -317,35 +326,34 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 <div className="flex-1 py-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
                     <div className="px-2 mb-2">{renderItem('Dashboard', <HomeIcon className="w-5 h-5" />)}</div>
                     <div className="space-y-1">
-                        {!isCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Communication</p>}
+                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Communication</p>}
                         {renderItem('Inbox', <MessageIcon className="w-5 h-5" />)}
 
                         {renderItem('Contacts', <UsersIcon className="w-5 h-5" />, true)}
                         {/* Only show submenus when physically expanded to avoid icon clutter */}
-                        {!isCollapsed && isContactsOpen && <div className="space-y-1 mt-1 mb-2">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isContactsOpen && <div className="space-y-1 mt-1 mb-2">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
 
                         {renderItem('Campaigns', <MegaphoneIcon className="w-5 h-5" />)}
 
-                        {!isCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Automation</p>}
+                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
                         {renderItem('Sheet Automation', <ListIcon className="w-5 h-5" />)}
                         {renderItem('Manage', <BriefcaseIcon className="w-5 h-5" />, true)}
-                        {!isCollapsed && isManageOpen && <div className="space-y-1 mt-1 mb-2">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isManageOpen && <div className="space-y-1 mt-1 mb-2">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                         {renderItem('Integrations', <LinkIcon className="w-5 h-5" />, false, false, false)}
 
-                        {!isCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">AI & Tools</p>}
-                        {renderItem('Ai Chatbot', <PuzzleIcon className="w-5 h-5" />, false, false, true)}
-                        {renderItem('Ai Voice agent', <MicrophoneIcon className="w-5 h-5" />, false, false, true)}
+                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">AI & Tools</p>}
+                        {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
 
                         {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
 
-                        {!isCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Workspace</p>}
+                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3 mt-6">Workspace</p>}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
-                        {!isCollapsed && isSettingsOpen && <div className="space-y-1 mt-1 mb-2">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-1 mb-2">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                     </div>
                 </div>
 
-                <div className={`p-4 relative ${isCollapsed ? 'flex justify-center border-t border-white/10' : 'border-t border-slate-100'}`}>
+                <div className={`p-4 relative ${showCollapsed ? 'flex justify-center border-t border-white/10' : 'border-t border-slate-100'}`}>
                     {/* Sign Out Popover */}
                     {isUserMenuOpen && (
                         <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 overflow-hidden animate-fade-in-up z-50">
@@ -363,18 +371,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                         className={`flex items-center gap-3 cursor-pointer p-2 rounded-xl transition-colors
               ${isUserMenuOpen ? 'bg-slate-100' : 'hover:bg-slate-50'}
-              ${isCollapsed ? 'justify-center' : ''}`}
+              ${showCollapsed ? 'justify-center' : ''}`}
                     >
                         <div className="w-9 h-9 min-w-[36px] bg-brand-100 text-brand-700 rounded-full flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm ring-1 ring-brand-200">
                             {userEmail ? userEmail[0].toUpperCase() : 'U'}
                         </div>
-                        {!isCollapsed && (
+                        {!showCollapsed && (
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-slate-800 truncate">{userEmail || 'User'}</p>
                                 <p className="text-xs text-slate-500 font-medium truncate">My Workspace</p>
                             </div>
                         )}
-                        {!isCollapsed && <ChevronDownIcon className="w-4 h-4 text-slate-400" />}
+                        {!showCollapsed && <ChevronDownIcon className="w-4 h-4 text-slate-400" />}
                     </div>
                 </div>
             </div>

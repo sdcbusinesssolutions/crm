@@ -4,7 +4,7 @@ import {
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
     UserCircleIcon, ChevronLeftIcon, PhoneIcon, EditIcon, CloseIcon,
     UsersIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon
+    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon
 } from './icons';
 
 import { inboxService } from '../services/inboxService';
@@ -19,7 +19,11 @@ const formatTime = (dateString: string) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const Inbox: React.FC = () => {
+interface InboxProps {
+    onToggleSidebar?: () => void;
+}
+
+const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -1114,13 +1118,21 @@ const Inbox: React.FC = () => {
     };
 
     return (
-        <div className="flex h-full w-full bg-white overflow-hidden animate-fade-in relative">
+        <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
             {/* Left Sidebar: Conversation List */}
-            <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-white z-10 absolute md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+            <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
                 <div className="p-4 border-b border-slate-100 bg-white z-20">
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xl font-bold text-slate-900">Inbox</h2>
+                        <div className="flex items-center gap-2">
+                            {/* Mobile Menu Button (Only if onToggleSidebar is provided) */}
+                            {onToggleSidebar && (
+                                <button onClick={onToggleSidebar} className="lg:hidden p-1 text-slate-500 hover:bg-slate-50 rounded-lg">
+                                    <MenuIcon className="w-6 h-6" />
+                                </button>
+                            )}
+                            <h2 className="text-xl font-bold text-slate-900">Inbox</h2>
+                        </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleExportContactList}
@@ -1301,25 +1313,61 @@ const Inbox: React.FC = () => {
             </div>
 
             {/* Main Chat Area */}
-            <div className={`flex-1 flex flex-col bg-[#efeae2] absolute md:static inset-0 transform transition-transform duration-300 z-20 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+            <div className={`flex-1 flex flex-col bg-[#efeae2] fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                 {activeChat ? (
                     <>
                         {/* Chat Header */}
-                        <header className="bg-white px-4 py-3 border-b border-slate-200 flex justify-between items-center shadow-sm shrink-0 relative z-30">
-                            <div className="flex items-center space-x-3">
-                                <button onClick={() => setActiveChatId(null)} className="md:hidden p-1 text-slate-500 hover:text-slate-800"><ChevronLeftIcon className="w-6 h-6" /></button>
-                                <div className={`w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs`}>
+                        <header className="bg-white px-3 py-2 border-b border-slate-200 flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
+                            <div
+                                className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden mr-2 cursor-pointer hover:bg-slate-50 rounded-lg p-1 transition-colors"
+                                onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}
+                            >
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setActiveChatId(null); }}
+                                    className="md:hidden p-1 -ml-1 text-slate-500 hover:text-slate-800 shrink-0"
+                                >
+                                    <ChevronLeftIcon className="w-6 h-6" />
+                                </button>
+                                <div className={`w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm border-2 border-white`}>
                                     {(activeChat.contact_name || activeChat.contact_phone).substring(0, 2).toUpperCase()}
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-slate-900 text-sm">{activeChat.contact_name || activeChat.contact_phone}</h3>
-                                    <p className="text-xs text-slate-500 flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span> Active now
-                                    </p>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-slate-900 text-sm truncate leading-tight">
+                                        {activeChat.contact_name || activeChat.contact_phone}
+                                    </h3>
+                                    {(() => {
+                                        const lastIncoming = [...messages].reverse().find(m => m.direction === 'in');
+                                        let statusText = "Active now";
+                                        let isSessionOpen = true;
+
+                                        if (lastIncoming) {
+                                            const diff = (new Date(lastIncoming.created_at).getTime() + 24 * 3600 * 1000) - Date.now();
+                                            if (diff > 0) {
+                                                const h = Math.floor(diff / 3600000);
+                                                const m = Math.floor((diff % 3600000) / 60000);
+                                                statusText = `${h}h ${m}m left`;
+                                            } else {
+                                                statusText = "Session Expired";
+                                                isSessionOpen = false;
+                                            }
+                                        }
+
+                                        return (
+                                            <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                                                {/* Always show phone number if name is present, then status */}
+                                                {activeChat.contact_name && (
+                                                    <span className="font-medium text-slate-400 mr-1">{activeChat.contact_phone} •</span>
+                                                )}
+                                                <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${isSessionOpen ? 'bg-green-500' : 'bg-slate-400'}`}></span>
+                                                {statusText}
+                                            </p>
+                                        );
+                                    })()}
                                 </div>
-                                {/* 24h Window Timer (Moved) */}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {/* 24h Window Timer */}
                                 {(() => {
-                                    // Calculate Window State
                                     const lastIncoming = [...messages].reverse().find(m => m.direction === 'in');
                                     if (!lastIncoming) return null;
 
@@ -1328,28 +1376,24 @@ const Inbox: React.FC = () => {
                                     const windowDuration = 24 * 60 * 60 * 1000;
                                     const diff = (lastTime + windowDuration) - now;
                                     const isWindowOpen = diff > 0;
-
                                     const hours = Math.floor(diff / (1000 * 60 * 60));
                                     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
                                     return (
                                         <div className={`
-                                            w-9 h-9 rounded-full flex flex-col items-center justify-center text-[10px] font-bold border shrink-0
-                                            ${isWindowOpen
-                                                ? 'bg-green-50 text-green-700 border-green-200'
-                                                : 'bg-amber-50 text-amber-700 border-amber-200'}
+                                            hidden md:flex w-8 h-8 rounded-full flex-col items-center justify-center text-[9px] font-bold border shrink-0
+                                            ${isWindowOpen ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}
                                         `} title={isWindowOpen ? `${hours}h ${minutes}m left` : "Session Expired"}>
                                             {isWindowOpen ? (
                                                 <div className="flex flex-col items-center -space-y-0.5">
-                                                    {hours > 0 && <span className="text-[9px] leading-tight">-{hours}h</span>}
-                                                    <span className="text-[9px] leading-tight">{hours > 0 ? minutes : `-${minutes}`}m</span>
+                                                    {hours > 0 && <span>{hours}h</span>}
+                                                    <span>{minutes}m</span>
                                                 </div>
-                                            ) : <ClockIcon className="w-4 h-4" />}
+                                            ) : <ClockIcon className="w-3.5 h-3.5" />}
                                         </div>
                                     );
                                 })()}
-                            </div>
-                            <div className="flex items-center space-x-2">
+
                                 <button onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                                     <UsersIcon className="w-5 h-5" />
                                 </button>
@@ -1492,140 +1536,145 @@ const Inbox: React.FC = () => {
             </div>
 
             {/* Right Sidebar: Contact Info */}
-
-            {activeChat && (
-                <div className={`w-80 bg-white border-l border-slate-200 flex flex-col absolute right-0 inset-y-0 z-30 shadow-xl transform transition-transform duration-300 ${isContactInfoOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 lg:static lg:shadow-none`}>
-                    <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-900">Contact Info</h3>
-                        <button onClick={() => setIsContactInfoOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 lg:hidden"><CloseIcon className="w-5 h-5" /></button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                        <div className="flex flex-col items-center mb-6">
-                            <div className="w-20 h-20 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-2xl mb-3 shadow-sm border-4 border-white">
-                                {(activeChat.contact_name || activeChat.contact_phone).substring(0, 2).toUpperCase()}
-                            </div>
-                            <h2 className="text-lg font-bold text-slate-900">{activeChat.contact_name || 'Unknown Contact'}</h2>
-                            <p className="text-sm text-slate-500">{activeChat.contact_phone}</p>
-                            {activeChat.assigned_to && (
-                                <span className="mt-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase">
-                                    Assigned to: {activeChat.assigned_to}
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="space-y-6">
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</label>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <button className="flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
-                                        <PhoneIcon className="w-4 h-4" /> <span>Call</span>
-                                    </button>
-                                    <button onClick={handleExportContact} className="flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
-                                        <DownloadIcon className="w-4 h-4" /> <span>Export</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 relative z-40">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tags</label>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {activeChat.tags?.map(tag => (
-                                        <div
-                                            key={tag}
-                                            className="group/tag flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border transition-colors relative"
-                                            style={{
-                                                backgroundColor: tagColorMap[tag] ? `${tagColorMap[tag]}15` : '#f1f5f9',
-                                                color: tagColorMap[tag] || '#475569',
-                                                borderColor: tagColorMap[tag] ? `${tagColorMap[tag]}30` : '#e2e8f0'
-                                            }}
-                                        >
-                                            <span>{tag}</span>
-                                            <button onClick={() => handleRemoveTag(tag)} className="opacity-0 group-hover/tag:opacity-100 ml-1 hover:text-red-500 transition-opacity"><CloseIcon className="w-3 h-3" /></button>
-                                        </div>
-                                    ))}
-                                    <div className="relative">
-                                        <button
-                                            onClick={() => setIsTagInputOpen(!isTagInputOpen)}
-                                            className="px-2.5 py-1 rounded-md text-xs font-bold bg-white border border-dashed border-slate-300 text-slate-400 hover:text-brand-600 hover:border-brand-300 transition-colors flex items-center gap-1"
-                                        >
-                                            <PlusIcon className="w-3 h-3" /> Add
-                                        </button>
-
-                                        {isTagInputOpen && (
-                                            <>
-                                                <div className="fixed inset-0 z-40" onClick={() => setIsTagInputOpen(false)}></div>
-                                                <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 p-2 animate-fade-in flex flex-col gap-1">
-                                                    <input
-                                                        autoFocus
-                                                        type="text"
-                                                        placeholder="New tag..."
-                                                        className="w-full px-2 py-1 text-xs border border-slate-200 rounded mb-1 outline-none focus:border-brand-500"
-                                                        value={newTagInput}
-                                                        onChange={(e) => setNewTagInput(e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateNewTag()}
-                                                    />
-                                                    <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-0.5">
-                                                        {availableTagsList.filter(t => !activeChat.tags?.includes(t.name) && t.name.toLowerCase().includes(newTagInput.toLowerCase())).map(tag => (
-                                                            <button
-                                                                key={tag.id}
-                                                                onClick={() => { handleAddTag(tag.name); setIsTagInputOpen(false); setNewTagInput(''); }}
-                                                                className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 font-medium flex items-center gap-2"
-                                                            >
-                                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#ccc' }}></div>
-                                                                {tag.name}
-                                                            </button>
-                                                        ))}
-                                                        {newTagInput && !availableTagsList.some(t => t.name.toLowerCase() === newTagInput.toLowerCase()) && (
-                                                            <button
-                                                                onClick={handleCreateNewTag}
-                                                                className="w-full text-left px-2 py-1.5 hover:bg-brand-50 rounded text-xs text-brand-600 font-bold"
-                                                            >
-                                                                Create "{newTagInput}"
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</label>
-                                </div>
-                                <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
-                                    rows={4}
-                                    placeholder="Add a note about this contact..."
-                                ></textarea>
-                            </div>
-
-                            <div className="space-y-3">
-                                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Information</label>
-                                <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 space-y-2">
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500">Phone</span>
-                                        <span className="font-medium text-slate-700">{activeChat.contact_phone}</span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500">Last Updated</span>
-                                        <span className="font-medium text-slate-700">{new Date(activeChat.updated_at).toLocaleDateString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-xs">
-                                        <span className="text-slate-500">Status</span>
-                                        <span className="font-medium text-slate-700 capitalize">{activeChat.status}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {activeChat && isContactInfoOpen && (
+                <div className="fixed inset-0 z-[240] bg-black/20 backdrop-blur-sm" onClick={() => setIsContactInfoOpen(false)}></div>
             )}
-        </div>
+
+            {
+                activeChat && (
+                    <div className={`w-80 bg-white border-l border-slate-200 flex flex-col fixed right-0 inset-y-0 z-[250] shadow-2xl transform transition-transform duration-300 ${isContactInfoOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                        <div className="px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-900">Contact Info</h3>
+                            <button onClick={() => setIsContactInfoOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><CloseIcon className="w-5 h-5" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                            <div className="flex flex-col items-center mb-6">
+                                <div className="w-20 h-20 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-2xl mb-3 shadow-sm border-4 border-white">
+                                    {(activeChat.contact_name || activeChat.contact_phone).substring(0, 2).toUpperCase()}
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-900">{activeChat.contact_name || 'Unknown Contact'}</h2>
+                                <p className="text-sm text-slate-500">{activeChat.contact_phone}</p>
+                                {activeChat.assigned_to && (
+                                    <span className="mt-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase">
+                                        Assigned to: {activeChat.assigned_to}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button className="flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
+                                            <PhoneIcon className="w-4 h-4" /> <span>Call</span>
+                                        </button>
+                                        <button onClick={handleExportContact} className="flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
+                                            <DownloadIcon className="w-4 h-4" /> <span>Export</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3 relative z-40">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tags</label>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {activeChat.tags?.map(tag => (
+                                            <div
+                                                key={tag}
+                                                className="group/tag flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border transition-colors relative"
+                                                style={{
+                                                    backgroundColor: tagColorMap[tag] ? `${tagColorMap[tag]}15` : '#f1f5f9',
+                                                    color: tagColorMap[tag] || '#475569',
+                                                    borderColor: tagColorMap[tag] ? `${tagColorMap[tag]}30` : '#e2e8f0'
+                                                }}
+                                            >
+                                                <span>{tag}</span>
+                                                <button onClick={() => handleRemoveTag(tag)} className="opacity-0 group-hover/tag:opacity-100 ml-1 hover:text-red-500 transition-opacity"><CloseIcon className="w-3 h-3" /></button>
+                                            </div>
+                                        ))}
+                                        <div className="relative">
+                                            <button
+                                                onClick={() => setIsTagInputOpen(!isTagInputOpen)}
+                                                className="px-2.5 py-1 rounded-md text-xs font-bold bg-white border border-dashed border-slate-300 text-slate-400 hover:text-brand-600 hover:border-brand-300 transition-colors flex items-center gap-1"
+                                            >
+                                                <PlusIcon className="w-3 h-3" /> Add
+                                            </button>
+
+                                            {isTagInputOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={() => setIsTagInputOpen(false)}></div>
+                                                    <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 p-2 animate-fade-in flex flex-col gap-1">
+                                                        <input
+                                                            autoFocus
+                                                            type="text"
+                                                            placeholder="New tag..."
+                                                            className="w-full px-2 py-1 text-xs border border-slate-200 rounded mb-1 outline-none focus:border-brand-500"
+                                                            value={newTagInput}
+                                                            onChange={(e) => setNewTagInput(e.target.value)}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleCreateNewTag()}
+                                                        />
+                                                        <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-0.5">
+                                                            {availableTagsList.filter(t => !activeChat.tags?.includes(t.name) && t.name.toLowerCase().includes(newTagInput.toLowerCase())).map(tag => (
+                                                                <button
+                                                                    key={tag.id}
+                                                                    onClick={() => { handleAddTag(tag.name); setIsTagInputOpen(false); setNewTagInput(''); }}
+                                                                    className="w-full text-left px-2 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 font-medium flex items-center gap-2"
+                                                                >
+                                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#ccc' }}></div>
+                                                                    {tag.name}
+                                                                </button>
+                                                            ))}
+                                                            {newTagInput && !availableTagsList.some(t => t.name.toLowerCase() === newTagInput.toLowerCase()) && (
+                                                                <button
+                                                                    onClick={handleCreateNewTag}
+                                                                    className="w-full text-left px-2 py-1.5 hover:bg-brand-50 rounded text-xs text-brand-600 font-bold"
+                                                                >
+                                                                    Create "{newTagInput}"
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</label>
+                                    </div>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
+                                        rows={4}
+                                        placeholder="Add a note about this contact..."
+                                    ></textarea>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Information</label>
+                                    <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 space-y-2">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Phone</span>
+                                            <span className="font-medium text-slate-700">{activeChat.contact_phone}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Last Updated</span>
+                                            <span className="font-medium text-slate-700">{new Date(activeChat.updated_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Status</span>
+                                            <span className="font-medium text-slate-700 capitalize">{activeChat.status}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

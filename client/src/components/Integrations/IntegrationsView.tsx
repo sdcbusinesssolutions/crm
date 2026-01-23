@@ -6,7 +6,11 @@ import GoogleCalendarCard from './GoogleCalendarCard';
 import GoogleContactsCard from './GoogleContactsCard';
 import { themeService } from '../../services/themeService';
 
-const IntegrationsView: React.FC = () => {
+interface IntegrationsViewProps {
+    onToggleSidebar?: () => void;
+}
+
+const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) => {
     const [brandColor, setBrandColor] = useState('#ea580c'); // Default orange
 
     useEffect(() => {
@@ -28,11 +32,23 @@ const IntegrationsView: React.FC = () => {
     });
 
     return (
-        <div className="flex-1 p-8 overflow-y-auto bg-slate-50 h-full">
+        <div className="flex-1 p-4 md:p-8 overflow-y-auto bg-slate-50 h-full container-mobile-fix">
             <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-slate-800">Integrations</h1>
-                    <p className="text-slate-500 mt-1">Connect your workspace with third-party tools and services.</p>
+                <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        {onToggleSidebar && (
+                            <button
+                                onClick={onToggleSidebar}
+                                className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            </button>
+                        )}
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-800">Integrations</h1>
+                            <p className="text-slate-500 mt-1">Connect your workspace with third-party tools and services.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

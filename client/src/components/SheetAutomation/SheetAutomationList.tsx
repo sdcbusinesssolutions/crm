@@ -19,9 +19,10 @@ interface SheetAutomation {
 interface SheetAutomationListProps {
     onCreate: () => void;
     onEdit: (id: string) => void;
+    onToggleSidebar?: () => void;
 }
 
-const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onEdit }) => {
+const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onEdit, onToggleSidebar }) => {
     const [automations, setAutomations] = useState<SheetAutomation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -160,7 +161,17 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
     return (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 className="font-bold text-slate-700">Google Sheet Schedule ({automations.length})</h3>
+                <div className="flex items-center gap-3">
+                    {onToggleSidebar && (
+                        <button
+                            onClick={onToggleSidebar}
+                            className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        </button>
+                    )}
+                    <h3 className="font-bold text-slate-700">Google Sheet Schedule ({automations.length})</h3>
+                </div>
                 <div className="flex gap-2">
                     <button onClick={onCreate} className="px-3 py-1.5 bg-brand-600 text-white rounded text-sm font-medium hover:bg-brand-700 transition-colors">
                         + New

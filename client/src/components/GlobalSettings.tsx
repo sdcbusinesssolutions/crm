@@ -5,7 +5,11 @@ import { ThemeConfig } from '../types';
 
 import { UploadIcon, BadgeIcon, SparklesIcon, CheckSquareIcon } from './icons';
 
-const GlobalSettings: React.FC = () => {
+interface GlobalSettingsProps {
+    onToggleSidebar?: () => void;
+}
+
+const GlobalSettings: React.FC<GlobalSettingsProps> = ({ onToggleSidebar }) => {
     const [theme, setTheme] = useState<ThemeConfig>(PRESETS[0]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const nameImageInputRef = useRef<HTMLInputElement>(null);
@@ -126,13 +130,23 @@ const GlobalSettings: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 h-full overflow-y-auto custom-scrollbar bg-slate-50/50">
-            <div className="max-w-6xl mx-auto p-6 md:p-10 space-y-8">
+        <div className="flex-1 h-full overflow-y-auto custom-scrollbar bg-slate-50/50 container-mobile-fix">
+            <div className="max-w-6xl mx-auto p-4 md:p-10 space-y-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2">
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Settings</h1>
-                        <p className="text-slate-500 mt-2 text-lg font-medium">Manage branding, appearance, and workspace preferences.</p>
+                    <div className="flex items-center gap-3">
+                        {onToggleSidebar && (
+                            <button
+                                onClick={onToggleSidebar}
+                                className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+                            </button>
+                        )}
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Settings</h1>
+                            <p className="text-slate-500 mt-2 text-lg font-medium">Manage branding, appearance, and workspace preferences.</p>
+                        </div>
                     </div>
                 </div>
 

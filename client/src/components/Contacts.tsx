@@ -12,14 +12,15 @@ import { contactService } from '../services/contactService';
 import { contactGroupService } from '../services/contactGroupService';
 import { getForms, getTasks } from '../services/lead-management-api';
 import { inputFieldService } from '../services/inputFieldService';
-import { UsersIcon, BadgeIcon, HomeIcon } from './icons';
+import { UsersIcon, BadgeIcon, HomeIcon, MenuIcon } from './icons';
 
 interface ContactsProps {
     initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms';
     initialPipelineId?: string | null;
+    onToggleSidebar?: () => void;
 }
 
-const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId }) => {
+const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId, onToggleSidebar }) => {
     const [activeTab, setActiveTab] = useState<string>(initialTab);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [counts, setCounts] = useState<{
@@ -169,13 +170,23 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
     ];
 
     return (
-        <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative">
+        <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative container-mobile-fix">
             <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 z-20 sticky top-0 shadow-sm">
                 <div className="px-6 pt-6 pb-0 max-w-7xl mx-auto">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
-                        <div>
-                            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Lead CRM</h1>
-                            <p className="text-slate-500 text-sm mt-1">Track, nurture, and convert your leads efficiently.</p>
+                        <div className="flex items-center gap-3">
+                            {onToggleSidebar && (
+                                <button
+                                    onClick={onToggleSidebar}
+                                    className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MenuIcon className="w-6 h-6" />
+                                </button>
+                            )}
+                            <div>
+                                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Lead CRM</h1>
+                                <p className="text-slate-500 text-sm mt-1">Track, nurture, and convert your leads efficiently.</p>
+                            </div>
                         </div>
                     </div>
 
@@ -185,7 +196,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
                                 className={`
-                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[140px] shadow-sm transform hover:scale-[1.02]
+                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[110px] md:min-w-[140px] shadow-sm transform hover:scale-[1.02]
                                     ${activeTab === tab.id ? tab.activeClass : tab.inactiveClass}
                                 `}
                             >

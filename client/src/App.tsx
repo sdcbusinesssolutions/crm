@@ -46,6 +46,7 @@ import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAu
 import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
+import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
 
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
@@ -395,7 +396,7 @@ const MainApp: React.FC = () => {
         if (currentFlowId) {
             return <FlowEditor flowId={currentFlowId} onBack={handleBackToDashboard} />;
         }
-        return <FlowList onNavigateToFlow={handleNavigateToFlow} />;
+        return <FlowList onNavigateToFlow={handleNavigateToFlow} onToggleSidebar={() => setSidebarOpen(true)} />;
     };
 
     const renderContent = () => {
@@ -432,12 +433,13 @@ const MainApp: React.FC = () => {
                         setIsCreatingCampaign(true);
                     }}
                     onSelect={(id) => setCurrentCampaignId(id)}
+                    onToggleSidebar={() => setSidebarOpen(true)}
                 />
             );
         }
 
         if (activeMenuItem === 'Dashboard') {
-            return <Dashboard onNavigateToFlow={handleNavigateToFlow} onNavigate={handleMenuNavigation} onNavigateToPipeline={handleNavigateToPipeline} />;
+            return <Dashboard onNavigateToFlow={handleNavigateToFlow} onNavigate={handleMenuNavigation} onNavigateToPipeline={handleNavigateToPipeline} onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Flows') {
@@ -445,33 +447,33 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Inbox') {
-            return <Inbox />;
+            return <Inbox onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
 
 
         if (activeMenuItem === 'Overview') {
-            return <Contacts initialTab="dashboard" />;
+            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Contact List') {
-            return <Contacts initialTab="contacts" />;
+            return <Contacts initialTab="contacts" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Contacts') {
-            return <Contacts initialTab="dashboard" />;
+            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Contact Groups') {
-            return <Contacts initialTab="groups" />;
+            return <Contacts initialTab="groups" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Pipelines') {
-            return <Contacts initialTab="pipelines" initialPipelineId={currentPipelineId} />;
+            return <Contacts initialTab="pipelines" initialPipelineId={currentPipelineId} onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Follow-up') {
-            return <Contacts initialTab="follow-up" />;
+            return <Contacts initialTab="follow-up" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Tags') {
@@ -479,7 +481,7 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Input Fields') {
-            return <Contacts initialTab="inputs" />;
+            return <Contacts initialTab="inputs" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Form Contact') {
@@ -487,11 +489,11 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Form Builder') {
-            return <Contacts initialTab="forms" />;
+            return <Contacts initialTab="forms" onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'Settings' || activeMenuItem === 'Branding & Appearance') {
-            return <GlobalSettings />;
+            return <GlobalSettings onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         if (activeMenuItem === 'WhatsApp Management') {
@@ -521,7 +523,11 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Integrations') {
-            return <IntegrationsView />;
+            return <IntegrationsView onToggleSidebar={() => setSidebarOpen(true)} />;
+        }
+
+        if (activeMenuItem === 'AI Buddy') {
+            return <AiVoiceAgentView />;
         }
 
         // ... (rest of code)
@@ -535,13 +541,13 @@ const MainApp: React.FC = () => {
         if (activeMenuItem === 'Sheet Automation') {
             if (isCreatingSheetAutomation) {
                 return (
-                    <div className="p-8 h-full overflow-y-auto bg-slate-50">
+                    <div className="p-4 md:p-8 h-full overflow-y-auto bg-slate-50 container-mobile-fix">
                         <div className="max-w-4xl mx-auto">
                             <button onClick={() => {
                                 setIsCreatingSheetAutomation(false);
                                 setEditingSheetAutomationId(null);
-                            }} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm">
-                                ← Back to List
+                            }} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm bg-white/50 p-2 rounded-lg lg:bg-transparent lg:p-0">
+                                <span className="text-xl">←</span> Back to List
                             </button>
                             <SheetAutomationWizard
                                 editId={editingSheetAutomationId || undefined}
@@ -559,7 +565,7 @@ const MainApp: React.FC = () => {
                 );
             }
             return (
-                <div className="p-8 h-full overflow-y-auto bg-slate-50">
+                <div className="p-4 md:p-8 h-full overflow-y-auto bg-slate-50 container-mobile-fix">
                     <div className="max-w-6xl mx-auto">
                         <SheetAutomationList
                             onCreate={() => {
@@ -570,6 +576,7 @@ const MainApp: React.FC = () => {
                                 setEditingSheetAutomationId(id);
                                 setIsCreatingSheetAutomation(true);
                             }}
+                            onToggleSidebar={() => setSidebarOpen(true)}
                         />
                     </div>
                 </div>
@@ -625,24 +632,26 @@ const MainApp: React.FC = () => {
                 userEmail={session?.user?.email}
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
-                {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate && (
-                    <div className="md:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
-                        <div className="flex items-center space-x-3">
-                            <button
-                                onClick={() => setSidebarOpen(true)}
-                                className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                <MenuIcon className="w-6 h-6" />
-                            </button>
-                            <div className="flex items-center space-x-2">
-                                <div className="w-6 h-6 bg-brand-600 rounded-md flex items-center justify-center">
-                                    <span className="text-white font-bold text-xs">V</span>
+                {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'Sheet Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+                    (
+                        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
+                            <div className="flex items-center space-x-3">
+                                <button
+                                    onClick={() => setSidebarOpen(true)}
+                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MenuIcon className="w-6 h-6" />
+                                </button>
+                                <div className="flex items-center space-x-2">
+                                    <div className="w-6 h-6 bg-brand-600 rounded-md flex items-center justify-center">
+                                        <span className="text-white font-bold text-xs">V</span>
+                                    </div>
+                                    <span className="font-bold text-lg text-slate-800">CRM</span>
                                 </div>
-                                <span className="font-bold text-lg text-slate-800">CRM</span>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
                 {/* Logout Button (Temporary placement or accessible via Settings in real app) */}
                 <div className="absolute top-3 right-4 z-50 hidden lg:block">
                     <button
