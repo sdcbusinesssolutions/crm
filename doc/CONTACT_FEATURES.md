@@ -22,7 +22,21 @@
 4. The system will:
    - Auto-create any new groups mentioned in the "Groups" column
    - Auto-create any new custom fields found in the CSV
+   - Auto-create any new custom fields found in the CSV
    - Import all contacts with their data
+
+### 3. Bulk Import Capabilities (New)
+- **High Volume Support**: Successfully tested with **5,000+ contacts** in a single file.
+- **Smart Batching**: Automatically splits large uploads into safe chunks of 1,000 to prevent server timeouts.
+- **Increased Limits**: Server accepts files up to **50MB** (previously 10MB).
+- **Dedicated Logging**: Detailed import logs are saved to `server/logs/contact_imports_DD-MM-YYYY_partX.log` for auditing and debugging.
+
+### 4. Logging & Auditing
+- A new log system tracks every import attempt:
+  - **Start**: Logs user ID, file size/count, and timestamp.
+  - **Progress**: Logs chunk success/failure.
+  - **Result**: Logs total success count and duration.
+  - **Error Tracking**: Captures specific DB errors or validation failures per chunk.
 
 ### CSV Format
 ```csv

@@ -44,7 +44,8 @@ if (!PORT) {
 // --- Middleware ---
 app.use(cors());
 // Force Restart: 2026-01-12 23:25 UTC - Deduplication Active
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // --- Startup Check: File System Permissions ---
 const fs = require('fs');

@@ -267,17 +267,44 @@ router.post('/bulk', async (req, res) => {
       custom_data: c.customData || {}
     }));
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .insert(payload)
-      .select();
+    // Batch Processing Config
+    const CHUNK_SIZE = 1000;
+    const chunkedResults = [];
+    const totalContacts = payload.length;
 
-    if (error) {
-      logContactImportEvent('IMPORT_DB_ERROR', { userId: user.id, error: error.message, code: error.code });
-      throw error;
+    console.log(`🚀 Starting batch insert for ${totalContacts} contacts in chunks of ${CHUNK_SIZE}...`);
+
+    for (let i = 0; i < totalContacts; i += CHUNK_SIZE) {
+      const chunk = payload.slice(i, i + CHUNK_SIZE);
+      console.log(`Processing chunk ${i / CHUNK_SIZE + 1} (${chunk.length} items)...`);
+
+      const { data, error } = await supabase
+        .from('contacts')
+        .insert(chunk)
+        .select();
+
+      if (error) {
+        console.error(`❌ Error in chunk ${i / CHUNK_SIZE + 1}:`, error.message);
+        logContactImportEvent('IMPORT_CHUNK_ERROR', { userId: user.id, chunkIndex: i, error: error.message });
+        // Optional: Continue or Throw? 
+        // For now, we throw to alert user, but sophisticated importers might continue.
+        // Given "bulk" expectation, failing entirely on a middle chunk is messy.
+        // We will throw to ensure data integrity/awareness.
+        throw error;
+      }
+
+      if (data) {
+        chunkedResults.push(...data);
+      }
     }
 
-    console.log(`✅ Successfully imported ${data.length} contacts`);
+    // Assign combined data for response
+    const data = chunkedResults;
+    const error = null; // Cleared as we handled it inside loop
+
+    console.log(`✅ Successfully imported ${data.length} contacts total.`);
+
+
 
     // Update updated_at for all affected groups
     const affectedGroupIds = new Set();
