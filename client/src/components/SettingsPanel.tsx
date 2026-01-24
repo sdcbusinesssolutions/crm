@@ -1681,21 +1681,35 @@ const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData };
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Delay Configuration</label>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
+                        <div className={data.delayUnit === 'Custom Date' ? 'hidden' : 'block'}>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Value</label>
                             <PanelNumberInput value={data.delayValue ?? 1} onChange={val => handleUpdate({ delayValue: val })} />
                         </div>
-                        <div>
+                        <div className={data.delayUnit === 'Custom Date' ? 'col-span-2' : ''}>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit</label>
                             <PanelSelect
                                 value={data.delayUnit || 'Minutes'}
                                 onChange={val => handleUpdate({ delayUnit: val as any })}
-                                options={['Seconds', 'Minutes', 'Hours', 'Days', 'Weeks']}
+                                options={['Seconds', 'Minutes', 'Hours', 'Days', 'Weeks', 'Custom Date']}
                             />
                         </div>
+                        {data.delayUnit === 'Custom Date' && (
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Resume Date & Time</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                                    value={data.customDate || ''}
+                                    onChange={(e) => handleUpdate({ customDate: e.target.value })}
+                                />
+                                <p className="text-[10px] text-amber-500 mt-1 italic">
+                                    Specified date/time is local to the server time. Relative waits are recommended for flexible flows.
+                                </p>
+                            </div>
+                        )}
                     </div>
                     <p className="text-[10px] text-slate-500 mt-3 italic">
-                        The flow execution will pause for the specified duration before moving to the next step.
+                        The flow execution will pause until the specified time or duration is reached.
                     </p>
                 </div>
             </div>

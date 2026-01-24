@@ -1,33 +1,26 @@
 const { google } = require('googleapis');
+const sheetAutomationService = require('../../SheetAutomationService');
 
 const execute = async (session, node, context) => {
     try {
         const { data } = node;
-        const { spreadsheetId, sheetName, operation, rowData, tokens } = data;
+        // Support both field names for compatibility
+        const connectionId = data.credentialId || data.connectionId;
+        const { spreadsheetId, sheetName, operation, rowData } = data;
 
-        // Use tokens from node data or fallback to some secure storage if needed
-        // Ideally tokens are passed in 'data' after being refreshed if needed.
-        // For now, we assume 'data' contains valid tokens (access_token, refresh_token, etc.)
-        // In a real robust system, we would handle refreshing here using the refresh_token if access_token is expired.
-
-        if (!data.access_token) {
-            throw new Error('Missing Google Access Token in Node Data');
+        if (!connectionId) {
+            throw new Error('Missing Google Connection ID');
         }
 
-        const auth = new google.auth.OAuth2(
-            data.clientId,
-            data.clientSecret
-        );
+        if (!spreadsheetId || !sheetName) {
+            throw new Error('Missing Spreadsheet ID or Sheet Name');
+        }
 
-        auth.setCredentials({
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-            scope: data.scope,
-            token_type: data.token_type,
-            expiry_date: data.expiry_date
-        });
+        // Get Authenticated Client (Handles Refresh & Service Accounts)
+        const authClient = await sheetAutomationService.getAuthClient(session.user_id, connectionId);
 
-        const sheets = google.sheets({ version: 'v4', auth });
+        // Initialize Sheets API
+        const sheets = google.sheets({ version: 'v4', auth: authClient });
 
         console.log(`[FlowEngine] Executing Google Sheet Node: ${node.id}`);
         console.log(`Operation: ${operation}, Spreadsheet: ${spreadsheetId}, Sheet: ${sheetName}`);

@@ -115,7 +115,8 @@ export interface WriteAttributeData extends NodeData {
 export interface TimingData extends NodeData {
   delaySeconds?: number;
   delayValue: number;
-  delayUnit: 'Seconds' | 'Minutes' | 'Hours' | 'Days' | 'Weeks';
+  delayUnit: 'Seconds' | 'Minutes' | 'Hours' | 'Days' | 'Weeks' | 'Custom Date';
+  customDate?: string;
 }
 
 export interface TakeawayData extends NodeData {
