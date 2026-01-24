@@ -92,7 +92,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* 1. HERO: Lead CRM Section (Left/Top) - ROYAL BLUE PRO */}
                 <div
                     onClick={() => onNavigate('Contacts')}
-                    className="flex-1 min-h-[360px] bg-blue-600 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-600/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-[#033025] hover:border-blue-400"
+                    className="flex-1 min-h-[360px] bg-blue-500 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-500/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-[#033025] hover:border-blue-400"
                 >
                     {/* Background Decor - clean modern blobs */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -155,7 +155,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 {/* Center Content */}
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                                     <span className="text-2xl sm:text-3xl font-black text-white leading-none drop-shadow-md">{totalLeads}</span>
-                                    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-blue-100 tracking-wider mt-0.5">Total</span>
+                                    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-white tracking-wider mt-0.5">Total</span>
                                 </div>
                             </div>
                         </div>
@@ -164,7 +164,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 2. Followup Status Card */}
                         <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-1">
-                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</h4>
+                                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Followup Status</h4>
                             </div>
 
                             <div className="flex flex-col gap-2 w-full mt-2">
@@ -181,7 +181,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                     return taskData.map((item, i) => (
                                         <div key={i} className="flex items-center gap-2 w-full">
-                                            <div className="w-8 text-[9px] font-bold text-blue-100 uppercase tracking-wider text-right">{item.label}</div>
+                                            <div className="w-8 text-[9px] font-bold text-white uppercase tracking-wider text-right">{item.label}</div>
 
                                             <div className="flex-1 h-1.5 bg-black/20 rounded-full overflow-hidden relative">
                                                 <div
@@ -206,8 +206,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 1. Engagement Score (Gauge) */}
                         <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start">
-                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Engagement Score</h4>
-                                <Icons.Activity className="w-3 h-3 text-cyan-300 opacity-60" />
+                                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Engagement Score</h4>
+                                <Icons.Activity className="w-3 h-3 text-white opacity-60" />
                             </div>
 
                             <div className="flex-1 relative w-full h-full min-h-[60px] flex items-end justify-center pb-2">
@@ -242,7 +242,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                                 {/* Text Score */}
                                                 <text x="50" y="45" textAnchor="middle" className="fill-white text-lg font-bold">{Math.round(score)}</text>
-                                                <text x="50" y="58" textAnchor="middle" className="fill-blue-200 text-[8px] font-medium uppercase tracking-widest">Active %</text>
+                                                <text x="50" y="58" textAnchor="middle" className="fill-white text-[8px] font-medium uppercase tracking-widest">Active %</text>
                                             </>
                                         );
                                     })()}
@@ -254,7 +254,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
                         <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-2">
-                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider whitespace-nowrap">Pipeline Funnel</h4>
+                                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider whitespace-nowrap">Pipeline Funnel</h4>
                             </div>
 
                             <div className="flex-1 relative w-full h-full min-h-[60px] flex flex-col justify-center items-center">
@@ -295,9 +295,9 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 </svg>
 
                                 {/* Side Labels */}
-                                <div className="absolute top-1 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Lead</div>
-                                <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Active</div>
-                                <div className="absolute bottom-1 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Won</div>
+                                <div className="absolute top-1 right-0 translate-x-1 text-[9px] text-white font-medium">Lead</div>
+                                <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1 text-[9px] text-white font-medium">Active</div>
+                                <div className="absolute bottom-1 right-0 translate-x-1 text-[9px] text-white font-medium">Won</div>
                             </div>
                         </div>
 
@@ -318,7 +318,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             </div>
                             <div>
                                 <h3 className="text-4xl font-black mb-1">{stats?.taskStats?.today || 0}</h3>
-                                <div className="text-emerald-100 font-bold text-xs uppercase tracking-wider mb-2">Today Followup</div>
+                                <div className="text-white font-bold text-xs uppercase tracking-wider mb-2">Today Followup</div>
                                 <span className="inline-flex items-center px-3 py-1.5 bg-black/20 rounded-lg text-[11px] font-bold text-white border border-white/10">
                                     {stats?.taskStats?.due || 0} Pending Tasks
                                 </span>
@@ -337,7 +337,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             </div>
                             <div>
                                 <h3 className="text-3xl font-black mb-1 truncate tracking-tight">{Number(stats?.summary.pipelineValue || 0).toLocaleString()}</h3>
-                                <div className="text-orange-100 font-bold text-xs uppercase tracking-wider mb-2">Pipeline Value</div>
+                                <div className="text-white font-bold text-xs uppercase tracking-wider mb-2">Pipeline Value</div>
                                 <span className="inline-flex items-center px-3 py-1.5 bg-black/20 rounded-lg text-[11px] font-bold text-white border border-white/10">
                                     {stats?.summary.totalPipelines || 0} Pipelines
                                 </span>
@@ -346,39 +346,39 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     </div>
 
                     {/* Card 3: Campaigns */}
-                    <div onClick={() => onNavigate('Campaigns')} className="bg-white border border-slate-200 rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-xl hover:shadow-indigo-500/10 transition-all hover:-translate-y-1">
-                        <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-50 rounded-bl-[100px] -mr-8 -mt-8 z-0 transition-all group-hover/card:scale-110 duration-500"></div>
+                    <div onClick={() => onNavigate('Campaigns')} className="bg-[#e16800] text-white border border-orange-600/20 rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-xl hover:shadow-orange-500/20 transition-all hover:-translate-y-1">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-bl-[100px] -mr-8 -mt-8 z-0 transition-all group-hover/card:scale-110 duration-500"></div>
                         <div className="relative z-10 flex flex-col h-full justify-between">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center shadow-lg border border-white/10">
                                     <Icons.Campaign className="w-6 h-6" />
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover/card:bg-indigo-500 group-hover/card:text-white transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover/card:bg-white group-hover/card:text-[#e16800] transition-colors">
                                     <Icons.ArrowRight className="w-4 h-4" />
                                 </div>
                             </div>
                             <div>
-                                <h3 className="text-4xl font-black text-slate-800 mb-1">{stats?.summary.totalCampaigns || 0}</h3>
-                                <p className="font-bold text-xs text-slate-500 uppercase tracking-wide">Active Campaigns</p>
+                                <h3 className="text-4xl font-black text-white mb-1">{stats?.summary.totalCampaigns || 0}</h3>
+                                <p className="font-bold text-xs text-white uppercase tracking-wide">Active Campaigns</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Card 4: Flows */}
-                    <div onClick={() => onNavigate('Flows')} className="bg-white border border-slate-200 rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-xl hover:shadow-rose-500/10 transition-all hover:-translate-y-1">
-                        <div className="absolute right-0 top-0 w-32 h-32 bg-rose-50 rounded-bl-[100px] -mr-8 -mt-8 z-0 transition-all group-hover/card:scale-110 duration-500"></div>
+                    <div onClick={() => onNavigate('Flows')} className="bg-[#ff5001] text-white border border-orange-600/20 rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-xl hover:shadow-orange-500/20 transition-all hover:-translate-y-1">
+                        <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-bl-[100px] -mr-8 -mt-8 z-0 transition-all group-hover/card:scale-110 duration-500"></div>
                         <div className="relative z-10 flex flex-col h-full justify-between">
                             <div className="flex items-center justify-between mb-4">
-                                <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-500/20">
+                                <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center shadow-lg border border-white/10">
                                     <Icons.Flow className="w-6 h-6" />
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center group-hover/card:bg-rose-500 group-hover/card:text-white transition-colors">
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover/card:bg-white group-hover/card:text-[#ff5001] transition-colors">
                                     <Icons.ArrowRight className="w-4 h-4" />
                                 </div>
                             </div>
                             <div>
-                                <h3 className="text-4xl font-black text-slate-800 mb-1">{stats?.summary.totalFlows || 0}</h3>
-                                <p className="font-bold text-xs text-slate-500 uppercase tracking-wide">Automation Flows</p>
+                                <h3 className="text-4xl font-black text-white mb-1">{stats?.summary.totalFlows || 0}</h3>
+                                <p className="font-bold text-xs text-white uppercase tracking-wide">Automation Flows</p>
                             </div>
                         </div>
                     </div>
