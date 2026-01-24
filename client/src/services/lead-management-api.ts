@@ -46,7 +46,7 @@ export const getPipelines = async (): Promise<Pipeline[]> => {
 export const getPipeline = async (id: string): Promise<Pipeline | null> => {
     try {
         const headers = await getHeaders();
-        const res = await fetch(`/ api / pipelines / ${id} `, { headers });
+        const res = await fetch(`/api/pipelines/${id}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch pipeline');
         return await res.json();
     } catch (e) {
@@ -77,7 +77,7 @@ export const createPipeline = async (pipeline: CreatePipelineRequest): Promise<P
 export const updatePipeline = async (id: string, updates: Partial<Pipeline>): Promise<Pipeline | null> => {
     try {
         const headers = await getHeaders();
-        const res = await fetch(`/ api / pipelines / ${id} `, {
+        const res = await fetch(`/api/pipelines/${id}`, {
             method: 'PUT',
             headers,
             body: JSON.stringify(updates)
@@ -93,7 +93,7 @@ export const updatePipeline = async (id: string, updates: Partial<Pipeline>): Pr
 export const deletePipeline = async (id: string): Promise<boolean> => {
     try {
         const headers = await getHeaders();
-        const res = await fetch(`/ api / pipelines / ${id} `, {
+        const res = await fetch(`/api/pipelines/${id}`, {
             method: 'DELETE',
             headers
         });

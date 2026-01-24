@@ -163,17 +163,113 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        const pipelineId = req.params.id;
+        const userId = req.user?.id;
+
+        console.log(`[Pipeline] Delete Request: ID=${pipelineId} User=${userId}`);
+
+        // 0. OWNER VERIFICATION: Check if pipeline exists and belongs to user
+        const { data: pipeline, error: findError } = await supabase
+            .from('pipelines')
+            .select('id, user_id')
+            .eq('id', pipelineId)
+            // .eq('user_id', userId) // Let RLS handle this, or be explicit if needed
+            .single();
+
+        if (findError || !pipeline) {
+            console.log('[Pipeline] Delete aborted: Pipeline not found or access denied.');
+            return res.status(404).json({ error: 'Pipeline not found or access denied' });
+        }
+
+        // 1. STAGE PREPARATION: Get stages to unlink contacts
+        const { data: stages } = await supabase
+            .from('pipeline_stages')
+            .select('id')
+            .eq('pipeline_id', pipelineId);
+
+        const stageIds = stages ? stages.map(s => s.id) : [];
+
+        // 2. UNLINK CONTACTS: Set stage_id to NULL for any contacts in these stages
+        // This is critical if Contacts table has FK to pipeline_stages w/o CASCADE
+        if (stageIds.length > 0) {
+            const { error: contactsError } = await supabase
+                .from('contacts')
+                .update({ stage_id: null })
+                .in('stage_id', stageIds);
+
+            if (contactsError) {
+                console.warn('[Pipeline] Warning: Failed to unlink contacts (might block stage delete)', contactsError);
+            }
+        }
+
+        // 3. CLEANUP LEADS: Fetch and delete leads + cascade dependencies
+        const { data: leads } = await supabase
+            .from('leads')
+            .select('id')
+            .eq('pipeline_id', pipelineId);
+
+        const leadIds = leads ? leads.map(l => l.id) : [];
+
+        if (leadIds.length > 0) {
+            // Best-effort cleanup of lead sub-resources
+            const cleanupResults = await Promise.all([
+                supabase.from('tasks').delete().in('lead_id', leadIds),
+                supabase.from('notes').delete().in('lead_id', leadIds),
+                supabase.from('appointments').delete().in('lead_id', leadIds),
+                supabase.from('call_logs').delete().in('lead_id', leadIds)
+            ]);
+
+            if (cleanupResults.some(r => r.error)) {
+                console.warn('[Pipeline] Some lead dependencies failed to delete:', cleanupResults.filter(r => r.error));
+            }
+
+            // Hard Delete Leads
+            const { error: leadsDelError } = await supabase
+                .from('leads')
+                .delete()
+                .eq('pipeline_id', pipelineId);
+
+            if (leadsDelError) {
+                console.error('[Pipeline] Error deleting leads:', leadsDelError);
+                throw leadsDelError;
+            }
+        }
+
+        // 4. DELETE STAGES
+        const { error: stagesDelError } = await supabase
+            .from('pipeline_stages')
+            .delete()
+            .eq('pipeline_id', pipelineId);
+
+        if (stagesDelError) {
+            console.error('[Pipeline] Error deleting stages:', stagesDelError);
+            throw stagesDelError;
+        }
+
+        // 5. DELETE PIPELINE
+        // Use select() to ensure we get the deleted record back, verifying it was actually deleted
+        const { data: deletedPipeline, error: deleteError } = await supabase
             .from('pipelines')
             .delete()
-            .eq('id', req.params.id);
+            .eq('id', pipelineId)
+            .select()
+            .single();
 
-        if (error) throw error;
+        if (deleteError) {
+            console.error('[Pipeline] Critical Error deleting pipeline:', deleteError);
+            throw deleteError;
+        }
+
+        if (!deletedPipeline) {
+            console.error('[Pipeline] Delete failed: No rows deleted (RLS or ID mismatch)');
+            return res.status(404).json({ error: 'Pipeline not found or access denied (No changes made)' });
+        }
 
         try {
-            logCRMEvent('DELETE_PIPELINE', { pipelineId: req.params.id });
+            logCRMEvent('DELETE_PIPELINE', { pipelineId });
         } catch (e) { }
 
+        console.log(`[Pipeline] Successfully deleted pipeline ${pipelineId}`);
         res.json({ success: true });
     } catch (err) {
         console.error('Error deleting pipeline:', err);

@@ -1,0 +1,93 @@
+[33m7190847[m[33m ([m[1;36mHEAD -> [m[1;32mfeature/24-01-2024-Inbox-implement-lead-1[m[33m, [m[1;31morigin/feature/24-01-20-final-working[m[33m, [m[1;32mfeature/24-01-20-final-working[m[33m)[m campgin limit
+[33md12f0d5[m contact bulik upload as 50 mb
+[33mfc7c96c[m Bulk upload logger impleemnt
+[33mc5a4a99[m Inbox ui ui mobile view fix
+[33mca9fde2[m UI Refresh browser fix
+[33m3eca4fe[m Inbox- message uti
+[33m1261722[m Trigger now is working
+[33mf1df333[m Trigger now is working
+[33m12e8b25[m Trigger now is working
+[33m5ae21f6[m Trigger now is working
+[33m45881e2[m Trigger now is working
+[33m27008b9[m google connection woring
+[33m6abbf25[m google sheet wizard working
+[33m5b37991[m google sheet wizard working
+[33m64ded29[m Fix campgin copy number
+[33m844b4d8[m Fix campgin copy number
+[33m5d2f47a[m Fix campgin copy number
+[33m76e0c1b[m Fix campgin copy number
+[33m6c7aae0[m Fix campgin long text
+[33mc309f87[m Fix campgin long text
+[33m45cda09[m Fix Gmail and calander
+[33ma18b44f[m Fix Gmail and calander
+[33m66f81db[m Fix this
+[33m176b08c[m Fix for gsheet invail host
+[33m7b1857d[m Single docker image to fast deployment
+[33m8e3f462[m Google sheet fix
+[33md0594cb[m single db schema
+[33mccfd041[m update backup script with correct credentials and escaping
+[33mf07cfad[m clarify stateless kiosk architecture status
+[33m4c40d35[m add explanation of single-container multi-tenancy mechanics
+[33m9fb2b99[m add deep dive analysis on alternative architectures and hidden costs
+[33m1b78684[m[33m ([m[1;31morigin/feature/14-01-2026-multiple-domain-with-single-db[m[33m, [m[1;32mfeature/14-01-2026-multiple-domain-with-single-db[m[33m)[m add scaling and cost analysis to multi-tenancy docs
+[33ma77b7a2[m update multi-tenancy docs with bounce strategy
+[33m118fd21[m implement robust bounce strategy for impersonation
+[33ma2bcbf1[m update multi-tenancy documentation
+[33m54b4d17[m add delete_tenant rpc
+[33m104b7a7[m add delete tenant functionality to super dashboard
+[33m02bc6d5[m fix magic link token propagation and handling
+[33md88fa52[m fix tenant stats rpc count variable shadowing
+[33me8a189e[m add super_admin option to user creation
+[33mbf8e058[m sync supabase auth session on admin login
+[33m3d21799[m secure super admin rpc and frontend link
+[33m9944d15[m add detailed debugging to update_tenant_limit_rpc
+[33mfb2a545[m replace hardcoded V logo with dynamic brand initial
+[33m08dff94[m update tenant limit logic and dashboard stats
+[33m1a792a7[m update multi-tenancy documentation end to end
+[33m61b43a2[m add add-tenant feature to super admin dashboard
+[33md2125ad[m add super panel link to admin sidebar
+[33m7d066cb[m update multi-tenancy documentation
+[33m320601f[m update rpc to use role based access control instead of hardcoded domain
+[33med03433[m secure tenant limit update rpc for super admin only
+[33md01bec5[m add super admin route and update tenant limit feature
+[33m7c524c3[m fix critical race condition with expired initial sessions
+[33mf8511a5[m update lead services to use tokenService and fix theme NPE
+[33mac47fdf[m update settings service to handle auth token reliably
+[33m2e56ab1[m fix theme loading race condition and error spam
+[33mbde934b[m update session handling to prevent processing hang
+[33md6e439e[m update domain validation normalization and improve error messages
+[33m99314bc[m fix login processing hang and enable embedded settings inheritance
+[33m4a21086[m update login error handling to prevent processing hang
+[33m0ba151a[m isolate onboarding settings per domain
+[33mc5f3620[m update normalize logic and add redirect debug params
+[33m088264f[m add domain column to users list and fix impersonation redirect
+[33m38c2147[m update AdminAuthController to support login via Supabase Auth
+[33m718a61f[m fix domain mismatch false positives and add auth redirection message
+[33m7fcb82e[m fix tenant login redirection and admin creation role
+[33m051636f[m update multi-tenancy documentation
+[33m27a152d[m fix multiple domain logic issues
+[33m8a069df[m single db with multiple domain logic
+[33m9478702[m single db with multiple domain logic
+[33m2311e4d[m[33m ([m[1;31morigin/feature/14-01-2026-multiple-tech-provide[m[33m, [m[1;32mfeature/14-01-2026-multiple-tech-provide[m[33m)[m Facebook multi domain onboard
+[33mf465b08[m Facebook multi domain onboard
+[33m5302cce[m Facebook LeadAds
+[33m3d64433[m Facebook onboarding
+[33mb3bef99[m[33m ([m[1;31morigin/feature/13-01-2026-fix-code[m[33m, [m[1;32mfeature/13-01-2026-fix-code[m[33m)[m Facebook lead
+[33m2099dd0[m Faviiocn option given
+[33md9144e7[m Faviiocn option given
+[33m74299c6[m Updated the brand and remove upshopi
+[33mb82e68e[m[33m ([m[1;32mfeature/13-01-2026-google-sheet-implemention[m[33m)[m Google sheet implementation
+[33mfd92643[m[33m ([m[1;31morigin/feature/12-01-2026-campgine-multiple-number[m[33m, [m[1;32mfeature/12-01-2026-campgine-multiple-number[m[33m)[m removed v icon from signn and for both
+[33me055d9c[m updated the code for campgin custom number::
+[33m8628322[m updated the code
+[33m2a776ce[m updated the code
+[33m398b525[m updated the code
+[33mb3c2d70[m[33m ([m[1;31morigin/feature/11-01-2026-Deployment-clean[m[33m, [m[1;32mfeature/11-01-2026-Deployment-clean[m[33m)[m updated the code
+[33m2737d7d[m updated the code
+[33m31e92c2[m updated the code
+[33m7502ec4[m updated the code
+[33m4de5b9a[m updated the code
+[33m8339dc4[m updated the code
+[33mc0a8918[m updated the code
+[33m4f4cf42[m updated the code
+[33mc9d14fb[m[33m ([m[1;32mmaster[m[33m)[m Recovered Deployment Code
