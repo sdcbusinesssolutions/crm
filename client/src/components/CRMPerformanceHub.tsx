@@ -92,7 +92,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* 1. HERO: Lead CRM Section (Left/Top) - ROYAL BLUE PRO */}
                 <div
                     onClick={() => onNavigate('Contacts')}
-                    className="flex-1 min-h-[360px] bg-blue-600 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-600/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-blue-500 hover:border-blue-400"
+                    className="flex-1 min-h-[360px] bg-blue-600 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-600/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-[#033025] hover:border-blue-400"
                 >
                     {/* Background Decor - clean modern blobs */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -115,7 +115,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     <div className="grid grid-cols-2 gap-4 relative z-10 mt-6 mb-4">
 
                         {/* 1. Active Leads Donut Card */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col items-center justify-center border border-white/10 hover:bg-black/20 transition-colors cursor-pointer" onClick={() => onNavigate('Contacts')}>
+                        {/* 1. Active Leads Donut Card */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col items-center justify-center border border-[#033025] hover:bg-black/20 transition-colors cursor-pointer" onClick={() => onNavigate('Contacts')}>
                             <div className="relative w-24 h-24 sm:w-28 sm:h-28 group/donut">
                                 <svg viewBox="0 0 36 36" className="w-full h-full rotate-[-90deg]">
                                     {/* Stats Calculation */}
@@ -160,54 +161,39 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         </div>
 
                         {/* 2. Followup Status Card */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
+                        {/* 2. Followup Status Card */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-1">
                                 <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</h4>
                             </div>
 
-                            <div className="flex-1 w-full h-full flex items-end justify-center">
-                                <svg viewBox="0 0 160 80" className="w-full h-full overflow-visible">
-                                    {(() => {
-                                        const bars = [
-                                            { label: 'Today', val: stats?.taskStats?.today || 0, color: '#fbbf24', short: 'Today' },
-                                            { label: 'Upcoming', val: Math.max((stats?.taskStats?.total || 0) - (stats?.taskStats?.completed || 0) - (stats?.taskStats?.due || 0), 0), color: '#60a5fa', short: 'Next' },
-                                            { label: 'Overdue', val: stats?.taskStats?.due || 0, color: '#f43f5e', short: 'Late' },
-                                            { label: 'Done', val: stats?.taskStats?.completed || 0, color: '#34d399', short: 'Done' }
-                                        ];
+                            <div className="flex flex-col gap-2 w-full mt-2">
+                                {(() => {
+                                    const taskData = [
+                                        { label: 'Today', val: stats?.taskStats?.today || 0, color: 'bg-amber-400', max: 10 },
+                                        { label: 'Next', val: Math.max((stats?.taskStats?.total || 0) - (stats?.taskStats?.completed || 0) - (stats?.taskStats?.due || 0), 0), color: 'bg-blue-400', max: 20 },
+                                        { label: 'Late', val: stats?.taskStats?.due || 0, color: 'bg-rose-500', max: 10 },
+                                        { label: 'Done', val: stats?.taskStats?.completed || 0, color: 'bg-emerald-400', max: 20 }
+                                    ];
 
-                                        const maxVal = Math.max(...bars.map(b => b.val), 5); // Avoid div by zero
+                                    // Find local max for scale, ensure at least 1 to avoid div/0
+                                    const localMax = Math.max(...taskData.map(d => d.val), 5);
 
-                                        return bars.map((bar, i) => {
-                                            const h = (bar.val / maxVal) * 55; // Max height 55px
-                                            const x = 15 + (i * 36); // Spacing
+                                    return taskData.map((item, i) => (
+                                        <div key={i} className="flex items-center gap-2 w-full">
+                                            <div className="w-8 text-[9px] font-bold text-blue-100 uppercase tracking-wider text-right">{item.label}</div>
 
-                                            return (
-                                                <g key={i} className="group/bar cursor-pointer">
-                                                    {/* Bar */}
-                                                    <rect
-                                                        x={x}
-                                                        y={60 - h}
-                                                        width="20"
-                                                        height={h}
-                                                        fill={bar.color}
-                                                        rx="3"
-                                                        className="opacity-80 group-hover/bar:opacity-100 transition-all"
-                                                    />
-                                                    {/* Value Label */}
-                                                    {bar.val > 0 && (
-                                                        <text x={x + 10} y={60 - h - 5} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" opacity="0.9">{bar.val}</text>
-                                                    )}
+                                            <div className="flex-1 h-1.5 bg-black/20 rounded-full overflow-hidden relative">
+                                                <div
+                                                    className={`h-full rounded-full ${item.color} shadow-[0_0_8px_currentColor]`}
+                                                    style={{ width: `${(item.val / localMax) * 100}%`, minWidth: '4px' }}
+                                                />
+                                            </div>
 
-                                                    {/* Axis Label */}
-                                                    <text x={x + 10} y={74} textAnchor="middle" fill="white" fontSize="9" fontWeight="medium" opacity="0.6" className="uppercase tracking-tight" style={{ fontSize: '9px' }}>{bar.short}</text>
-
-                                                    {/* Tooltip Title */}
-                                                    <title>{bar.label}: {bar.val}</title>
-                                                </g>
-                                            );
-                                        });
-                                    })()}
-                                </svg>
+                                            <div className="w-5 text-[9px] font-bold text-white text-left">{item.val}</div>
+                                        </div>
+                                    ));
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -217,7 +203,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                         {/* 1. Message Impact (Nested Metric) */}
                         {/* 1. Engagement Score (Gauge) */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
+                        {/* 1. Engagement Score (Gauge) */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start">
                                 <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Engagement Score</h4>
                                 <Icons.Activity className="w-3 h-3 text-cyan-300 opacity-60" />
@@ -264,7 +251,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         </div>
 
                         {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
+                        {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-2">
                                 <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider whitespace-nowrap">Pipeline Funnel</h4>
                             </div>
