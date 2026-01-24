@@ -160,19 +160,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     </div>
                                 </div>
                             </div>
-                            {/* Trend Sparkline (New Leads) */}
-                            <div className="h-6 w-24 ml-1 mt-2 relative">
-                                <svg viewBox="0 0 80 20" className="w-full h-full overflow-visible">
-                                    {(() => {
-                                        const data = (stats?.leadsChartData?.length && stats.leadsChartData.length > 1)
-                                            ? stats.leadsChartData.slice(-7)
-                                            : Array(7).fill(0).map((_, i) => ({ count: Math.random() * 5 + 2 }));
-                                        const max = Math.max(...data.map((d: any) => d.count)) || 5;
-                                        const points = data.map((d: any, i: number) => `${(i / (data.length - 1)) * 80},${20 - ((d.count / max) * 15)}`).join(' ');
-                                        return <polyline points={points} fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />;
-                                    })()}
-                                </svg>
-                            </div>
+
                         </div>
 
                         {/* Followup Status (Bar Chart) */}
