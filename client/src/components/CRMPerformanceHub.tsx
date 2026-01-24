@@ -108,10 +108,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 <h2 className="text-base font-bold tracking-tight text-white uppercase leading-tight">Lead CRM</h2>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse box-shadow-[0_0_8px_rgba(74,222,128,0.5)]"></div>
-                            <span className="text-[10px] font-bold text-white uppercase tracking-wider">System Live</span>
-                        </div>
+
                     </div>
 
                     {/* Main Stats Row & Trend Line */}
@@ -130,16 +127,23 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                             return (
                                                 <>
-                                                    {/* Background Circle */}
-                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                                                    <defs>
+                                                        <linearGradient id="leadDonutGrad" x1="0" y1="0" x2="1" y2="1">
+                                                            <stop offset="0%" stopColor="#ef4444" />
+                                                            <stop offset="100%" stopColor="#eab308" />
+                                                        </linearGradient>
+                                                    </defs>
 
-                                                    {/* Active Leads Slice (Cyan) */}
-                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round"
-                                                        strokeDasharray={`${activePct}, 100`} className="drop-shadow-[0_0_4px_rgba(34,211,238,0.5)]" />
+                                                    {/* Background Circle (Dark Track) */}
+                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="3" />
 
-                                                    {/* New Leads Indicator (Small overlaid arc or dot?) -> Let's use a dot on the ring start */}
+                                                    {/* Active Leads Slice (Red-Orange Gradient) */}
+                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#leadDonutGrad)" strokeWidth="3" strokeLinecap="round"
+                                                        strokeDasharray={`${activePct}, 100`} className="drop-shadow-[0_0_5px_rgba(239,68,68,0.6)]" />
+
+                                                    {/* New Leads Indicator */}
                                                     {newLeads > 0 && (
-                                                        <circle cx="18" cy="2.1" r="1.5" fill="#f59e0b" className="animate-pulse" stroke="white" strokeWidth="0.5">
+                                                        <circle cx="18" cy="2.1" r="1.5" fill="#ffffff" className="animate-pulse" stroke="rgba(0,0,0,0.5)" strokeWidth="0.5">
                                                             <title>{newLeads} New Today</title>
                                                         </circle>
                                                     )}
@@ -165,17 +169,20 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                         {/* Followup Status (Bar Chart) */}
                         <div className="hidden sm:flex flex-col items-end mb-1">
-                            <div className="w-28 h-10 relative group/chart">
-                                <svg viewBox="0 0 120 50" className="w-full h-full overflow-visible">
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</span>
+                            </div>
+                            <div className="w-28 h-14 relative group/chart">
+                                <svg viewBox="0 0 120 70" className="w-full h-full overflow-visible">
                                     {/* X-Axis Line */}
-                                    <line x1="0" y1="50" x2="120" y2="50" stroke="white" strokeOpacity="0.2" strokeWidth="1" />
+                                    {/* <line x1="0" y1="50" x2="120" y2="50" stroke="white" strokeOpacity="0.2" strokeWidth="1" /> */}
 
                                     {(() => {
                                         const bars = [
-                                            { label: 'Today', val: stats?.taskStats?.today || 0, color: '#fbbf24' },     // Amber
-                                            { label: 'Upcoming', val: Math.max((stats?.taskStats?.total || 0) - (stats?.taskStats?.completed || 0) - (stats?.taskStats?.due || 0), 0), color: '#60a5fa' }, // Blue
-                                            { label: 'Overdue', val: stats?.taskStats?.due || 0, color: '#f43f5e' },     // Rose
-                                            { label: 'Done', val: stats?.taskStats?.completed || 0, color: '#34d399' }   // Emerald
+                                            { label: 'Today', val: stats?.taskStats?.today || 0, color: '#fbbf24', short: 'Today' },
+                                            { label: 'Upcoming', val: Math.max((stats?.taskStats?.total || 0) - (stats?.taskStats?.completed || 0) - (stats?.taskStats?.due || 0), 0), color: '#60a5fa', short: 'Next' },
+                                            { label: 'Overdue', val: stats?.taskStats?.due || 0, color: '#f43f5e', short: 'Late' },
+                                            { label: 'Done', val: stats?.taskStats?.completed || 0, color: '#34d399', short: 'Done' }
                                         ];
 
                                         const maxVal = Math.max(...bars.map(b => b.val), 5); // Avoid div by zero
@@ -196,11 +203,13 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                                         rx="2"
                                                         className="opacity-80 group-hover/bar:opacity-100 transition-all"
                                                     />
-                                                    {/* Hover Label (Tooltip mimic inside SVG?? No, better use HTML overlay or simple text) */}
-                                                    {/* Simple Value Label on top if space? */}
+                                                    {/* Value Label */}
                                                     {bar.val > 0 && (
-                                                        <text x={x + 8} y={50 - h - 3} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" opacity="0.8">{bar.val}</text>
+                                                        <text x={x + 8} y={50 - h - 4} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" opacity="0.9">{bar.val}</text>
                                                     )}
+
+                                                    {/* Axis Label */}
+                                                    <text x={x + 8} y={62} textAnchor="middle" fill="white" fontSize="8" fontWeight="medium" opacity="0.6" className="uppercase tracking-tight" style={{ fontSize: '7px' }}>{bar.short}</text>
 
                                                     {/* Tooltip Title */}
                                                     <title>{bar.label}: {bar.val}</title>
@@ -209,9 +218,6 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         });
                                     })()}
                                 </svg>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[9px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</span>
                             </div>
                         </div>
                     </div>
@@ -394,7 +400,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 
