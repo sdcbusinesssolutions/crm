@@ -82,7 +82,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     const leadPercentage = totalLeads > 0 ? Math.min((newLeads / totalLeads) * 100 * 10, 100) : 0;
 
     return (
-        <div className="w-full bg-white/60 backdrop-blur-3xl border border-white/60 rounded-[40px] p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
+        <div className="w-full bg-white/60 backdrop-blur-3xl border border-[#07553F] rounded-[40px] p-8 shadow-xl shadow-slate-200/50 relative overflow-hidden group">
             <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/40 to-transparent opacity-50 pointer-events-none" />
 
             <div className="flex flex-col xl:flex-row gap-8 relative z-10 w-full">
@@ -92,7 +92,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* 1. HERO: Lead CRM Section (Left/Top) - ROYAL BLUE PRO */}
                 <div
                     onClick={() => onNavigate('Contacts')}
-                    className="flex-1 min-h-[360px] bg-blue-500 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-500/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-[#033025] hover:border-blue-400"
+                    className="flex-1 min-h-[360px] bg-blue-500 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-blue-500/30 cursor-pointer group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between border border-[#07553F] hover:border-blue-400"
                 >
                     {/* Background Decor - clean modern blobs */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -116,7 +116,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                         {/* 1. Active Leads Donut Card */}
                         {/* 1. Active Leads Donut Card */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col items-center justify-center border border-[#033025] hover:bg-black/20 transition-colors cursor-pointer" onClick={() => onNavigate('Contacts')}>
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col items-center justify-center border border-[#07553F] hover:bg-black/20 transition-colors cursor-pointer" onClick={() => onNavigate('Contacts')}>
                             <div className="relative w-24 h-24 sm:w-28 sm:h-28 group/donut">
                                 <svg viewBox="0 0 36 36" className="w-full h-full rotate-[-90deg]">
                                     {/* Stats Calculation */}
@@ -162,7 +162,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                         {/* 2. Followup Status Card */}
                         {/* 2. Followup Status Card */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#07553F] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-1">
                                 <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Followup Status</h4>
                             </div>
@@ -204,7 +204,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 1. Message Impact (Nested Metric) */}
                         {/* 1. Engagement Score (Gauge) */}
                         {/* 1. Engagement Score (Gauge) */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#07553F] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start">
                                 <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Engagement Score</h4>
                                 <Icons.Activity className="w-3 h-3 text-white opacity-60" />
@@ -252,7 +252,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                         {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
                         {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#033025] hover:bg-black/20 transition-colors">
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-[#07553F] hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-2">
                                 <h4 className="text-[10px] font-bold text-white uppercase tracking-wider whitespace-nowrap">Pipeline Funnel</h4>
                             </div>
@@ -307,20 +307,20 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* 2. GRID: 4 Key Metrics (Right/Bottom) */}
                 <div className="flex-[1.5] grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-                    {/* Card 1: Followup */}
-                    <div onClick={() => onNavigate('Contacts')} className="bg-[#10b981] text-white rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-lg hover:shadow-emerald-500/20 transition-all hover:-translate-y-1 border border-emerald-400/20">
+                    {/* Card 1: Templates */}
+                    <div onClick={() => onNavigate('Templates' as any)} className="bg-[#10b981] text-white rounded-3xl p-6 relative overflow-hidden group/card cursor-pointer hover:shadow-lg hover:shadow-emerald-500/20 transition-all hover:-translate-y-1 border border-emerald-400/20">
                         <div className="absolute -right-4 -top-4 p-4 opacity-20 transform rotate-12 group-hover/card:rotate-0 transition-transform duration-500">
-                            <Icons.Check className="w-32 h-32" />
+                            <Icons.Template className="w-32 h-32" />
                         </div>
                         <div className="relative z-10 flex flex-col h-full justify-between gap-4">
                             <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg border border-white/10">
-                                <Icons.Users className="w-6 h-6" />
+                                <Icons.Template className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-4xl font-black mb-1">{stats?.taskStats?.today || 0}</h3>
-                                <div className="text-white font-bold text-xs uppercase tracking-wider mb-2">Today Followup</div>
+                                <h3 className="text-4xl font-black mb-1">{stats?.summary.totalTemplates || 0}</h3>
+                                <div className="text-white font-bold text-xs uppercase tracking-wider mb-2">WhatsApp Templates</div>
                                 <span className="inline-flex items-center px-3 py-1.5 bg-black/20 rounded-lg text-[11px] font-bold text-white border border-white/10">
-                                    {stats?.taskStats?.due || 0} Pending Tasks
+                                    {stats?.templateStats?.approved || 0} Approved
                                 </span>
                             </div>
                         </div>
