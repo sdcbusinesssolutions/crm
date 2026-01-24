@@ -68,7 +68,8 @@ const Icons = {
     Download: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>,
     WhatsApp: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" /></svg>,
     Link: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>,
-    Menu: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+    Menu: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>,
+    Activity: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
 };
 
 // --- Custom Complex Chart Components ---
@@ -104,8 +105,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 <Icons.Users className="w-5 h-5 text-white" />
                             </div>
                             <div>
-                                <h2 className="text-base font-bold tracking-tight text-white uppercase leading-tight">Audience</h2>
-                                <p className="text-[10px] text-blue-100 font-medium">Lead Intelligence</p>
+                                <h2 className="text-base font-bold tracking-tight text-white uppercase leading-tight">Lead CRM</h2>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
@@ -118,74 +118,112 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     <div className="flex items-end justify-between relative z-10 mt-6 mb-6">
                         <div>
                             <div className="flex items-end gap-3">
-                                <h3 className="text-[3.5rem] font-black text-white tracking-tighter leading-[0.9] drop-shadow-sm">
-                                    {totalLeads.toLocaleString()}
-                                </h3>
-                                <div className="mb-2 px-2 py-1 bg-white/20 rounded-lg backdrop-blur-md border border-white/10 flex items-center gap-1">
-                                    <Icons.Plus className="w-3 h-3 text-white" />
-                                    <span className="text-xs font-bold text-white">{newLeads} New</span>
+                                {/* Total Leads Donut Chart */}
+                                <div className="relative w-28 h-28 group/donut cursor-pointer">
+                                    <svg viewBox="0 0 36 36" className="w-full h-full rotate-[-90deg]">
+                                        {/* Stats Calculation */}
+                                        {(() => {
+                                            const total = totalLeads || 1;
+                                            const active = stats?.summary.activeLeads || 0;
+                                            const activePct = (active / total) * 100;
+                                            // Inactive = 100 - activePct
+
+                                            return (
+                                                <>
+                                                    {/* Background Circle */}
+                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+
+                                                    {/* Active Leads Slice (Cyan) */}
+                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#22d3ee" strokeWidth="3" strokeLinecap="round"
+                                                        strokeDasharray={`${activePct}, 100`} className="drop-shadow-[0_0_4px_rgba(34,211,238,0.5)]" />
+
+                                                    {/* New Leads Indicator (Small overlaid arc or dot?) -> Let's use a dot on the ring start */}
+                                                    {newLeads > 0 && (
+                                                        <circle cx="18" cy="2.1" r="1.5" fill="#f59e0b" className="animate-pulse" stroke="white" strokeWidth="0.5">
+                                                            <title>{newLeads} New Today</title>
+                                                        </circle>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </svg>
+
+                                    {/* Center Content: Total Count */}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        <span className="text-3xl font-black text-white leading-none drop-shadow-md">{totalLeads}</span>
+                                        <span className="text-[10px] uppercase font-bold text-blue-100 tracking-wider mt-0.5">Total</span>
+                                    </div>
+
+                                    {/* Hover Tooltip */}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover/donut:opacity-100 transition-opacity bg-black/80 backdrop-blur text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-none">
+                                        {stats?.summary.activeLeads} Active / {newLeads} New
+                                    </div>
                                 </div>
                             </div>
-                            <p className="text-blue-100/80 text-sm font-medium mt-1 ml-1">Total Unique Contacts</p>
+                            {/* Trend Sparkline (New Leads) */}
+                            <div className="h-6 w-24 ml-1 mt-2 relative">
+                                <svg viewBox="0 0 80 20" className="w-full h-full overflow-visible">
+                                    {(() => {
+                                        const data = (stats?.leadsChartData?.length && stats.leadsChartData.length > 1)
+                                            ? stats.leadsChartData.slice(-7)
+                                            : Array(7).fill(0).map((_, i) => ({ count: Math.random() * 5 + 2 }));
+                                        const max = Math.max(...data.map((d: any) => d.count)) || 5;
+                                        const points = data.map((d: any, i: number) => `${(i / (data.length - 1)) * 80},${20 - ((d.count / max) * 15)}`).join(' ');
+                                        return <polyline points={points} fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />;
+                                    })()}
+                                </svg>
+                            </div>
                         </div>
 
-                        {/* Followup Activity (Multi-Line Header) */}
+                        {/* Followup Status (Bar Chart) */}
                         <div className="hidden sm:flex flex-col items-end mb-1">
-                            <div className="w-28 h-10 relative">
-                                <svg viewBox="0 0 100 40" className="w-full h-full overflow-visible">
-                                    <defs>
-                                        <linearGradient id="lineGrad1" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor="#34d399" stopOpacity="0.5" />
-                                            <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
+                            <div className="w-28 h-10 relative group/chart">
+                                <svg viewBox="0 0 120 50" className="w-full h-full overflow-visible">
+                                    {/* X-Axis Line */}
+                                    <line x1="0" y1="50" x2="120" y2="50" stroke="white" strokeOpacity="0.2" strokeWidth="1" />
+
                                     {(() => {
-                                        // Mock 2 trend lines based on msg data
-                                        const baseData = (stats?.chartData?.length && stats.chartData.length > 1)
-                                            ? stats.chartData.slice(-7)
-                                            : Array(7).fill(0).map((_, i) => ({ sent: Math.sin(i) * 3 + 5 }));
+                                        const bars = [
+                                            { label: 'Today', val: stats?.taskStats?.today || 0, color: '#fbbf24' },     // Amber
+                                            { label: 'Upcoming', val: Math.max((stats?.taskStats?.total || 0) - (stats?.taskStats?.completed || 0) - (stats?.taskStats?.due || 0), 0), color: '#60a5fa' }, // Blue
+                                            { label: 'Overdue', val: stats?.taskStats?.due || 0, color: '#f43f5e' },     // Rose
+                                            { label: 'Done', val: stats?.taskStats?.completed || 0, color: '#34d399' }   // Emerald
+                                        ];
 
-                                        const max = Math.max(...baseData.map((d: any) => d.sent)) || 10;
+                                        const maxVal = Math.max(...bars.map(b => b.val), 5); // Avoid div by zero
 
-                                        // Line 1: Completed (Green)
-                                        const points1 = baseData.map((d: any, i: number) => {
-                                            const val = d.sent * 0.8; // Assume 80% completion rate
-                                            const x = (i / (baseData.length - 1)) * 100;
-                                            const y = 40 - ((val / max) * 35);
-                                            return `${x},${y}`;
-                                        }).join(' ');
+                                        return bars.map((bar, i) => {
+                                            const h = (bar.val / maxVal) * 45; // Max height 45px
+                                            const x = 10 + (i * 28); // Spacing
 
-                                        // Line 2: Pending (Orange) - slightly offset
-                                        const points2 = baseData.map((d: any, i: number) => {
-                                            const val = d.sent * 0.4 + (Math.cos(i) * 2);
-                                            const x = (i / (baseData.length - 1)) * 100;
-                                            const y = 40 - ((val / max) * 35);
-                                            return `${x},${y}`;
-                                        }).join(' ');
+                                            return (
+                                                <g key={i} className="group/bar cursor-pointer">
+                                                    {/* Bar */}
+                                                    <rect
+                                                        x={x}
+                                                        y={50 - h}
+                                                        width="16"
+                                                        height={h}
+                                                        fill={bar.color}
+                                                        rx="2"
+                                                        className="opacity-80 group-hover/bar:opacity-100 transition-all"
+                                                    />
+                                                    {/* Hover Label (Tooltip mimic inside SVG?? No, better use HTML overlay or simple text) */}
+                                                    {/* Simple Value Label on top if space? */}
+                                                    {bar.val > 0 && (
+                                                        <text x={x + 8} y={50 - h - 3} textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" opacity="0.8">{bar.val}</text>
+                                                    )}
 
-                                        return (
-                                            <g>
-                                                {/* Completed Line */}
-                                                <path d={`M0,40 L${points1} L100,40 Z`} fill="url(#lineGrad1)" opacity="0.3" />
-                                                <polyline points={points1} fill="none" stroke="#34d399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
-                                                {/* Pending Line */}
-                                                <polyline points={points2} fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="2,2" />
-
-                                                {/* End Dots */}
-                                                <circle cx="100" cy={40 - ((baseData[baseData.length - 1].sent * 0.8 / max) * 35)} r="2" fill="#34d399" stroke="white" strokeWidth="1" />
-                                                <circle cx="100" cy={40 - (((baseData[baseData.length - 1].sent * 0.4 + Math.cos(6) * 2) / max) * 35)} r="2" fill="#fbbf24" stroke="white" strokeWidth="1" />
-                                            </g>
-                                        );
+                                                    {/* Tooltip Title */}
+                                                    <title>{bar.label}: {bar.val}</title>
+                                                </g>
+                                            );
+                                        });
                                     })()}
                                 </svg>
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                                <div className="flex items-center gap-1">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div>
-                                </div>
-                                <span className="text-[9px] font-bold text-blue-100 uppercase tracking-wider">Activity Trend</span>
+                                <span className="text-[9px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</span>
                             </div>
                         </div>
                     </div>
@@ -193,43 +231,51 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     {/* Analytics Grid */}
                     <div className="flex-1 grid grid-cols-2 gap-4 relative z-10">
 
-                        {/* 1. Active Ratio (Donut with Gauge Look) */}
-                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 relative overflow-hidden hover:bg-black/20 transition-colors">
+                        {/* 1. Message Impact (Nested Metric) */}
+                        {/* 1. Engagement Score (Gauge) */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start">
-                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Engagement</h4>
-                                <Icons.Filter className="w-3 h-3 text-blue-300 opacity-50" />
+                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Engagement Score</h4>
+                                <Icons.Activity className="w-3 h-3 text-cyan-300 opacity-60" />
                             </div>
 
-                            <div className="flex items-center gap-4 mt-2">
-                                {/* Donut Chart */}
-                                <div className="relative w-12 h-12 flex-shrink-0">
-                                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                                        {/* Background Ring */}
-                                        <circle cx="18" cy="18" r="15.9155" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
-                                        {/* Value Ring */}
-                                        <circle
-                                            cx="18" cy="18" r="15.9155"
-                                            fill="none"
-                                            stroke="white"
-                                            strokeWidth="3"
-                                            strokeLinecap="round"
-                                            strokeDasharray={`${stats?.summary.activeLeads ? (stats.summary.activeLeads / (totalLeads || 1)) * 100 : 0}, 100`}
-                                            className="transition-all duration-1000 ease-out drop-shadow-[0_0_4px_rgba(255,255,255,0.5)]"
-                                        />
-                                    </svg>
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <span className="text-[8px] font-bold text-white">
-                                            {totalLeads > 0 ? Math.round(((stats?.summary.activeLeads || 0) / totalLeads) * 100) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                {/* Stats Text */}
-                                <div>
-                                    <span className="block text-xl font-bold text-white leading-none">
-                                        {(stats?.summary.activeLeads || 0).toLocaleString()}
-                                    </span>
-                                    <span className="text-[10px] text-blue-200 font-medium">Active Leads</span>
-                                </div>
+                            <div className="flex-1 relative w-full h-full min-h-[60px] flex items-end justify-center pb-2">
+                                <svg viewBox="0 0 100 60" className="w-full h-full overflow-visible">
+                                    <defs>
+                                        <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0%" stopColor="#ef4444" />
+                                            <stop offset="50%" stopColor="#eab308" />
+                                            <stop offset="100%" stopColor="#22d3ee" />
+                                        </linearGradient>
+                                    </defs>
+
+                                    {/* Gauge Background */}
+                                    <path d="M10,50 A40,40 0 1,1 90,50" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" strokeLinecap="round" />
+
+                                    {/* Value Arc */}
+                                    {(() => {
+                                        const total = stats?.summary?.totalContacts || 1;
+                                        const active = stats?.summary?.activeLeads || 0;
+                                        const score = Math.min((active / total) * 100, 100) || 0;
+
+                                        // Arc Length for 100% (180 deg) at r=40 is PI*40 approx 125.6
+                                        // But this is just dasharray trick
+                                        const r = 40;
+                                        const circ = Math.PI * r; // Half circle length
+                                        const dash = (score / 100) * circ;
+
+                                        return (
+                                            <>
+                                                <path d="M10,50 A40,40 0 1,1 90,50" fill="none" stroke="url(#gaugeGrad)" strokeWidth="8" strokeLinecap="round"
+                                                    strokeDasharray={`${dash}, ${circ}`} className="drop-shadow-[0_0_4px_rgba(34,211,238,0.4)] transition-all duration-1000" />
+
+                                                {/* Text Score */}
+                                                <text x="50" y="45" textAnchor="middle" className="fill-white text-lg font-bold">{Math.round(score)}</text>
+                                                <text x="50" y="58" textAnchor="middle" className="fill-blue-200 text-[8px] font-medium uppercase tracking-widest">Active %</text>
+                                            </>
+                                        );
+                                    })()}
+                                </svg>
                             </div>
                         </div>
 
