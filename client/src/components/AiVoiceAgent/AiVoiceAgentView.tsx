@@ -21,26 +21,40 @@ const AiVoiceAgentView: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4">
-                            <MicrophoneIcon className="w-6 h-6" />
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_voice.png"
+                                alt="AI Voice Agent Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
                         </div>
-                        <h3 className="font-bold text-slate-800 mb-1">Ai Voice agent</h3>
-                        <p className="text-sm text-slate-400">Clone realistic voices for your agents</p>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Voice Agent</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Clone realistic voices for your agents</p>
                     </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4">
-                            <RobotIcon className="w-6 h-6" />
+
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_chat.png"
+                                alt="AI Chatbot Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
                         </div>
-                        <h3 className="font-bold text-slate-800 mb-1">Ai Chatbot</h3>
-                        <p className="text-sm text-slate-400">Advanced NLP for natural conversations</p>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Chatbot</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Advanced NLP for natural conversations</p>
                     </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4">
-                            <PhoneIcon className="w-6 h-6" />
+
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_task.png"
+                                alt="Task Management Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
                         </div>
-                        <h3 className="font-bold text-slate-800 mb-1">Call Management</h3>
-                        <p className="text-sm text-slate-400">Handle inbound and outbound calls</p>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Task Management</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
                     </div>
                 </div>
 
