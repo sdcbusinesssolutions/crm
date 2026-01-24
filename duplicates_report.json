@@ -1,0 +1,18 @@
+{
+  "user": "35d4fe7d-753d-43da-85fb-a32b6f66133e",
+  "totalFetched": 1000,
+  "totalCountDB": 1025,
+  "uniquePhones": 1000,
+  "duplicateCount": 0,
+  "duplicates": [],
+  "groups": [
+    {
+      "id": "5534d0b3-0a81-42ea-b4c2-b943764e9e6e",
+      "name": "TEST02"
+    },
+    {
+      "id": "3e0ee92a-f5e2-4d61-a8e8-fba9c3d94ef2",
+      "name": "TEST01"
+    }
+  ]
+}

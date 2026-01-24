@@ -32,8 +32,21 @@ async function getMetaLimits(phoneNumberId, accessToken) {
             `${GRAPH_API_URL}/${phoneNumberId}?fields=messaging_limit_tier`,
             { headers: { 'Authorization': `Bearer ${accessToken}` } }
         );
-        const limits = { 'TIER_1': 1000, 'TIER_50': 50, 'TIER_250': 250, 'TIER_2': 10000, 'TIER_3': 100000, 'TIER_4': 1000000000 };
+        const limits = {
+            'TIER_50': 50,
+            'TIER_250': 250,
+            'TIER_1K': 1000,
+            'TIER_10K': 10000,
+            'TIER_100K': 100000,
+            'TIER_UNLIMITED': 1000000000,
+            // Legacy/Fallback Mappings
+            'TIER_1': 1000,
+            'TIER_2': 10000,
+            'TIER_3': 100000,
+            'TIER_4': 1000000000
+        };
         const tier = response.data.messaging_limit_tier || 'TIER_250';
+        console.log(`[Meta Limits] Phone ID: ${phoneNumberId}, Verified Tier: ${tier}, Limit: ${limits[tier] || 250}`);
         return { tier, limit: limits[tier] || 250 };
     } catch (error) {
         console.error('Error fetching limits:', error.message);
