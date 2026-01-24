@@ -1,5 +1,5 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData } from '../types';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData } from '../types';
 import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
@@ -1660,6 +1660,79 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
     );
 };
 
+// --- Sheet Trigger Settings Panel ---
+const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const handleUpdate = (update: Partial<SheetTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+
+    return (
+        <SettingsModal title="Google Sheet Trigger" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables}>
+            <div className="space-y-6">
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <div className="mb-4">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Connection</label>
+                        <PanelSelect
+                            value={data.credentialId || ''}
+                            onChange={(val: any) => handleUpdate({ credentialId: val })}
+                            options={[{ label: 'Select Credential...', value: '' }, { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
+                        />
+                        <p className="text-[10px] text-slate-500 mt-1">Select the Google account to watch.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spreadsheet ID</label>
+                            <PanelTextInput
+                                value={data.spreadsheetId || ''}
+                                onChange={val => handleUpdate({ spreadsheetId: val })}
+                                placeholder="Spreadsheet ID (from URL)"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
+                            <PanelTextInput
+                                value={data.sheetName || ''}
+                                onChange={val => handleUpdate({ sheetName: val })}
+                                placeholder="Sheet1"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Column Header</label>
+                            <PanelTextInput
+                                value={data.phoneColumn || ''}
+                                onChange={val => handleUpdate({ phoneColumn: val })}
+                                placeholder="e.g. Phone"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Exact header name of the column containing phone numbers.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status Column (Optional)</label>
+                            <PanelTextInput
+                                value={data.statusColumn || ''}
+                                onChange={val => handleUpdate({ statusColumn: val })}
+                                placeholder="e.g. Status"
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">If set, will update this column to "Sent" after triggering.</p>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <p className="text-xs text-slate-300 font-medium">Trigger Behavior</p>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                        When this flow is published, the system will poll the specified sheet every few minutes.
+                        Any <strong>new rows</strong> added to the bottom of the sheet will trigger this flow.
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-2">
+                        The entire row content will be available as variables (e.g. <code>{`{{trigger.Name}}`}</code> if you have a 'Name' header).
+                    </p>
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 // --- Timing Settings Panel ---
 const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
     const { data } = selectedNode;
@@ -2928,6 +3001,79 @@ const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: Cont
                         <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email</label>
                             <PanelTextInput value={data.email || ''} onChange={val => handleUpdate({ email: val })} placeholder="{{trigger.email}} or Email" />
+                        </div>
+
+                        {/* Custom Fields Section */}
+                        <div className="pt-2 border-t border-slate-800/50">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Additional Fields</label>
+                                <button
+                                    onClick={() => handleUpdate({ customFields: [...(data.customFields || []), { key: '', value: '' }] })}
+                                    className="text-[10px] text-brand-400 hover:text-brand-300 font-bold uppercase flex items-center gap-1"
+                                >
+                                    <PlusIcon className="w-3 h-3" /> Add Field
+                                </button>
+                            </div>
+
+                            {/* Helpful Examples */}
+                            <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                <p className="text-[10px] text-blue-300 font-medium mb-1">💡 Common Field Names:</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {['company', 'budget', 'source', 'notes', 'website', 'city', 'country'].map(fieldName => (
+                                        <button
+                                            key={fieldName}
+                                            onClick={() => handleUpdate({ customFields: [...(data.customFields || []), { key: fieldName, value: '' }] })}
+                                            className="text-[9px] px-2 py-0.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded border border-blue-500/40 transition-colors"
+                                        >
+                                            {fieldName}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {data.customFields?.map((field, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <div className="flex-1">
+                                            <PanelTextInput
+                                                value={field.key}
+                                                onChange={(val) => {
+                                                    const newFields = [...(data.customFields || [])];
+                                                    newFields[index].key = val;
+                                                    handleUpdate({ customFields: newFields });
+                                                }}
+                                                placeholder="Field Name (e.g. company)"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <PanelTextInput
+                                                value={field.value}
+                                                onChange={(val) => {
+                                                    const newFields = [...(data.customFields || [])];
+                                                    newFields[index].value = val;
+                                                    handleUpdate({ customFields: newFields });
+                                                }}
+                                                placeholder="Value"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newFields = (data.customFields || []).filter((_, i) => i !== index);
+                                                handleUpdate({ customFields: newFields });
+                                            }}
+                                            className="text-slate-500 hover:text-red-400 p-1"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {(!data.customFields || data.customFields.length === 0) && (
+                                    <p className="text-[10px] text-slate-600 italic">No additional fields configured.</p>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2">
+                                <strong>Note:</strong> Only fields that exist in your <code className="text-amber-400">leads</code> database table will be saved. Click the suggestions above to quickly add common fields.
+                            </p>
                         </div>
                     </div>
                 </div>

@@ -1,6 +1,63 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+
+// Helper to sync Sheet Trigger nodes to sheet_automations table
+async function syncSheetTriggers(userId, flowId, nodes) {
+    if (!nodes || !Array.isArray(nodes)) return;
+
+    const triggerNodes = nodes.filter(n => n.type === 'sheetTrigger');
+    const db = supabaseAdmin;
+
+    console.log(`[FlowSync] Syncing triggers for Flow ${flowId}. Found ${triggerNodes.length} triggers.`);
+
+    if (triggerNodes.length === 0) {
+        // If no sheet triggers exist, delete any existing automation linked to this flow
+        // so we stop polling.
+        await db.from('sheet_automations').delete().eq('flow_id', flowId);
+        return;
+    }
+
+    // Support single trigger for now to avoid complexity
+    const node = triggerNodes[0];
+    const { connectionId, credentialId, spreadsheetId, sheetName, phoneColumn, statusColumn } = node.data;
+    const connId = connectionId || credentialId;
+
+    if (!connId || !spreadsheetId || !sheetName || !phoneColumn) {
+        console.warn(`[FlowSync] Incomplete Sheet Trigger config for Flow ${flowId}`);
+        return;
+    }
+
+    // Check if automation exists
+    const { data: existing } = await db.from('sheet_automations').select('id').eq('flow_id', flowId).single();
+
+    const payload = {
+        user_id: userId,
+        name: `Trigger: ${node.data.label || 'New Row'} (Flow)`,
+        automation_type: 'new_row',
+        connection_id: connId,
+        spreadsheet_id: spreadsheetId,
+        sheet_name: sheetName,
+        flow_id: flowId,
+        status: 'active',
+        mapping_config: {
+            phone_col: phoneColumn,
+            status_column: statusColumn,
+            params: {} // No params needed, full row is passed
+        },
+        // Reset last_run if it's a new config? Maybe better not to to avoid re-processing old rows.
+        // We rely on last_processed_row_index which is auto-managed.
+    };
+
+    if (existing) {
+        await db.from('sheet_automations').update(payload).eq('id', existing.id);
+        console.log(`[FlowSync] Updated automation ${existing.id}`);
+    } else {
+        const { error } = await db.from('sheet_automations').insert(payload);
+        if (error) console.error('[FlowSync] Insert Error:', error);
+        else console.log(`[FlowSync] Created new automation for Flow ${flowId}`);
+    }
+}
 
 // GET / - List all flows
 router.get('/', async (req, res) => {
@@ -74,6 +131,12 @@ router.post('/', async (req, res) => {
             .single();
 
         if (error) throw error;
+
+        // Sync Triggers
+        if (nodes && nodes.length > 0) {
+            await syncSheetTriggers(user.id, data.id, nodes);
+        }
+
         res.status(201).json(data);
     } catch (error) {
         console.error('Error creating flow:', error);
@@ -110,6 +173,13 @@ router.put('/:id', async (req, res) => {
             .single();
 
         if (error) throw error;
+
+        // Sync Triggers
+        if (nodes !== undefined) {
+            // We need user_id. We can get it from the updated flow data or req.auth
+            await syncSheetTriggers(data.user_id, id, nodes);
+        }
+
         res.json(data);
     } catch (error) {
         console.error('Error updating flow:', error);
@@ -134,6 +204,10 @@ router.delete('/:id', async (req, res) => {
             .eq('id', id);
 
         if (error) throw error;
+
+        // Also cleanup automations
+        await supabaseAdmin.from('sheet_automations').delete().eq('flow_id', id);
+
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting flow:', error);

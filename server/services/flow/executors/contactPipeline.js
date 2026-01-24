@@ -3,7 +3,7 @@ const { resolve } = require('../context');
 
 const execute = async (session, node, context) => {
     try {
-        const { pipelineId, stageId, name, email } = node.data;
+        const { pipelineId, stageId, name, email, customFields } = node.data;
         const phone = session.contact_phone;
         const userId = session.user_id;
 
@@ -68,6 +68,20 @@ const execute = async (session, node, context) => {
             if (resolvedName) updates.name = resolvedName;
             if (resolvedEmail) updates.email = resolvedEmail;
 
+            // Process Custom Fields
+            if (customFields && Array.isArray(customFields)) {
+                customFields.forEach(field => {
+                    const key = field.key?.trim();
+                    if (key) {
+                        const val = resolve(field.value, context);
+                        // Add to updates only if not empty (or should we allow clearing?)
+                        // User request: "only update the filed when using" - implies merge
+                        // We will allow empty strings to clear if user explicitly passed empty
+                        updates[key] = val;
+                    }
+                });
+            }
+
             const { data: updated, error: updateError } = await rpcClient
                 .from('leads')
                 .update(updates)
@@ -88,10 +102,24 @@ const execute = async (session, node, context) => {
                 stage_id: resolvedStageId,
                 name: resolvedName || session.variables.trigger?.name || phone, // Fallback
                 email: resolvedEmail || '',
+            };
+
+            // Process Custom Fields for New Lead
+            if (customFields && Array.isArray(customFields)) {
+                customFields.forEach(field => {
+                    const key = field.key?.trim();
+                    if (key) {
+                        newLead[key] = resolve(field.value, context);
+                    }
+                });
+            }
+
+            // Continue with standard fields
+            Object.assign(newLead, {
                 source: 'flow_automation',
                 status: 'active',
                 type: 'Lead'
-            };
+            });
 
             const { data: created, error: createError } = await rpcClient
                 .from('leads')

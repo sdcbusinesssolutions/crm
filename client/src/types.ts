@@ -37,11 +37,22 @@ export enum NodeType {
   Calendar = 'calendar',
   PipelineTrigger = 'pipelineTrigger',
   TaskReminder = 'taskReminder',
+  SheetTrigger = 'sheetTrigger',
 }
 
 export interface NodeData {
   label: string;
   [key: string]: any;
+}
+
+export interface SheetTriggerData extends NodeData {
+  credentialId?: string; // connectionId
+  connectionId?: string;
+  spreadsheetId: string;
+  sheetName: string;
+  phoneColumn: string;
+  statusColumn?: string; // Optional: Write back status
+  triggerCondition?: ConditionRule[]; // Optional filter
 }
 
 export interface GmailData extends NodeData {
@@ -422,6 +433,7 @@ export type AnyNodeData =
   | ContactPipelineData
   | PipelineTriggerData
   | TaskReminderData
+  | SheetTriggerData
   | GmailData
   | CalendarData;
 
@@ -431,6 +443,7 @@ export interface ContactPipelineData extends NodeData {
   pipelineId: string;
   stageId: string;
   outputVariableName?: string;
+  customFields?: { key: string; value: string }[];
   // Deprecated: status (use stageId instead)
   status?: string;
 }

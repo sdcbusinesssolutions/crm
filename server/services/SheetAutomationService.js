@@ -508,6 +508,12 @@ class SheetAutomationService {
                 const lastIndex = auto.last_processed_row_index || 0;
                 const newRows = dataRows.slice(lastIndex);
 
+                const statusColName = auto.mapping_config?.status_column;
+                let statusColIndex = -1;
+                if (statusColName && headers) {
+                    statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
+                }
+
                 for (let i = 0; i < newRows.length; i++) {
                     const row = newRows[i];
                     const rowObj = this.mapRow(headers, row);
@@ -515,6 +521,11 @@ class SheetAutomationService {
                     try {
                         await this.sendMessageWithHistory(auto, rowObj, null);
                         logSummary.sent_successfully++;
+
+                        if (statusColIndex !== -1) {
+                            const rowIndex = lastIndex + i + 2;
+                            await this.writeStatus(authClient, spreadsheetId, auto.sheet_name, rowIndex, statusColIndex, 'Sent');
+                        }
                     } catch (e) {
                         // If reservation failed (duplicate), it throws 'Duplicate' error usually or we handle it?
                         // sendMessageWithHistory handles the flow. If it throws, it means send failed or reserve failed.
@@ -534,7 +545,14 @@ class SheetAutomationService {
 
             } else {
                 // Schedule or Manual Mode
-                for (const row of dataRows) {
+                const statusColName = auto.mapping_config?.status_column;
+                let statusColIndex = -1;
+                if (statusColName && headers) {
+                    statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
+                }
+
+                for (let i = 0; i < dataRows.length; i++) {
+                    const row = dataRows[i];
                     const rowObj = this.mapRow(headers, row);
 
                     // DEBUG: Log first row to verifying mapping
@@ -579,6 +597,11 @@ class SheetAutomationService {
                             console.log('[SheetAuto] Message Sent Successfully!');
                             // Success -> Add to local dedupe set
                             sentHashes.add(rowHash);
+
+                            if (statusColIndex !== -1) {
+                                const rowIndex = i + 2; // 1-based (header=1) + index
+                                await this.writeStatus(authClient, spreadsheetId, auto.sheet_name, rowIndex, statusColIndex, 'Sent');
+                            }
                         } catch (e) {
                             if (e.message === 'Skipped: Duplicate Pending/Sent') {
                                 logSummary.already_sent++;
@@ -945,6 +968,34 @@ class SheetAutomationService {
             return;
         }
 
+        // --- NEW LOGIC: Check if this is a Flow Trigger ---
+        if (auto.flow_id) {
+            console.log(`[SheetAuto] Triggering Flow ${auto.flow_id} for ${phone}`);
+
+            // Lazy load flowEngine to avoid circular dependency
+            const flowEngine = require('./flowEngine');
+
+            // Pass the entire row data as initial variables
+            // flowEngine expect userID, contactPhone, flowObject (or ID?), initialInput
+            // Wait, flowEngine.startFlow expects a flow OBJECT, not just ID.
+            // But we don't have the flow object here easily without fetching it.
+            // Let's modify flowEngine.startFlow OR fetch it here.
+
+            // Better: flowEngine.startFlowByTrigger allows generic starting?
+            // Let's use startFlow but we need to fetch the flow first.
+            const rpcClient = supabaseAdmin;
+            const { data: flows } = await rpcClient.from('flows').select('*').eq('id', auto.flow_id).single();
+            if (!flows) throw new Error(`Flow ${auto.flow_id} not found`);
+
+            // Normalize phone (strip +?) FlowEngine handles this usually but good to be safe.
+            let safePhone = phone.replace(/[^\d+]/g, '');
+
+            await flowEngine.startFlow(auto.user_id, safePhone, flows, rowObj);
+            return;
+        }
+
+        // --- OLD LOGIC: Template Message ---
+
         // Prepare Template Parameters
         const { template_name, language, components } = auto.template_config; // Stored struct
         const finalComponents = [];
@@ -1126,6 +1177,35 @@ class SheetAutomationService {
     }
     formatLog(summary) {
         return `Run complete: ${summary.sent_successfully} sent, ${summary.errors} errors, ${summary.already_sent} skipped.`;
+    }
+
+    async writeStatus(authClient, spreadsheetId, sheetName, rowIndex, colIndex, status) {
+        try {
+            const sheets = google.sheets({ version: 'v4', auth: authClient });
+            const colLetter = this.getColLetter(colIndex);
+            const range = `${sheetName}!${colLetter}${rowIndex}`;
+
+            await sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range,
+                valueInputOption: 'RAW',
+                requestBody: {
+                    values: [[status]]
+                }
+            });
+            console.log(`[SheetAuto] Updated status to '${status}' at ${range}`);
+        } catch (err) {
+            console.error('[SheetAuto] Failed to write status:', err.message);
+        }
+    }
+
+    getColLetter(n) {
+        let s = "";
+        while (n >= 0) {
+            s = String.fromCharCode(n % 26 + 65) + s;
+            n = Math.floor(n / 26) - 1;
+        }
+        return s;
     }
 }
 

@@ -17,6 +17,7 @@ const triggers = [
   { type: NodeType.NewLead, label: 'New Lead', icon: <UsersIcon /> },
   { type: NodeType.PipelineTrigger, label: 'Added to Pipeline', icon: <BookmarkIcon /> },
   { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
+  { type: NodeType.SheetTrigger, label: 'New Row Added', icon: <GsheetIcon /> },
 ];
 const nodeTypes = [
   { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
