@@ -111,72 +111,62 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                     </div>
 
-                    {/* Main Stats Row & Trend Line */}
-                    <div className="flex items-end justify-between relative z-10 mt-6 mb-6">
-                        <div>
-                            <div className="flex items-end gap-3">
-                                {/* Total Leads Donut Chart */}
-                                <div className="relative w-28 h-28 group/donut cursor-pointer">
-                                    <svg viewBox="0 0 36 36" className="w-full h-full rotate-[-90deg]">
-                                        {/* Stats Calculation */}
-                                        {(() => {
-                                            const total = totalLeads || 1;
-                                            const active = stats?.summary.activeLeads || 0;
-                                            const activePct = (active / total) * 100;
-                                            // Inactive = 100 - activePct
+                    {/* Main Stats Charts (Top Grid) */}
+                    <div className="grid grid-cols-2 gap-4 relative z-10 mt-6 mb-4">
 
-                                            return (
-                                                <>
-                                                    <defs>
-                                                        <linearGradient id="leadDonutGrad" x1="0" y1="0" x2="1" y2="1">
-                                                            <stop offset="0%" stopColor="#ef4444" />
-                                                            <stop offset="100%" stopColor="#eab308" />
-                                                        </linearGradient>
-                                                    </defs>
+                        {/* 1. Active Leads Donut Card */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col items-center justify-center border border-white/10 hover:bg-black/20 transition-colors cursor-pointer" onClick={() => onNavigate('Contacts')}>
+                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 group/donut">
+                                <svg viewBox="0 0 36 36" className="w-full h-full rotate-[-90deg]">
+                                    {/* Stats Calculation */}
+                                    {(() => {
+                                        const total = totalLeads || 1;
+                                        const active = stats?.summary.activeLeads || 0;
+                                        const activePct = (active / total) * 100;
 
-                                                    {/* Background Circle (Dark Track) */}
-                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="3" />
+                                        return (
+                                            <>
+                                                <defs>
+                                                    <linearGradient id="leadDonutGrad" x1="0" y1="0" x2="1" y2="1">
+                                                        <stop offset="0%" stopColor="#ef4444" />
+                                                        <stop offset="100%" stopColor="#eab308" />
+                                                    </linearGradient>
+                                                </defs>
 
-                                                    {/* Active Leads Slice (Red-Orange Gradient) */}
-                                                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#leadDonutGrad)" strokeWidth="3" strokeLinecap="round"
-                                                        strokeDasharray={`${activePct}, 100`} className="drop-shadow-[0_0_5px_rgba(239,68,68,0.6)]" />
+                                                {/* Background Circle */}
+                                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(0,0,0,0.3)" strokeWidth="3" />
 
-                                                    {/* New Leads Indicator */}
-                                                    {newLeads > 0 && (
-                                                        <circle cx="18" cy="2.1" r="1.5" fill="#ffffff" className="animate-pulse" stroke="rgba(0,0,0,0.5)" strokeWidth="0.5">
-                                                            <title>{newLeads} New Today</title>
-                                                        </circle>
-                                                    )}
-                                                </>
-                                            );
-                                        })()}
-                                    </svg>
+                                                {/* Active Leads Slice */}
+                                                <circle cx="18" cy="18" r="15.9" fill="none" stroke="url(#leadDonutGrad)" strokeWidth="3" strokeLinecap="round"
+                                                    strokeDasharray={`${activePct}, 100`} className="drop-shadow-[0_0_5px_rgba(239,68,68,0.6)]" />
 
-                                    {/* Center Content: Total Count */}
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                        <span className="text-3xl font-black text-white leading-none drop-shadow-md">{totalLeads}</span>
-                                        <span className="text-[10px] uppercase font-bold text-blue-100 tracking-wider mt-0.5">Total</span>
-                                    </div>
+                                                {/* New Leads Pulse */}
+                                                {newLeads > 0 && (
+                                                    <circle cx="18" cy="2.1" r="1.5" fill="#ffffff" className="animate-pulse" stroke="rgba(0,0,0,0.5)" strokeWidth="0.5">
+                                                        <title>{newLeads} New Today</title>
+                                                    </circle>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </svg>
 
-                                    {/* Hover Tooltip */}
-                                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 opacity-0 group-hover/donut:opacity-100 transition-opacity bg-black/80 backdrop-blur text-white text-[10px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-none">
-                                        {stats?.summary.activeLeads} Active / {newLeads} New
-                                    </div>
+                                {/* Center Content */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <span className="text-2xl sm:text-3xl font-black text-white leading-none drop-shadow-md">{totalLeads}</span>
+                                    <span className="text-[9px] sm:text-[10px] uppercase font-bold text-blue-100 tracking-wider mt-0.5">Total</span>
                                 </div>
                             </div>
-
                         </div>
 
-                        {/* Followup Status (Bar Chart) */}
-                        <div className="hidden sm:flex flex-col items-end mb-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</span>
+                        {/* 2. Followup Status Card */}
+                        <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
+                            <div className="flex justify-between items-start mb-1">
+                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Followup Status</h4>
                             </div>
-                            <div className="w-28 h-14 relative group/chart">
-                                <svg viewBox="0 0 120 70" className="w-full h-full overflow-visible">
-                                    {/* X-Axis Line */}
-                                    {/* <line x1="0" y1="50" x2="120" y2="50" stroke="white" strokeOpacity="0.2" strokeWidth="1" /> */}
 
+                            <div className="flex-1 w-full h-full flex items-end justify-center">
+                                <svg viewBox="0 0 160 80" className="w-full h-full overflow-visible">
                                     {(() => {
                                         const bars = [
                                             { label: 'Today', val: stats?.taskStats?.today || 0, color: '#fbbf24', short: 'Today' },
@@ -188,28 +178,28 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         const maxVal = Math.max(...bars.map(b => b.val), 5); // Avoid div by zero
 
                                         return bars.map((bar, i) => {
-                                            const h = (bar.val / maxVal) * 45; // Max height 45px
-                                            const x = 10 + (i * 28); // Spacing
+                                            const h = (bar.val / maxVal) * 55; // Max height 55px
+                                            const x = 15 + (i * 36); // Spacing
 
                                             return (
                                                 <g key={i} className="group/bar cursor-pointer">
                                                     {/* Bar */}
                                                     <rect
                                                         x={x}
-                                                        y={50 - h}
-                                                        width="16"
+                                                        y={60 - h}
+                                                        width="20"
                                                         height={h}
                                                         fill={bar.color}
-                                                        rx="2"
+                                                        rx="3"
                                                         className="opacity-80 group-hover/bar:opacity-100 transition-all"
                                                     />
                                                     {/* Value Label */}
                                                     {bar.val > 0 && (
-                                                        <text x={x + 8} y={50 - h - 4} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" opacity="0.9">{bar.val}</text>
+                                                        <text x={x + 10} y={60 - h - 5} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" opacity="0.9">{bar.val}</text>
                                                     )}
 
                                                     {/* Axis Label */}
-                                                    <text x={x + 8} y={62} textAnchor="middle" fill="white" fontSize="8" fontWeight="medium" opacity="0.6" className="uppercase tracking-tight" style={{ fontSize: '7px' }}>{bar.short}</text>
+                                                    <text x={x + 10} y={74} textAnchor="middle" fill="white" fontSize="9" fontWeight="medium" opacity="0.6" className="uppercase tracking-tight" style={{ fontSize: '9px' }}>{bar.short}</text>
 
                                                     {/* Tooltip Title */}
                                                     <title>{bar.label}: {bar.val}</title>
@@ -276,44 +266,50 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 2. Lead Pipeline Funnel (Reference Implementation) */}
                         <div className="bg-black/10 rounded-2xl p-4 flex flex-col justify-between border border-white/10 hover:bg-black/20 transition-colors">
                             <div className="flex justify-between items-start mb-2">
-                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider">Pipeline Funnel</h4>
-                                <span className="text-[9px] text-white/60 bg-white/10 px-1.5 rounded">Conversion</span>
+                                <h4 className="text-[10px] font-bold text-blue-100 uppercase tracking-wider whitespace-nowrap">Pipeline Funnel</h4>
                             </div>
 
                             <div className="flex-1 relative w-full h-full min-h-[60px] flex flex-col justify-center items-center">
                                 <svg viewBox="0 0 100 80" className="w-full h-full drop-shadow-lg overflow-visible">
                                     <defs>
-                                        <linearGradient id="funnelGrad1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3b82f6" /><stop offset="100%" stopColor="#2563eb" /></linearGradient>
-                                        <linearGradient id="funnelGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#06b6d4" /><stop offset="100%" stopColor="#0891b2" /></linearGradient>
-                                        <linearGradient id="funnelGrad3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#059669" /></linearGradient>
+                                        <linearGradient id="funnelGrad1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#b91c1c" /><stop offset="100%" stopColor="#7f1d1d" /></linearGradient>
+                                        <linearGradient id="funnelGrad2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fbbf24" /><stop offset="100%" stopColor="#d97706" /></linearGradient>
+                                        <linearGradient id="funnelGrad3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#22c55e" /><stop offset="100%" stopColor="#15803d" /></linearGradient>
                                     </defs>
 
-                                    {/* Stage 1: Audience (Top) */}
+                                    {/* Stage 1: Lead (Top) - Dark Red */}
                                     <g className="group/stage1 cursor-pointer">
-                                        <path d="M5,0 L95,0 L80,24 L20,24 Z" fill="url(#funnelGrad1)" className="opacity-80 group-hover/stage1:opacity-100 transition-opacity" />
-                                        <text x="50" y="14" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.summary?.totalContacts || 0}</text>
+                                        <path d="M5,0 L95,0 L80,24 L20,24 Z" fill="url(#funnelGrad1)" className="opacity-90 group-hover/stage1:opacity-100 transition-opacity" />
+                                        <text x="50" y="10" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.summary?.totalContacts || 0}</text>
+                                        <text x="50" y="19" textAnchor="middle" className="fill-white/80 text-[6px] font-medium pointer-events-none">100%</text>
                                         <title>Total Contacts: {stats?.summary.totalContacts}</title>
                                     </g>
 
-                                    {/* Stage 2: Active (Middle) */}
+                                    {/* Stage 2: Active (Middle) - Yellow */}
                                     <g className="group/stage2 cursor-pointer">
-                                        <path d="M22,26 L78,26 L65,50 L35,50 Z" fill="url(#funnelGrad2)" className="opacity-80 group-hover/stage2:opacity-100 transition-opacity" />
-                                        <text x="50" y="40" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.summary?.activeLeads || 0}</text>
+                                        <path d="M22,26 L78,26 L65,50 L35,50 Z" fill="url(#funnelGrad2)" className="opacity-90 group-hover/stage2:opacity-100 transition-opacity" />
+                                        <text x="50" y="36" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.summary?.activeLeads || 0}</text>
+                                        <text x="50" y="45" textAnchor="middle" className="fill-white/80 text-[6px] font-medium pointer-events-none">
+                                            {Math.round(((stats?.summary?.activeLeads || 0) / (stats?.summary?.totalContacts || 1)) * 100)}%
+                                        </text>
                                         <title>Active Leads: {stats?.summary.activeLeads}</title>
                                     </g>
 
-                                    {/* Stage 3: Actioned (Bottom) */}
+                                    {/* Stage 3: Won (Bottom) - Green */}
                                     <g className="group/stage3 cursor-pointer">
-                                        <path d="M37,52 L63,52 L55,75 L45,75 Z" fill="url(#funnelGrad3)" className="opacity-80 group-hover/stage3:opacity-100 transition-opacity" />
-                                        <text x="50" y="66" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.taskStats?.completed || 0}</text>
+                                        <path d="M37,52 L63,52 L55,75 L45,75 Z" fill="url(#funnelGrad3)" className="opacity-90 group-hover/stage3:opacity-100 transition-opacity" />
+                                        <text x="50" y="62" textAnchor="middle" className="fill-white text-[8px] font-bold pointer-events-none">{stats?.taskStats?.completed || 0}</text>
+                                        <text x="50" y="70" textAnchor="middle" className="fill-white/80 text-[6px] font-medium pointer-events-none">
+                                            {Math.round(((stats?.taskStats?.completed || 0) / (stats?.summary?.totalContacts || 1)) * 100)}%
+                                        </text>
                                         <title>Actioned Tasks: {stats?.taskStats?.completed}</title>
                                     </g>
                                 </svg>
 
                                 {/* Side Labels */}
-                                <div className="absolute top-1 right-0 translate-x-1 text-[8px] text-blue-200 font-medium">Audience</div>
-                                <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1 text-[8px] text-cyan-200 font-medium">Active</div>
-                                <div className="absolute bottom-1 right-0 translate-x-1 text-[8px] text-emerald-200 font-medium">Won</div>
+                                <div className="absolute top-1 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Lead</div>
+                                <div className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Active</div>
+                                <div className="absolute bottom-1 right-0 translate-x-1 text-[9px] text-gray-200 font-medium">Won</div>
                             </div>
                         </div>
 
