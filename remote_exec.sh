@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Checks if bulk_deploy.sh needs unix conversion and runs it
 remote_dir=$1
 cd "$remote_dir"

@@ -4,7 +4,7 @@ import { NodeType } from '../types';
 import {
   MessageIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon, DocumentFileIcon, WebhookIcon, TimingIcon,
   ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TriggerIcon, OnMessageIcon,
-  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, CalendarIcon
+  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, CalendarIcon, RobotIcon
 } from './icons';
 
 interface NodesPanelProps {
@@ -44,6 +44,7 @@ const nodeTypes = [
   { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
   { type: NodeType.Gsheet, label: 'Sheets', icon: <GsheetIcon /> },
   { type: NodeType.Code, label: 'Code', icon: <CodeIcon /> },
+  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon /> },
 ];
 
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {

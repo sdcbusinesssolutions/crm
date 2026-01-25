@@ -1,6 +1,6 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData } from '../types';
-import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon } from './icons';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData } from '../types';
+import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon, RobotIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
 import { contactGroupService } from '../services/contactGroupService';
@@ -34,20 +34,20 @@ const SettingsContext = React.createContext<{
     showNotification: (message: string, type?: 'success' | 'error') => void;
 }>({ activeInputSetter: null, setActiveInputSetter: () => { }, activeInputId: null, setActiveInputId: () => { }, showNotification: () => { } });
 
-const PanelTextInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, maxLength?: number, className?: string, theme?: PanelTheme, type?: string, disabled?: boolean }> = (props) => {
+const PanelTextInput: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; maxLength?: number; className?: string; theme?: PanelTheme; type?: string; disabled?: boolean; availableVariables?: NodeVariables[] }> = (props) => {
     const { setActiveInputSetter, setActiveInputId, activeInputId } = React.useContext(SettingsContext);
     const id = React.useMemo(() => `input-${Math.random().toString(36).substr(2, 9)}`, []);
     return <DroppableInput {...props} id={id} multiline={false} onFocus={(setter) => { !props.disabled && setActiveInputSetter(setter); !props.disabled && setActiveInputId(id); }} isActive={activeInputId === id} disabled={props.disabled} />;
 };
 
-const PanelTextarea: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, rows?: number, maxLength?: number, theme?: PanelTheme, className?: string }> = (props) => {
+const PanelTextarea: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; rows?: number; maxLength?: number; className?: string; theme?: PanelTheme; availableVariables?: NodeVariables[] }> = (props) => {
     const { setActiveInputSetter, setActiveInputId, activeInputId } = React.useContext(SettingsContext);
     const id = React.useMemo(() => `textarea-${Math.random().toString(36).substr(2, 9)}`, []);
     return <DroppableInput {...props} id={id} multiline={true} onFocus={(setter) => { setActiveInputSetter(setter); setActiveInputId(id); }} isActive={activeInputId === id} />;
 };
 
-const PanelNumberInput: React.FC<{ value: number, onChange: (val: number) => void, theme?: PanelTheme }> = ({ value, onChange, theme = 'dark' }) => (
-    <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className={`w-full p-2.5 border rounded-lg shadow-sm text-sm outline-none transition-colors ${theme === 'dark' ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-gray-300"}`} />
+const PanelNumberInput: React.FC<{ value: number; onChange: (val: number) => void; min?: number; max?: number; className?: string; theme?: PanelTheme; availableVariables?: NodeVariables[] }> = ({ value, onChange, min, max, className, theme = 'dark' }) => (
+    <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} min={min} max={max} className={`w-full p-2.5 border rounded-lg shadow-sm text-sm outline-none transition-colors ${theme === 'dark' ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-gray-300"} ${className || ''}`} />
 );
 
 const PanelSelect: React.FC<{ value: string, onChange: (val: string) => void, options: (string | { label: string, value: string })[], theme?: PanelTheme, className?: string }> = ({ value, onChange, options, theme = 'dark', className }) => (
@@ -1680,41 +1680,123 @@ const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTr
                     </div>
 
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spreadsheet ID</label>
-                            <PanelTextInput
-                                value={data.spreadsheetId || ''}
-                                onChange={val => handleUpdate({ spreadsheetId: val })}
-                                placeholder="Spreadsheet ID (from URL)"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
-                            <PanelTextInput
-                                value={data.sheetName || ''}
-                                onChange={val => handleUpdate({ sheetName: val })}
-                                placeholder="Sheet1"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Column Header</label>
-                            <PanelTextInput
-                                value={data.phoneColumn || ''}
-                                onChange={val => handleUpdate({ phoneColumn: val })}
-                                placeholder="e.g. Phone"
-                            />
-                            <p className="text-[10px] text-slate-500 mt-1">Exact header name of the column containing phone numbers.</p>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status Column (Optional)</label>
-                            <PanelTextInput
-                                value={data.statusColumn || ''}
-                                onChange={val => handleUpdate({ statusColumn: val })}
-                                placeholder="e.g. Status"
-                            />
-                            <p className="text-[10px] text-slate-500 mt-1">If set, will update this column to "Sent" after triggering.</p>
+                        <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-9">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spreadsheet ID</label>
+                                <PanelTextInput
+                                    value={data.spreadsheetId || ''}
+                                    onChange={val => handleUpdate({ spreadsheetId: val })}
+                                    placeholder="Spreadsheet ID (from URL)"
+                                />
+                            </div>
+                            <div className="col-span-3 flex items-end">
+                                <button
+                                    onClick={async () => {
+                                        if (!data.credentialId || !data.spreadsheetId) return showNotification('Select connection and enter Spreadsheet ID', 'error');
+                                        try {
+                                            const { data: { session } } = await supabase.auth.getSession();
+                                            const res = await fetch('/api/integrations/google/sheets', {
+                                                method: 'POST',
+                                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ connectionId: data.credentialId, spreadsheetId: data.spreadsheetId })
+                                            });
+                                            const resData = await res.json();
+                                            if (resData.sheets) {
+                                                handleUpdate({ sheets: resData.sheets });
+                                                showNotification('Sheets loaded!', 'success');
+                                            } else {
+                                                showNotification(resData.error || 'Failed to load sheets', 'error');
+                                            }
+                                        } catch (e: any) { showNotification(e.message, 'error'); }
+                                    }}
+                                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-[10px] font-bold uppercase"
+                                >
+                                    Load
+                                </button>
+                            </div>
                         </div>
 
+                        {data.sheets && data.sheets.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
+                                <PanelSelect
+                                    value={data.sheetName || ''}
+                                    onChange={val => handleUpdate({ sheetName: val })}
+                                    options={['Select Sheet...', ...data.sheets]}
+                                />
+                            </div>
+                        )}
+
+                        {!data.sheets && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
+                                <PanelTextInput
+                                    value={data.sheetName || ''}
+                                    onChange={val => handleUpdate({ sheetName: val })}
+                                    placeholder="Sheet1"
+                                />
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-9">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Column Header</label>
+                                {data.columns && data.columns.length > 0 ? (
+                                    <PanelSelect
+                                        value={data.phoneColumn || ''}
+                                        onChange={val => handleUpdate({ phoneColumn: val })}
+                                        options={['Select Column...', ...data.columns]}
+                                    />
+                                ) : (
+                                    <PanelTextInput
+                                        value={data.phoneColumn || ''}
+                                        onChange={val => handleUpdate({ phoneColumn: val })}
+                                        placeholder="e.g. Phone"
+                                    />
+                                )}
+                            </div>
+                            <div className="col-span-3 flex items-end">
+                                <button
+                                    onClick={async () => {
+                                        if (!data.credentialId || !data.spreadsheetId || !data.sheetName) return showNotification('Fill spreadsheet and sheet details first', 'error');
+                                        try {
+                                            const { data: { session } } = await supabase.auth.getSession();
+                                            const res = await fetch('/api/integrations/google/columns', {
+                                                method: 'POST',
+                                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ connectionId: data.credentialId, spreadsheetId: data.spreadsheetId, sheetName: data.sheetName })
+                                            });
+                                            const resData = await res.json();
+                                            if (resData.columns) {
+                                                handleUpdate({ columns: resData.columns });
+                                                showNotification('Columns loaded!', 'success');
+                                            } else { showNotification(resData.error || 'Failed to load columns', 'error'); }
+                                        } catch (e: any) { showNotification(e.message, 'error'); }
+                                    }}
+                                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-[10px] font-bold uppercase"
+                                >
+                                    Fetch
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status Column (Optional)</label>
+                            {data.columns && data.columns.length > 0 ? (
+                                <PanelSelect
+                                    value={data.statusColumn || ''}
+                                    onChange={val => handleUpdate({ statusColumn: val })}
+                                    options={['None', ...data.columns]}
+                                />
+                            ) : (
+                                <PanelTextInput
+                                    value={data.statusColumn || ''}
+                                    onChange={val => handleUpdate({ statusColumn: val })}
+                                    placeholder="e.g. Status"
+                                />
+                            )}
+                            <p className="text-[10px] text-slate-500 mt-1">If set, will update this column to "Sent" after triggering.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -2763,11 +2845,10 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Lookup Value</label>
-                                <DroppableInput
+                                <PanelTextInput
                                     value={data.lookupValue || ''}
                                     onChange={val => handleUpdate({ lookupValue: val })}
                                     placeholder="Value to find"
-                                    availableVariables={availableVariables}
                                 />
                                 <p className="text-[10px] text-slate-500 mt-1">Value to match in the lookup column.</p>
                             </div>
@@ -3337,6 +3418,43 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
         fetchConnections();
     }, []);
 
+    // Listen for OAuth Success
+    React.useEffect(() => {
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type === 'GOOGLE_AUTH_CODE') {
+                const code = event.data.code;
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) return;
+                    const res = await fetch('/api/integrations/calendar/exchange', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code,
+                            redirectUrl: window.location.origin + '/rest/oauth2-credential/callback'
+                        })
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        showNotification('Connected successfully!', 'success');
+                        const freshRes = await fetch('/api/integrations/calendar/connections', {
+                            headers: { 'Authorization': `Bearer ${session.access_token}` }
+                        });
+                        const freshJson = await freshRes.json();
+                        setConnections(freshJson || []);
+                    } else {
+                        showNotification('Failed to connect: ' + json.error, 'error');
+                    }
+                } catch (e: any) {
+                    showNotification('Connection error: ' + e.message, 'error');
+                }
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [showNotification]);
+
     const handleAuth = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -3344,7 +3462,7 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
             const res = await fetch('/api/integrations/calendar/auth-url', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ redirectUrl: window.location.origin + '/google-callback' })
+                body: JSON.stringify({ redirectUrl: window.location.origin + '/rest/oauth2-credential/callback' })
             });
             const json = await res.json();
             if (json.url) {
@@ -3699,6 +3817,89 @@ const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskRem
     );
 };
 
+const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const handleUpdate = (update: Partial<AIAgentData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+
+    // Ensure default values
+    React.useEffect(() => {
+        if (!data.model || !data.outputVariableName) {
+            handleUpdate({
+                model: data.model || 'gpt-4o',
+                outputVariableName: data.outputVariableName || 'ai_response',
+                mode: data.mode || 'chat'
+            });
+        }
+    }, []);
+
+    return (
+        <SettingsModal title="AI Agent" onClose={onClose} icon={<RobotIcon />} availableVariables={availableVariables}>
+            <div className="space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Agent Mode</label>
+                    <PanelSelect
+                        value={data.mode || 'chat'}
+                        onChange={val => handleUpdate({ mode: val as any })}
+                        options={[
+                            { label: 'Standard Chat (GPT/Gemini)', value: 'chat' },
+                            { label: 'OpenAI Assistant (Knowledge Base)', value: 'assistant' }
+                        ]}
+                    />
+                </div>
+
+                {(data.mode === 'assistant') ? (
+                    <div className="animate-fade-in bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">OpenAI Assistant ID</label>
+                        <PanelTextInput
+                            value={data.assistantId || ''}
+                            onChange={val => handleUpdate({ assistantId: val })}
+                            placeholder="asst_..."
+                        />
+                        <p className="text-[10px] text-slate-500 mt-2">
+                            Enter the ID of an Assistant created in your <a href="https://platform.openai.com/assistants" target="_blank" rel="noreferrer" className="text-brand-400 hover:underline">OpenAI Dashboard</a>.
+                            It will automatically use its uploaded files (Knowledge Base).
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-6 animate-fade-in">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">System Persona</label>
+                            <PanelTextarea
+                                value={data.systemPrompt || ''}
+                                onChange={val => handleUpdate({ systemPrompt: val })}
+                                placeholder="You are a helpful assistant..."
+                                rows={4}
+                            />
+                            <p className="text-[10px] text-slate-500 mt-1">Define how the AI should behave.</p>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Model</label>
+                            <PanelSelect
+                                value={data.model || 'gpt-4o'}
+                                onChange={val => handleUpdate({ model: val })}
+                                options={[
+                                    { label: 'GPT-4o (OpenAI)', value: 'gpt-4o' },
+                                    { label: 'Gemini Pro 1.5 (Google)', value: 'gemini-1.5-pro' }
+                                ]}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Output Variable</label>
+                    <PanelTextInput
+                        value={data.outputVariableName || ''}
+                        onChange={val => handleUpdate({ outputVariableName: val })}
+                        placeholder="e.g. ai_reply"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Variable to store the AI's response.</p>
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification }) => {
     const [activeInputSetter, setActiveInputSetter] = useState<((token: string) => void) | null>(null);
     const [activeInputId, setActiveInputId] = useState<string | null>(null);
@@ -3747,9 +3948,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.Gsheet: return <GsheetSettingsPanel {...commonProps} />;
             case NodeType.Gmail: return <GmailSettingsPanel {...commonProps} />;
             case NodeType.Calendar: return <CalendarSettingsPanel {...commonProps} />;
-            case NodeType.Calendar: return <CalendarSettingsPanel {...commonProps} />;
+
             case NodeType.TaskReminder: return <TaskReminderSettingsPanel {...commonProps} />;
             case NodeType.Code: return <CodeSettingsPanel {...commonProps} />;
+            case NodeType.SheetTrigger: return <SheetTriggerSettingsPanel {...commonProps} />;
+            case NodeType.AIAgent: return <AIAgentSettingsPanel {...commonProps} />;
             default: return <TextMessageSettingsPanel {...commonProps} />;
         }
     };

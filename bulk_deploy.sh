@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ==================================================================================
 # 🚀 BULK DEPLOYMENT SCRIPT (Linux/Bash)

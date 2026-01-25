@@ -38,11 +38,20 @@ export enum NodeType {
   PipelineTrigger = 'pipelineTrigger',
   TaskReminder = 'taskReminder',
   SheetTrigger = 'sheetTrigger',
+  AIAgent = 'aiAgent',
 }
 
 export interface NodeData {
   label: string;
   [key: string]: any;
+}
+
+export interface AIAgentData extends NodeData {
+  systemPrompt?: string;
+  model?: string;
+  outputVariableName: string;
+  mode?: 'chat' | 'assistant';
+  assistantId?: string;
 }
 
 export interface SheetTriggerData extends NodeData {
