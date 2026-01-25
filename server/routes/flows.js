@@ -14,17 +14,20 @@ async function syncSheetTriggers(userId, flowId, nodes) {
     if (triggerNodes.length === 0) {
         // If no sheet triggers exist, delete any existing automation linked to this flow
         // so we stop polling.
+        console.log(`[FlowSync] No sheet triggers found. Deleting automations for Flow ${flowId}`);
         await db.from('sheet_automations').delete().eq('flow_id', flowId);
         return;
     }
 
     // Support single trigger for now to avoid complexity
     const node = triggerNodes[0];
+    console.log(`[FlowSync] Processing Trigger Node:`, JSON.stringify(node.data));
+
     const { connectionId, credentialId, spreadsheetId, sheetName, phoneColumn, statusColumn } = node.data;
     const connId = connectionId || credentialId;
 
     if (!connId || !spreadsheetId || !sheetName || !phoneColumn) {
-        console.warn(`[FlowSync] Incomplete Sheet Trigger config for Flow ${flowId}`);
+        console.warn(`[FlowSync] Incomplete Sheet Trigger config for Flow ${flowId}:`, { connId, spreadsheetId, sheetName, phoneColumn });
         return;
     }
 

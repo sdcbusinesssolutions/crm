@@ -1665,17 +1665,29 @@ const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTr
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<SheetTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
 
+    const [connections, setConnections] = useState<{ id: string, connection_name: string }[]>([]);
+
+    React.useEffect(() => {
+        integrationsService.getGoogleConnections().then(setConnections).catch(console.error);
+    }, []);
+
     return (
         <SettingsModal title="Google Sheet Trigger" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables}>
             <div className="space-y-6">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <div className="mb-4">
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Connection</label>
-                        <PanelSelect
-                            value={data.credentialId || ''}
-                            onChange={(val: any) => handleUpdate({ credentialId: val })}
-                            options={[{ label: 'Select Credential...', value: '' }, { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
-                        />
+                        {connections.length > 0 ? (
+                            <PanelSelect
+                                value={data.credentialId || ''}
+                                onChange={(val: any) => handleUpdate({ credentialId: val })}
+                                options={[{ label: 'Select Credential...', value: '' }, ...connections.map(c => ({ label: c.connection_name, value: c.id }))]}
+                            />
+                        ) : (
+                            <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                                No Google accounts connected. Please go to Integrations page.
+                            </div>
+                        )}
                         <p className="text-[10px] text-slate-500 mt-1">Select the Google account to watch.</p>
                     </div>
 

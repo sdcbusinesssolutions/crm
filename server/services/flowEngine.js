@@ -487,10 +487,10 @@ class FlowEngine {
         }
 
         if (!startNode) {
-            console.error('[FlowEngine] Error: No "onMessage" node found in flow.');
+            console.error('[FlowEngine] Error: No valid start node found in flow. Explicit ID:', explicitStartNodeId);
             return;
         }
-        console.log(`[FlowEngine] Found Start Node: ${startNode.id} (Label: ${startNode.data.label})`);
+        console.log(`[FlowEngine] Found Start Node: ${startNode.id} (Label: ${startNode.data.label}, Type: ${startNode.type})`);
 
         // Initialize Context
         // Initialize Context
@@ -597,7 +597,7 @@ class FlowEngine {
         } catch (logErr) { console.error('Flow Log Error:', logErr); }
 
         // Execute Start Logic
-        if (['onMessage', 'webhook', 'trigger', 'pipelineTrigger'].includes(startNode.type)) {
+        if (['onMessage', 'webhook', 'trigger', 'pipelineTrigger', 'sheetTrigger'].includes(startNode.type)) {
             // It is a Trigger Node: The trigger has already "happened".
             // We move immediately to the next steps connected to it.
             await this.executeNextStep(session, flow, startNode.id);

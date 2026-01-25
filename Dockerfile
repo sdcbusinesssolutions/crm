@@ -56,6 +56,8 @@ RUN mkdir -p logs uploads
 
 # Copy Entrypoint Script
 COPY entrypoint.sh ./entrypoint.sh
+# Fix line endings (CRLF -> LF) for Windows builds
+RUN sed -i 's/\r$//' ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
 # 5. Set Environment Variables

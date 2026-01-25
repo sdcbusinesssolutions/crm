@@ -463,6 +463,7 @@ class SheetAutomationService {
 
             let timeWindow = new Date(0); // Default: Lifetime Check (Never repeats)
             let dedupeMode = 'LIFETIME';
+            let isRecurring = false;
 
             // Bypass for Manual Trigger (Test Mode) -> Ignore History
             if (isManual) {
@@ -471,7 +472,6 @@ class SheetAutomationService {
             } else {
                 // Determine Mode based on Config
                 const freq = auto.schedule_config?.frequency;
-                let isRecurring = false;
 
                 // 1. Explicit Frequency
                 if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
@@ -972,25 +972,29 @@ class SheetAutomationService {
         if (auto.flow_id) {
             console.log(`[SheetAuto] Triggering Flow ${auto.flow_id} for ${phone}`);
 
-            // Lazy load flowEngine to avoid circular dependency
+            // Lazy load flowEngine
             const flowEngine = require('./flowEngine');
 
-            // Pass the entire row data as initial variables
-            // flowEngine expect userID, contactPhone, flowObject (or ID?), initialInput
-            // Wait, flowEngine.startFlow expects a flow OBJECT, not just ID.
-            // But we don't have the flow object here easily without fetching it.
-            // Let's modify flowEngine.startFlow OR fetch it here.
-
-            // Better: flowEngine.startFlowByTrigger allows generic starting?
-            // Let's use startFlow but we need to fetch the flow first.
+            // Fetch flow
             const rpcClient = supabaseAdmin;
-            const { data: flows } = await rpcClient.from('flows').select('*').eq('id', auto.flow_id).single();
-            if (!flows) throw new Error(`Flow ${auto.flow_id} not found`);
+            const { data: flow } = await rpcClient.from('flows').select('*').eq('id', auto.flow_id).single();
+            if (!flow) throw new Error(`Flow ${auto.flow_id} not found`);
 
-            // Normalize phone (strip +?) FlowEngine handles this usually but good to be safe.
+            // Find Start Node (Sheet Trigger)
+            const startNode = flow.nodes?.find(n => n.type === 'sheetTrigger');
+
+            // Prepare Context
+            const initialContext = {
+                ...rowObj,
+                trigger: { ...rowObj },
+                source: 'google_sheet'
+            };
+
+            // Normalize phone
             let safePhone = phone.replace(/[^\d+]/g, '');
 
-            await flowEngine.startFlow(auto.user_id, safePhone, flows, rowObj);
+            // Start Flow with Explicit Node ID
+            await flowEngine.startFlow(auto.user_id, safePhone, flow, initialContext, startNode ? startNode.id : null);
             return;
         }
 
@@ -1181,18 +1185,24 @@ class SheetAutomationService {
 
     async writeStatus(authClient, spreadsheetId, sheetName, rowIndex, colIndex, status) {
         try {
-            const sheets = google.sheets({ version: 'v4', auth: authClient });
+            // Use AXIOS directly to avoid Gaxios Proxy issues
+            const accessToken = authClient.credentials.access_token;
+            if (!accessToken) throw new Error('No access token for write status');
+
             const colLetter = this.getColLetter(colIndex);
             const range = `${sheetName}!${colLetter}${rowIndex}`;
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
 
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range,
-                valueInputOption: 'RAW',
-                requestBody: {
-                    values: [[status]]
-                }
+            await axios.put(url, {
+                values: [[status]]
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                proxy: false
             });
+
             console.log(`[SheetAuto] Updated status to '${status}' at ${range}`);
         } catch (err) {
             console.error('[SheetAuto] Failed to write status:', err.message);
