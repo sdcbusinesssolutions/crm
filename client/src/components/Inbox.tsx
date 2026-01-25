@@ -177,34 +177,59 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         });
     }, [conversations, searchTerm, quickFilter, filterTag]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    const scrollToBottom = (instant = false) => {
+        if (chatContainerRef.current) {
+            const { scrollHeight, clientHeight } = chatContainerRef.current;
+            const maxScrollTop = scrollHeight - clientHeight;
+
+            if (instant) {
+                chatContainerRef.current.scrollTop = maxScrollTop > 0 ? maxScrollTop : 0;
+            } else {
+                chatContainerRef.current.scrollTo({
+                    top: maxScrollTop,
+                    behavior: 'smooth'
+                });
+            }
+        }
     };
 
     const handleScroll = () => {
         if (chatContainerRef.current) {
             const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
             const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-            isAtBottomRef.current = distanceToBottom < 100;
+            // Increased threshold to 150px to be more forgiving
+            isAtBottomRef.current = distanceToBottom < 150;
         }
     };
 
     // Scroll to bottom when chat changes
     useEffect(() => {
         isAtBottomRef.current = true;
-        scrollToBottom();
-        setTimeout(scrollToBottom, 100);
+
+        // Aggressive scrolling sequence to handle layout shifts and image loading
+        const scrollSequence = () => {
+            scrollToBottom(true);
+            setTimeout(() => scrollToBottom(true), 50);
+            setTimeout(() => scrollToBottom(true), 150);
+            setTimeout(() => scrollToBottom(true), 300); // Late catch for initial paint
+        };
+
+        requestAnimationFrame(scrollSequence);
     }, [activeChatId]);
 
     // Smart scroll on new messages
     useEffect(() => {
-        if (chatContainerRef.current) {
+        if (chatContainerRef.current && messages.length > 0) {
             const lastMessage = messages[messages.length - 1];
             const isMyMessage = lastMessage?.direction === 'out';
 
+            // Should scroll if we are already at bottom OR if it's my own message
             if (isAtBottomRef.current || isMyMessage) {
-                scrollToBottom();
-                setTimeout(scrollToBottom, 100);
+                requestAnimationFrame(() => {
+                    scrollToBottom(false); // Smooth scroll for new messages
+                    // Backup forced scroll
+                    setTimeout(() => scrollToBottom(false), 200);
+                });
             }
         }
     }, [messages]);
