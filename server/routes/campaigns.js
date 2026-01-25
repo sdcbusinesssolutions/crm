@@ -4,7 +4,7 @@ const axios = require('axios');
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const { logCampaignRequest } = require('../utils/logger');
 
-const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
+const GRAPH_API_URL = 'https://graph.facebook.com/v21.0';
 
 /* =========================================================================
    1. Helper Functions
@@ -166,7 +166,9 @@ router.post('/create', async (req, res) => {
         // Check Limits
         const limitInfo = await getMetaLimits(config.phone_number_id, config.meta_access_token);
         if (uniqueContacts.length > limitInfo.limit) {
-            return res.status(400).json({ error: `Exceeds daily limit of ${limitInfo.limit}.` });
+            return res.status(400).json({
+                error: `Exceeds daily limit of ${limitInfo.limit} (Meta Tier: ${limitInfo.tier}). You are attempting to send to ${uniqueContacts.length} contacts.`
+            });
         }
 
         // Create Campaign
