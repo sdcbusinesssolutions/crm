@@ -473,28 +473,32 @@ class SheetAutomationService {
                 // Determine Mode based on Config
                 const freq = auto.schedule_config?.frequency;
 
-                // 1. Explicit Frequency
-                if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
-                    isRecurring = true;
-                }
+                // 1. Explicit Frequency?
+                // CRITICAL CHANGE: Simply having a 'daily' schedule should NOT imply we want to resend to the same person every day.
+                // It usually means "Check daily for NEW people".
+                // We only enable Recurrence (resetting history) if there is a Logic Condition that implies repetition (e.g., Birthday).
 
-                // 2. Implicit Recurrence via Conditions (e.g. Birthday)
-                if (!isRecurring) {
-                    const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
-                    for (const cond of conditions) {
-                        if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
-                            isRecurring = true;
-                            break;
-                        }
+                /*
+                if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
+                    // OLD: isRecurring = true; 
+                }
+                */
+
+                // 2. Implicit Recurrence via Conditions (e.g. Birthday / Anniversary)
+                const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+                for (const cond of conditions) {
+                    if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
+                        isRecurring = true;
+                        break;
                     }
                 }
 
                 if (isRecurring) {
                     timeWindow = getISTStart();
-                    dedupeMode = 'TODAY (IST)';
+                    dedupeMode = 'TODAY (IST) - Recurring Condition Detected';
+                } else {
+                    dedupeMode = 'LIFETIME (Safe Mode)';
                 }
-
-                // Frequency 'custom' falls back to Lifetime (0) unless overridden above.
             }
 
             console.log(`[SheetAuto] Dedupe Mode: ${dedupeMode}. Window Start: ${timeWindow.toISOString()}`);
@@ -564,17 +568,24 @@ class SheetAutomationService {
                         logSummary.conditions_met++;
                         console.log(`[SheetAuto] Condition MET for row: Phone=${rowObj[auto.mapping_config?.phone_col]}`);
 
-                        // B. Check Write-back Status
+                        // B. Check Write-back Status (Case Insensitive Lookup)
                         const statusCol = auto.mapping_config?.status_column;
-                        if (statusCol && rowObj[statusCol]?.toLowerCase() === 'sent') {
-                            logSummary.already_sent++;
-                            console.log('[SheetAuto] Skipped: Already marked as SENT in sheet.');
-                            continue;
+                        if (statusCol) {
+                            // Find the actual key in rowObj that matches the configured status column (ignoring case/trim)
+                            const actualKey = Object.keys(rowObj).find(k =>
+                                String(k).trim().toLowerCase() === String(statusCol).trim().toLowerCase()
+                            );
+
+                            if (actualKey && rowObj[actualKey]?.trim().toLowerCase() === 'sent') {
+                                logSummary.already_sent++;
+                                console.log(`[SheetAuto] Skipped: Already marked as SENT in sheet (Col: ${actualKey}).`);
+                                continue;
+                            }
                         }
 
                         // C. Check History Hash (Robust Deduplication)
-                        // C. Check History Hash (Robust Deduplication)
-                        let rowHash = this.computeRowHash(rowObj);
+                        const statusColName = auto.mapping_config?.status_column;
+                        let rowHash = this.computeRowHash(rowObj, statusColName);
 
                         // MANUAL TRIGGER: Force uniqueness to allow re-send and bypass DB constraints
                         if (isManual) {
@@ -584,7 +595,7 @@ class SheetAutomationService {
                             // SCHEDULE TRIGGER: Strict Deduplication
                             if (sentHashes.has(rowHash)) {
                                 logSummary.already_sent++;
-                                console.log('[SheetAuto] Skipped: Duplicate hash in history.');
+                                // console.log('[SheetAuto] Skipped: Duplicate hash in history.');
                                 continue;
                             }
                         }
@@ -680,7 +691,7 @@ class SheetAutomationService {
     }
 
     async sendMessageWithHistory(auto, rowObj, rowHash) {
-        const finalHash = rowHash || this.computeRowHash(rowObj);
+        const finalHash = rowHash || this.computeRowHash(rowObj, auto.mapping_config?.status_column);
         const phoneCol = auto.mapping_config.phone_col;
         const phone = rowObj[phoneCol] || 'unknown';
 
@@ -731,9 +742,18 @@ class SheetAutomationService {
         }
     }
 
-    computeRowHash(rowObj) {
+    computeRowHash(rowObj, statusColumnName = null) {
         // Robust Hash: Sort keys to ensure consistency regardless of insertion order
-        const keys = Object.keys(rowObj).sort();
+        let keys = Object.keys(rowObj).sort();
+
+        // CRITICAL: Exclude the status column from the hash.
+        // Whether the status is "" or "Sent", the row identity is the same.
+        // If we include it, the hash changes after sending, bypassing the history check on the next run.
+        if (statusColumnName) {
+            const normalizedStatusCol = String(statusColumnName).trim().toLowerCase();
+            keys = keys.filter(k => String(k).trim().toLowerCase() !== normalizedStatusCol);
+        }
+
         // Create deterministic string: key:value|key:value...
         // We use a simple concatenation for speed, but could use crypto for shorter storage if needed.
         // For debugging, plain string is nicer but long. Let's use crypto for the DB storage.
