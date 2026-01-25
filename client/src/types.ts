@@ -61,7 +61,7 @@ export interface SheetTriggerData extends NodeData {
   sheetName: string;
   phoneColumn: string;
   statusColumn?: string; // Optional: Write back status
-  triggerCondition?: ConditionRule[]; // Optional filter
+  trigger_condition?: { column: string, operator: string, value: string }[]; // Optional filter
 }
 
 export interface GmailData extends NodeData {

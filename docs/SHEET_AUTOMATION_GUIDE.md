@@ -24,9 +24,16 @@ Use this for **One-Time Messages** triggered by new data (e.g. New Leads).
 
 ### ✅ Best Practices
 *   **Do NOT delete rows from the top.** The system remembers the *Row Number*. If you delete row 5, row 6 becomes row 5, and the system might get confused or skip a row.
-*   **Status Column:** Not required (but recommended for your own tracking). The system uses the **"Row Index"** to know what is new.
+*   **Status Column:** Recommended. The system writes "Sent" to avoid duplicates.
+*   **Filtering:** You can now add **Filter Conditions** (e.g. `City` Equals `Delhi`) directly in the **Flow Builder settings**.
+
+### 🔍 Understanding the "Two Lists" (Architecture)
+You might notice that creating a Trigger in the **Flow List** also adds an entry to the **Sheet Automation List**.
+*   **Flow List (The Brain):** This is where you define **Logic** (Message content, Filters). **Edit your settings here.**
+*   **Sheet Automation List (The Watchdog):** This is the background process created automatically to poll your sheet. **Do not edit this directly.** It exists to track status (like "Last Processed Row").
 
 ### ❌ What to avoid
+*   **Do not edit the "Watchdog" entry** in the Sheet Automation list if you created it via Flow. Always use the Flow Builder.
 *   Do not use this for "Birthdays". This is only for *new* entries.
 
 ---

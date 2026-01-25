@@ -1812,6 +1812,98 @@ const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTr
                     </div>
                 </div>
 
+                {/* Filter Conditions */}
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Filter Conditions (Optional)</label>
+                    <p className="text-[10px] text-slate-500 mb-3">Only trigger if the new row matches these rules.</p>
+                    <div className="space-y-3">
+                        {(data.trigger_condition || []).map((cond: any, idx: number) => (
+                            <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        {data.columns && data.columns.length > 0 ? (
+                                            <PanelSelect
+                                                value={cond.column || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], column: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                options={['Select Column...', ...data.columns]}
+                                            />
+                                        ) : (
+                                            <PanelTextInput
+                                                value={cond.column || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], column: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                placeholder="Column Header"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="w-1/3">
+                                        <PanelSelect
+                                            value={cond.operator || 'equals'}
+                                            onChange={val => {
+                                                const newConds = [...(data.trigger_condition || [])];
+                                                newConds[idx] = { ...newConds[idx], operator: val };
+                                                handleUpdate({ trigger_condition: newConds });
+                                            }}
+                                            options={[
+                                                { label: 'Equals', value: 'equals' },
+                                                { label: 'Contains', value: 'contains' },
+                                                { label: 'Does Not Equal', value: 'not_equals' },
+                                                { label: 'Does Not Contain', value: 'does_not_contain' },
+                                                { label: 'Starts With', value: 'starts_with' },
+                                                { label: 'Ends With', value: 'ends_with' },
+                                                { label: 'Greater Than', value: 'greater_than' },
+                                                { label: 'Less Than', value: 'less_than' },
+                                                { label: 'Is Empty', value: 'is_empty' },
+                                                { label: 'Is Not Empty', value: 'is_not_empty' }
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        {!['is_empty', 'is_not_empty'].includes(cond.operator) && (
+                                            <PanelTextInput
+                                                value={cond.value || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], value: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                placeholder="Value to match"
+                                            />
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const newConds = (data.trigger_condition || []).filter((_: any, i: number) => i !== idx);
+                                            handleUpdate({ trigger_condition: newConds });
+                                        }}
+                                        className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded border border-slate-700 transition-colors"
+                                        title="Remove Condition"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => {
+                                handleUpdate({ trigger_condition: [...(data.trigger_condition || []), { column: '', operator: 'equals', value: '' }] });
+                            }}
+                            className="text-xs flex items-center gap-1 text-brand-400 font-bold uppercase hover:text-brand-300 transition-colors"
+                        >
+                            <PlusIcon className="w-3 h-3" /> Add Condition
+                        </button>
+                    </div>
+                </div>
+
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <p className="text-xs text-slate-300 font-medium">Trigger Behavior</p>
                     <p className="text-[10px] text-slate-500 mt-1">

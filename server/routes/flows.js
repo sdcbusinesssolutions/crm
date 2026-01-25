@@ -43,6 +43,7 @@ async function syncSheetTriggers(userId, flowId, nodes) {
         sheet_name: sheetName,
         flow_id: flowId,
         status: 'active',
+        trigger_condition: node.data.trigger_condition, // Save Filter Conditions
         mapping_config: {
             phone_col: phoneColumn,
             status_column: statusColumn,

@@ -522,6 +522,14 @@ class SheetAutomationService {
                     const row = newRows[i];
                     const rowObj = this.mapRow(headers, row);
 
+                    // FIX: Apply Filtering Logic (Conditions)
+                    const conditionMet = this.checkCondition(auto.trigger_condition, rowObj);
+                    if (!conditionMet) {
+                        console.log(`[SheetAuto] New Row Skipped (Condition Failed): Phone=${rowObj[auto.mapping_config?.phone_col]}`);
+                        // We still count this as "processed" so we don't get stuck, effectively skipping it.
+                        continue;
+                    }
+
                     try {
                         await this.sendMessageWithHistory(auto, rowObj, null);
                         logSummary.sent_successfully++;
