@@ -4,6 +4,7 @@ import GoogleSheetsCard from './GoogleSheetsCard';
 import GmailCard from './GmailCard';
 import GoogleCalendarCard from './GoogleCalendarCard';
 import GoogleContactsCard from './GoogleContactsCard';
+import SmtpCard from './SmtpCard';
 import { themeService } from '../../services/themeService';
 
 interface IntegrationsViewProps {
@@ -75,6 +76,11 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) 
                     {/* Google Contacts */}
                     <div className="h-full">
                         <GoogleContactsCard />
+                    </div>
+
+                    {/* SMTP */}
+                    <div className="h-full">
+                        <SmtpCard />
                     </div>
 
                     {/* Telegram */}

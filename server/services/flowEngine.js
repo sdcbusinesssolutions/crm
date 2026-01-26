@@ -50,6 +50,7 @@ const EXECUTORS = {
     'contactPipeline': contactPipelineExecutor,
     'gsheet': gsheetExecutor,
     'gmail': gmailExecutor,
+    'smtp': require('./flow/executors/smtp'),
     'calendar': calendarExecutor,
     'aiAgent': aiAgentExecutor
 };

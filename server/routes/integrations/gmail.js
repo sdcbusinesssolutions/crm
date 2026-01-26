@@ -78,14 +78,11 @@ router.post('/exchange', async (req, res) => {
         // A. Exchange
         console.log(`[Gmail Exchange] Exchanging code with Redirect URL: ${creds.redirectUrl}`);
 
-        // DEBUG: Check for Proxy Environment Variables that might break gaxios
-        const proxyVars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'];
-        proxyVars.forEach(v => {
-            if (process.env[v]) {
-                console.warn(`[Gmail Exchange] Deleting detected proxy var: ${v}=${process.env[v]}`);
-                delete process.env[v];
-            }
+        // AGGRESSIVE PROXY CLEANUP (Critical for googleapis/gaxios)
+        ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'ALL_PROXY', 'all_proxy', 'NO_PROXY', 'no_proxy', 'npm_config_proxy', 'npm_config_https_proxy'].forEach(v => {
+            if (process.env[v] !== undefined) delete process.env[v];
         });
+        process.env.NO_PROXY = '*';
 
         // Ensure code is a clean string
         const cleanCode = String(code).trim();
@@ -279,11 +276,27 @@ router.post('/send', async (req, res) => {
         const { connectionId, to, subject, body } = req.body;
         const userId = req.user.id;
 
+        console.log('[Gmail Send] Request received:', { userId, connectionId, to, subject: subject?.substring(0, 20) });
+
+        if (!connectionId) {
+            console.error('[Gmail Send] Missing connectionId');
+            return res.status(400).json({ error: 'Missing connectionId' });
+        }
+        if (!to) {
+            console.error('[Gmail Send] Missing recipient');
+            return res.status(400).json({ error: 'Missing recipient email' });
+        }
+
         const result = await GmailService.sendEmail(userId, connectionId, to, subject, body);
+        console.log('[Gmail Send] Success:', result);
         res.json(result);
 
     } catch (error) {
-        console.error('Gmail Send Error:', error);
+        console.error('[Gmail Send] Error:', error.message);
+        console.error('[Gmail Send] Stack:', error.stack);
+        if (error.response) {
+            console.error('[Gmail Send] API Response:', JSON.stringify(error.response.data, null, 2));
+        }
         res.status(500).json({ error: error.message || 'Failed to send email' });
     }
 });

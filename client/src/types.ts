@@ -39,12 +39,28 @@ export enum NodeType {
   TaskReminder = 'taskReminder',
   SheetTrigger = 'sheetTrigger',
   AIAgent = 'aiAgent',
+  Smtp = 'smtp',
+}
+
+export interface SmtpData extends NodeData {
+  connectionId: string;
+  to: string;
+  subject: string;
+  body: string;
 }
 
 export interface NodeData {
   label: string;
   [key: string]: any;
 }
+// ... (rest is same, I only need to insert SmtpData before NodeData or anywhere else, and update AnyNodeData)
+
+// Wait, I should insert SmtpData definition separately.
+// And update Enum separately.
+// And Update AnyNodeData separately.
+
+// Let's do Enum first.
+
 
 export interface AIAgentData extends NodeData {
   systemPrompt?: string;
@@ -444,7 +460,8 @@ export type AnyNodeData =
   | TaskReminderData
   | SheetTriggerData
   | GmailData
-  | CalendarData;
+  | CalendarData
+  | SmtpData;
 
 export interface ContactPipelineData extends NodeData {
   name?: string;

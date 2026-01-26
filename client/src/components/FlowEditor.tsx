@@ -146,6 +146,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.Switch: Object.assign(baseData, { label: `Switch${suffix}`, cases: [{ id: `case-${Date.now()}-1`, label: 'Case 1', condition: { id: `rule-${Date.now()}`, attribute: '', operator: 'is', value: '' } }] }); break;
       case NodeType.ContactPipeline: Object.assign(baseData, { label: `Update Stage${suffix}`, name: '', email: '', pipelineId: '', stageId: '', outputVariableName: '' }); break;
       case NodeType.Gmail: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
+      case NodeType.Smtp: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
       case NodeType.NewLead: baseData.label = `New Lead${suffix}`; break;
     }
 

@@ -412,6 +412,7 @@ class SheetAutomationService {
         };
 
         try {
+            let isRecurring = false; // Moved to top scope to prevent ReferenceError
             // 2. Setup Auth (Get Token)
             const authClient = await this.getAuthClient(auto.user_id, auto.connection_id);
             const accessToken = authClient.credentials.access_token;
@@ -463,7 +464,8 @@ class SheetAutomationService {
 
             let timeWindow = new Date(0); // Default: Lifetime Check (Never repeats)
             let dedupeMode = 'LIFETIME';
-            let isRecurring = false;
+            // isRecurring defined at top
+
 
             // Bypass for Manual Trigger (Test Mode) -> Ignore History
             if (isManual) {

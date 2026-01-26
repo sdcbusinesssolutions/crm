@@ -1,5 +1,5 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData } from '../types';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData } from '../types';
 import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon, RobotIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
@@ -1663,6 +1663,7 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
 // --- Sheet Trigger Settings Panel ---
 const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
     const { data } = selectedNode;
+    const { showNotification } = React.useContext(SettingsContext);
     const handleUpdate = (update: Partial<SheetTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
 
     const [connections, setConnections] = useState<{ id: string, connection_name: string }[]>([]);
@@ -2649,6 +2650,11 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
     );
     const [isLoadingSheets, setIsLoadingSheets] = useState(false);
     const [isLoadingColumns, setIsLoadingColumns] = useState(false);
+    const [connections, setConnections] = useState<{ id: string, connection_name: string }[]>([]);
+
+    React.useEffect(() => {
+        integrationsService.getGoogleConnections().then(setConnections).catch(console.error);
+    }, []);
 
     const handleSignIn = () => {
         if (!data.clientId || !data.clientSecret) {
@@ -2716,7 +2722,9 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
 
     const fetchSheets = async () => {
         if (!data.spreadsheetId) return showNotification('Please enter a Spreadsheet ID', 'error');
-        if (!data.access_token) return showNotification('Please sign in first', 'error');
+
+        const isStoredCredential = data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId);
+        if (!isStoredCredential && !data.access_token) return showNotification('Please sign in first', 'error');
 
         setIsLoadingSheets(true);
         try {
@@ -2726,7 +2734,8 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({
                     spreadsheetId: data.spreadsheetId,
-                    tokens: {
+                    connectionId: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? data.credentialId : undefined,
+                    tokens: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? undefined : {
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,
                         scope: 'https://www.googleapis.com/auth/spreadsheets',
@@ -2755,7 +2764,9 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
         const sheetNameToUse = overrideSheetName || data.sheetName;
 
         if (!data.spreadsheetId || !sheetNameToUse) return showNotification('Please enter Spreadsheet ID and Sheet Name', 'error');
-        if (!data.access_token) return showNotification('Please sign in first', 'error');
+
+        const isStoredCredential = data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId);
+        if (!isStoredCredential && !data.access_token) return showNotification('Please sign in first', 'error');
 
         setIsLoadingColumns(true);
         try {
@@ -2766,7 +2777,8 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                 body: JSON.stringify({
                     spreadsheetId: data.spreadsheetId,
                     sheetName: sheetNameToUse,
-                    tokens: {
+                    connectionId: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? data.credentialId : undefined,
+                    tokens: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? undefined : {
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,
                         scope: 'https://www.googleapis.com/auth/spreadsheets',
@@ -2823,46 +2835,48 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                             <PanelSelect
                                 value={data.credentialId || ''}
                                 onChange={val => handleUpdate({ credentialId: val })}
-                                options={[{ label: 'Select Credential...', value: '' }, { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
+                                options={[{ label: 'Select Credential...', value: '' }, ...connections.map(c => ({ label: c.connection_name, value: c.id })), { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
                             />
                         </div>
 
-                        <div className="space-y-3 pt-3 border-t border-slate-700/50">
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">OAuth Redirect URL</label>
-                                <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-[10px] font-mono text-slate-400 break-all select-all">
-                                    {window.location.origin}/rest/oauth2-credential/callback
+                        {['new', 'custom-oauth', ''].includes(data.credentialId || '') && (
+                            <div className="space-y-3 pt-3 border-t border-slate-700/50">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">OAuth Redirect URL</label>
+                                    <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-[10px] font-mono text-slate-400 break-all select-all">
+                                        {window.location.origin}/rest/oauth2-credential/callback
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 mt-1">Use this URL in Google Cloud Console.</p>
                                 </div>
-                                <p className="text-[9px] text-slate-500 mt-1">Use this URL in Google Cloud Console.</p>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client ID</label>
+                                    <PanelTextInput
+                                        value={data.clientId || ''}
+                                        onChange={val => handleUpdate({ clientId: val })}
+                                        placeholder="Enter Client ID"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client Secret</label>
+                                    <PanelTextInput
+                                        value={data.clientSecret || ''}
+                                        onChange={val => handleUpdate({ clientSecret: val })}
+                                        placeholder="Enter Client Secret"
+                                        type="password"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSignIn}
+                                    className="w-full py-2 bg-white text-slate-900 font-bold text-xs rounded hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.64 2 12.2 2C6.42 2 2 6.5 2 12s4.42 10 10.2 10c5.31 0 9.14-3.5 9.14-9.1 0-.9-.08-1.72-.18-2.61z" /></svg>
+                                    {data.credentialId === 'custom-oauth' ? 'Re-Connect Account' : 'Sign in with Google'}
+                                </button>
+                                {data.credentialId === 'custom-oauth' && (
+                                    <p className="text-[10px] text-green-400 text-center font-bold">✓ Account Connected</p>
+                                )}
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client ID</label>
-                                <PanelTextInput
-                                    value={data.clientId || ''}
-                                    onChange={val => handleUpdate({ clientId: val })}
-                                    placeholder="Enter Client ID"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client Secret</label>
-                                <PanelTextInput
-                                    value={data.clientSecret || ''}
-                                    onChange={val => handleUpdate({ clientSecret: val })}
-                                    placeholder="Enter Client Secret"
-                                    type="password"
-                                />
-                            </div>
-                            <button
-                                onClick={handleSignIn}
-                                className="w-full py-2 bg-white text-slate-900 font-bold text-xs rounded hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.64 2 12.2 2C6.42 2 2 6.5 2 12s4.42 10 10.2 10c5.31 0 9.14-3.5 9.14-9.1 0-.9-.08-1.72-.18-2.61z" /></svg>
-                                {data.credentialId === 'custom-oauth' ? 'Re-Connect Account' : 'Sign in with Google'}
-                            </button>
-                            {data.credentialId === 'custom-oauth' && (
-                                <p className="text-[10px] text-green-400 text-center font-bold">✓ Account Connected</p>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -4004,7 +4018,119 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
     );
 };
 
+
+const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const { showNotification } = React.useContext(SettingsContext);
+    const handleUpdate = (updatedFields: Partial<SmtpData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
+    const [connections, setConnections] = useState<{ id: string, connection_name: string, host: string, user: string, fromEmail?: string }[]>([]);
+    const [isSending, setIsSending] = useState(false);
+
+    React.useEffect(() => {
+        integrationsService.getSmtpConnections().then(setConnections).catch(console.error);
+    }, []);
+
+    const handleSendTest = async () => {
+        if (!data.connectionId) return showNotification('Please select an SMTP Account first.', 'error');
+        if (!data.to) return showNotification('Please enter a recipient.', 'error');
+        if (data.to.includes('{{')) return showNotification('Cannot test with variables.', 'error');
+
+        setIsSending(true);
+        try {
+            await integrationsService.sendSmtpEmail(data.connectionId, data.to, data.subject || 'Test Subject', data.body || 'Test Body');
+            showNotification('Test email sent successfully!', 'success');
+        } catch (e: any) {
+            showNotification('Failed to send test email: ' + e.message, 'error');
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <SettingsModal title="Send Email (SMTP)" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+            <div className="space-y-4">
+                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">SMTP Account</label>
+                    {connections.length > 0 ? (
+                        <PanelSelect
+                            value={data.connectionId}
+                            onChange={(val) => handleUpdate({ connectionId: val })}
+                            options={[{ label: 'Select Account...', value: '' }, ...connections.map(c => ({
+                                label: `${c.connection_name} (${c.fromEmail || c.user})`,
+                                value: c.id
+                            }))]}
+                        />
+                    ) : (
+                        <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                            No SMTP accounts connected. Please go to Integrations page.
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">To (Recipient)</label>
+                    <PanelTextInput
+                        value={data.to}
+                        onChange={val => handleUpdate({ to: val })}
+                        placeholder="e.g. {{email}} or user@example.com"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
+                    <PanelTextInput
+                        value={data.subject}
+                        onChange={val => handleUpdate({ subject: val })}
+                        placeholder="Email Subject"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Body</label>
+                    <PanelTextarea
+                        value={data.body}
+                        onChange={val => handleUpdate({ body: val })}
+                        placeholder="Email content (HTML supported)..."
+                        rows={6}
+                    />
+                </div>
+
+                <div className="border-t border-slate-800 pt-4">
+                    <button
+                        onClick={handleSendTest}
+                        disabled={isSending}
+                        className={`w-full py-2 flex items-center justify-center space-x-2 rounded-lg font-bold text-xs transition-colors ${isSending ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'}`}
+                    >
+                        {isSending ? (
+                            <span>Sending...</span>
+                        ) : (
+                            <>
+                                <GmailIcon className="w-4 h-4" />
+                                <span>Send Test Email</span>
+                            </>
+                        )}
+                    </button>
+                    <p className="text-[10px] text-slate-500 text-center mt-2">
+                        Sends to the address specified in "To". Variables are not supported in test mode.
+                    </p>
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification }) => {
+    // ... (rest of SettingsPanel body, I need to ensure I don't overwrite it, wait view_file showed I am replacing SettingsPanel definition if I am not careful)
+    // Actually, I should insert SmtpSettingsPanel BEFORE SettingsPanel, and then modify renderPanel inside.
+
+    // I will use replace_file_content in 2 chunks? No, multi_replace.
+    // Chunk 1: Insert SmtpSettingsPanel before SettingsPanel.
+    // Chunk 2: Add Case to renderPanel.
+
+    // I can't write the logic inside this tool call string easily.
+    // I will do it in two separate calls or one multi_replace.
+    // I will use multi_replace.
+
     const [activeInputSetter, setActiveInputSetter] = useState<((token: string) => void) | null>(null);
     const [activeInputId, setActiveInputId] = useState<string | null>(null);
 
@@ -4051,6 +4177,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.AskLocation: return <AskLocationSettingsPanel {...commonProps} />;
             case NodeType.Gsheet: return <GsheetSettingsPanel {...commonProps} />;
             case NodeType.Gmail: return <GmailSettingsPanel {...commonProps} />;
+            case NodeType.Smtp: return <SmtpSettingsPanel {...commonProps} />;
             case NodeType.Calendar: return <CalendarSettingsPanel {...commonProps} />;
 
             case NodeType.TaskReminder: return <TaskReminderSettingsPanel {...commonProps} />;

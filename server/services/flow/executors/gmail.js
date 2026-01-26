@@ -13,10 +13,12 @@ module.exports = {
         try {
             console.log(`[Gmail Executor] Sending email to ${to}`);
             const result = await GmailService.sendEmail(userId, connectionId, to, subject, body);
-            return { success: true, ...result };
+            // Branch to TRUE
+            return { success: true, outcome: 'true', ...result };
         } catch (error) {
             console.error('[Gmail Executor] Failed:', error);
-            return { success: false, error: error.message };
+            // Branch to FALSE
+            return { success: false, outcome: 'false', error: error.message };
         }
     }
 };

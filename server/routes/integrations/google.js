@@ -582,6 +582,8 @@ router.post('/sheets', async (req, res) => {
     try {
         const { spreadsheetId, connectionId } = req.body;
 
+        console.log('[Google Sheets] Load Sheets Request:', { spreadsheetId, connectionId, userId: req.user.id });
+
         logGoogleSheetEvent('FTECH_SHEETS_START', {
             spreadsheetId,
             userId: req.user.id
@@ -589,11 +591,13 @@ router.post('/sheets', async (req, res) => {
 
         if (!spreadsheetId) {
             const error = 'Missing spreadsheetId';
+            console.error('[Google Sheets] Missing spreadsheetId');
             logGoogleSheetEvent('FETCH_SHEETS_ERROR', { error });
             return res.status(400).json({ error });
         }
 
         const creds = await getLastCredentials(req);
+        console.log('[Google Sheets] Got credentials, has refresh_token:', !!creds.refresh_token);
 
         // Manual Axios Call to Sheets API (via Helper)
         const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?includeGridData=false`;
@@ -610,6 +614,7 @@ router.post('/sheets', async (req, res) => {
             sheets: sheetNames
         });
 
+        console.log('[Google Sheets] Success! Sheets:', sheetNames);
         res.json({ sheets: sheetNames });
 
     } catch (error) {
@@ -636,6 +641,8 @@ router.post('/columns', async (req, res) => {
     try {
         const { spreadsheetId, sheetName, connectionId } = req.body;
 
+        console.log('[Google Sheets] Fetch Columns Request:', { spreadsheetId, sheetName, connectionId, userId: req.user.id });
+
         logGoogleSheetEvent('FETCH_COLUMNS_START', {
             spreadsheetId,
             sheetName,
@@ -644,11 +651,13 @@ router.post('/columns', async (req, res) => {
 
         if (!spreadsheetId || !sheetName) {
             const error = 'Missing requirements';
+            console.error('[Google Sheets] Missing spreadsheetId or sheetName:', { spreadsheetId, sheetName });
             logGoogleSheetEvent('FETCH_COLUMNS_ERROR', { error, body: req.body });
             return res.status(400).json({ error });
         }
 
         const creds = await getLastCredentials(req); // Get latest tokens
+        console.log('[Google Sheets] Got credentials, has refresh_token:', !!creds.refresh_token);
 
         // Manual Axios Call to Sheets API (via Helper)
         // Range A1:Z1 typically covers the headers
@@ -668,6 +677,7 @@ router.post('/columns', async (req, res) => {
             columns: columns
         });
 
+        console.log('[Google Sheets] Success! Columns:', columns);
         res.json({ columns });
 
     } catch (error) {

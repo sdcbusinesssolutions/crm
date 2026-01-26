@@ -457,5 +457,72 @@ export const integrationsService = {
 
         if (!res.ok) throw new Error('Failed to delete connection');
         return await res.json();
+    },
+
+    // --- SMTP Integrations ---
+
+    async saveSmtpConnection(data: { name?: string, host: string, port: string, user: string, pass: string, fromEmail?: string }) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/smtp/connection`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to save connection');
+        }
+        return await res.json();
+    },
+
+    async getSmtpConnections() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return [];
+
+        const res = await fetch(`${API_URL}/integrations/smtp/connections`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (!res.ok) return [];
+        return await res.json();
+    },
+
+    async deleteSmtpConnection(id: string) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/smtp/connections/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (!res.ok) throw new Error('Failed to delete connection');
+        return await res.json();
+    },
+
+    async sendSmtpEmail(connectionId: string, to: string, subject: string, body: string) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/smtp/send`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ connectionId, to, subject, body })
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to send email');
+        }
+        return await res.json();
     }
 };

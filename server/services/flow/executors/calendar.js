@@ -272,8 +272,14 @@ module.exports = {
             }
 
         } catch (error) {
-            console.error('[Calendar Executor] Failed:', error);
-            return { success: false, error: error.message };
+
+            const errorDetails = error.response?.data?.error || error.message;
+            console.error(`[Calendar Executor] Failed to execute action '${action}':`, {
+                message: error.message,
+                details: errorDetails,
+                stack: error.stack
+            });
+            return { success: false, error: typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails };
         }
     }
 };

@@ -21,6 +21,7 @@ const triggers = [
 ];
 const nodeTypes = [
   { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
+  { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
   { type: NodeType.Calendar, label: 'Calendar', icon: <CalendarIcon /> },
   { type: NodeType.TemplateMessage, label: 'Template', icon: <MessageIcon /> },
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
