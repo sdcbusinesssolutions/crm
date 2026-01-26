@@ -38,7 +38,7 @@ router.get('/config', async (req, res) => {
 router.post('/config', async (req, res) => {
     try {
         const userId = req.user.id;
-        const { apiKey } = req.body;
+        const { apiKey, apiName } = req.body;
 
         if (!apiKey) return res.status(400).json({ error: 'API Key is required' });
         // NOTE: In production, encrypt this key before storage!
@@ -54,13 +54,15 @@ router.post('/config', async (req, res) => {
             .single();
 
         let error;
+        const nameToUse = apiName || 'OpenAI Personal Key';
+
         if (existing) {
             // Update
             ({ error } = await supabaseAdmin
                 .from('user_integrations')
                 .update({
                     credentials: { apiKey },
-                    connection_name: 'OpenAI Personal Key',
+                    connection_name: nameToUse,
                     updated_at: new Date()
                 })
                 .eq('id', existing.id));
@@ -71,7 +73,7 @@ router.post('/config', async (req, res) => {
                 .insert({
                     user_id: userId,
                     provider: 'openai',
-                    connection_name: 'OpenAI Personal Key',
+                    connection_name: nameToUse,
                     credentials: { apiKey },
                     metadata: { type: 'ai' }
                 }));

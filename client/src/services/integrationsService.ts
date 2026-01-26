@@ -540,7 +540,7 @@ export const integrationsService = {
         return await res.json();
     },
 
-    async saveOpenAIConfig(apiKey: string) {
+    async saveOpenAIConfig(apiKey: string, apiName?: string) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('No session');
 
@@ -550,7 +550,7 @@ export const integrationsService = {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${session.access_token}`
             },
-            body: JSON.stringify({ apiKey })
+            body: JSON.stringify({ apiKey, apiName })
         });
 
         if (!res.ok) throw new Error('Failed to save config');
