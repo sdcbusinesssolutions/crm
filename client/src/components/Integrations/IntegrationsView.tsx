@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import FacebookLeadAdsCard from './FacebookLeadAdsCard';
+import OpenAIIntegrationCard from './OpenAIIntegrationCard';
 import GoogleSheetsCard from './GoogleSheetsCard';
 import GmailCard from './GmailCard';
 import GoogleCalendarCard from './GoogleCalendarCard';
@@ -56,6 +57,11 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) 
                     {/* Facebook Lead Ads - Connected */}
                     <div className="h-full">
                         <FacebookLeadAdsCard />
+                    </div>
+
+                    {/* OpenAI */}
+                    <div className="h-full">
+                        <OpenAIIntegrationCard />
                     </div>
 
                     {/* Google Sheets */}

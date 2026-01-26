@@ -524,5 +524,49 @@ export const integrationsService = {
             throw new Error(err.error || 'Failed to send email');
         }
         return await res.json();
+    },
+
+    // --- OpenAI Integration ---
+
+    async getOpenAIConfig() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return null;
+
+        const res = await fetch(`${API_URL}/integrations/openai/config`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (!res.ok) return null;
+        return await res.json();
+    },
+
+    async saveOpenAIConfig(apiKey: string) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/openai/config`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ apiKey })
+        });
+
+        if (!res.ok) throw new Error('Failed to save config');
+        return await res.json();
+    },
+
+    async deleteOpenAIConfig() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/openai/config`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (!res.ok) throw new Error('Failed to delete config');
+        return await res.json();
     }
 };

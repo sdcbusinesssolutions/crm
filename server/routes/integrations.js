@@ -208,4 +208,8 @@ router.use('/contacts', contactsRoutes);
 const smtpRoutes = require('./integrations/smtp');
 router.use('/smtp', smtpRoutes);
 
+// --- OpenAI Integration ---
+const openaiRoutes = require('./integrations/openai');
+router.use('/openai', openaiRoutes);
+
 module.exports = router;

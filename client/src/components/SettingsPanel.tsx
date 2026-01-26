@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
 import { contactGroupService } from '../services/contactGroupService';
 import { integrationsService } from '../services/integrationsService';
+import { aiAgentService } from '../services/aiAgentService';
 import DroppableInput from './DroppableInput';
 import VariableSidebar from './VariableSidebar';
 import { getAvailableVariables, NodeVariables } from '../utils/flowVariables';
@@ -3938,71 +3939,45 @@ const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskRem
 const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<AIAgentData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+    const [agents, setAgents] = useState<{ id: string, name: string }[]>([]);
 
     // Ensure default values
     React.useEffect(() => {
-        if (!data.model || !data.outputVariableName) {
-            handleUpdate({
-                model: data.model || 'gpt-4o',
-                outputVariableName: data.outputVariableName || 'ai_response',
-                mode: data.mode || 'chat'
-            });
+        if (!data.outputVariableName) {
+            handleUpdate({ outputVariableName: 'ai_response' });
         }
+        // Fetch Agents
+        aiAgentService.listAgents().then(setAgents).catch(err => console.error("Failed to fetch agents", err));
     }, []);
 
     return (
         <SettingsModal title="AI Agent" onClose={onClose} icon={<RobotIcon />} availableVariables={availableVariables}>
             <div className="space-y-6">
                 <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Agent Mode</label>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select AI Agent</label>
                     <PanelSelect
-                        value={data.mode || 'chat'}
-                        onChange={val => handleUpdate({ mode: val as any })}
+                        value={data.agentId || ''}
+                        onChange={val => handleUpdate({ agentId: val })}
                         options={[
-                            { label: 'Standard Chat (GPT/Gemini)', value: 'chat' },
-                            { label: 'OpenAI Assistant (Knowledge Base)', value: 'assistant' }
+                            { label: 'Select an Agent...', value: '' },
+                            ...agents.map(a => ({ label: a.name, value: a.id }))
                         ]}
                     />
+                    <p className="text-[10px] text-slate-500 mt-2">
+                        create agents in <span className="font-bold text-brand-400">AI Buddy</span> section.
+                    </p>
                 </div>
 
-                {(data.mode === 'assistant') ? (
-                    <div className="animate-fade-in bg-slate-800/30 p-4 rounded-xl border border-slate-700">
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">OpenAI Assistant ID</label>
-                        <PanelTextInput
-                            value={data.assistantId || ''}
-                            onChange={val => handleUpdate({ assistantId: val })}
-                            placeholder="asst_..."
-                        />
-                        <p className="text-[10px] text-slate-500 mt-2">
-                            Enter the ID of an Assistant created in your <a href="https://platform.openai.com/assistants" target="_blank" rel="noreferrer" className="text-brand-400 hover:underline">OpenAI Dashboard</a>.
-                            It will automatically use its uploaded files (Knowledge Base).
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-6 animate-fade-in">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">System Persona</label>
-                            <PanelTextarea
-                                value={data.systemPrompt || ''}
-                                onChange={val => handleUpdate({ systemPrompt: val })}
-                                placeholder="You are a helpful assistant..."
-                                rows={4}
-                            />
-                            <p className="text-[10px] text-slate-500 mt-1">Define how the AI should behave.</p>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">AI Model</label>
-                            <PanelSelect
-                                value={data.model || 'gpt-4o'}
-                                onChange={val => handleUpdate({ model: val })}
-                                options={[
-                                    { label: 'GPT-4o (OpenAI)', value: 'gpt-4o' },
-                                    { label: 'Gemini Pro 1.5 (Google)', value: 'gemini-1.5-pro' }
-                                ]}
-                            />
-                        </div>
-                    </div>
-                )}
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">User Input / Query</label>
+                    <PanelTextarea
+                        value={data.userQuery || ''}
+                        onChange={val => handleUpdate({ userQuery: val })}
+                        placeholder="e.g. {{last_message_body}} or static text"
+                        rows={3}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">The text to send to the AI.</p>
+                </div>
 
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Output Variable</label>
@@ -4013,6 +3988,9 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
                     />
                     <p className="text-[10px] text-slate-500 mt-1">Variable to store the AI's response.</p>
                 </div>
+
+                {/* Legacy / Advanced Mode Support (Hidden if agent selected, or we can keep it for overrides) */}
+                {/* For simplicity, we assume if agentId is set, we use that. If not, users might expect manual config but we are removing it to enforce Central Agent usage as requested. */}
             </div>
         </SettingsModal>
     );
