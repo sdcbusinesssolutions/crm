@@ -225,6 +225,7 @@ console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);
 
 app.use('/api/sheet-automations', requireAuth, require('./routes/sheet_automations'));
+app.use('/api/ai-agents', requireAuth, require('./routes/ai_agents'));
 
 app.use('/api', router);
 

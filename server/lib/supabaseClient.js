@@ -2,7 +2,10 @@
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
 try {
+    // Try server/.env
     require('dotenv').config({ path: path.join(__dirname, '../.env') });
+    // Try root .env (if executed from monorepo root context or just missing in server)
+    require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 } catch (e) { }
 
 // Centralized Configuration

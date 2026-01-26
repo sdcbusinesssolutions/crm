@@ -6,27 +6,25 @@ exports.getUsers = async (req, res) => {
             return res.status(500).json({ message: 'Server misconfiguration: No DB Access' });
         }
 
-        // MULTI-TENANCY: Identify the domain of the Admin
-        const origin = req.headers.origin || req.headers.host || '';
-        // Strip protocol and port if needed, but simple includes check is robust enough for now
-        // Or strictly parse: new URL(origin).hostname
-        let requestDomain = origin;
-        try {
-            if (origin.startsWith('http')) {
-                requestDomain = new URL(origin).hostname;
-            }
-        } catch (e) { }
+        // Extract domain from admin token (set by authMiddleware)
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
 
-        console.log(`[Admin] Fetching users for domain: ${requestDomain}`);
+        if (!adminDomain) {
+            console.error('Admin domain not found in token');
+            return res.status(403).json({ message: 'Domain information missing' });
+        }
 
-        // Instead of auth.admin.listUsers() which is global, we query the new public.profiles table
-        // This table is synced via triggers and contains the 'signup_domain'
+        // Check if super admin
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        console.log(`[UsersController] Fetching users for domain: ${adminDomain}, isSuperAdmin: ${isSuperAdmin}`);
+
+        // Fetch profiles from database
         const { data: profiles, error } = await supabaseAdmin
             .from('profiles')
             .select('*')
-            //.eq('signup_domain', requestDomain) // UNCOMMENT THIS TO ENFORCE STRICT ISOLATION
-            // For now, if we want to test without strict data, we can leave it open OR use soft match
-            // .ilike('signup_domain', `%${requestDomain}%`)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -34,7 +32,7 @@ exports.getUsers = async (req, res) => {
             // Handle Schema Cache Error (PGRST205) or Undefined Table (42P01)
             if (error.code === 'PGRST205' || error.code === '42P01') {
                 console.warn('⚠️ WARNING: public.profiles table not found or schema cache stale.');
-                console.warn('👉 ACTION REQUIRED: Run "server/sql/200_combined_multi_tenancy.sql" in your Supabase SQL Editor.');
+                console.warn('👉 ACTION REQUIRED: Run \"server/sql/200_combined_multi_tenancy.sql\" in your Supabase SQL Editor.');
                 console.warn('👉 OR: Restart your Supabase project to refresh the schema cache.');
 
                 // Return empty array to keep UI valid instead of crashing
@@ -43,25 +41,13 @@ exports.getUsers = async (req, res) => {
             throw error;
         }
 
-        // Filter in memory for now if not strictly using .eq() above
-        // This ensures the admin only sees users who signed up on THEIR domain
-        // const filteredProfiles = profiles.filter(p => !p.signup_domain || p.signup_domain.includes(requestDomain));
-
-        // REVERTING TO DIRECT MAPPING for speed, assuming the profiles query handles it or we return all for 'master' admin
-        // Ideally: If Admin is 'Super Admin' (clickube.com), they might see all?
-
+        // Filter users based on domain (super admin sees all)
         let targetProfiles = profiles;
-        // If strict white-labeling is required:
-        // SUPER ADMIN EXCEPTION: If the admin is on the MASTER DOMAIN (clickube.com), show EVERYTHING.
-        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
-
-        if (requestDomain &&
-            !requestDomain.includes('localhost') &&
-            requestDomain !== MASTER_DOMAIN) {
-            console.log(`[Admin] Filtering users for Tenant: ${requestDomain}`);
-            targetProfiles = profiles.filter(p => p.signup_domain === requestDomain);
+        if (!isSuperAdmin) {
+            console.log(`[UsersController] Filtering users for Tenant: ${adminDomain}`);
+            targetProfiles = profiles.filter(p => p.signup_domain === adminDomain);
         } else {
-            console.log(`[Admin] Super Admin Access (Master Domain or Localhost) - Showing ALL ${profiles.length} users.`);
+            console.log(`[UsersController] Super Admin Access - Showing ALL ${profiles.length} users.`);
         }
 
         const mappedUsers = targetProfiles.map(u => {
@@ -84,6 +70,7 @@ exports.getUsers = async (req, res) => {
             };
         });
 
+        console.log(`[UsersController] Returning ${mappedUsers.length} users for domain ${adminDomain}`);
         res.json(mappedUsers);
     } catch (err) {
         console.error('Unhandled Error in getUsers:', err);

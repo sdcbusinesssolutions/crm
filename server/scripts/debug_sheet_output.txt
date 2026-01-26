@@ -1,0 +1,24 @@
+--- Debugging Sheet Automations ---
+Found 2 automations.
+
+ID: d56da418-d36a-45c4-a344-e4f11bdc1af3
+Name: lll
+Status: active
+Type: schedule
+Spreadsheet: 1-W_5HrRwKzwZzCRb_LTo1w0MxU9E2__HMO1p9AnU78E
+Sheet Name: Sheet1
+Last Run: 2026-01-25T03:30:34.779+00:00
+Last Processed Index: undefined
+Mapping: {"params":{"phone":{"type":"column","value":"Phone"},"body_variable_1":{"type":"column","value":"Name"},"body_variable_2":{"type":"column","value":"Date"}},"phone_col":"Phone"}
+Error Log: CRITICAL FAILURE: isRecurring is not defined
+
+ID: e428c0c2-7755-4416-99d0-f09573de02fd
+Name: test-1
+Status: active
+Type: schedule
+Spreadsheet: 1-W_5HrRwKzwZzCRb_LTo1w0MxU9E2__HMO1p9AnU78E
+Sheet Name: Sheet1
+Last Run: 2026-01-25T00:01:53.849+00:00
+Last Processed Index: undefined
+Mapping: {"params":{"phone":{"type":"column","value":"Phone"},"body_variable_1":{"type":"column","value":"Name"},"body_variable_2":{"type":"column","value":"Date"}},"phone_col":"Phone"}
+Error Log: CRITICAL FAILURE: Invalid host defined options

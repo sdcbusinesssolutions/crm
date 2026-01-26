@@ -113,7 +113,7 @@ foreach ($group in $grouped) {
     ssh "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh"
     
     # Run it
-    ssh -t "root@$vpsIp" "$remoteDir/remote_exec.sh $remoteDir"
+    ssh -t "root@$vpsIp" "bash $remoteDir/remote_exec.sh $remoteDir"
     
     Write-Host "Done: $vpsIp" -ForegroundColor Green
 }

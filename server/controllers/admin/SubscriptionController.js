@@ -2,6 +2,20 @@ const { supabaseAdmin } = require('../../lib/supabaseClient');
 
 exports.getAllSubscriptions = async (req, res) => {
     try {
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
+
+        if (!adminDomain) {
+            console.error('Admin domain not found in token');
+            return res.status(403).json({ message: 'Domain information missing' });
+        }
+
+        // Check if super admin
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        console.log(`[SubscriptionController] Fetching subscriptions for domain: ${adminDomain}, isSuperAdmin: ${isSuperAdmin}`);
+
         // Fetch raw subscriptions
         const { data: subs, error: subError } = await supabaseAdmin
             .from('user_subscriptions')
@@ -14,12 +28,14 @@ exports.getAllSubscriptions = async (req, res) => {
             return res.status(500).json({ message: 'Failed to fetch subscriptions' });
         }
 
-        // Fetch Plans
-        const { data: plans } = await supabaseAdmin.from('plans').select('id, name');
+        // Fetch Plans (filter by domain for regular admins)
+        let plansQuery = supabaseAdmin.from('plans').select('id, name, domain');
+        if (!isSuperAdmin) {
+            plansQuery = plansQuery.eq('domain', adminDomain);
+        }
+        const { data: plans } = await plansQuery;
 
-        // Fetch Users (We need to get user details to display names/emails)
-        // Since we can't always join auth.users easily depending on permissions, we'll fetch list
-        // Note: Listing all users might be heavy, but for this admin view it's acceptable or we can paginate later.
+        // Fetch Users
         const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.listUsers();
         const users = userResult?.users || [];
 
@@ -27,12 +43,29 @@ exports.getAllSubscriptions = async (req, res) => {
             console.error('Fetch Users Error:', userError);
         }
 
-        const planMap = new Map(plans?.map(p => [p.id, p.name]));
-        const userMap = new Map(users?.map(u => [u.id, u]));
+        // Fetch user profiles to get signup_domain
+        const { data: profiles } = await supabaseAdmin
+            .from('profiles')
+            .select('id, signup_domain');
 
-        const formattedData = subs.map(sub => {
+        const planMap = new Map(plans?.map(p => [p.id, { name: p.name, domain: p.domain }]));
+        const userMap = new Map(users?.map(u => [u.id, u]));
+        const profileMap = new Map(profiles?.map(p => [p.id, p.signup_domain]));
+
+        // Filter subscriptions based on domain
+        let filteredSubs = subs;
+        if (!isSuperAdmin) {
+            // Filter to only show subscriptions for users from the same domain
+            filteredSubs = subs.filter(sub => {
+                const userDomain = profileMap.get(sub.user_id);
+                return userDomain === adminDomain;
+            });
+        }
+
+        const formattedData = filteredSubs.map(sub => {
             const user = userMap.get(sub.user_id);
-            const planName = planMap.get(sub.plan_id) || 'Unknown Plan';
+            const planInfo = planMap.get(sub.plan_id);
+            const planName = planInfo?.name || 'Unknown Plan';
             const isExpired = new Date(sub.end_date) < new Date();
 
             return {
@@ -50,6 +83,7 @@ exports.getAllSubscriptions = async (req, res) => {
             };
         });
 
+        console.log(`[SubscriptionController] Returning ${formattedData.length} subscriptions for domain ${adminDomain}`);
         res.json(formattedData);
     } catch (err) {
         console.error(err);
@@ -102,6 +136,49 @@ exports.assignSubscription = async (req, res) => {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
+
+        if (!adminDomain) {
+            return res.status(403).json({ message: 'Domain information missing' });
+        }
+
+        // Check if super admin
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        // Validate that the plan belongs to the admin's domain (unless super admin)
+        const { data: plan } = await supabaseAdmin
+            .from('plans')
+            .select('domain')
+            .eq('id', planId)
+            .single();
+
+        if (!plan) {
+            return res.status(404).json({ message: 'Plan not found' });
+        }
+
+        if (!isSuperAdmin && plan.domain !== adminDomain) {
+            console.warn(`[SubscriptionController] Domain mismatch: Plan domain ${plan.domain} vs Admin domain ${adminDomain}`);
+            return res.status(403).json({ message: 'Cannot assign plans from other domains' });
+        }
+
+        // Validate that the user belongs to the admin's domain (unless super admin)
+        const { data: userProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain')
+            .eq('id', userId)
+            .single();
+
+        if (!userProfile) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!isSuperAdmin && userProfile.signup_domain !== adminDomain) {
+            console.warn(`[SubscriptionController] Domain mismatch: User domain ${userProfile.signup_domain} vs Admin domain ${adminDomain}`);
+            return res.status(403).json({ message: 'Cannot assign subscriptions to users from other domains' });
+        }
+
         const startDate = new Date();
         const endDate = new Date(startDate);
         const { interval, interval_count } = pricingOption;
@@ -141,6 +218,7 @@ exports.assignSubscription = async (req, res) => {
             return res.status(400).json({ message: 'Failed to assign subscription', error: error.message });
         }
 
+        console.log(`[SubscriptionController] Subscription assigned successfully for user ${userId} by admin ${adminDomain}`);
         res.json({ message: 'Subscription assigned successfully', subscription: data[0] });
 
     } catch (err) {
@@ -155,8 +233,61 @@ exports.updateSubscription = async (req, res) => {
 
         if (!id) return res.status(400).json({ message: 'Subscription ID is required' });
 
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
+
+        if (!adminDomain) {
+            return res.status(403).json({ message: 'Domain information missing' });
+        }
+
+        // Check if super admin
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        // Fetch the subscription to validate domain access
+        const { data: existingSub } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('user_id')
+            .eq('id', id)
+            .single();
+
+        if (!existingSub) {
+            return res.status(404).json({ message: 'Subscription not found' });
+        }
+
+        // Validate user domain (unless super admin)
+        if (!isSuperAdmin) {
+            const { data: userProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('signup_domain')
+                .eq('id', existingSub.user_id)
+                .single();
+
+            if (!userProfile || userProfile.signup_domain !== adminDomain) {
+                console.warn(`[SubscriptionController] Domain mismatch on update: User domain ${userProfile?.signup_domain} vs Admin domain ${adminDomain}`);
+                return res.status(403).json({ message: 'Cannot update subscriptions from other domains' });
+            }
+        }
+
         const updates = {};
-        if (planId) updates.plan_id = planId;
+        if (planId) {
+            // Validate new plan domain if changing plan
+            const { data: plan } = await supabaseAdmin
+                .from('plans')
+                .select('domain')
+                .eq('id', planId)
+                .single();
+
+            if (!plan) {
+                return res.status(404).json({ message: 'Plan not found' });
+            }
+
+            if (!isSuperAdmin && plan.domain !== adminDomain) {
+                return res.status(403).json({ message: 'Cannot assign plans from other domains' });
+            }
+
+            updates.plan_id = planId;
+        }
         if (status) updates.status = status;
         if (expiryDate) updates.end_date = expiryDate;
 
@@ -171,6 +302,7 @@ exports.updateSubscription = async (req, res) => {
             return res.status(400).json({ message: 'Failed to update subscription', error: error.message });
         }
 
+        console.log(`[SubscriptionController] Subscription ${id} updated by admin ${adminDomain}`);
         res.json({ message: 'Subscription updated successfully', subscription: data[0] });
     } catch (err) {
         console.error(err);
@@ -181,6 +313,45 @@ exports.updateSubscription = async (req, res) => {
 exports.deleteSubscription = async (req, res) => {
     try {
         const { id } = req.body;
+
+        if (!id) return res.status(400).json({ message: 'Subscription ID is required' });
+
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
+
+        if (!adminDomain) {
+            return res.status(403).json({ message: 'Domain information missing' });
+        }
+
+        // Check if super admin
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        // Fetch the subscription to validate domain access
+        const { data: existingSub } = await supabaseAdmin
+            .from('user_subscriptions')
+            .select('user_id')
+            .eq('id', id)
+            .single();
+
+        if (!existingSub) {
+            return res.status(404).json({ message: 'Subscription not found' });
+        }
+
+        // Validate user domain (unless super admin)
+        if (!isSuperAdmin) {
+            const { data: userProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('signup_domain')
+                .eq('id', existingSub.user_id)
+                .single();
+
+            if (!userProfile || userProfile.signup_domain !== adminDomain) {
+                console.warn(`[SubscriptionController] Domain mismatch on delete: User domain ${userProfile?.signup_domain} vs Admin domain ${adminDomain}`);
+                return res.status(403).json({ message: 'Cannot delete subscriptions from other domains' });
+            }
+        }
+
         const { error } = await supabaseAdmin
             .from('user_subscriptions')
             .delete()
@@ -189,8 +360,11 @@ exports.deleteSubscription = async (req, res) => {
         if (error) {
             return res.status(400).json({ message: 'Failed to delete subscription', error: error.message });
         }
+
+        console.log(`[SubscriptionController] Subscription ${id} deleted by admin ${adminDomain}`);
         res.json({ message: 'Subscription deleted' });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };

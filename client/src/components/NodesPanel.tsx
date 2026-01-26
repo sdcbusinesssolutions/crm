@@ -4,7 +4,7 @@ import { NodeType } from '../types';
 import {
   MessageIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon, DocumentFileIcon, WebhookIcon, TimingIcon,
   ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TriggerIcon, OnMessageIcon,
-  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, CalendarIcon
+  ChevronDownIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, CloseIcon, CarouselIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, CalendarIcon, RobotIcon
 } from './icons';
 
 interface NodesPanelProps {
@@ -17,9 +17,11 @@ const triggers = [
   { type: NodeType.NewLead, label: 'New Lead', icon: <UsersIcon /> },
   { type: NodeType.PipelineTrigger, label: 'Added to Pipeline', icon: <BookmarkIcon /> },
   { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
+  { type: NodeType.SheetTrigger, label: 'New Row Added', icon: <GsheetIcon /> },
 ];
 const nodeTypes = [
   { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
+  { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
   { type: NodeType.Calendar, label: 'Calendar', icon: <CalendarIcon /> },
   { type: NodeType.TemplateMessage, label: 'Template', icon: <MessageIcon /> },
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
@@ -43,6 +45,7 @@ const nodeTypes = [
   { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
   { type: NodeType.Gsheet, label: 'Sheets', icon: <GsheetIcon /> },
   { type: NodeType.Code, label: 'Code', icon: <CodeIcon /> },
+  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon /> },
 ];
 
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {

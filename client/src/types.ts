@@ -37,11 +37,47 @@ export enum NodeType {
   Calendar = 'calendar',
   PipelineTrigger = 'pipelineTrigger',
   TaskReminder = 'taskReminder',
+  SheetTrigger = 'sheetTrigger',
+  AIAgent = 'aiAgent',
+  Smtp = 'smtp',
+}
+
+export interface SmtpData extends NodeData {
+  connectionId: string;
+  to: string;
+  subject: string;
+  body: string;
 }
 
 export interface NodeData {
   label: string;
   [key: string]: any;
+}
+// ... (rest is same, I only need to insert SmtpData before NodeData or anywhere else, and update AnyNodeData)
+
+// Wait, I should insert SmtpData definition separately.
+// And update Enum separately.
+// And Update AnyNodeData separately.
+
+// Let's do Enum first.
+
+
+export interface AIAgentData extends NodeData {
+  systemPrompt?: string;
+  model?: string;
+  outputVariableName: string;
+  mode?: 'chat' | 'assistant';
+  assistantId?: string;
+}
+
+export interface SheetTriggerData extends NodeData {
+  credentialId?: string; // connectionId
+  connectionId?: string;
+  spreadsheetId: string;
+  sheetName: string;
+  phoneColumn: string;
+  statusColumn?: string; // Optional: Write back status
+  trigger_condition?: { column: string, operator: string, value: string }[]; // Optional filter
 }
 
 export interface GmailData extends NodeData {
@@ -115,7 +151,8 @@ export interface WriteAttributeData extends NodeData {
 export interface TimingData extends NodeData {
   delaySeconds?: number;
   delayValue: number;
-  delayUnit: 'Seconds' | 'Minutes' | 'Hours' | 'Days' | 'Weeks';
+  delayUnit: 'Seconds' | 'Minutes' | 'Hours' | 'Days' | 'Weeks' | 'Custom Date';
+  customDate?: string;
 }
 
 export interface TakeawayData extends NodeData {
@@ -421,8 +458,10 @@ export type AnyNodeData =
   | ContactPipelineData
   | PipelineTriggerData
   | TaskReminderData
+  | SheetTriggerData
   | GmailData
-  | CalendarData;
+  | CalendarData
+  | SmtpData;
 
 export interface ContactPipelineData extends NodeData {
   name?: string;
@@ -430,6 +469,7 @@ export interface ContactPipelineData extends NodeData {
   pipelineId: string;
   stageId: string;
   outputVariableName?: string;
+  customFields?: { key: string; value: string }[];
   // Deprecated: status (use stageId instead)
   status?: string;
 }

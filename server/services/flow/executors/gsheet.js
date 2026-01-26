@@ -1,203 +1,161 @@
-const { google } = require('googleapis');
+/* eslint-disable no-prototype-builtins */
+const axios = require('axios');
+const sheetAutomationService = require('../../SheetAutomationService');
 
 const execute = async (session, node, context) => {
     try {
         const { data } = node;
-        const { spreadsheetId, sheetName, operation, rowData, tokens } = data;
+        // Support both field names for compatibility
+        const connectionId = data.credentialId || data.connectionId;
+        const { spreadsheetId, sheetName, rowData } = data;
 
-        // Use tokens from node data or fallback to some secure storage if needed
-        // Ideally tokens are passed in 'data' after being refreshed if needed.
-        // For now, we assume 'data' contains valid tokens (access_token, refresh_token, etc.)
-        // In a real robust system, we would handle refreshing here using the refresh_token if access_token is expired.
+        // Handle Action/Operation mapping consistently
+        // Flow builder might send 'action', executor used to expect 'operation'
+        // Default to 'append' if neither is set, but be careful with 'read'
+        let operation = (data.operation || data.action || 'append').toLowerCase();
 
-        if (!data.access_token) {
-            throw new Error('Missing Google Access Token in Node Data');
-        }
+        if (!connectionId) throw new Error('Missing Google Connection ID');
+        if (!spreadsheetId || !sheetName) throw new Error('Missing Spreadsheet ID or Sheet Name');
 
-        const auth = new google.auth.OAuth2(
-            data.clientId,
-            data.clientSecret
-        );
+        // Get Authenticated Client (Handles Refresh etc via Service)
+        // We assume getAuthClient returns an OAuth2Client with credentials
+        const authClient = await sheetAutomationService.getAuthClient(session.user_id, connectionId);
+        const accessToken = authClient.credentials?.access_token;
 
-        auth.setCredentials({
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-            scope: data.scope,
-            token_type: data.token_type,
-            expiry_date: data.expiry_date
-        });
+        if (!accessToken) throw new Error('Failed to retrieve Access Token from Connection');
 
-        const sheets = google.sheets({ version: 'v4', auth });
+        console.log(`[FlowEngine] Executing Google Sheet Node: ${node.id} (${operation})`);
 
-        console.log(`[FlowEngine] Executing Google Sheet Node: ${node.id}`);
-        console.log(`Operation: ${operation}, Spreadsheet: ${spreadsheetId}, Sheet: ${sheetName}`);
+        // Helper for Axios (Proxy Bypass)
+        const request = async (method, url, body = null) => {
+            return axios({
+                method,
+                url,
+                data: body,
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                proxy: false // CRITICAL: Bypass Invalid Host issues
+            });
+        };
 
         let result = {};
+        const encodedSheet = encodeURIComponent(sheetName);
 
-        if (operation === 'append' || !operation) {
-            // 1. Prepare values based on columns
-            // We need to know the order of columns in the sheet to append correctly
-            // First, fetch the header row
-            console.log('[Google Sheets] Fetching headers to map values order...');
-            const headerRes = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: `${sheetName}!1:1`
-            });
+        if (operation === 'append') {
+            // 1. Fetch Request to map headers
+            const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!1:1`;
+            const headerRes = await request('GET', headerUrl);
 
             const headers = headerRes.data.values ? headerRes.data.values[0] : [];
-            if (!headers || headers.length === 0) {
-                throw new Error('Sheet is empty or has no headers. Please add headers to the first row.');
-            }
+            if (!headers || headers.length === 0) throw new Error('Sheet is empty or has no headers.');
 
-            // 2. Map rowData keys to header positions
+            // 2. Map Values
             const rowValues = headers.map(header => {
-                // rowData keys might match header exactly
-                const value = rowData[header] || '';
-                return value; // The 'resolvedNode' passed to this function already has variables resolved by FlowEngine
+                const val = rowData[header];
+                return val !== undefined ? val : '';
             });
 
-            console.log('[Google Sheets] Appending row:', rowValues);
-
-            await sheets.spreadsheets.values.append({
-                spreadsheetId,
-                range: sheetName,
-                valueInputOption: 'USER_ENTERED',
-                resource: {
-                    values: [rowValues]
-                }
+            // 3. Append Request
+            const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}:append?valueInputOption=USER_ENTERED`;
+            await request('POST', appendUrl, {
+                values: [rowValues]
             });
 
-            result = { success: true, appended: true, row: rowValues };
             console.log('[Google Sheets] Append Success');
+            result = { success: true, appended: true };
+
         } else if (operation === 'update') {
             const { lookupColumn, lookupValue } = data;
-            if (!lookupColumn || !lookupValue) {
-                throw new Error('Missing Lookup Column or Lookup Value for update operation');
-            }
+            if (!lookupColumn || !lookupValue) throw new Error('Missing Lookup Column/Value');
 
-            console.log(`[Google Sheets] Update Request: Searching for '${lookupValue}' in column '${lookupColumn}'`);
+            // 1. Fetch All Data
+            const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}`;
+            const readRes = await request('GET', readUrl);
+            const rows = readRes.data.values || [];
 
-            // 1. Fetch entire sheet data (or large chunk) to find the row
-            const dataRes = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: sheetName, // Fetch all data
-            });
-
-            const rows = dataRes.data.values || [];
             if (rows.length === 0) throw new Error('Sheet is empty');
-
             const headers = rows[0];
-            const columnIndex = headers.findIndex(h => h.trim().toLowerCase() === lookupColumn.trim().toLowerCase());
 
-            if (columnIndex === -1) throw new Error(`Lookup Column '${lookupColumn}' not found in headers`);
+            // 2. Find Index
+            const colIdx = headers.findIndex(h => h.trim().toLowerCase() === lookupColumn.trim().toLowerCase());
+            if (colIdx === -1) throw new Error(`Column '${lookupColumn}' not found`);
 
-            // 2. Find row index (1-based because API is 1-based, but array is 0-based.
-            // Header is row 1. First data row is row 2.
-            // rowIndexInArray + 1 (for 1-based) is the row number.
-            let rowIndexToUpdate = -1;
-
-            // Start searching from index 1 (skip header)
+            let rowIndex = -1;
+            // Iterate rows (skip header)
             for (let i = 1; i < rows.length; i++) {
-                if (String(rows[i][columnIndex]) === String(lookupValue)) {
-                    rowIndexToUpdate = i + 1; // Google Sheets row number
+                if (String(rows[i][colIdx]) === String(lookupValue)) {
+                    rowIndex = i + 1; // 1-based index
                     break;
                 }
             }
 
-            if (rowIndexToUpdate === -1) {
-                console.warn(`[Google Sheets] Value '${lookupValue}' not found. Skipping update.`);
-                return { nextNodeId: node.data.nextNodeId || null, success: false, reason: 'not_found' };
+            if (rowIndex === -1) {
+                console.warn(`[Google Sheets] '${lookupValue}' not found. Skipping update.`);
+                return { nextNodeId: node.data.nextNodeId, success: false, reason: 'not_found' };
             }
 
-            console.log(`[Google Sheets] Found match at Row ${rowIndexToUpdate}`);
-
-            // 3. Prepare Update Data
-            // We only want to update the columns specified in rowData, leaving others intact?
-            // Or do we overwrite the whole row?
-            // "Update Row" usually implies updating specific fields.
-            // To do this efficiently without overwriting other cells, we might need to update cell by cell or construct a full row.
-            // EASIEST ROBUST WAY: Update specific cells OR assume rowData contains changes.
-
-            // Let's construct a NEW row based on the OLD row, merging changes.
-            const oldRow = rows[rowIndexToUpdate - 1]; // Array access 0-based
-            const newRowValues = headers.map((header, idx) => {
-                if (rowData.hasOwnProperty(header)) {
-                    return rowData[header]; // Update with new value
-                }
-                return oldRow[idx] || ''; // Keep old value or empty if missing
+            // 3. Prepare Update
+            const oldRow = rows[rowIndex - 1];
+            const newValues = headers.map((h, i) => {
+                return rowData.hasOwnProperty(h) ? rowData[h] : (oldRow[i] || '');
             });
 
-            // 4. Update the Row
-            await sheets.spreadsheets.values.update({
-                spreadsheetId,
-                range: `${sheetName}!A${rowIndexToUpdate}`, // Update entire row starting at A
-                valueInputOption: 'USER_ENTERED',
-                resource: {
-                    values: [newRowValues]
-                }
+            // 4. Update Request
+            const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!A${rowIndex}?valueInputOption=USER_ENTERED`;
+            await request('PUT', updateUrl, {
+                values: [newValues]
             });
 
-            // Return the FULL updated row as variables
+            // Return full updated row
             const rowObject = {};
-            headers.forEach((h, i) => {
-                rowObject[h] = newRowValues[i];
-            });
+            headers.forEach((h, i) => rowObject[h] = newValues[i]);
 
             console.log('[Google Sheets] Update Success');
-            result = { success: true, updated: true, row: rowIndexToUpdate, ...rowObject };
+            result = { success: true, updated: true, ...rowObject };
 
         } else if (operation === 'read') {
             const { lookupColumn, lookupValue } = data;
-            if (!lookupColumn || !lookupValue) {
-                throw new Error('Missing Lookup Column or Lookup Value for read operation');
-            }
+            if (!lookupColumn || !lookupValue) throw new Error('Missing Lookup Column/Value');
 
-            console.log(`[Google Sheets] Read Request: Searching for '${lookupValue}' in column '${lookupColumn}'`);
+            const readUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}`;
+            const readRes = await request('GET', readUrl);
+            const rows = readRes.data.values || [];
 
-            const dataRes = await sheets.spreadsheets.values.get({
-                spreadsheetId,
-                range: sheetName,
-            });
-
-            const rows = dataRes.data.values || [];
             if (rows.length === 0) throw new Error('Sheet is empty');
-
             const headers = rows[0];
-            const columnIndex = headers.findIndex(h => h.trim().toLowerCase() === lookupColumn.trim().toLowerCase());
 
-            if (columnIndex === -1) throw new Error(`Lookup Column '${lookupColumn}' not found in headers`);
+            const colIdx = headers.findIndex(h => h.trim().toLowerCase() === lookupColumn.trim().toLowerCase());
+            if (colIdx === -1) throw new Error(`Column '${lookupColumn}' not found`);
 
             let foundRow = null;
             for (let i = 1; i < rows.length; i++) {
-                if (String(rows[i][columnIndex]) === String(lookupValue)) {
+                if (String(rows[i][colIdx]) === String(lookupValue)) {
                     foundRow = rows[i];
                     break;
                 }
             }
 
             if (!foundRow) {
-                console.warn(`[Google Sheets] Value '${lookupValue}' not found.`);
-                return { nextNodeId: node.data.nextNodeId || null, success: false, found: false };
+                console.warn(`[Google Sheets] '${lookupValue}' not found.`);
+                return { nextNodeId: node.data.nextNodeId, success: false, found: false };
             }
 
-            // Map headers to values
             const rowObject = {};
-            headers.forEach((h, i) => {
-                rowObject[h] = foundRow[i] || '';
-            });
+            headers.forEach((h, i) => rowObject[h] = foundRow[i] || '');
 
             console.log('[Google Sheets] Read Success');
             result = { success: true, found: true, ...rowObject };
         }
 
-        return {
-            nextNodeId: node.data.nextNodeId || null,
-            ...result
-        };
+        return { nextNodeId: node.data.nextNodeId, ...result };
 
     } catch (error) {
-        console.error('[FlowEngine] Google Sheet Error:', error);
-        return { error: error.message };
+        const msg = error.response?.data?.error?.message || error.message;
+        console.error('[FlowEngine] Google Sheet Error:', msg);
+        if (error.response?.data) console.error('Details:', JSON.stringify(error.response.data));
+        return { error: msg };
     }
 };
 

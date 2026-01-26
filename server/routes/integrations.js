@@ -204,4 +204,12 @@ router.use('/calendar', calendarRoutes);
 const contactsRoutes = require('./integrations/contacts');
 router.use('/contacts', contactsRoutes);
 
+// --- SMTP Integration ---
+const smtpRoutes = require('./integrations/smtp');
+router.use('/smtp', smtpRoutes);
+
+// --- OpenAI Integration ---
+const openaiRoutes = require('./integrations/openai');
+router.use('/openai', openaiRoutes);
+
 module.exports = router;

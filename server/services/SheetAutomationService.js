@@ -412,6 +412,7 @@ class SheetAutomationService {
         };
 
         try {
+            let isRecurring = false; // Moved to top scope to prevent ReferenceError
             // 2. Setup Auth (Get Token)
             const authClient = await this.getAuthClient(auto.user_id, auto.connection_id);
             const accessToken = authClient.credentials.access_token;
@@ -463,6 +464,8 @@ class SheetAutomationService {
 
             let timeWindow = new Date(0); // Default: Lifetime Check (Never repeats)
             let dedupeMode = 'LIFETIME';
+            // isRecurring defined at top
+
 
             // Bypass for Manual Trigger (Test Mode) -> Ignore History
             if (isManual) {
@@ -471,30 +474,33 @@ class SheetAutomationService {
             } else {
                 // Determine Mode based on Config
                 const freq = auto.schedule_config?.frequency;
-                let isRecurring = false;
 
-                // 1. Explicit Frequency
+                // 1. Explicit Frequency?
+                // CRITICAL CHANGE: Simply having a 'daily' schedule should NOT imply we want to resend to the same person every day.
+                // It usually means "Check daily for NEW people".
+                // We only enable Recurrence (resetting history) if there is a Logic Condition that implies repetition (e.g., Birthday).
+
+                /*
                 if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
-                    isRecurring = true;
+                    // OLD: isRecurring = true; 
                 }
+                */
 
-                // 2. Implicit Recurrence via Conditions (e.g. Birthday)
-                if (!isRecurring) {
-                    const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
-                    for (const cond of conditions) {
-                        if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
-                            isRecurring = true;
-                            break;
-                        }
+                // 2. Implicit Recurrence via Conditions (e.g. Birthday / Anniversary)
+                const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+                for (const cond of conditions) {
+                    if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
+                        isRecurring = true;
+                        break;
                     }
                 }
 
                 if (isRecurring) {
                     timeWindow = getISTStart();
-                    dedupeMode = 'TODAY (IST)';
+                    dedupeMode = 'TODAY (IST) - Recurring Condition Detected';
+                } else {
+                    dedupeMode = 'LIFETIME (Safe Mode)';
                 }
-
-                // Frequency 'custom' falls back to Lifetime (0) unless overridden above.
             }
 
             console.log(`[SheetAuto] Dedupe Mode: ${dedupeMode}. Window Start: ${timeWindow.toISOString()}`);
@@ -508,13 +514,32 @@ class SheetAutomationService {
                 const lastIndex = auto.last_processed_row_index || 0;
                 const newRows = dataRows.slice(lastIndex);
 
+                const statusColName = auto.mapping_config?.status_column;
+                let statusColIndex = -1;
+                if (statusColName && headers) {
+                    statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
+                }
+
                 for (let i = 0; i < newRows.length; i++) {
                     const row = newRows[i];
                     const rowObj = this.mapRow(headers, row);
 
+                    // FIX: Apply Filtering Logic (Conditions)
+                    const conditionMet = this.checkCondition(auto.trigger_condition, rowObj);
+                    if (!conditionMet) {
+                        console.log(`[SheetAuto] New Row Skipped (Condition Failed): Phone=${rowObj[auto.mapping_config?.phone_col]}`);
+                        // We still count this as "processed" so we don't get stuck, effectively skipping it.
+                        continue;
+                    }
+
                     try {
                         await this.sendMessageWithHistory(auto, rowObj, null);
                         logSummary.sent_successfully++;
+
+                        if (statusColIndex !== -1) {
+                            const rowIndex = lastIndex + i + 2;
+                            await this.writeStatus(authClient, spreadsheetId, auto.sheet_name, rowIndex, statusColIndex, 'Sent');
+                        }
                     } catch (e) {
                         // If reservation failed (duplicate), it throws 'Duplicate' error usually or we handle it?
                         // sendMessageWithHistory handles the flow. If it throws, it means send failed or reserve failed.
@@ -534,7 +559,14 @@ class SheetAutomationService {
 
             } else {
                 // Schedule or Manual Mode
-                for (const row of dataRows) {
+                const statusColName = auto.mapping_config?.status_column;
+                let statusColIndex = -1;
+                if (statusColName && headers) {
+                    statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
+                }
+
+                for (let i = 0; i < dataRows.length; i++) {
+                    const row = dataRows[i];
                     const rowObj = this.mapRow(headers, row);
 
                     // DEBUG: Log first row to verifying mapping
@@ -546,17 +578,24 @@ class SheetAutomationService {
                         logSummary.conditions_met++;
                         console.log(`[SheetAuto] Condition MET for row: Phone=${rowObj[auto.mapping_config?.phone_col]}`);
 
-                        // B. Check Write-back Status
+                        // B. Check Write-back Status (Case Insensitive Lookup)
                         const statusCol = auto.mapping_config?.status_column;
-                        if (statusCol && rowObj[statusCol]?.toLowerCase() === 'sent') {
-                            logSummary.already_sent++;
-                            console.log('[SheetAuto] Skipped: Already marked as SENT in sheet.');
-                            continue;
+                        if (statusCol) {
+                            // Find the actual key in rowObj that matches the configured status column (ignoring case/trim)
+                            const actualKey = Object.keys(rowObj).find(k =>
+                                String(k).trim().toLowerCase() === String(statusCol).trim().toLowerCase()
+                            );
+
+                            if (actualKey && rowObj[actualKey]?.trim().toLowerCase() === 'sent') {
+                                logSummary.already_sent++;
+                                console.log(`[SheetAuto] Skipped: Already marked as SENT in sheet (Col: ${actualKey}).`);
+                                continue;
+                            }
                         }
 
                         // C. Check History Hash (Robust Deduplication)
-                        // C. Check History Hash (Robust Deduplication)
-                        let rowHash = this.computeRowHash(rowObj);
+                        const statusColName = auto.mapping_config?.status_column;
+                        let rowHash = this.computeRowHash(rowObj, statusColName);
 
                         // MANUAL TRIGGER: Force uniqueness to allow re-send and bypass DB constraints
                         if (isManual) {
@@ -566,7 +605,7 @@ class SheetAutomationService {
                             // SCHEDULE TRIGGER: Strict Deduplication
                             if (sentHashes.has(rowHash)) {
                                 logSummary.already_sent++;
-                                console.log('[SheetAuto] Skipped: Duplicate hash in history.');
+                                // console.log('[SheetAuto] Skipped: Duplicate hash in history.');
                                 continue;
                             }
                         }
@@ -579,6 +618,11 @@ class SheetAutomationService {
                             console.log('[SheetAuto] Message Sent Successfully!');
                             // Success -> Add to local dedupe set
                             sentHashes.add(rowHash);
+
+                            if (statusColIndex !== -1) {
+                                const rowIndex = i + 2; // 1-based (header=1) + index
+                                await this.writeStatus(authClient, spreadsheetId, auto.sheet_name, rowIndex, statusColIndex, 'Sent');
+                            }
                         } catch (e) {
                             if (e.message === 'Skipped: Duplicate Pending/Sent') {
                                 logSummary.already_sent++;
@@ -657,7 +701,7 @@ class SheetAutomationService {
     }
 
     async sendMessageWithHistory(auto, rowObj, rowHash) {
-        const finalHash = rowHash || this.computeRowHash(rowObj);
+        const finalHash = rowHash || this.computeRowHash(rowObj, auto.mapping_config?.status_column);
         const phoneCol = auto.mapping_config.phone_col;
         const phone = rowObj[phoneCol] || 'unknown';
 
@@ -708,9 +752,18 @@ class SheetAutomationService {
         }
     }
 
-    computeRowHash(rowObj) {
+    computeRowHash(rowObj, statusColumnName = null) {
         // Robust Hash: Sort keys to ensure consistency regardless of insertion order
-        const keys = Object.keys(rowObj).sort();
+        let keys = Object.keys(rowObj).sort();
+
+        // CRITICAL: Exclude the status column from the hash.
+        // Whether the status is "" or "Sent", the row identity is the same.
+        // If we include it, the hash changes after sending, bypassing the history check on the next run.
+        if (statusColumnName) {
+            const normalizedStatusCol = String(statusColumnName).trim().toLowerCase();
+            keys = keys.filter(k => String(k).trim().toLowerCase() !== normalizedStatusCol);
+        }
+
         // Create deterministic string: key:value|key:value...
         // We use a simple concatenation for speed, but could use crypto for shorter storage if needed.
         // For debugging, plain string is nicer but long. Let's use crypto for the DB storage.
@@ -945,6 +998,38 @@ class SheetAutomationService {
             return;
         }
 
+        // --- NEW LOGIC: Check if this is a Flow Trigger ---
+        if (auto.flow_id) {
+            console.log(`[SheetAuto] Triggering Flow ${auto.flow_id} for ${phone}`);
+
+            // Lazy load flowEngine
+            const flowEngine = require('./flowEngine');
+
+            // Fetch flow
+            const rpcClient = supabaseAdmin;
+            const { data: flow } = await rpcClient.from('flows').select('*').eq('id', auto.flow_id).single();
+            if (!flow) throw new Error(`Flow ${auto.flow_id} not found`);
+
+            // Find Start Node (Sheet Trigger)
+            const startNode = flow.nodes?.find(n => n.type === 'sheetTrigger');
+
+            // Prepare Context
+            const initialContext = {
+                ...rowObj,
+                trigger: { ...rowObj },
+                source: 'google_sheet'
+            };
+
+            // Normalize phone
+            let safePhone = phone.replace(/[^\d+]/g, '');
+
+            // Start Flow with Explicit Node ID
+            await flowEngine.startFlow(auto.user_id, safePhone, flow, initialContext, startNode ? startNode.id : null);
+            return;
+        }
+
+        // --- OLD LOGIC: Template Message ---
+
         // Prepare Template Parameters
         const { template_name, language, components } = auto.template_config; // Stored struct
         const finalComponents = [];
@@ -1126,6 +1211,41 @@ class SheetAutomationService {
     }
     formatLog(summary) {
         return `Run complete: ${summary.sent_successfully} sent, ${summary.errors} errors, ${summary.already_sent} skipped.`;
+    }
+
+    async writeStatus(authClient, spreadsheetId, sheetName, rowIndex, colIndex, status) {
+        try {
+            // Use AXIOS directly to avoid Gaxios Proxy issues
+            const accessToken = authClient.credentials.access_token;
+            if (!accessToken) throw new Error('No access token for write status');
+
+            const colLetter = this.getColLetter(colIndex);
+            const range = `${sheetName}!${colLetter}${rowIndex}`;
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
+
+            await axios.put(url, {
+                values: [[status]]
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                proxy: false
+            });
+
+            console.log(`[SheetAuto] Updated status to '${status}' at ${range}`);
+        } catch (err) {
+            console.error('[SheetAuto] Failed to write status:', err.message);
+        }
+    }
+
+    getColLetter(n) {
+        let s = "";
+        while (n >= 0) {
+            s = String.fromCharCode(n % 26 + 65) + s;
+            n = Math.floor(n / 26) - 1;
+        }
+        return s;
     }
 }
 

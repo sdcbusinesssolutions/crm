@@ -25,6 +25,7 @@ const contactPipelineExecutor = require('./flow/executors/contactPipeline');
 const gsheetExecutor = require('./flow/executors/gsheet');
 const gmailExecutor = require('./flow/executors/gmail');
 const calendarExecutor = require('./flow/executors/calendar');
+const aiAgentExecutor = require('./flow/executors/aiAgent');
 
 // Executor Map
 const EXECUTORS = {
@@ -49,7 +50,9 @@ const EXECUTORS = {
     'contactPipeline': contactPipelineExecutor,
     'gsheet': gsheetExecutor,
     'gmail': gmailExecutor,
-    'calendar': calendarExecutor
+    'smtp': require('./flow/executors/smtp'),
+    'calendar': calendarExecutor,
+    'aiAgent': aiAgentExecutor
 };
 
 const { flattenObject } = require('../utils/objectUtils');
@@ -97,13 +100,22 @@ class FlowEngine {
                     .eq('status', 'delayed');
 
                 if (!error && delayedSessions && delayedSessions.length > 0) {
+                    console.log(`[FlowEngine] Scheduler: ACtively monitoring ${delayedSessions.length} delayed sessions.`);
                     for (const session of delayedSessions) {
                         const variables = session.variables || {};
                         const currentNodeId = session.current_node_id;
                         const nodeOutput = variables[currentNodeId];
 
                         if (nodeOutput && nodeOutput.resumeAt) {
-                            if (new Date(nodeOutput.resumeAt) <= now) {
+                            const resumeTime = new Date(nodeOutput.resumeAt);
+
+                            // Check for invalid date
+                            if (isNaN(resumeTime.getTime())) {
+                                console.error(`[FlowEngine] Invalid resumeAt date for session ${session.id}: ${nodeOutput.resumeAt}`);
+                                continue;
+                            }
+
+                            if (resumeTime <= now) {
                                 // OPTIMISTIC LOCK: Try to claim this session
                                 const { data: claimed, error: claimError } = await rpcClient
                                     .from('flow_sessions')
@@ -113,10 +125,14 @@ class FlowEngine {
                                     .select();
 
                                 if (!claimError && claimed && claimed.length > 0) {
-                                    console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Session ${session.id}`);
+                                    console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Session ${session.id}. Waited until ${nodeOutput.resumeAt}`);
                                     await this.resumeSession(session);
                                 }
                             }
+                        } else {
+                            // If a session is marked 'delayed' but has no resume info, it's stuck. 
+                            // We could auto-resume or mark error, but for now just log.
+                            console.warn(`[FlowEngine] Session ${session.id} is 'delayed' but missing resumeAt/nodeOutput. CurrentNode: ${currentNodeId}`);
                         }
                     }
                 }
@@ -472,10 +488,10 @@ class FlowEngine {
         }
 
         if (!startNode) {
-            console.error('[FlowEngine] Error: No "onMessage" node found in flow.');
+            console.error('[FlowEngine] Error: No valid start node found in flow. Explicit ID:', explicitStartNodeId);
             return;
         }
-        console.log(`[FlowEngine] Found Start Node: ${startNode.id} (Label: ${startNode.data.label})`);
+        console.log(`[FlowEngine] Found Start Node: ${startNode.id} (Label: ${startNode.data.label}, Type: ${startNode.type})`);
 
         // Initialize Context
         // Initialize Context
@@ -582,7 +598,7 @@ class FlowEngine {
         } catch (logErr) { console.error('Flow Log Error:', logErr); }
 
         // Execute Start Logic
-        if (['onMessage', 'webhook', 'trigger', 'pipelineTrigger'].includes(startNode.type)) {
+        if (['onMessage', 'webhook', 'trigger', 'pipelineTrigger', 'sheetTrigger'].includes(startNode.type)) {
             // It is a Trigger Node: The trigger has already "happened".
             // We move immediately to the next steps connected to it.
             await this.executeNextStep(session, flow, startNode.id);
@@ -609,6 +625,28 @@ class FlowEngine {
             return;
         }
         const flow = flowData[0];
+
+        // --- OPTIMISTIC LOCKING START ---
+        // Prevent race conditions where two simultaneous webhooks trigger the same step twice.
+        // We attempt to set the status to 'processing'. If it fails (already processing), we abort.
+        const { data: lockedSession, error: lockError } = await rpcClient
+            .from('flow_sessions')
+            .update({
+                status: 'processing',
+                last_interaction_at: new Date().toISOString()
+            })
+            .eq('id', session.id)
+            // Ensure we only lock if it's NOT already processing (and ideally is waiting_input or active)
+            // We use .neq('status', 'processing') as the atomic guard.
+            .neq('status', 'processing')
+            .select();
+
+        if (lockError || !lockedSession || lockedSession.length === 0) {
+            console.warn(`[FlowEngine] Race Condition Detected: Session ${session.id} is already processing. Skipping duplicate request.`);
+            return;
+        }
+        console.log(`[FlowEngine] Session ${session.id} locked for processing.`);
+        // --- OPTIMISTIC LOCKING END ---
 
         // Update Context with User Input
         const currentNodeId = session.current_node_id;

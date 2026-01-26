@@ -21,9 +21,18 @@ const AdminLayout = () => {
                     .eq('id', user.id)
                     .single();
 
-                if (data && data.role === 'super_admin') {
+                if (!data || ((data as any).role !== 'admin' && (data as any).role !== 'super_admin')) {
+                    // Not an admin, redirect to login or home
+                    console.warn('Unauthorized access to admin panel');
+                    navigate('/admin/auth/login');
+                    return;
+                }
+
+                if (data && (data as any).role === 'super_admin') {
                     setIsAdminSuper(true);
                 }
+            } else {
+                navigate('/admin/auth/login');
             }
         };
         checkRole();

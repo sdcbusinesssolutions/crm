@@ -1,10 +1,11 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData } from '../types';
-import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon } from './icons';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData } from '../types';
+import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon, RobotIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
 import { contactGroupService } from '../services/contactGroupService';
 import { integrationsService } from '../services/integrationsService';
+import { aiAgentService } from '../services/aiAgentService';
 import DroppableInput from './DroppableInput';
 import VariableSidebar from './VariableSidebar';
 import { getAvailableVariables, NodeVariables } from '../utils/flowVariables';
@@ -34,20 +35,20 @@ const SettingsContext = React.createContext<{
     showNotification: (message: string, type?: 'success' | 'error') => void;
 }>({ activeInputSetter: null, setActiveInputSetter: () => { }, activeInputId: null, setActiveInputId: () => { }, showNotification: () => { } });
 
-const PanelTextInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, maxLength?: number, className?: string, theme?: PanelTheme, type?: string, disabled?: boolean }> = (props) => {
+const PanelTextInput: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; maxLength?: number; className?: string; theme?: PanelTheme; type?: string; disabled?: boolean; availableVariables?: NodeVariables[] }> = (props) => {
     const { setActiveInputSetter, setActiveInputId, activeInputId } = React.useContext(SettingsContext);
     const id = React.useMemo(() => `input-${Math.random().toString(36).substr(2, 9)}`, []);
     return <DroppableInput {...props} id={id} multiline={false} onFocus={(setter) => { !props.disabled && setActiveInputSetter(setter); !props.disabled && setActiveInputId(id); }} isActive={activeInputId === id} disabled={props.disabled} />;
 };
 
-const PanelTextarea: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, rows?: number, maxLength?: number, theme?: PanelTheme, className?: string }> = (props) => {
+const PanelTextarea: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; rows?: number; maxLength?: number; className?: string; theme?: PanelTheme; availableVariables?: NodeVariables[] }> = (props) => {
     const { setActiveInputSetter, setActiveInputId, activeInputId } = React.useContext(SettingsContext);
     const id = React.useMemo(() => `textarea-${Math.random().toString(36).substr(2, 9)}`, []);
     return <DroppableInput {...props} id={id} multiline={true} onFocus={(setter) => { setActiveInputSetter(setter); setActiveInputId(id); }} isActive={activeInputId === id} />;
 };
 
-const PanelNumberInput: React.FC<{ value: number, onChange: (val: number) => void, theme?: PanelTheme }> = ({ value, onChange, theme = 'dark' }) => (
-    <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} className={`w-full p-2.5 border rounded-lg shadow-sm text-sm outline-none transition-colors ${theme === 'dark' ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-gray-300"}`} />
+const PanelNumberInput: React.FC<{ value: number; onChange: (val: number) => void; min?: number; max?: number; className?: string; theme?: PanelTheme; availableVariables?: NodeVariables[] }> = ({ value, onChange, min, max, className, theme = 'dark' }) => (
+    <input type="number" value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} min={min} max={max} className={`w-full p-2.5 border rounded-lg shadow-sm text-sm outline-none transition-colors ${theme === 'dark' ? "bg-slate-950 border-slate-700 text-slate-200" : "bg-white border-gray-300"} ${className || ''}`} />
 );
 
 const PanelSelect: React.FC<{ value: string, onChange: (val: string) => void, options: (string | { label: string, value: string })[], theme?: PanelTheme, className?: string }> = ({ value, onChange, options, theme = 'dark', className }) => (
@@ -1660,6 +1661,266 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
     );
 };
 
+// --- Sheet Trigger Settings Panel ---
+const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const { showNotification } = React.useContext(SettingsContext);
+    const handleUpdate = (update: Partial<SheetTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+
+    const [connections, setConnections] = useState<{ id: string, connection_name: string }[]>([]);
+
+    React.useEffect(() => {
+        integrationsService.getGoogleConnections().then(setConnections).catch(console.error);
+    }, []);
+
+    return (
+        <SettingsModal title="Google Sheet Trigger" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables}>
+            <div className="space-y-6">
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <div className="mb-4">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Connection</label>
+                        {connections.length > 0 ? (
+                            <PanelSelect
+                                value={data.credentialId || ''}
+                                onChange={(val: any) => handleUpdate({ credentialId: val })}
+                                options={[{ label: 'Select Credential...', value: '' }, ...connections.map(c => ({ label: c.connection_name, value: c.id }))]}
+                            />
+                        ) : (
+                            <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                                No Google accounts connected. Please go to Integrations page.
+                            </div>
+                        )}
+                        <p className="text-[10px] text-slate-500 mt-1">Select the Google account to watch.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-9">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Spreadsheet ID</label>
+                                <PanelTextInput
+                                    value={data.spreadsheetId || ''}
+                                    onChange={val => handleUpdate({ spreadsheetId: val })}
+                                    placeholder="Spreadsheet ID (from URL)"
+                                />
+                            </div>
+                            <div className="col-span-3 flex items-end">
+                                <button
+                                    onClick={async () => {
+                                        if (!data.credentialId || !data.spreadsheetId) return showNotification('Select connection and enter Spreadsheet ID', 'error');
+                                        try {
+                                            const { data: { session } } = await supabase.auth.getSession();
+                                            const res = await fetch('/api/integrations/google/sheets', {
+                                                method: 'POST',
+                                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ connectionId: data.credentialId, spreadsheetId: data.spreadsheetId })
+                                            });
+                                            const resData = await res.json();
+                                            if (resData.sheets) {
+                                                handleUpdate({ sheets: resData.sheets });
+                                                showNotification('Sheets loaded!', 'success');
+                                            } else {
+                                                showNotification(resData.error || 'Failed to load sheets', 'error');
+                                            }
+                                        } catch (e: any) { showNotification(e.message, 'error'); }
+                                    }}
+                                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-[10px] font-bold uppercase"
+                                >
+                                    Load
+                                </button>
+                            </div>
+                        </div>
+
+                        {data.sheets && data.sheets.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
+                                <PanelSelect
+                                    value={data.sheetName || ''}
+                                    onChange={val => handleUpdate({ sheetName: val })}
+                                    options={['Select Sheet...', ...data.sheets]}
+                                />
+                            </div>
+                        )}
+
+                        {!data.sheets && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Sheet Name</label>
+                                <PanelTextInput
+                                    value={data.sheetName || ''}
+                                    onChange={val => handleUpdate({ sheetName: val })}
+                                    placeholder="Sheet1"
+                                />
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-12 gap-2">
+                            <div className="col-span-9">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Column Header</label>
+                                {data.columns && data.columns.length > 0 ? (
+                                    <PanelSelect
+                                        value={data.phoneColumn || ''}
+                                        onChange={val => handleUpdate({ phoneColumn: val })}
+                                        options={['Select Column...', ...data.columns]}
+                                    />
+                                ) : (
+                                    <PanelTextInput
+                                        value={data.phoneColumn || ''}
+                                        onChange={val => handleUpdate({ phoneColumn: val })}
+                                        placeholder="e.g. Phone"
+                                    />
+                                )}
+                            </div>
+                            <div className="col-span-3 flex items-end">
+                                <button
+                                    onClick={async () => {
+                                        if (!data.credentialId || !data.spreadsheetId || !data.sheetName) return showNotification('Fill spreadsheet and sheet details first', 'error');
+                                        try {
+                                            const { data: { session } } = await supabase.auth.getSession();
+                                            const res = await fetch('/api/integrations/google/columns', {
+                                                method: 'POST',
+                                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ connectionId: data.credentialId, spreadsheetId: data.spreadsheetId, sheetName: data.sheetName })
+                                            });
+                                            const resData = await res.json();
+                                            if (resData.columns) {
+                                                handleUpdate({ columns: resData.columns });
+                                                showNotification('Columns loaded!', 'success');
+                                            } else { showNotification(resData.error || 'Failed to load columns', 'error'); }
+                                        } catch (e: any) { showNotification(e.message, 'error'); }
+                                    }}
+                                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-[10px] font-bold uppercase"
+                                >
+                                    Fetch
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status Column (Optional)</label>
+                            {data.columns && data.columns.length > 0 ? (
+                                <PanelSelect
+                                    value={data.statusColumn || ''}
+                                    onChange={val => handleUpdate({ statusColumn: val })}
+                                    options={['None', ...data.columns]}
+                                />
+                            ) : (
+                                <PanelTextInput
+                                    value={data.statusColumn || ''}
+                                    onChange={val => handleUpdate({ statusColumn: val })}
+                                    placeholder="e.g. Status"
+                                />
+                            )}
+                            <p className="text-[10px] text-slate-500 mt-1">If set, will update this column to "Sent" after triggering.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filter Conditions */}
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Filter Conditions (Optional)</label>
+                    <p className="text-[10px] text-slate-500 mb-3">Only trigger if the new row matches these rules.</p>
+                    <div className="space-y-3">
+                        {(data.trigger_condition || []).map((cond: any, idx: number) => (
+                            <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                    <div className="flex-1">
+                                        {data.columns && data.columns.length > 0 ? (
+                                            <PanelSelect
+                                                value={cond.column || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], column: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                options={['Select Column...', ...data.columns]}
+                                            />
+                                        ) : (
+                                            <PanelTextInput
+                                                value={cond.column || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], column: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                placeholder="Column Header"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="w-1/3">
+                                        <PanelSelect
+                                            value={cond.operator || 'equals'}
+                                            onChange={val => {
+                                                const newConds = [...(data.trigger_condition || [])];
+                                                newConds[idx] = { ...newConds[idx], operator: val };
+                                                handleUpdate({ trigger_condition: newConds });
+                                            }}
+                                            options={[
+                                                { label: 'Equals', value: 'equals' },
+                                                { label: 'Contains', value: 'contains' },
+                                                { label: 'Does Not Equal', value: 'not_equals' },
+                                                { label: 'Does Not Contain', value: 'does_not_contain' },
+                                                { label: 'Starts With', value: 'starts_with' },
+                                                { label: 'Ends With', value: 'ends_with' },
+                                                { label: 'Greater Than', value: 'greater_than' },
+                                                { label: 'Less Than', value: 'less_than' },
+                                                { label: 'Is Empty', value: 'is_empty' },
+                                                { label: 'Is Not Empty', value: 'is_not_empty' }
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 items-center">
+                                    <div className="flex-1">
+                                        {!['is_empty', 'is_not_empty'].includes(cond.operator) && (
+                                            <PanelTextInput
+                                                value={cond.value || ''}
+                                                onChange={val => {
+                                                    const newConds = [...(data.trigger_condition || [])];
+                                                    newConds[idx] = { ...newConds[idx], value: val };
+                                                    handleUpdate({ trigger_condition: newConds });
+                                                }}
+                                                placeholder="Value to match"
+                                            />
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            const newConds = (data.trigger_condition || []).filter((_: any, i: number) => i !== idx);
+                                            handleUpdate({ trigger_condition: newConds });
+                                        }}
+                                        className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded border border-slate-700 transition-colors"
+                                        title="Remove Condition"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        <button
+                            onClick={() => {
+                                handleUpdate({ trigger_condition: [...(data.trigger_condition || []), { column: '', operator: 'equals', value: '' }] });
+                            }}
+                            className="text-xs flex items-center gap-1 text-brand-400 font-bold uppercase hover:text-brand-300 transition-colors"
+                        >
+                            <PlusIcon className="w-3 h-3" /> Add Condition
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
+                    <p className="text-xs text-slate-300 font-medium">Trigger Behavior</p>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                        When this flow is published, the system will poll the specified sheet every few minutes.
+                        Any <strong>new rows</strong> added to the bottom of the sheet will trigger this flow.
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-2">
+                        The entire row content will be available as variables (e.g. <code>{`{{trigger.Name}}`}</code> if you have a 'Name' header).
+                    </p>
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 // --- Timing Settings Panel ---
 const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
     const { data } = selectedNode;
@@ -1681,21 +1942,35 @@ const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData };
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Delay Configuration</label>
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
+                        <div className={data.delayUnit === 'Custom Date' ? 'hidden' : 'block'}>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Value</label>
                             <PanelNumberInput value={data.delayValue ?? 1} onChange={val => handleUpdate({ delayValue: val })} />
                         </div>
-                        <div>
+                        <div className={data.delayUnit === 'Custom Date' ? 'col-span-2' : ''}>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit</label>
                             <PanelSelect
                                 value={data.delayUnit || 'Minutes'}
                                 onChange={val => handleUpdate({ delayUnit: val as any })}
-                                options={['Seconds', 'Minutes', 'Hours', 'Days', 'Weeks']}
+                                options={['Seconds', 'Minutes', 'Hours', 'Days', 'Weeks', 'Custom Date']}
                             />
                         </div>
+                        {data.delayUnit === 'Custom Date' && (
+                            <div className="col-span-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Resume Date & Time</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                                    value={data.customDate || ''}
+                                    onChange={(e) => handleUpdate({ customDate: e.target.value })}
+                                />
+                                <p className="text-[10px] text-amber-500 mt-1 italic">
+                                    Specified date/time is local to the server time. Relative waits are recommended for flexible flows.
+                                </p>
+                            </div>
+                        )}
                     </div>
                     <p className="text-[10px] text-slate-500 mt-3 italic">
-                        The flow execution will pause for the specified duration before moving to the next step.
+                        The flow execution will pause until the specified time or duration is reached.
                     </p>
                 </div>
             </div>
@@ -2376,6 +2651,11 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
     );
     const [isLoadingSheets, setIsLoadingSheets] = useState(false);
     const [isLoadingColumns, setIsLoadingColumns] = useState(false);
+    const [connections, setConnections] = useState<{ id: string, connection_name: string }[]>([]);
+
+    React.useEffect(() => {
+        integrationsService.getGoogleConnections().then(setConnections).catch(console.error);
+    }, []);
 
     const handleSignIn = () => {
         if (!data.clientId || !data.clientSecret) {
@@ -2443,7 +2723,9 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
 
     const fetchSheets = async () => {
         if (!data.spreadsheetId) return showNotification('Please enter a Spreadsheet ID', 'error');
-        if (!data.access_token) return showNotification('Please sign in first', 'error');
+
+        const isStoredCredential = data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId);
+        if (!isStoredCredential && !data.access_token) return showNotification('Please sign in first', 'error');
 
         setIsLoadingSheets(true);
         try {
@@ -2453,7 +2735,8 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
                 body: JSON.stringify({
                     spreadsheetId: data.spreadsheetId,
-                    tokens: {
+                    connectionId: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? data.credentialId : undefined,
+                    tokens: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? undefined : {
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,
                         scope: 'https://www.googleapis.com/auth/spreadsheets',
@@ -2482,7 +2765,9 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
         const sheetNameToUse = overrideSheetName || data.sheetName;
 
         if (!data.spreadsheetId || !sheetNameToUse) return showNotification('Please enter Spreadsheet ID and Sheet Name', 'error');
-        if (!data.access_token) return showNotification('Please sign in first', 'error');
+
+        const isStoredCredential = data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId);
+        if (!isStoredCredential && !data.access_token) return showNotification('Please sign in first', 'error');
 
         setIsLoadingColumns(true);
         try {
@@ -2493,7 +2778,8 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                 body: JSON.stringify({
                     spreadsheetId: data.spreadsheetId,
                     sheetName: sheetNameToUse,
-                    tokens: {
+                    connectionId: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? data.credentialId : undefined,
+                    tokens: (data.credentialId && !['new', 'custom-oauth'].includes(data.credentialId!)) ? undefined : {
                         access_token: data.access_token,
                         refresh_token: data.refresh_token,
                         scope: 'https://www.googleapis.com/auth/spreadsheets',
@@ -2550,46 +2836,48 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                             <PanelSelect
                                 value={data.credentialId || ''}
                                 onChange={val => handleUpdate({ credentialId: val })}
-                                options={[{ label: 'Select Credential...', value: '' }, { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
+                                options={[{ label: 'Select Credential...', value: '' }, ...connections.map(c => ({ label: c.connection_name, value: c.id })), { label: 'New Credential', value: 'new' }, { label: 'Connected Account', value: 'custom-oauth' }]}
                             />
                         </div>
 
-                        <div className="space-y-3 pt-3 border-t border-slate-700/50">
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">OAuth Redirect URL</label>
-                                <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-[10px] font-mono text-slate-400 break-all select-all">
-                                    {window.location.origin}/rest/oauth2-credential/callback
+                        {['new', 'custom-oauth', ''].includes(data.credentialId || '') && (
+                            <div className="space-y-3 pt-3 border-t border-slate-700/50">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">OAuth Redirect URL</label>
+                                    <div className="bg-slate-900/50 border border-slate-800 rounded px-3 py-2 text-[10px] font-mono text-slate-400 break-all select-all">
+                                        {window.location.origin}/rest/oauth2-credential/callback
+                                    </div>
+                                    <p className="text-[9px] text-slate-500 mt-1">Use this URL in Google Cloud Console.</p>
                                 </div>
-                                <p className="text-[9px] text-slate-500 mt-1">Use this URL in Google Cloud Console.</p>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client ID</label>
+                                    <PanelTextInput
+                                        value={data.clientId || ''}
+                                        onChange={val => handleUpdate({ clientId: val })}
+                                        placeholder="Enter Client ID"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client Secret</label>
+                                    <PanelTextInput
+                                        value={data.clientSecret || ''}
+                                        onChange={val => handleUpdate({ clientSecret: val })}
+                                        placeholder="Enter Client Secret"
+                                        type="password"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSignIn}
+                                    className="w-full py-2 bg-white text-slate-900 font-bold text-xs rounded hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.64 2 12.2 2C6.42 2 2 6.5 2 12s4.42 10 10.2 10c5.31 0 9.14-3.5 9.14-9.1 0-.9-.08-1.72-.18-2.61z" /></svg>
+                                    {data.credentialId === 'custom-oauth' ? 'Re-Connect Account' : 'Sign in with Google'}
+                                </button>
+                                {data.credentialId === 'custom-oauth' && (
+                                    <p className="text-[10px] text-green-400 text-center font-bold">✓ Account Connected</p>
+                                )}
                             </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client ID</label>
-                                <PanelTextInput
-                                    value={data.clientId || ''}
-                                    onChange={val => handleUpdate({ clientId: val })}
-                                    placeholder="Enter Client ID"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Client Secret</label>
-                                <PanelTextInput
-                                    value={data.clientSecret || ''}
-                                    onChange={val => handleUpdate({ clientSecret: val })}
-                                    placeholder="Enter Client Secret"
-                                    type="password"
-                                />
-                            </div>
-                            <button
-                                onClick={handleSignIn}
-                                className="w-full py-2 bg-white text-slate-900 font-bold text-xs rounded hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35 11.1h-9.17v2.73h6.51c-.33 3.81-3.5 5.44-6.5 5.44C8.36 19.27 5 16.25 5 12c0-4.1 3.2-7.27 7.2-7.27 3.09 0 4.9 1.97 4.9 1.97L19 4.72S16.64 2 12.2 2C6.42 2 2 6.5 2 12s4.42 10 10.2 10c5.31 0 9.14-3.5 9.14-9.1 0-.9-.08-1.72-.18-2.61z" /></svg>
-                                {data.credentialId === 'custom-oauth' ? 'Re-Connect Account' : 'Sign in with Google'}
-                            </button>
-                            {data.credentialId === 'custom-oauth' && (
-                                <p className="text-[10px] text-green-400 text-center font-bold">✓ Account Connected</p>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
 
@@ -2676,11 +2964,10 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Lookup Value</label>
-                                <DroppableInput
+                                <PanelTextInput
                                     value={data.lookupValue || ''}
                                     onChange={val => handleUpdate({ lookupValue: val })}
                                     placeholder="Value to find"
-                                    availableVariables={availableVariables}
                                 />
                                 <p className="text-[10px] text-slate-500 mt-1">Value to match in the lookup column.</p>
                             </div>
@@ -2914,6 +3201,79 @@ const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: Cont
                         <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Email</label>
                             <PanelTextInput value={data.email || ''} onChange={val => handleUpdate({ email: val })} placeholder="{{trigger.email}} or Email" />
+                        </div>
+
+                        {/* Custom Fields Section */}
+                        <div className="pt-2 border-t border-slate-800/50">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase">Additional Fields</label>
+                                <button
+                                    onClick={() => handleUpdate({ customFields: [...(data.customFields || []), { key: '', value: '' }] })}
+                                    className="text-[10px] text-brand-400 hover:text-brand-300 font-bold uppercase flex items-center gap-1"
+                                >
+                                    <PlusIcon className="w-3 h-3" /> Add Field
+                                </button>
+                            </div>
+
+                            {/* Helpful Examples */}
+                            <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                                <p className="text-[10px] text-blue-300 font-medium mb-1">💡 Common Field Names:</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {['company', 'budget', 'source', 'notes', 'website', 'city', 'country'].map(fieldName => (
+                                        <button
+                                            key={fieldName}
+                                            onClick={() => handleUpdate({ customFields: [...(data.customFields || []), { key: fieldName, value: '' }] })}
+                                            className="text-[9px] px-2 py-0.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-200 rounded border border-blue-500/40 transition-colors"
+                                        >
+                                            {fieldName}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                {data.customFields?.map((field, index) => (
+                                    <div key={index} className="flex gap-2">
+                                        <div className="flex-1">
+                                            <PanelTextInput
+                                                value={field.key}
+                                                onChange={(val) => {
+                                                    const newFields = [...(data.customFields || [])];
+                                                    newFields[index].key = val;
+                                                    handleUpdate({ customFields: newFields });
+                                                }}
+                                                placeholder="Field Name (e.g. company)"
+                                            />
+                                        </div>
+                                        <div className="flex-1">
+                                            <PanelTextInput
+                                                value={field.value}
+                                                onChange={(val) => {
+                                                    const newFields = [...(data.customFields || [])];
+                                                    newFields[index].value = val;
+                                                    handleUpdate({ customFields: newFields });
+                                                }}
+                                                placeholder="Value"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newFields = (data.customFields || []).filter((_, i) => i !== index);
+                                                handleUpdate({ customFields: newFields });
+                                            }}
+                                            className="text-slate-500 hover:text-red-400 p-1"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {(!data.customFields || data.customFields.length === 0) && (
+                                    <p className="text-[10px] text-slate-600 italic">No additional fields configured.</p>
+                                )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2">
+                                <strong>Note:</strong> Only fields that exist in your <code className="text-amber-400">leads</code> database table will be saved. Click the suggestions above to quickly add common fields.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -3177,6 +3537,43 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
         fetchConnections();
     }, []);
 
+    // Listen for OAuth Success
+    React.useEffect(() => {
+        const handleMessage = async (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type === 'GOOGLE_AUTH_CODE') {
+                const code = event.data.code;
+                try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) return;
+                    const res = await fetch('/api/integrations/calendar/exchange', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            code,
+                            redirectUrl: window.location.origin + '/rest/oauth2-credential/callback'
+                        })
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        showNotification('Connected successfully!', 'success');
+                        const freshRes = await fetch('/api/integrations/calendar/connections', {
+                            headers: { 'Authorization': `Bearer ${session.access_token}` }
+                        });
+                        const freshJson = await freshRes.json();
+                        setConnections(freshJson || []);
+                    } else {
+                        showNotification('Failed to connect: ' + json.error, 'error');
+                    }
+                } catch (e: any) {
+                    showNotification('Connection error: ' + e.message, 'error');
+                }
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [showNotification]);
+
     const handleAuth = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -3184,7 +3581,7 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
             const res = await fetch('/api/integrations/calendar/auth-url', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ redirectUrl: window.location.origin + '/google-callback' })
+                body: JSON.stringify({ redirectUrl: window.location.origin + '/rest/oauth2-credential/callback' })
             });
             const json = await res.json();
             if (json.url) {
@@ -3539,7 +3936,179 @@ const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskRem
     );
 };
 
+const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const handleUpdate = (update: Partial<AIAgentData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+    const [agents, setAgents] = useState<{ id: string, name: string }[]>([]);
+
+    // Ensure default values
+    React.useEffect(() => {
+        if (!data.outputVariableName) {
+            handleUpdate({ outputVariableName: 'ai_response' });
+        }
+        // Fetch Agents
+        aiAgentService.listAgents().then(setAgents).catch(err => console.error("Failed to fetch agents", err));
+    }, []);
+
+    return (
+        <SettingsModal title="AI Agent" onClose={onClose} icon={<RobotIcon />} availableVariables={availableVariables}>
+            <div className="space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select AI Agent</label>
+                    <PanelSelect
+                        value={data.agentId || ''}
+                        onChange={val => handleUpdate({ agentId: val })}
+                        options={[
+                            { label: 'Select an Agent...', value: '' },
+                            ...agents.map(a => ({ label: a.name, value: a.id }))
+                        ]}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-2">
+                        create agents in <span className="font-bold text-brand-400">AI Buddy</span> section.
+                    </p>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">User Input / Query</label>
+                    <PanelTextarea
+                        value={data.userQuery || ''}
+                        onChange={val => handleUpdate({ userQuery: val })}
+                        placeholder="e.g. {{last_message_body}} or static text"
+                        rows={3}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">The text to send to the AI.</p>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Output Variable</label>
+                    <PanelTextInput
+                        value={data.outputVariableName || ''}
+                        onChange={val => handleUpdate({ outputVariableName: val })}
+                        placeholder="e.g. ai_reply"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Variable to store the AI's response.</p>
+                </div>
+
+                {/* Legacy / Advanced Mode Support (Hidden if agent selected, or we can keep it for overrides) */}
+                {/* For simplicity, we assume if agentId is set, we use that. If not, users might expect manual config but we are removing it to enforce Central Agent usage as requested. */}
+            </div>
+        </SettingsModal>
+    );
+};
+
+
+const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const { showNotification } = React.useContext(SettingsContext);
+    const handleUpdate = (updatedFields: Partial<SmtpData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
+    const [connections, setConnections] = useState<{ id: string, connection_name: string, host: string, user: string, fromEmail?: string }[]>([]);
+    const [isSending, setIsSending] = useState(false);
+
+    React.useEffect(() => {
+        integrationsService.getSmtpConnections().then(setConnections).catch(console.error);
+    }, []);
+
+    const handleSendTest = async () => {
+        if (!data.connectionId) return showNotification('Please select an SMTP Account first.', 'error');
+        if (!data.to) return showNotification('Please enter a recipient.', 'error');
+        if (data.to.includes('{{')) return showNotification('Cannot test with variables.', 'error');
+
+        setIsSending(true);
+        try {
+            await integrationsService.sendSmtpEmail(data.connectionId, data.to, data.subject || 'Test Subject', data.body || 'Test Body');
+            showNotification('Test email sent successfully!', 'success');
+        } catch (e: any) {
+            showNotification('Failed to send test email: ' + e.message, 'error');
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    return (
+        <SettingsModal title="Send Email (SMTP)" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+            <div className="space-y-4">
+                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">SMTP Account</label>
+                    {connections.length > 0 ? (
+                        <PanelSelect
+                            value={data.connectionId}
+                            onChange={(val) => handleUpdate({ connectionId: val })}
+                            options={[{ label: 'Select Account...', value: '' }, ...connections.map(c => ({
+                                label: `${c.connection_name} (${c.fromEmail || c.user})`,
+                                value: c.id
+                            }))]}
+                        />
+                    ) : (
+                        <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                            No SMTP accounts connected. Please go to Integrations page.
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">To (Recipient)</label>
+                    <PanelTextInput
+                        value={data.to}
+                        onChange={val => handleUpdate({ to: val })}
+                        placeholder="e.g. {{email}} or user@example.com"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Subject</label>
+                    <PanelTextInput
+                        value={data.subject}
+                        onChange={val => handleUpdate({ subject: val })}
+                        placeholder="Email Subject"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Body</label>
+                    <PanelTextarea
+                        value={data.body}
+                        onChange={val => handleUpdate({ body: val })}
+                        placeholder="Email content (HTML supported)..."
+                        rows={6}
+                    />
+                </div>
+
+                <div className="border-t border-slate-800 pt-4">
+                    <button
+                        onClick={handleSendTest}
+                        disabled={isSending}
+                        className={`w-full py-2 flex items-center justify-center space-x-2 rounded-lg font-bold text-xs transition-colors ${isSending ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'}`}
+                    >
+                        {isSending ? (
+                            <span>Sending...</span>
+                        ) : (
+                            <>
+                                <GmailIcon className="w-4 h-4" />
+                                <span>Send Test Email</span>
+                            </>
+                        )}
+                    </button>
+                    <p className="text-[10px] text-slate-500 text-center mt-2">
+                        Sends to the address specified in "To". Variables are not supported in test mode.
+                    </p>
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification }) => {
+    // ... (rest of SettingsPanel body, I need to ensure I don't overwrite it, wait view_file showed I am replacing SettingsPanel definition if I am not careful)
+    // Actually, I should insert SmtpSettingsPanel BEFORE SettingsPanel, and then modify renderPanel inside.
+
+    // I will use replace_file_content in 2 chunks? No, multi_replace.
+    // Chunk 1: Insert SmtpSettingsPanel before SettingsPanel.
+    // Chunk 2: Add Case to renderPanel.
+
+    // I can't write the logic inside this tool call string easily.
+    // I will do it in two separate calls or one multi_replace.
+    // I will use multi_replace.
+
     const [activeInputSetter, setActiveInputSetter] = useState<((token: string) => void) | null>(null);
     const [activeInputId, setActiveInputId] = useState<string | null>(null);
 
@@ -3586,10 +4155,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.AskLocation: return <AskLocationSettingsPanel {...commonProps} />;
             case NodeType.Gsheet: return <GsheetSettingsPanel {...commonProps} />;
             case NodeType.Gmail: return <GmailSettingsPanel {...commonProps} />;
+            case NodeType.Smtp: return <SmtpSettingsPanel {...commonProps} />;
             case NodeType.Calendar: return <CalendarSettingsPanel {...commonProps} />;
-            case NodeType.Calendar: return <CalendarSettingsPanel {...commonProps} />;
+
             case NodeType.TaskReminder: return <TaskReminderSettingsPanel {...commonProps} />;
             case NodeType.Code: return <CodeSettingsPanel {...commonProps} />;
+            case NodeType.SheetTrigger: return <SheetTriggerSettingsPanel {...commonProps} />;
+            case NodeType.AIAgent: return <AIAgentSettingsPanel {...commonProps} />;
             default: return <TextMessageSettingsPanel {...commonProps} />;
         }
     };
