@@ -17,7 +17,7 @@ const triggers = [
   { type: NodeType.NewLead, label: 'New Lead', icon: <UsersIcon /> },
   { type: NodeType.PipelineTrigger, label: 'Added to Pipeline', icon: <BookmarkIcon /> },
   { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
-  { type: NodeType.SheetTrigger, label: 'New Row Added', icon: <GsheetIcon /> },
+  { type: NodeType.SheetTrigger, label: 'New Google Sheet Row', icon: <GsheetIcon /> },
 ];
 const nodeTypes = [
   { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
@@ -43,9 +43,9 @@ const nodeTypes = [
   { type: NodeType.Webhook, label: 'Webhook', icon: <WebhookIcon /> },
   { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
   { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
-  { type: NodeType.Gsheet, label: 'Sheets', icon: <GsheetIcon /> },
+  { type: NodeType.Gsheet, label: 'Google Sheets', icon: <GsheetIcon /> },
   { type: NodeType.Code, label: 'Code', icon: <CodeIcon /> },
-  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon /> },
+  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon />, isBeta: true },
 ];
 
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {
@@ -61,8 +61,13 @@ const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }
   );
 }
 
-const NodeItem: React.FC<{ type: NodeType; label: string; icon: React.ReactNode; colorClass?: string; onDragStart: (event: React.DragEvent, nodeType: NodeType) => void; onAddNode: (type: NodeType) => void; }> = ({ type, label, icon, colorClass = "text-brand-400", onDragStart, onAddNode }) => (
-  <div onDragStart={(event) => { event.dataTransfer.setData('application/reactflow', type); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => onAddNode(type)} draggable={true} className="flex flex-col items-center justify-center p-2 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl border border-slate-700/50 hover:border-slate-500/80 cursor-grab active:cursor-grabbing transition-all duration-200 group shadow-sm hover:shadow-md h-20">
+const NodeItem: React.FC<{ type: NodeType; label: string; icon: React.ReactNode; colorClass?: string; isBeta?: boolean; onDragStart: (event: React.DragEvent, nodeType: NodeType) => void; onAddNode: (type: NodeType) => void; }> = ({ type, label, icon, colorClass = "text-brand-400", isBeta, onDragStart, onAddNode }) => (
+  <div onDragStart={(event) => { event.dataTransfer.setData('application/reactflow', type); event.dataTransfer.effectAllowed = 'move'; }} onClick={() => onAddNode(type)} draggable={true} className="flex flex-col items-center justify-center p-2 bg-slate-800/50 hover:bg-slate-700/80 rounded-xl border border-slate-700/50 hover:border-slate-500/80 cursor-grab active:cursor-grabbing transition-all duration-200 group shadow-sm hover:shadow-md h-20 relative overflow-visible">
+    {isBeta && (
+      <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[8px] font-bold px-1 rounded-sm rotate-12 shadow-sm z-10 border border-slate-900/10 pointer-events-none">
+        Beta
+      </span>
+    )}
     <div className={`mb-1.5 ${colorClass} group-hover:scale-110 transition-transform duration-200`}>{icon}</div>
     <span className="text-[10px] font-medium text-slate-300 text-center leading-tight line-clamp-2">{label}</span>
   </div>
