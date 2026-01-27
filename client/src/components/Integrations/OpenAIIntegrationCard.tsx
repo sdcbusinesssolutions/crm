@@ -79,7 +79,7 @@ const OpenAIIntegrationCard: React.FC = () => {
                 The uploaded image 0 shows black icon. So background should be light.
             */}
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${savedKeyMask ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-50 text-slate-900'}`}>
-                <OpenAIIcon className="w-7 h-7" />
+                <img src="/assets/openai.png" alt="OpenAI" className="w-8 h-8 object-contain" />
             </div>
 
             <h3 className="text-lg font-bold text-slate-800 mb-2">OpenAI</h3>
