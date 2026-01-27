@@ -15,7 +15,6 @@ const AuthBridge: React.FC = () => {
 
     const logToServer = async (level: string, message: string, details?: any) => {
         try {
-            // Fire and forget log
             fetch('/api/client-logs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -65,8 +64,8 @@ const AuthBridge: React.FC = () => {
             version: 'v20.0'
         });
         setStatus('Ready to connect.');
-        // Auto-redirect removed to prevent popup blocking.
-        // User must click "Continue with Facebook".
+        // NOTICE: We do NOT call handleLogin() automatically anymore here.
+        // This prevents the browser from blocking the popup.
     };
 
     const handleLogin = () => {
@@ -74,8 +73,9 @@ const AuthBridge: React.FC = () => {
 
         console.log('Starting FB Login flow on Bridge...');
         logToServer('INFO', 'Starting FB Login Flow');
-        setStatus('Redirecting to Facebook...');
+        setStatus('Waiting for Facebook Login...');
 
+        // FB.login must be called directly inside the user event handler (onClick)
         (window as any).FB.login((response: any) => {
             console.log('Bridge FB Response:', response);
             if (response.authResponse) {
@@ -115,9 +115,6 @@ const AuthBridge: React.FC = () => {
 
         logToServer('INFO', 'Sending Code to Parent', { targetOrigin: origin || '*' });
 
-        // We use '*' to allow the child to send to the parent even if domains differ.
-        // In a strict environment, we should validation 'origin' param matches trusted list.
-        // For white-labeling, we trust whom we opened.
         if (origin) {
             window.opener.postMessage(message, origin);
         } else {
@@ -147,21 +144,23 @@ const AuthBridge: React.FC = () => {
                 {error ? (
                     <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm mb-4">
                         {error}
+                        <button onClick={() => window.location.reload()} className="mt-2 text-xs underline">Reload</button>
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center w-full">
                         <button
                             onClick={handleLogin}
-                            className="w-full px-6 py-3 bg-[#1877F2] text-white font-bold rounded-lg shadow-md hover:bg-[#166fe5] transition-colors flex items-center justify-center gap-3"
+                            className="w-full px-6 py-4 bg-[#1877F2] text-white font-bold rounded-xl shadow-lg hover:bg-[#166fe5] hover:shadow-xl transition-all flex items-center justify-center gap-3 transform hover:-translate-y-0.5"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white">
                                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.791-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                             </svg>
                             Continue with Facebook
                         </button>
-                        <p className="text-xs text-slate-400 mt-4">
-                            Click above to open the secure login window.
-                        </p>
+                        <div className="mt-6 p-3 bg-blue-50 text-blue-700 text-xs rounded-lg border border-blue-100 max-w-xs">
+                            <p className="font-semibold mb-1">Why do I need to click?</p>
+                            This security step prevents your browser from blocking the login window.
+                        </div>
                     </div>
                 )}
             </div>
