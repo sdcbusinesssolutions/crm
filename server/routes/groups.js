@@ -1,11 +1,12 @@
 
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 
 router.get('/', async (req, res) => {
   try {
-    const supabase = getAuthenticatedSupabase(req);
+    // Use Admin to bypass row limit (for accurate counts > 1000)
+    const supabase = supabaseAdmin;
     const { data, error } = await supabase
       .from('contact_groups')
       .select('*')
@@ -19,23 +20,39 @@ router.get('/', async (req, res) => {
     // Fetch contacts for accurate count (Deduplicated)
     let uniqueContacts = [];
     try {
-      const { data: cData } = await supabase
-        .from('contacts')
-        .select('id, phone, group_ids')
-        .eq('user_id', req.user.id)
-        .order('created_at', { ascending: false }); // Added sort to match contacts.js
+      // Loop strategy to fetch ALL contacts for Group Counting
+      let allContacts = [];
+      let pageIndex = 0;
+      const chunkSize = 1000;
+      let hasMore = true;
+      const contactsClient = supabaseAdmin || getAuthenticatedSupabase(req);
 
-      const rawContacts = cData || [];
-      const seenPhones = new Set();
+      while (hasMore) {
+        const from = pageIndex * chunkSize;
+        const to = from + chunkSize - 1;
 
-      // Apply same deduplication logic as in contacts.js
-      rawContacts.forEach(c => {
-        const key = c.phone ? String(c.phone).trim() : `id:${c.id}`;
-        if (!seenPhones.has(key)) {
-          seenPhones.add(key);
-          uniqueContacts.push(c);
+        const { data: chunk, error: cErr } = await contactsClient
+          .from('contacts')
+          .select('id, phone, group_ids')
+          .eq('user_id', req.user.id)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+
+        if (cErr) throw cErr;
+
+        if (chunk && chunk.length > 0) {
+          allContacts = allContacts.concat(chunk);
+          if (chunk.length < chunkSize) hasMore = false;
+          else pageIndex++;
+        } else {
+          hasMore = false;
         }
-      });
+        if (allContacts.length > 150000) break;
+      }
+
+      const rawContacts = allContacts;
+      // Apply same logic as contacts.js (Direct mapping, no dedupe)
+      uniqueContacts = rawContacts;
     } catch (e) {
       console.error("Error calculating group counts:", e);
     }

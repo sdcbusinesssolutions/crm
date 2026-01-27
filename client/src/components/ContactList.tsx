@@ -642,12 +642,23 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                     if (importedContacts.length > 0) {
                         console.log('🚀 Calling bulkCreateContacts...');
-                        await contactService.bulkCreateContacts(importedContacts);
+                        const result = await contactService.bulkCreateContacts(importedContacts);
                         await loadInitialData();
+
+                        // Parse Stats
+                        const stats = result?.stats || {};
+                        const inserted = stats.inserted !== undefined ? stats.inserted : importedContacts.length;
+                        const duplicates = stats.duplicates || 0;
+                        const failed = stats.failed || 0;
+
                         setToast({
                             type: 'success',
-                            title: 'Import Successful!',
-                            message: `Successfully imported ${importedContacts.length} contact${importedContacts.length > 1 ? 's' : ''}.`
+                            title: 'Import Summary',
+                            message: `Processed ${importedContacts.length} record(s):\n` +
+                                `✅ Unique (Inserted): ${inserted}\n` +
+                                `⚠️ Duplicates (Skipped): ${duplicates}\n` +
+                                `❌ Failed to Insert: ${failed}\n\n` +
+                                (failed > 0 ? `Check 'server/logs/contact_imports_DATE.log' for details on failed records.` : `All valid records were processed successfully.`)
                         });
                     } else {
                         setToast({

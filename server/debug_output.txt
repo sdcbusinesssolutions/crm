@@ -1,12 +1,34 @@
---- Checking Contact Status for 917000698637 ---
-
-✅ FOUND 1 EXISTING CONTACT(S) IN DB:
-
-[Contact Record]
-- ID: f2ec2264-10e7-478f-ad4d-5e068f456d51
-- Name: 🙂
-- Phone: 917000698637
-- Email: null
-- Created At: 2025-12-29T05:52:42.52468+00:00
-
-CONCLUSION: The contact exists. The New Lead node is taking the 'Existing Contact' path.
+Testing Supabase Limits...
+Total Real Count in DB: 7763
+Default Fetch Count: 1000
+Range(0, 9999) Fetch Count: 1000
+Groups found: 29
+Group 'MKCL_Pune' (Count Exact): 1788, (Range 0-9999): 1000
+Group 'New_MKCL_175' (Count Exact): 387, (Range 0-9999): 387
+Group 'MKCL_02' (Count Exact): 567, (Range 0-9999): 567
+Group 'Office Nos' (Count Exact): 12, (Range 0-9999): 12
+Group 'UT_Test' (Count Exact): 550, (Range 0-9999): 550
+Group 'UT_Test1' (Count Exact): 234, (Range 0-9999): 234
+Group 'ff' (Count Exact): 2, (Range 0-9999): 2
+Group 'demo' (Count Exact): 2, (Range 0-9999): 2
+Group 'gh' (Count Exact): 1, (Range 0-9999): 1
+Group 'meta lead Kp' (Count Exact): 147, (Range 0-9999): 147
+Group 'lll' (Count Exact): 0, (Range 0-9999): 0
+Group 'test' (Count Exact): 16, (Range 0-9999): 16
+Group 'lll89' (Count Exact): 1, (Range 0-9999): 1
+Group 'Test' (Count Exact): 0, (Range 0-9999): 0
+Group 'test123' (Count Exact): 2, (Range 0-9999): 2
+Group 'test1' (Count Exact): 2, (Range 0-9999): 2
+Group 'ready' (Count Exact): 4, (Range 0-9999): 4
+Group 'new' (Count Exact): 169, (Range 0-9999): 169
+Group 'Not Interested' (Count Exact): 42, (Range 0-9999): 42
+Group 'Interested' (Count Exact): 33, (Range 0-9999): 33
+Group 'vasu' (Count Exact): 0, (Range 0-9999): 0
+Group 'kr' (Count Exact): 6, (Range 0-9999): 6
+Group 'pop' (Count Exact): 213, (Range 0-9999): 213
+Group 'CAPA' (Count Exact): 98, (Range 0-9999): 98
+Group 'onee' (Count Exact): 199, (Range 0-9999): 199
+Group 'two' (Count Exact): 534, (Range 0-9999): 534
+Group 'demo' (Count Exact): 1, (Range 0-9999): 1
+Group 'TEST01' (Count Exact): 999, (Range 0-9999): 999
+Group 'TEST02' (Count Exact): 25, (Range 0-9999): 25

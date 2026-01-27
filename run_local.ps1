@@ -68,16 +68,28 @@ SUPABASE_URL=$sbUrl
 SUPABASE_KEY=$sbKey
 SUPABASE_SERVICE_KEY=$sbService
 SUPABASE_ANON_KEY=$sbKey
+VITE_SUPABASE_URL=$sbUrl
+VITE_SUPABASE_ANON_KEY=$sbKey
+VITE_CLIENT_URL=http://localhost:3000
+VITE_API_URL=http://localhost:5000
 VITE_MASTER_URL=$master
 BRIDGE_DOMAIN=$master
 JWT_SECRET=super-secret-dev-jwt-key-change-in-prod
 "@
 
-    Write-Host "Updating local .env file..." -ForegroundColor Cyan
-    if (Test-Path ".env") { Copy-Item ".env" ".env.bak" -Force }
-    Set-Content -Path ".env" -Value $envContent
+    Write-Host "Updating local .env files..." -ForegroundColor Cyan
     
-    Write-Host "New .env configured for '$domain'!" -ForegroundColor Green
+    # Update Server .env
+    if (Test-Path "server/.env") { Copy-Item "server/.env" "server/.env.bak" -Force }
+    Set-Content -Path "server/.env" -Value $envContent
+    Write-Host "Updated server/.env" -ForegroundColor Gray
+
+    # Update Client .env
+    if (Test-Path "client/.env") { Copy-Item "client/.env" "client/.env.bak" -Force }
+    Set-Content -Path "client/.env" -Value $envContent
+    Write-Host "Updated client/.env" -ForegroundColor Gray
+    
+    Write-Host "New environment configured for '$domain'!" -ForegroundColor Green
 
 }
 else {

@@ -6,30 +6,90 @@ const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClie
 // GET /api/contacts
 router.get('/', async (req, res) => {
   try {
-    const supabase = getAuthenticatedSupabase(req);
-    const { data, error } = await supabase
-      .from('contacts')
-      .select('*')
-      .eq('user_id', req.user.id)
-      .order('created_at', { ascending: false });
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const userId = req.user.id;
 
-    if (error) throw error;
+    if (page && limit) {
+      // --- PAGINATION MODE ---
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
 
-    // Deduplicate by phone number manually
-    const uniqueContacts = [];
-    const seenPhones = new Set();
+      // Use Admin to bypass limits and get accurate total
+      const { data: rawData, count, error } = await supabaseAdmin
+        .from('contacts')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
-    (data || []).forEach(c => {
-      // Normalize phone if present, otherwise use unique ID to treat as unique
-      const key = c.phone ? String(c.phone).trim() : `id:${c.id}`;
+      if (error) throw error;
 
-      if (!seenPhones.has(key)) {
-        seenPhones.add(key);
-        uniqueContacts.push(c);
+      const formatted = (rawData || []).map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        status: c.status,
+        source: c.source,
+        tags: c.tags || [],
+        groupIds: c.group_ids || [],
+        customData: c.custom_data || {},
+        createdAt: c.created_at,
+        updatedAt: c.updated_at || (c.custom_data && c.custom_data.updated_at)
+      }));
+
+      // Return object with data and total
+      return res.json({
+        data: formatted,
+        total: count || 0,
+        page,
+        limit
+      });
+    }
+
+    // --- LEGACY MODE (Fetch All) ---
+    // ROBUST STRATEGY: Loop to fetch ALL records regardless of 1000-row limits
+    let allContacts = [];
+    let pageIndex = 0;
+    const chunkSize = 1000;
+    let hasMore = true;
+
+    // Use Admin if available, else standard client (both will work with looping)
+    const clientToUse = supabaseAdmin || getAuthenticatedSupabase(req);
+
+    while (hasMore) {
+      const from = pageIndex * chunkSize;
+      const to = from + chunkSize - 1;
+
+      const { data: chunk, error } = await clientToUse
+        .from('contacts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (chunk && chunk.length > 0) {
+        allContacts = allContacts.concat(chunk);
+        if (chunk.length < chunkSize) hasMore = false; // End of data
+        else pageIndex++; // Next page
+      } else {
+        hasMore = false;
       }
-    });
 
-    const formatted = uniqueContacts.map(c => ({
+      // Safety break for sane limits (e.g. 150k)
+      if (allContacts.length > 150000) break;
+    }
+
+    const data = allContacts;
+    console.log(`[DEBUG] GET /contacts for user ${userId} -> Fetched ${data.length} rows (Loop Strategy)`);
+    res.set('Cache-Control', 'no-store');
+
+    // Direct mapping to preserve DB count (1025)
+    // No manual deduplication.
+    const formatted = data.map(c => ({
       id: c.id,
       name: c.name,
       phone: c.phone,
@@ -48,6 +108,7 @@ router.get('/', async (req, res) => {
     console.error('Error fetching contacts:', err);
     // Code 42P01 means table undefined. Return empty array instead of crashing.
     if (err.code === '42P01' || (err.message && err.message.includes('does not exist'))) {
+      if (req.query.page) return res.json({ data: [], total: 0 }); // pagination fallback
       return res.json([]);
     }
     res.status(500).json({ error: err.message });
@@ -268,41 +329,99 @@ router.post('/bulk', async (req, res) => {
     }));
 
     // Batch Processing Config
-    const CHUNK_SIZE = 1000;
+    // Batch Processing Config
+    const CHUNK_SIZE = 500;
     const chunkedResults = [];
+    const stats = { inserted: 0, duplicates: 0, failed: 0 };
     const totalContacts = payload.length;
 
     console.log(`🚀 Starting batch insert for ${totalContacts} contacts in chunks of ${CHUNK_SIZE}...`);
 
     for (let i = 0; i < totalContacts; i += CHUNK_SIZE) {
       const chunk = payload.slice(i, i + CHUNK_SIZE);
-      console.log(`Processing chunk ${i / CHUNK_SIZE + 1} (${chunk.length} items)...`);
+      const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+      console.log(`Processing chunk ${chunkIndex} (${chunk.length} items)...`);
 
+      // 1. Try Batch Insert
       const { data, error } = await supabase
         .from('contacts')
         .insert(chunk)
         .select();
 
+      // 2. Handle Batch Failure by Retrying Individually
       if (error) {
-        console.error(`❌ Error in chunk ${i / CHUNK_SIZE + 1}:`, error.message);
-        logContactImportEvent('IMPORT_CHUNK_ERROR', { userId: user.id, chunkIndex: i, error: error.message });
-        // Optional: Continue or Throw? 
-        // For now, we throw to alert user, but sophisticated importers might continue.
-        // Given "bulk" expectation, failing entirely on a middle chunk is messy.
-        // We will throw to ensure data integrity/awareness.
-        throw error;
-      }
+        console.warn(`⚠️ Chunk ${chunkIndex} failed (${error.message}). Retrying items individually...`);
+        logContactImportEvent('IMPORT_BATCH_FAIL_RETRY', {
+          userId: user.id,
+          chunkIndex: chunkIndex,
+          error: error.message
+        });
 
-      if (data) {
+        // Serial Retry
+        for (const item of chunk) {
+          const { data: itemData, error: itemError } = await supabase
+            .from('contacts')
+            .insert([item])
+            .select();
+
+          if (itemError) {
+            // Check for Unique Constraint (Duplicate)
+            if (itemError.code === '23505') {
+              stats.duplicates++;
+
+              // Handle Group Merge for Duplicates
+              try {
+                // Fetch the existing contact efficiently
+                const { data: existing } = await supabase
+                  .from('contacts')
+                  .select('id, group_ids')
+                  .eq('user_id', user.id)
+                  .eq('phone', item.phone)
+                  .maybeSingle();
+
+                if (existing) {
+                  // Merge Groups
+                  const newGroups = item.group_ids || [];
+                  const currentGroups = existing.group_ids || [];
+                  const mergedGroups = [...new Set([...currentGroups, ...newGroups])];
+
+                  // Only Update if changed
+                  if (mergedGroups.length > currentGroups.length) {
+                    await supabase
+                      .from('contacts')
+                      .update({ group_ids: mergedGroups })
+                      .eq('id', existing.id);
+                  }
+                }
+              } catch (mergeErr) {
+                console.error('⚠️ Group merge failed for duplicate:', mergeErr);
+              }
+            } else {
+              stats.failed++;
+              console.error(`❌ Item Failed: ${item.name} (${item.phone}) - ${itemError.message}`);
+              logContactImportEvent('IMPORT_ITEM_FAIL', {
+                userId: user.id,
+                phone: item.phone,
+                name: item.name,
+                reason: itemError.message
+              });
+            }
+          } else if (itemData) {
+            stats.inserted++;
+            chunkedResults.push(...itemData);
+          }
+        }
+      } else if (data) {
+        stats.inserted += data.length;
         chunkedResults.push(...data);
       }
     }
 
     // Assign combined data for response
     const data = chunkedResults;
-    const error = null; // Cleared as we handled it inside loop
+    const error = null;
 
-    console.log(`✅ Successfully imported ${data.length} contacts total.`);
+    console.log(`✅ Import Complete. Stats:`, stats);
 
 
 
@@ -322,15 +441,15 @@ router.post('/bulk', async (req, res) => {
         .eq('user_id', user.id);
     }
 
-    // Log Success
+    // Log Success Summary
     const duration = Date.now() - startTime;
-    logContactImportEvent('IMPORT_SUCCESS', {
+    logContactImportEvent('IMPORT_SUMMARY', {
       userId: user.id,
-      count: data.length,
+      stats,
       durationMs: duration
     });
 
-    res.json(data);
+    res.json({ data, stats });
   } catch (err) {
     console.error('Error bulk saving contacts:', err);
     logContactImportEvent('IMPORT_EXCEPTION', { error: err.message, stack: err.stack });

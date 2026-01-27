@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 const facebookService = require('../services/FacebookLeadService');
 
@@ -19,12 +19,13 @@ const getStartDate = (period) => {
 
 router.get('/stats', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        // Use Admin to bypass row limits (1000)
+        const supabase = supabaseAdmin;
         const userId = req.user.id;
 
         // 1. Fetch Counts (Parallel for performance)
         const [
-            { data: rawContacts, error: err1 },
+            { count: totalContactsCount, error: err1 },
             { count: totalLeads, error: err2 },
             { count: todayLeads, error: err3 },
             { data: pipelineData, error: err4 },
@@ -42,8 +43,8 @@ router.get('/stats', requireAuth, async (req, res) => {
             facebookStatusRes,
             { data: integrationsRes, error: err17 }
         ] = await Promise.all([
-            // Total Contacts
-            supabase.from('contacts').select('id, phone').eq('user_id', userId),
+            // Total Contacts (Count Only - Bypasses Row Limits)
+            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
 
             // Total Active Leads
             supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
@@ -298,16 +299,9 @@ router.get('/stats', requireAuth, async (req, res) => {
             });
         }
 
-        // Calculate unique contacts (deduplicate by phone)
-        let totalContacts = 0;
-        if (rawContacts && Array.isArray(rawContacts)) {
-            const phones = new Set();
-            rawContacts.forEach(c => {
-                const key = c.phone ? String(c.phone).trim() : `id:${c.id}`;
-                phones.add(key);
-            });
-            totalContacts = phones.size;
-        }
+        // Calculate unique contacts (match DB count)
+        // Calculate unique contacts (match DB count)
+        const totalContacts = totalContactsCount || 0;
 
         // --- PROCESS PIPELINE STATS ---
         let pipelineStats = [];

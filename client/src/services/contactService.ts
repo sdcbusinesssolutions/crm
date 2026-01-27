@@ -20,12 +20,24 @@ export const contactService = {
     getContacts: async (): Promise<Contact[]> => {
         try {
             const headers = await getHeaders();
-            const res = await fetch('/api/contacts', { headers });
+            const res = await fetch(`/api/contacts?t=${Date.now()}`, { headers });
             if (!res.ok) throw new Error('Failed to fetch');
             return await res.json();
         } catch (e) {
             console.error("Failed to load contacts", e);
             return [];
+        }
+    },
+
+    getContactsPaginated: async (page: number, limit: number): Promise<{ data: Contact[], total: number }> => {
+        try {
+            const headers = await getHeaders();
+            const res = await fetch(`/api/contacts?page=${page}&limit=${limit}`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch paginated contacts');
+            return await res.json();
+        } catch (e) {
+            console.error("Failed to load paginated contacts", e);
+            return { data: [], total: 0 };
         }
     },
 
@@ -42,7 +54,7 @@ export const contactService = {
         }
     },
 
-    bulkCreateContacts: async (contacts: Partial<Contact>[]): Promise<void> => {
+    bulkCreateContacts: async (contacts: Partial<Contact>[]): Promise<any> => {
         console.log('🚀 Starting bulk import...', { count: contacts.length });
         const headers = await getHeaders();
 
@@ -87,7 +99,9 @@ export const contactService = {
             throw new Error(errorMessage);
         }
 
-        console.log('✅ Bulk import successful');
+        const responseData = await res.json();
+        console.log('✅ Bulk import successful', responseData);
+        return responseData;
     },
 
     deleteContact: async (id: string): Promise<void> => {

@@ -12,6 +12,9 @@ try {
 const supabaseUrl = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.trim() : '';
 const supabaseKey = process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.trim() : '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY ? process.env.SUPABASE_SERVICE_KEY.trim() : '';
+console.log('[DEBUG_INIT] Supabase Service Key Length:', supabaseServiceKey.length);
+if (!supabaseServiceKey) console.error('❌ [CRITICAL] SUPABASE_SERVICE_KEY IS MISSING IN ENV!');
+else console.log('✅ [INIT] Service Key Loaded.');
 
 /**
  * 1. Static Client (Anon)
