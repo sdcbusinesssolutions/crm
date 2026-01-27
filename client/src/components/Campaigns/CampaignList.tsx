@@ -191,7 +191,7 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                                                 </span>
                                             </td>
                                             <td className="px-6 py-5 text-right">
-                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex justify-end gap-2 transition-opacity">
                                                     <button
                                                         onClick={() => onSelect(campaign.id)}
                                                         className="px-3 py-1.5 bg-[var(--color-brand)] text-white text-xs font-bold rounded-[var(--radius-btn)] hover:opacity-90 transition-all shadow-sm flex items-center gap-1"
