@@ -453,27 +453,27 @@ const MainApp: React.FC = () => {
 
 
         if (activeMenuItem === 'Overview') {
-            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Contact List') {
-            return <Contacts initialTab="contacts" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="contacts" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Contacts') {
-            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="dashboard" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Contact Groups') {
-            return <Contacts initialTab="groups" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="groups" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Pipelines') {
-            return <Contacts initialTab="pipelines" initialPipelineId={currentPipelineId} onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="pipelines" initialPipelineId={currentPipelineId} onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Follow-up') {
-            return <Contacts initialTab="follow-up" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="follow-up" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Tags') {
@@ -481,7 +481,7 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Input Fields') {
-            return <Contacts initialTab="inputs" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="inputs" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Form Contact') {
@@ -489,7 +489,7 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Form Builder') {
-            return <Contacts initialTab="forms" onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <Contacts initialTab="forms" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Settings' || activeMenuItem === 'Branding & Appearance') {

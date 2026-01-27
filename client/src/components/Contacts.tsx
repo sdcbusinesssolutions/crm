@@ -18,9 +18,10 @@ interface ContactsProps {
     initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms';
     initialPipelineId?: string | null;
     onToggleSidebar?: () => void;
+    onNavigate?: (item: any) => void;
 }
 
-const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId, onToggleSidebar }) => {
+const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId, onToggleSidebar, onNavigate }) => {
     const [activeTab, setActiveTab] = useState<string>(initialTab);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [counts, setCounts] = useState<{
@@ -90,6 +91,24 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
     const handleGroupClick = (groupId: string) => {
         setSelectedGroupId(groupId);
         setActiveTab('contacts');
+        if (onNavigate) onNavigate('Contact List');
+    };
+
+    const tabToMenuItem: Record<string, string> = {
+        'dashboard': 'Overview',
+        'contacts': 'Contact List',
+        'groups': 'Contact Groups',
+        'pipelines': 'Pipelines',
+        'forms': 'Form Builder',
+        'follow-up': 'Follow-up',
+        'inputs': 'Input Fields'
+    };
+
+    const handleTabClick = (tabId: string) => {
+        setActiveTab(tabId);
+        if (onNavigate && tabToMenuItem[tabId]) {
+            onNavigate(tabToMenuItem[tabId]);
+        }
     };
 
     const renderContent = () => {
@@ -194,7 +213,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
+                                onClick={() => handleTabClick(tab.id)}
                                 className={`
                                     px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[110px] md:min-w-[140px] shadow-sm transform hover:scale-[1.02]
                                     ${activeTab === tab.id ? tab.activeClass : tab.inactiveClass}
