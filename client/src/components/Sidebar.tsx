@@ -55,9 +55,9 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClose, userEmail }) => {
-    const [isManageOpen, setIsManageOpen] = useState(true);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(true);
-    const [isContactsOpen, setIsContactsOpen] = useState(true);
+    const [isManageOpen, setIsManageOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isContactsOpen, setIsContactsOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(true);
     const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
     const [appName, setAppName] = useState<string>('');
