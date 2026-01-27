@@ -43,7 +43,7 @@ router.get('/token/:token', async (req, res) => {
         // Use public supabase client (no auth required)
         const { data, error } = await supabase
             .from('forms')
-            .select('id, name, description, fields, styling, settings, success_message')
+            .select('id, name, description, fields, styling, settings, success_message, success_redirect_url')
             .eq('form_token', req.params.token)
             .eq('is_active', true)
             .single();
@@ -249,98 +249,229 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // POST /api/forms/submit (public - submit form)
+// POST /api/forms/submit (public - submit form)
 router.post('/submit', async (req, res) => {
     try {
+        // Use Admin Client for all operations since this is a public endpoint
+        const supabase = supabaseAdmin;
+        if (!supabase) {
+            console.error('SERVER ERROR: Supabase Service Key not loaded');
+            return res.status(500).json({ error: 'Server misconfiguration' });
+        }
+
         const { form_token, submission_data, ip_address, user_agent } = req.body;
 
         if (!form_token || !submission_data) {
             return res.status(400).json({ error: 'form_token and submission_data are required' });
         }
 
-        // Call RPC function
-        const { data, error } = await supabase.rpc('submit_form', {
-            p_form_token: form_token,
-            p_submission_data: submission_data,
-            p_ip_address: ip_address || req.ip,
-            p_user_agent: user_agent || req.headers['user-agent']
-        });
+        // 1. Fetch Form Definition
+        const { data: form, error: formError } = await supabase
+            .from('forms')
+            .select('*')
+            .eq('form_token', form_token)
+            .single();
 
-        if (error) {
-            console.error('RPC Error:', error);
-            if (error.message && error.message.includes('Form not found')) {
-                return res.status(404).json({ error: 'Form not found or inactive' });
-            }
-            throw error;
+        if (formError || !form) {
+            return res.status(404).json({ error: 'Form not found or inactive' });
         }
 
-        res.json(data);
+        // 2. Extract Contact Information
+        let contactInfo = {
+            name: submission_data.name || submission_data.full_name || submission_data['First Name'] || 'Unknown',
+            email: null,
+            phone: null,
+            company: submission_data.company || submission_data.organization || null
+        };
 
+        // Smart Field Extraction
+        const keys = Object.keys(submission_data);
+        for (const key of keys) {
+            const lowerKey = key.toLowerCase();
+            const value = submission_data[key];
+            if (!value) continue;
 
-        // Explicitly update last_submission_at using admin client (bypassing RLS)
-        // This ensures the timestamp is updated even if the RPC function doesn't handle it
-        if (supabaseAdmin) {
-            const { error: updateError } = await supabaseAdmin
-                .from('forms')
-                .update({
-                    last_submission_at: new Date().toISOString()
-                    // Note: submission_count is handled by RPC usually, so we don't touch it to avoid race conditions
-                })
-                .eq('form_token', form_token);
-
-            if (updateError) {
-                console.warn('Failed to update last_submission_at timestamp:', updateError.message);
+            if (!contactInfo.email && (lowerKey.includes('email') || (typeof value === 'string' && value.includes('@')))) {
+                contactInfo.email = value;
+            }
+            if (!contactInfo.phone && (lowerKey.includes('phone') || lowerKey.includes('mobile') || lowerKey.includes('whatsapp') || lowerKey.includes('tel'))) {
+                contactInfo.phone = value;
+            }
+            if (contactInfo.name === 'Unknown' && (lowerKey.includes('name') && !lowerKey.includes('company'))) {
+                contactInfo.name = value;
             }
         }
+
+        // 3. Save Submission
+        const { data: submission, error: subError } = await supabase
+            .from('form_submissions')
+            .insert([{
+                form_id: form.id,
+                submission_data: submission_data,
+                ip_address: ip_address || req.ip,
+                user_agent: user_agent || req.headers['user-agent'],
+                submitted_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (subError) throw subError;
+
+        // 4. Handle Contact Creation/Update
+        if (contactInfo.phone || contactInfo.email) {
+            // Try to find existing contact
+            // Try to find existing contact by Phone then Email
+            let existingContact = null;
+
+            if (contactInfo.phone) {
+                const { data } = await supabase.from('contacts')
+                    .select('id, group_ids, tags')
+                    .eq('user_id', form.user_id)
+                    .eq('phone', contactInfo.phone)
+                    .maybeSingle();
+                if (data) existingContact = data;
+            }
+
+            if (!existingContact && contactInfo.email) {
+                const { data } = await supabase.from('contacts')
+                    .select('id, group_ids, tags')
+                    .eq('user_id', form.user_id)
+                    .eq('email', contactInfo.email)
+                    .maybeSingle();
+                if (data) existingContact = data;
+            }
+
+            let contactId = existingContact?.id;
+            let groupIds = existingContact?.group_ids || [];
+            let tags = existingContact?.tags || [];
+
+            // Merge Groups
+            if (form.default_group_ids && Array.isArray(form.default_group_ids)) {
+                form.default_group_ids.forEach(gid => {
+                    if (!groupIds.includes(gid)) groupIds.push(gid);
+                });
+            }
+
+            // Merge Tags
+            if (form.default_tags && Array.isArray(form.default_tags)) {
+                form.default_tags.forEach(t => {
+                    if (!tags.includes(t)) tags.push(t);
+                });
+            }
+
+            if (existingContact) {
+                // UPDATE
+                await supabase
+                    .from('contacts')
+                    .update({
+                        group_ids: groupIds,
+                        tags: tags,
+                        updated_at: new Date().toISOString()
+                        // Don't overwrite name/email/phone as existing might be better, or make it optional?
+                        // For now, let's strictly ADD groups/tags.
+                    })
+                    .eq('id', existingContact.id);
+            } else {
+                // CREATE
+                const { data: newContact, error: createError } = await supabase
+                    .from('contacts')
+                    .insert([{
+                        user_id: form.user_id,
+                        name: contactInfo.name,
+                        email: contactInfo.email,
+                        phone: contactInfo.phone,
+                        status: 'active',
+                        source: 'form_builder',
+                        group_ids: groupIds,
+                        tags: tags,
+                        custom_data: { source_form: form.name }
+                    }])
+                    .select()
+                    .single();
+
+                if (createError) {
+                    console.error('Failed to create contact from form:', createError);
+                } else {
+                    contactId = newContact.id;
+                }
+            }
+
+            // 5. Handle Pipeline Lead
+            if (form.pipeline_id) {
+                // Check if lead already exists in this pipeline (by email or phone)
+                let leadQuery = supabase
+                    .from('leads')
+                    .select('id')
+                    .eq('pipeline_id', form.pipeline_id);
+
+                // Prefer checking by email, then phone
+                if (contactInfo.email) {
+                    leadQuery = leadQuery.eq('email', contactInfo.email);
+                } else if (contactInfo.phone) {
+                    leadQuery = leadQuery.eq('phone', contactInfo.phone);
+                }
+
+                const { data: existingLeads } = await leadQuery;
+
+                if (!existingLeads || existingLeads.length === 0) {
+                    const { error: leadError } = await supabase
+                        .from('leads')
+                        .insert([{
+                            user_id: form.user_id,
+                            // contact_id: contactId, // Column may not exist in this schema setup
+                            pipeline_id: form.pipeline_id,
+                            stage_id: form.stage_id,
+                            name: contactInfo.name,
+                            email: contactInfo.email,
+                            phone: contactInfo.phone,
+                            company: contactInfo.company,
+                            source: 'From Form: ' + form.name,
+                            status: 'active',
+                            estimated_value: 0
+                        }]);
+                    if (leadError) console.error('Failed to create lead:', leadError);
+                } else {
+                    // Optional: Update existing lead source or status?
+                    // For now, just log that it exists
+                    // console.log('Lead already exists for this contact in pipeline');
+                }
+            }
+
+            // 6. Trigger Automations (Flow Engine)
+            if (contactInfo.phone && form.pipeline_id) {
+                try {
+                    flowEngine.triggerFlowByEvent(form.user_id, contactInfo.phone, 'pipeline_change', {
+                        pipelineId: form.pipeline_id,
+                        stageId: form.stage_id,
+                        source: 'form_builder'
+                    });
+                } catch (e) { console.error('Flow Trigger Error', e); }
+            }
+        }
+
+        // 7. Update Form Stats
+        await supabase
+            .from('forms')
+            .update({
+                submission_count: (form.submission_count || 0) + 1,
+                last_submission_at: new Date().toISOString()
+            })
+            .eq('id', form.id);
 
         try {
             logFormBuilderEvent('SUBMIT_FORM', {
                 token: form_token,
-                submissionId: data ? data.id : 'unknown'
+                submissionId: submission.id
             });
         } catch (e) { }
 
-        // Trigger Flow if form is connected to pipeline
-        try {
-            if (supabaseAdmin) {
-                const { data: formData } = await supabaseAdmin
-                    .from('forms')
-                    .select('user_id, pipeline_id, stage_id, fields')
-                    .eq('form_token', form_token)
-                    .single();
-
-                if (formData && formData.pipeline_id) {
-                    // Extract phone from submission data
-                    let phone = null;
-                    // 1. Try to find by field type "phone"
-                    if (formData.fields && Array.isArray(formData.fields)) {
-                        const phoneField = formData.fields.find(f => f.type === 'phone' || f.type === 'tel');
-                        if (phoneField && submission_data[phoneField.key || phoneField.id]) {
-                            phone = submission_data[phoneField.key || phoneField.id];
-                        }
-                    }
-                    // 2. Fallback: keys like 'phone', 'mobile'
-                    if (!phone) {
-                        const keys = Object.keys(submission_data).map(k => k.toLowerCase());
-                        const phoneKey = keys.find(k => k.includes('phone') || k.includes('mobile') || k.includes('whatsapp'));
-                        if (phoneKey) {
-                            // Find original key
-                            const originalKey = Object.keys(submission_data).find(k => k.toLowerCase() === phoneKey);
-                            phone = submission_data[originalKey];
-                        }
-                    }
-
-                    if (phone) {
-                        flowEngine.triggerFlowByEvent(formData.user_id, phone, 'pipeline_change', {
-                            pipelineId: formData.pipeline_id,
-                            stageId: formData.stage_id,
-                            source: 'form_builder'
-                        });
-                    }
-                }
-            }
-        } catch (ignored) {
-            console.error('Error triggering flow from form:', ignored);
+        // Response
+        if (form.settings?.success_redirect_url) {
+            res.json({ redirect: form.settings.success_redirect_url });
+        } else {
+            res.json({ message: form.settings?.success_message || 'Thank you!' });
         }
+
     } catch (err) {
         console.error('Error submitting form:', err);
         res.status(500).json({ error: err.message });
