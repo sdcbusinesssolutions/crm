@@ -22,7 +22,7 @@ const triggers = [
 const nodeTypes = [
   { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
   { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
-  { type: NodeType.Calendar, label: 'Calendar', icon: <CalendarIcon /> },
+  { type: NodeType.Calendar, label: 'Google Calendar', icon: <CalendarIcon /> },
   { type: NodeType.TemplateMessage, label: 'Template', icon: <MessageIcon /> },
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
   { type: NodeType.MediaMessage, label: 'Media', icon: <ImageFileIcon /> },
@@ -40,11 +40,11 @@ const nodeTypes = [
   { type: NodeType.ContactPipeline, label: 'Pipeline Stage', icon: <BookmarkIcon /> },
   { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
   { type: NodeType.WriteAttribute, label: 'Attribute', icon: <BookmarkIcon /> },
-  { type: NodeType.Webhook, label: 'Webhook', icon: <WebhookIcon /> },
+
   { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
   { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
   { type: NodeType.Gsheet, label: 'Google Sheets', icon: <GsheetIcon /> },
-  { type: NodeType.Code, label: 'Code', icon: <CodeIcon /> },
+
   { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon />, isBeta: true },
 ];
 
