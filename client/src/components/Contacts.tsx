@@ -134,13 +134,15 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         }
     };
 
+    const tabInactiveClass = 'bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-all';
+
     const tabs = [
         {
             id: 'dashboard',
             label: 'Overview',
             icon: HomeIcon,
             activeClass: 'bg-slate-800 text-white shadow-lg shadow-slate-900/20',
-            inactiveClass: 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200',
+            inactiveClass: tabInactiveClass,
             count: null
         },
         {
@@ -148,42 +150,42 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             label: 'Contacts',
             icon: UsersIcon,
             activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30',
-            inactiveClass: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-100',
+            inactiveClass: tabInactiveClass,
             count: counts.contacts
         },
         {
             id: 'groups',
             label: 'Groups',
             activeClass: 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/30',
-            inactiveClass: 'bg-fuchsia-50 text-fuchsia-700 hover:bg-fuchsia-100 border border-fuchsia-100',
+            inactiveClass: tabInactiveClass,
             count: counts.groups
         },
         {
             id: 'pipelines',
             label: 'Pipelines',
             activeClass: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30',
-            inactiveClass: 'bg-violet-50 text-violet-700 hover:bg-violet-100 border border-violet-100',
+            inactiveClass: tabInactiveClass,
             count: counts.pipelines
         },
         {
             id: 'forms',
             label: 'Form Builder',
             activeClass: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30',
-            inactiveClass: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100',
+            inactiveClass: tabInactiveClass,
             count: counts.forms
         },
         {
             id: 'follow-up',
             label: 'Follow-up',
             activeClass: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30',
-            inactiveClass: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-100',
+            inactiveClass: tabInactiveClass,
             count: counts.followUps
         },
         {
             id: 'inputs',
             label: 'Custom Fields',
             activeClass: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30',
-            inactiveClass: 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100',
+            inactiveClass: tabInactiveClass,
             count: counts.inputs
         },
     ];
