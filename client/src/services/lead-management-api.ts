@@ -263,10 +263,21 @@ export const deleteLead = async (id: string): Promise<boolean> => {
 // KANBAN BOARD FUNCTIONS
 // =====================================================
 
-export const getKanbanBoard = async (pipelineId: string, page: number = 1, limit: number = 50): Promise<KanbanBoard> => {
+export const getKanbanBoard = async (pipelineId: string, page: number = 1, limit: number = 50, filters?: any): Promise<KanbanBoard> => {
     try {
         const headers = await getHeaders();
-        const res = await fetch(`/api/pipelines/${pipelineId}/kanban?page=${page}&limit=${limit}`, { headers });
+        const params = new URLSearchParams({
+            page: page.toString(),
+            limit: limit.toString()
+        });
+
+        if (filters) {
+            if (filters.search) params.append('search', filters.search);
+            if (filters.sortBy) params.append('sortBy', filters.sortBy);
+            if (filters.quickFilter && filters.quickFilter !== 'all') params.append('quickFilter', filters.quickFilter);
+        }
+
+        const res = await fetch(`/api/pipelines/${pipelineId}/kanban?${params.toString()}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch kanban board');
         return await res.json();
     } catch (e) {

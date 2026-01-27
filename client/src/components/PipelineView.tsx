@@ -81,64 +81,19 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const filteredBoardData = useMemo(() => {
         if (!boardData) return null;
 
-        // 1. Filter Columns (Stages)
+        // 1. Filter Columns (Stages) - Client Side Only
         let filteredColumns = boardData.columns;
         if (filters.stageIds.length > 0) {
             filteredColumns = filteredColumns.filter(col => filters.stageIds.includes(col.stage.id));
         }
 
-        filteredColumns = filteredColumns.map(col => {
-            // 2. Filter Leads
-            let filteredLeads = col.leads.filter(lead => {
-                // Search
-                if (filters.search) {
-                    const searchLower = filters.search.toLowerCase();
-                    const matchesSearch =
-                        (lead.name?.toLowerCase() || '').includes(searchLower) ||
-                        (lead.email?.toLowerCase() || '').includes(searchLower) ||
-                        (lead.phone || '').includes(filters.search) ||
-                        (lead.company?.toLowerCase() || '').includes(searchLower);
-                    if (!matchesSearch) return false;
-                }
-
-                // Quick Filters
-                if (filters.quickFilter === 'high_value') {
-                    if ((lead.estimated_value || 0) < 1000) return false;
-                } else if (filters.quickFilter === 'hot') {
-                    // Created in last 7 days
-                    const oneWeekAgo = new Date();
-                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                    if (new Date(lead.created_at) < oneWeekAgo) return false;
-                } else if (filters.quickFilter === 'cold') {
-                    // Created more than 30 days ago
-                    const thirtyDaysAgo = new Date();
-                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                    if (new Date(lead.created_at) > thirtyDaysAgo) return false;
-                }
-
-                return true;
-            });
-
-            // 3. Sort Leads
-            filteredLeads.sort((a, b) => {
-                if (filters.sortBy === 'value_desc') return (b.estimated_value || 0) - (a.estimated_value || 0);
-                if (filters.sortBy === 'value_asc') return (a.estimated_value || 0) - (b.estimated_value || 0);
-                if (filters.sortBy === 'created_at_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // Default: created_at_desc
-            });
-
-            return {
-                ...col,
-                leads: filteredLeads,
-                total_count: filteredLeads.length
-            };
-        });
+        // Note: Leads filtering and sorting is now handled server-side!
 
         return {
             ...boardData,
             columns: filteredColumns
         };
-    }, [boardData, filters]);
+    }, [boardData, filters.stageIds]);
 
     const totalLeads = filteredBoardData?.columns.reduce((acc, col) => acc + col.leads.length, 0) || 0;
 
@@ -163,12 +118,17 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         loadPipelines();
     }, []);
 
-    // Load board when pipeline changes or pagination changes
+    // Load board when pipeline changes, pagination changes, or server filters change
     useEffect(() => {
-        if (selectedPipelineId) {
+        if (!selectedPipelineId) return;
+
+        // Debounce fetch to prevent API flood
+        const timer = setTimeout(() => {
             loadBoard(selectedPipelineId);
-        }
-    }, [selectedPipelineId, page, limit]);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [selectedPipelineId, page, limit, filters.search, filters.sortBy, filters.quickFilter]);
 
     const loadPipelines = async () => {
         try {
@@ -190,7 +150,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const loadBoard = async (pipelineId: string) => {
         setLoading(true);
         try {
-            const data = await getKanbanBoard(pipelineId, page, limit);
+            const data = await getKanbanBoard(pipelineId, page, limit, filters);
             setBoardData(data);
         } catch (error) {
             console.error('Failed to load board', error);

@@ -306,12 +306,47 @@ router.get('/:id/kanban', async (req, res) => {
         if (stagesError) throw stagesError;
 
         // 3. Fetch Leads with Pagination
-        const { data: leads, count, error: leadsError } = await supabase
+        // 3. Fetch Leads with Pagination, Search, and Filters
+        let leadsQuery = supabase
             .from('leads')
             .select('*', { count: 'exact' })
-            .eq('pipeline_id', pipelineId)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+            .eq('pipeline_id', pipelineId);
+
+        // Search Support (Server-Side)
+        if (req.query.search) {
+            const s = req.query.search;
+            leadsQuery = leadsQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+        }
+
+        // Quick Filters Support
+        const quickFilter = req.query.quickFilter;
+        if (quickFilter === 'high_value') {
+            leadsQuery = leadsQuery.gte('estimated_value', 1000);
+        } else if (quickFilter === 'hot') {
+            const d = new Date();
+            d.setDate(d.getDate() - 7);
+            leadsQuery = leadsQuery.gte('created_at', d.toISOString());
+        } else if (quickFilter === 'cold') {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            // "Cold" usually means OLDER than 30 days
+            leadsQuery = leadsQuery.lt('created_at', d.toISOString());
+        }
+
+        // Sort Support
+        const sortBy = req.query.sortBy || 'created_at_desc';
+        if (sortBy === 'created_at_asc') {
+            leadsQuery = leadsQuery.order('created_at', { ascending: true });
+        } else if (sortBy === 'value_desc') {
+            leadsQuery = leadsQuery.order('estimated_value', { ascending: false });
+        } else if (sortBy === 'value_asc') {
+            leadsQuery = leadsQuery.order('estimated_value', { ascending: true });
+        } else {
+            // Default
+            leadsQuery = leadsQuery.order('created_at', { ascending: false });
+        }
+
+        const { data: leads, count, error: leadsError } = await leadsQuery.range(from, to);
 
         if (leadsError) throw leadsError;
 
