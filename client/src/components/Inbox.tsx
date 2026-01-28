@@ -177,59 +177,52 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         });
     }, [conversations, searchTerm, quickFilter, filterTag]);
 
-    const scrollToBottom = (instant = false) => {
-        if (chatContainerRef.current) {
-            const { scrollHeight, clientHeight } = chatContainerRef.current;
-            const maxScrollTop = scrollHeight - clientHeight;
+    // Track if we are in the middle of switching chats to force scroll
+    const shouldForceScrollRef = useRef(false);
 
-            if (instant) {
-                chatContainerRef.current.scrollTop = maxScrollTop > 0 ? maxScrollTop : 0;
-            } else {
-                chatContainerRef.current.scrollTo({
-                    top: maxScrollTop,
-                    behavior: 'smooth'
-                });
-            }
+    const scrollToBottom = (instant = false) => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({
+                behavior: instant ? 'auto' : 'smooth',
+                block: 'end'
+            });
         }
     };
 
     const handleScroll = () => {
-        if (chatContainerRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-            const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-            // Increased threshold to 150px to be more forgiving
-            isAtBottomRef.current = distanceToBottom < 150;
-        }
+        if (!chatContainerRef.current) return;
+        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+        isAtBottomRef.current = distanceToBottom < 150;
     };
 
     // Scroll to bottom when chat changes
     useEffect(() => {
+        shouldForceScrollRef.current = true;
         isAtBottomRef.current = true;
-
-        // Aggressive scrolling sequence to handle layout shifts and image loading
-        const scrollSequence = () => {
-            scrollToBottom(true);
-            setTimeout(() => scrollToBottom(true), 50);
-            setTimeout(() => scrollToBottom(true), 150);
-            setTimeout(() => scrollToBottom(true), 300); // Late catch for initial paint
-        };
-
-        requestAnimationFrame(scrollSequence);
     }, [activeChatId]);
 
     // Smart scroll on new messages
     useEffect(() => {
-        if (chatContainerRef.current && messages.length > 0) {
+        if (messages.length === 0) return;
+
+        // If we just switched chats, FORCE scroll to bottom
+        if (shouldForceScrollRef.current) {
+            scrollToBottom(true);
+            setTimeout(() => scrollToBottom(true), 100);
+            setTimeout(() => scrollToBottom(true), 500);
+            setTimeout(() => {
+                scrollToBottom(true);
+                shouldForceScrollRef.current = false; // Reset flag after ensuring bottom
+            }, 2000); // Extended to 2s to catch slow images
+        } else {
+            // Normal behavior for new incoming messages
             const lastMessage = messages[messages.length - 1];
             const isMyMessage = lastMessage?.direction === 'out';
 
-            // Should scroll if we are already at bottom OR if it's my own message
             if (isAtBottomRef.current || isMyMessage) {
-                requestAnimationFrame(() => {
-                    scrollToBottom(false); // Smooth scroll for new messages
-                    // Backup forced scroll
-                    setTimeout(() => scrollToBottom(false), 200);
-                });
+                // If I sent it, smooth scroll. If incoming and I'm at bottom, smooth scroll.
+                scrollToBottom(false);
             }
         }
     }, [messages]);
@@ -715,8 +708,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 let headerMedia = null;
                 let headerText = data._rendered_header_text; // From backend or simple param extraction
 
-                if (headerParam?.type === 'image') headerMedia = <img src={headerParam.image?.link} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" />;
-                else if (headerParam?.type === 'video') headerMedia = <video src={headerParam.video?.link} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" />;
+                if (headerParam?.type === 'image') headerMedia = <img src={headerParam.image?.link} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" onLoad={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
+                else if (headerParam?.type === 'video') headerMedia = <video src={headerParam.video?.link} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" onLoadedData={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
                 else if (headerParam?.type === 'document') headerMedia = <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-t-lg border-b border-slate-200"><DocumentFileIcon className="w-5 h-5 text-red-500" /> <span className="text-xs font-medium text-slate-700">Document Header</span></div>;
 
                 // 2. BODY & FOOTER
@@ -769,13 +762,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             <div className="h-36 bg-slate-100 overflow-hidden relative border-b border-slate-100">
                                                 {mediaUrl ? (
                                                     mediaType === 'VIDEO' ? (
-                                                        <video src={mediaUrl} className="w-full h-full object-cover bg-black" controls />
+                                                        <video src={mediaUrl} className="w-full h-full object-cover bg-black" controls onLoadedData={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />
                                                     ) : (
                                                         <img
                                                             src={mediaUrl}
                                                             className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
                                                             alt={`Card ${idx + 1}`}
                                                             onClick={() => window.open(mediaUrl, '_blank')}
+                                                            onLoad={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)}
                                                         />
                                                     )
                                                 ) : (
