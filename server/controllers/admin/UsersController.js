@@ -334,36 +334,75 @@ exports.impersonateUser = async (req, res) => {
             .eq('email', email)
             .single();
 
-        let targetDomain = userProfile ? userProfile.signup_domain : 'clickube.com';
+        // Determine Request Origin (for fallback)
+        const origin = req.headers.origin || req.headers.host || '';
+        console.log(`[Impersonation Debug] Raw Origin/Host: '${origin}'`); // DEBUG
+
+        let requestBase = origin;
+        if (requestBase && !requestBase.startsWith('http')) {
+            requestBase = (origin.includes('localhost') ? 'http' : 'https') + '://' + requestBase;
+        }
+
+        console.log(`[Impersonation Debug] Normalized RequestBase: '${requestBase}'`); // DEBUG
+
+        let currentCallbackDomain = 'clickube.com';
+        try {
+            if (requestBase) currentCallbackDomain = new URL(requestBase).hostname;
+        } catch (e) {
+            console.error(`[Impersonation Debug] URL Parse Error:`, e.message);
+        }
+
+        console.log(`[Impersonation Debug] Resolved Callback Domain: '${currentCallbackDomain}'`); // DEBUG       
+
+        // Decide Target Domain
+        // PRIORITY:
+        // 1. If the Admin is on a custom domain (not clickube.com), KEEP them on that domain.
+        // 2. If the Admin is on the Master Domain, send them to the User's assigned domain.
+
+        const MASTER_HOST = 'clickube.com';
+        let targetDomain = currentCallbackDomain;
+
+        // If we are on the Master Domain (or localhost mimicking it), respect the User's specific domain
+        if (currentCallbackDomain.includes(MASTER_HOST) && userProfile && userProfile.signup_domain) {
+            targetDomain = userProfile.signup_domain;
+        }
+        // Otherwise (we are on a whitelabel domain), force that domain (Sticky Attribute)
+        else {
+            targetDomain = currentCallbackDomain;
+        }
+
+        if (!targetDomain) targetDomain = MASTER_HOST;
 
         // Normalize target domain
         const normalize = (d) => d ? d.trim().toLowerCase().replace(/^www\./, '') : '';
         targetDomain = normalize(targetDomain);
+
+        console.log(`[Impersonation Debug] Final Target Domain: '${targetDomain}'`); // DEBUG
 
         // Handle Localhost vs Production Logic
         const isTargetLocalhost = targetDomain.includes('localhost') || targetDomain.includes('127.0.0.1');
         const protocol = isTargetLocalhost ? 'http' : 'https';
         const baseUrl = `${protocol}://${targetDomain}`;
 
-        console.log(`[Impersonation] Targeting: ${baseUrl}`);
-        console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
+        console.log(`[Impersonation] Targeting Base URL: ${baseUrl}`);
+        // console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
 
         // Generate a magic link for the user
         // BOUNCE STRATEGY:
         // 1. Redirect to Master Domain (whitelisted).
         // 2. Append 'bounce' param with the final target.
-        // 3. Frontend on Master will forward the #access_token to the target.
 
         // Determine Master URL (Fallback to request origin if not set)
         // We use the request origin as a fallback for masterUrl if VITE_MASTER_URL is missing.
         // This supports local development where 'origin' might be localhost.
-        const origin = req.headers.origin || req.headers.host || '';
-        let requestBase = origin;
-        if (requestBase && !requestBase.startsWith('http')) {
-            requestBase = (origin.includes('localhost') ? 'http' : 'https') + '://' + requestBase;
+        // Note: 'origin' and 'requestBase' are already calculated above.
+
+        let envMaster = process.env.VITE_MASTER_URL || '';
+        if (envMaster.includes(',')) {
+            envMaster = envMaster.split(',')[0]; // Handle cases like "url,false" or list of urls
         }
 
-        const masterUrl = process.env.VITE_MASTER_URL || requestBase || 'https://clickube.com';
+        const masterUrl = envMaster.trim() || requestBase || 'https://clickube.com';
         const bounceUrl = `${masterUrl}?bounce=${encodeURIComponent(baseUrl)}`;
 
         console.log(`[Impersonation] Bounce URL: ${bounceUrl}`);

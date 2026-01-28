@@ -1,24 +1,14 @@
 {
-  "name": "whatsapp-flow-builder-monorepo",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "postinstall": "cd client && npm install && cd ../server && npm install",
-    "build": "cd client && npm run build",
-    "start": "cd server && npm start",
-    "clean:legacy": "node -e \"const fs = require('fs'); const paths = ['components', 'services', 'types.ts', 'App.tsx', 'index.tsx', 'index.html', 'vite.config.ts', 'server/models', 'server/routes']; paths.forEach(p => { if(fs.existsSync(p)) { fs.rmSync(p, { recursive: true, force: true }); console.log('Removed legacy: ' + p); }}); console.log('Cleanup complete. Project structure is now clean.');\""
-  },
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^4.18.2",
-    "pg": "^8.16.3",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "serverless-http": "^3.2.0",
-    "types-react-dom": "^19.0.0-alpha.3"
-  }
+    "name": "wpcode-root",
+    "version": "1.0.0",
+    "description": "Root package for WhatsApp Flow Builder",
+    "private": true,
+    "scripts": {
+        "start": "echo 'Please run npm start in client or server directory'",
+        "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+    },
+    "workspaces": [
+        "client",
+        "server"
+    ]
 }
