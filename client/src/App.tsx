@@ -79,6 +79,15 @@ const MainApp: React.FC = () => {
 
     const [session, setSession] = useState<Session | null>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+    // PERSISTENT HASH TRACKING (FIX for Impersonation Redirect Loop)
+    // We use a Ref to track if we started this session cycle with a hash.
+    // This value survives re-renders and async closures where window.location.hash might have been cleared.
+    const isHashLogin = React.useRef<boolean>(
+        window.location.hash.includes('access_token') ||
+        window.location.hash.includes('error_description') ||
+        !!new URLSearchParams(window.location.search).get('bounce')
+    );
     // State Initialization from URL Params (Persistence)
     const [activeMenuItem, setActiveMenuItem] = useState<MenuItem>(() => {
         const p = new URLSearchParams(window.location.search).get('view');
@@ -102,6 +111,16 @@ const MainApp: React.FC = () => {
 
     // Domain Validation Logic (ROBUST & DEBUGGABLE)
     const validateDomain = async (currentSession: Session) => {
+        // IMPERSONATION: If we are bouncing, check 'bounce' param.
+        // AUTH REDIRECT: If we are processing a hash (access_token), skip checking OLD session.
+        // IMPERSONATION: If we flagged this as a hash/bounce login initially, SKIP validation.
+        if (isHashLogin.current) {
+            console.log("[Tenancy Check] Auth transition detected (via isHashLogin Ref). Skipping strict validation.");
+            return true;
+        }
+
+        const params = new URLSearchParams(window.location.search);
+
         if (!currentSession?.user) return;
 
         try {
@@ -148,10 +167,16 @@ const MainApp: React.FC = () => {
                         cleanParams.set('token', magicToken);
                     }
 
-                    const targetUrl = `${protocol}//${assignedDomain}/login?${cleanParams.toString()}`;
+                    // Preserve Hash (Auth Tokens) if redirecting
+                    const hash = window.location.hash || '';
+                    const targetUrl = `${protocol}//${assignedDomain}/login?${cleanParams.toString()}${hash}`;
 
                     // Sign out from this wrong domain to clean up
-                    await supabase.auth.signOut();
+                    try { await supabase.auth.signOut(); } catch (e) { }
+
+                    // Clear local storage aggressively just in case to prevent loops
+                    tokenService.clearAccessToken();
+                    localStorage.removeItem('sb-ssckorsnhjhzqxyukexm-auth-token');
 
                     window.location.href = targetUrl;
                     return false; // Validation failed

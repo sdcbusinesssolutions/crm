@@ -336,18 +336,16 @@ exports.impersonateUser = async (req, res) => {
 
         let targetDomain = userProfile ? userProfile.signup_domain : 'clickube.com';
 
-        // Handle Localhost vs Production Logic
-        // If we are on localhost, we likely want to stay on localhost but maybe different port? 
-        // Or if we are testing domains locally with hosts file.
-        // For production: construct https://{targetDomain}
+        // Normalize target domain
+        const normalize = (d) => d ? d.trim().toLowerCase().replace(/^www\./, '') : '';
+        targetDomain = normalize(targetDomain);
 
-        // PROD MODE: Dynamic Redirect
-        // FORCE the link to point to the user's domain.
-        const protocol = targetDomain.includes('localhost') ? 'http' : 'https';
+        // Handle Localhost vs Production Logic
+        const isTargetLocalhost = targetDomain.includes('localhost') || targetDomain.includes('127.0.0.1');
+        const protocol = isTargetLocalhost ? 'http' : 'https';
         const baseUrl = `${protocol}://${targetDomain}`;
 
         console.log(`[Impersonation] Targeting: ${baseUrl}`);
-
         console.log(`Impersonation: Redirecting to: '${baseUrl}'`);
 
         // Generate a magic link for the user
@@ -356,7 +354,16 @@ exports.impersonateUser = async (req, res) => {
         // 2. Append 'bounce' param with the final target.
         // 3. Frontend on Master will forward the #access_token to the target.
 
-        const masterUrl = process.env.VITE_MASTER_URL || 'https://clickube.com';
+        // Determine Master URL (Fallback to request origin if not set)
+        // We use the request origin as a fallback for masterUrl if VITE_MASTER_URL is missing.
+        // This supports local development where 'origin' might be localhost.
+        const origin = req.headers.origin || req.headers.host || '';
+        let requestBase = origin;
+        if (requestBase && !requestBase.startsWith('http')) {
+            requestBase = (origin.includes('localhost') ? 'http' : 'https') + '://' + requestBase;
+        }
+
+        const masterUrl = process.env.VITE_MASTER_URL || requestBase || 'https://clickube.com';
         const bounceUrl = `${masterUrl}?bounce=${encodeURIComponent(baseUrl)}`;
 
         console.log(`[Impersonation] Bounce URL: ${bounceUrl}`);
@@ -371,6 +378,8 @@ exports.impersonateUser = async (req, res) => {
 
         if (error) {
             console.error('Supabase Generate Link Error:', error);
+            const clientUrl = masterUrl; // Fix ReferenceError
+
             // Fallback for demo/mock users if real Supabase call fails due to invalid email in mock
             if (email.includes('Mock') || error.message.includes('User not found')) {
                 return res.json({
