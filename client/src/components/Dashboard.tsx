@@ -542,7 +542,7 @@ const WhatsAppScannerCard: React.FC<{
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-8 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-center gap-10 min-h-[250px] h-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
+        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-center gap-3 min-h-[200px] h-fit w-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
             {/* Shimmer on Hover */}
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
             {/* Background Blob Effects */}
@@ -581,26 +581,26 @@ const WhatsAppScannerCard: React.FC<{
             </div>
 
             {/* QR Code Area */}
-            <div onClick={onConnect} className="z-10 bg-white p-3 rounded-2xl shadow-2xl mt-6 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
+            <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
                 {phone ? (
                     <QRCodeCanvas
                         value={qrLink}
-                        size={128}
+                        size={100}
                         level={"H"}
-                        className="w-32 h-32 object-contain"
+                        className="w-24 h-24 object-contain"
                         fgColor="#0f172a"
                         bgColor="#FFFFFF"
                     />
                 ) : (
-                    <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-400 text-xs text-center p-2">
-                        Configure in Settings
+                    <div className="w-24 h-24 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
+                        Configure
                     </div>
                 )}
                 {phone && <p className="text-[10px] text-center text-slate-500 font-bold mt-2 uppercase tracking-wide group-hover:text-emerald-600">Scan to Chat</p>}
             </div>
 
             {!phone && (
-                <button onClick={onConnect} className="z-10 mt-6 text-xs font-bold bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg backdrop-blur-sm transition-all">
+                <button onClick={onConnect} className="z-10 mt-3 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-lg backdrop-blur-sm transition-all">
                     Connect Account
                 </button>
             )}

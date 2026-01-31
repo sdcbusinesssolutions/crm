@@ -180,7 +180,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     {/* Header */}
                     <div className="absolute top-4 w-full flex items-center justify-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
-                        <h3 className="font-bold text-slate-800 text-[11px]">Followup Status</h3>
+                        <h3 className="font-bold text-slate-800 text-[11px]">Lead CRM</h3>
                     </div>
 
                     {/* Funnel Container - Centered */}
@@ -370,8 +370,7 @@ const DonutRing: React.FC<{ value: number; target: number; color: string; label:
                 <span className="text-2xl font-black text-slate-800 tracking-tight leading-none">{value.toLocaleString()}</span>
                 <span className="text-[9px] font-bold text-slate-400 mt-0.5">{label}</span>
             </div>
-            {/* Start Knob - Matches color of ring */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 translate-y-0.5 w-3 h-3 border-2 rounded-full shadow-sm z-10" style={{ borderColor: knobColor, backgroundColor: knobBg }}></div>
+
         </div>
     );
 };
