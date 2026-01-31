@@ -5,10 +5,11 @@ echo ==========================================
 echo 🛍️ CLEAN BUILD AND PACKAGE (Optimized)
 echo ==========================================
 
-set "BUILD_DIR=temp_deploy_build"
+set "BUILD_DIR=..\temp_deploy_build_wpcode"
 set "ZIP_NAME=deploy-package.zip"
 
 REM 1. Cleanup previous runs
+if exist "temp_deploy_build" rmdir /s /q "temp_deploy_build"
 if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
 if exist "%ZIP_NAME%" del "%ZIP_NAME%"
 
