@@ -542,7 +542,7 @@ const WhatsAppScannerCard: React.FC<{
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-8 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-between min-h-[300px] border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
+        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-8 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-center gap-10 min-h-[250px] h-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
             {/* Shimmer on Hover */}
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
             {/* Background Blob Effects */}
@@ -748,7 +748,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
 
                         {/* A. WhatsApp Connection (Scanner) */}
-                        <div className="md:col-span-1 lg:col-span-1 animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+                        <div className="md:col-span-1 lg:col-span-1 animate-fade-in-up h-full" style={{ animationDelay: '0ms' }}>
                             <WhatsAppScannerCard
                                 phone={stats?.connection?.phone || null}
                                 id={stats?.connection?.id || null}
@@ -761,12 +761,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         </div>
 
                         {/* B. Unified CRM Performance Hub (Combines 4 Badges + Charts) */}
-                        <div className="md:col-span-2 lg:col-span-3 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                        <div className="md:col-span-2 lg:col-span-3 animate-fade-in-up h-full" style={{ animationDelay: '100ms' }}>
                             <CRMPerformanceHub stats={stats} onNavigate={handleNav} />
                         </div>
                     </div>
 
-                    {/* 2. Visual Analytics Section */}
                     {/* 2. Visual Analytics Section */}
                     {/* 2. Visual Analytics Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 my-10 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
