@@ -118,7 +118,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
         { label: 'Groups', val: stats?.summary.totalGroups || 0, icon: <Icons.Group className="w-4 h-4 text-blue-500" /> },
         { label: 'Tags', val: 0, icon: <Icons.Tag className="w-4 h-4 text-purple-500" /> }, // Placeholder for now
         { label: 'Form Builder', val: stats?.summary.totalFlows || 0, icon: <Icons.Flow className="w-4 h-4 text-orange-500" /> },
-        { label: 'WhatsForm', val: stats?.integrationStats?.breakdown?.['whatsform'] || 0, icon: <Icons.Globe className="w-4 h-4 text-green-500" /> }
+        { label: 'WhatsForm', val: stats?.integrationStats?.breakdown?.['whatsform'] || 0, icon: <Icons.Globe className="w-4 h-4 text-green-500" /> },
+        { label: 'Sheet Automation', val: stats?.integrationStats?.breakdown?.['google'] || 0, icon: <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7.5-4h15M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" /></svg> }
     ];
 
     return (
@@ -188,7 +189,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     </div>
 
                     {/* Funnel Container - Centered */}
-                    <div className="w-full relative h-[260px] flex justify-center scale-[0.85] mt-8">
+                    <div className="w-full relative h-[340px] flex justify-center scale-[0.85] mt-8">
 
                         {/* 1. Top Icon - Centered in 'Middle of Circle' */}
                         <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-20">
