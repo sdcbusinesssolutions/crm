@@ -38,3 +38,4 @@ server/uploads/
 # Build Artifacts
 deploy-package.zip
 temp_deploy_build/
+database_backups/
