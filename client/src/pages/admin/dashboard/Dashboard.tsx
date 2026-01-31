@@ -15,6 +15,12 @@ interface DashboardStats {
     todaySignups: number;
     contacts: number;
     signupTrends: SignupTrends;
+    planExpiryStats?: {
+        expired: number;
+        expiringInWeek: number;
+        expiringInMonth: number;
+        details: any[];
+    };
 }
 
 const Dashboard = () => {
@@ -381,6 +387,124 @@ const Dashboard = () => {
                                     {stats.todaySignups > 0 ? '📈 Active' : '📊 Stable'}
                                 </span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Plan Expiry Section */}
+            {stats?.planExpiryStats && (
+                <div className="mb-8 animate-slide-up animation-delay-700">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <span className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        </span>
+                        Plan Expiration Overview
+                    </h3>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        {/* Expired */}
+                        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-red-500">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium uppercase">Expired</p>
+                                    <h4 className="text-4xl font-black text-gray-800 mt-2">{stats.planExpiryStats.expired}</h4>
+                                </div>
+                                <div className="p-3 bg-red-50 text-red-500 rounded-xl">
+                                    ⚠️
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400 mt-4">Users with expired plans</p>
+                        </div>
+
+                        {/* Expiring Week */}
+                        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-orange-500">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium uppercase">Expiring This Week</p>
+                                    <h4 className="text-4xl font-black text-gray-800 mt-2">{stats.planExpiryStats.expiringInWeek}</h4>
+                                </div>
+                                <div className="p-3 bg-orange-50 text-orange-500 rounded-xl">
+                                    📅
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400 mt-4">Action needed soon</p>
+                        </div>
+
+                        {/* Expiring Month */}
+                        <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-gray-500 text-sm font-medium uppercase">Expiring This Month</p>
+                                    <h4 className="text-4xl font-black text-gray-800 mt-2">{stats.planExpiryStats.expiringInMonth}</h4>
+                                </div>
+                                <div className="p-3 bg-blue-50 text-blue-500 rounded-xl">
+                                    📊
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400 mt-4">Upcoming renewals</p>
+                        </div>
+                    </div>
+
+                    {/* Detailed List */}
+                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                            <h4 className="font-bold text-gray-800 text-lg">Upcoming Expirations</h4>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+                                    <tr>
+                                        <th className="px-6 py-4">User</th>
+                                        <th className="px-6 py-4">Plan</th>
+                                        <th className="px-6 py-4">Expiry Date</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4">Days Left</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {stats.planExpiryStats.details.length > 0 ? (
+                                        stats.planExpiryStats.details.map((user: any, idx: number) => (
+                                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4">
+                                                    <div>
+                                                        <p className="font-bold text-gray-800">{user.name}</p>
+                                                        <p className="text-xs text-gray-500">{user.email}</p>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold border border-indigo-100">
+                                                        {user.plan}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-gray-600">
+                                                    {new Date(user.expiry).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${user.status === 'Expired' ? 'bg-red-50 text-red-600 border-red-100' :
+                                                        user.status.includes('Week') ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                                            'bg-blue-50 text-blue-600 border-blue-100'
+                                                        }`}>
+                                                        {user.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`font-mono font-bold ${user.daysLeft < 0 ? 'text-red-500' : 'text-gray-700'}`}>
+                                                        {user.daysLeft} days
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
+                                                No upcoming expirations found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

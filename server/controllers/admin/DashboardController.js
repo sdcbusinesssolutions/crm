@@ -26,7 +26,7 @@ exports.getDashboardStats = async (req, res) => {
         // 1. Fetch Tenant Specific Profiles (for Workspace Usage)
         const { data: tenantProfiles, error: tenantError } = await supabaseAdmin
             .from('profiles')
-            .select('id, created_at, signup_domain')
+            .select('id, created_at, signup_domain, plan_expires_at, plan_name, full_name, name, email')
             .eq('signup_domain', adminDomain);
 
         if (tenantError) {
@@ -45,13 +45,86 @@ exports.getDashboardStats = async (req, res) => {
         if (isSuperAdmin) {
             const { data: allProfiles, error: allError } = await supabaseAdmin
                 .from('profiles')
-                .select('id, created_at, signup_domain');
+                .select('id, created_at, signup_domain, plan_expires_at, plan_name, full_name, name, email');
 
             if (allProfiles) {
                 profiles = allProfiles;
                 totalUsers = allProfiles.length;
             }
         }
+
+        // --- PLAN EXPIRY STATS LOGIC ---
+        const nowMs = new Date().getTime();
+        const weekMs = 7 * 24 * 60 * 60 * 1000;
+        const monthMs = 30 * 24 * 60 * 60 * 1000;
+
+        let expiredCount = 0;
+        let expiringWeekCount = 0;
+        let expiringMonthCount = 0;
+        let expiringUsersList = [];
+
+        // Filter valid profiles for expiry stats
+        if (profiles && profiles.length > 0) {
+            profiles.forEach(p => {
+                if (p.plan_expires_at) {
+                    const expMs = new Date(p.plan_expires_at).getTime();
+                    const diff = expMs - nowMs;
+
+                    let status = null;
+                    let daysLeft = 0;
+
+                    if (diff < 0) {
+                        expiredCount++;
+                        status = 'Expired';
+                        daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+                        expiringUsersList.push({
+                            name: p.full_name || p.name || 'User',
+                            email: p.email,
+                            plan: p.plan_name || 'Free',
+                            expiry: p.plan_expires_at,
+                            status,
+                            daysLeft
+                        });
+                    } else {
+                        daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                        if (diff <= weekMs) {
+                            expiringWeekCount++;
+                            status = 'Expiring (Week)';
+                            expiringUsersList.push({
+                                name: p.full_name || p.name || 'User',
+                                email: p.email,
+                                plan: p.plan_name || 'Free',
+                                expiry: p.plan_expires_at,
+                                status,
+                                daysLeft
+                            });
+                        } else if (diff <= monthMs) {
+                            expiringMonthCount++;
+                            expiringUsersList.push({
+                                name: p.full_name || p.name || 'User',
+                                email: p.email,
+                                plan: p.plan_name || 'Free',
+                                expiry: p.plan_expires_at,
+                                status: 'Expiring (Month)',
+                                daysLeft
+                            });
+                        }
+                    }
+                }
+            });
+        }
+
+        expiringUsersList.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+        const recentExpirations = expiringUsersList.slice(0, 15);
+
+        const planExpiryStats = {
+            expired: expiredCount,
+            expiringInWeek: expiringWeekCount,
+            expiringInMonth: expiringMonthCount,
+            details: recentExpirations
+        };
+        // -------------------------------
 
         // Calculate stats based on 'profiles' (Global if Super, Local if Tenant)
 
@@ -119,7 +192,8 @@ exports.getDashboardStats = async (req, res) => {
                 user_limit: tenantInfo.limit,
                 plan_name: tenantInfo.plan,
                 days_left: tenantInfo.daysLeft
-            }
+            },
+            planExpiryStats
         };
 
         res.setHeader('Cache-Control', 'no-cache');

@@ -57,20 +57,19 @@ exports.getUsers = async (req, res) => {
             });
 
             return {
-                return {
-                    id: u.id,
-                    name: u.full_name || u.name || 'User',
-                    email: u.email,
-                    status: 'Active',
-                    mobile: u.phone || u.mobile || 'N/A',
-                    // Add domain info so Super Admin knows where they came from
-                    signupDomain: u.signup_domain,
-                    adminStatus: u.role || 'Standard',
-                    current_plan: u.plan_name || 'Free',
-                    createdOn: formattedDate,
-                    lastSignIn: null
-                };
-            });
+                id: u.id,
+                name: u.full_name || u.name || 'User',
+                email: u.email,
+                status: 'Active',
+                mobile: u.phone || u.mobile || 'N/A',
+                // Add domain info so Super Admin knows where they came from
+                signupDomain: u.signup_domain,
+                adminStatus: u.role || 'Standard',
+                current_plan: u.plan_name || 'Free',
+                createdOn: formattedDate,
+                lastSignIn: null
+            };
+        });
 
         console.log(`[UsersController] Returning ${mappedUsers.length} users for domain ${adminDomain}`);
         res.json(mappedUsers);
