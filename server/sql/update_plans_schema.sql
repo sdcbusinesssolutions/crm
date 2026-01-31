@@ -28,6 +28,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'plans' AND column_name = 'pricing') THEN
         ALTER TABLE public.plans ADD COLUMN pricing jsonb DEFAULT '[]'::jsonb;
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'plans' AND column_name = 'domain') THEN
+        ALTER TABLE public.plans ADD COLUMN domain text DEFAULT 'clickube.com';
+    END IF;
 END $$;
 
 -- Enable RLS

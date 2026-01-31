@@ -35,53 +35,69 @@ exports.getAllSubscriptions = async (req, res) => {
         }
         const { data: plans } = await plansQuery;
 
-        // Fetch Users
-        const { data: userResult, error: userError } = await supabaseAdmin.auth.admin.listUsers();
-        const users = userResult?.users || [];
+        // Fetch Users (Profiles) instead of Auth API to avoid hangs
+        let profilesQuery = supabaseAdmin.from('profiles').select('*');
 
-        if (userError) {
-            console.error('Fetch Users Error:', userError);
+        // Optimization: We could filter profiles by valid user IDs from subs, but fetching all for domain is standard pattern here
+
+        if (!isSuperAdmin) {
+            profilesQuery = profilesQuery.eq('signup_domain', adminDomain);
         }
 
-        // Fetch user profiles to get signup_domain
-        const { data: profiles } = await supabaseAdmin
-            .from('profiles')
-            .select('id, signup_domain');
+        const { data: profiles, error: profilesError } = await profilesQuery;
 
+        if (profilesError) {
+            console.error('Fetch Profiles Error:', profilesError);
+            // Continue? If profiles fail, we can't show user details.
+            // But we should likely return error or empty? UsersController returns empty on error.
+            // We'll proceed with empty profiles.
+        }
+
+        const safeProfiles = profiles || [];
+        const profileMap = new Map(safeProfiles.map(p => [p.id, p]));
         const planMap = new Map(plans?.map(p => [p.id, { name: p.name, domain: p.domain }]));
-        const userMap = new Map(users?.map(u => [u.id, u]));
-        const profileMap = new Map(profiles?.map(p => [p.id, p.signup_domain]));
 
-        // Filter subscriptions based on domain
+        // Filter subscriptions based on domain (by checking if user profile exists in our filtered fetch)
         let filteredSubs = subs;
         if (!isSuperAdmin) {
-            // Filter to only show subscriptions for users from the same domain
-            filteredSubs = subs.filter(sub => {
-                const userDomain = profileMap.get(sub.user_id);
-                return userDomain === adminDomain;
-            });
+            // Only show subscriptions where the user belongs to this admin's domain
+            // Since we filtered profiles by domain, valid users are in profileMap.
+            // If user not in profileMap, they are not in this domain (or deleted).
+            filteredSubs = subs.filter(sub => profileMap.has(sub.user_id));
         }
 
         const formattedData = filteredSubs.map(sub => {
-            const user = userMap.get(sub.user_id);
+            const profile = profileMap.get(sub.user_id);
+            // Fallback for name: profile.full_name -> profile.name -> profile.email -> 'Unknown'
+            const userName = profile ? (profile.full_name || profile.name || profile.email) : 'Unknown User';
+            const userEmail = profile?.email;
+
             const planInfo = planMap.get(sub.plan_id);
             const planName = planInfo?.name || 'Unknown Plan';
             const isExpired = new Date(sub.end_date) < new Date();
 
+            // Check domain match again if needed? No, filtered above.
+
             return {
                 id: sub.id,
-                user_id: sub.user_id, // Store for history lookup
-                user: user ? (user.user_metadata?.full_name || user.email) : 'Unknown User',
-                email: user?.email,
+                user_id: sub.user_id,
+                user: userName,
+                email: userEmail,
                 plan: planName,
                 created: new Date(sub.start_date).toLocaleDateString(),
                 expiry: new Date(sub.end_date).toLocaleDateString(),
                 charges: `${sub.amount || 0} ${sub.currency || 'INR'}`,
                 type: sub.payment_term,
                 status: sub.status === 'active' && !isExpired ? 'Active' : (sub.status === 'cancelled' ? 'Cancelled' : 'Expired'),
-                raw_status: sub.status // Keep raw active/cancelled status
+                raw_status: sub.status
             };
         });
+
+        // Skip lines 65-84 (replaced by mapping above)
+        // I need to return the response here to match the replacement block structure?
+        // No, I am replacing lines 38-63 (fetching and filtering) AND the mapping loop (lines 65-84)?
+        // My replacement block includes the mapping.
+        // I will target up to line 84.
 
         console.log(`[SubscriptionController] Returning ${formattedData.length} subscriptions for domain ${adminDomain}`);
         res.json(formattedData);
@@ -150,7 +166,7 @@ exports.assignSubscription = async (req, res) => {
         // Validate that the plan belongs to the admin's domain (unless super admin)
         const { data: plan } = await supabaseAdmin
             .from('plans')
-            .select('domain')
+            .select('name, domain')
             .eq('id', planId)
             .single();
 
@@ -216,6 +232,20 @@ exports.assignSubscription = async (req, res) => {
             console.error('Assign Subscription Error:', error);
             // Handle if table doesn't exist, maybe try to create it? (Optional, skipping for now)
             return res.status(400).json({ message: 'Failed to assign subscription', error: error.message });
+        }
+
+        // SYNC PROFILE with new Plan
+        const { error: profileSyncError } = await supabaseAdmin
+            .from('profiles')
+            .update({
+                plan_name: plan.name,
+                plan_status: 'active',
+                plan_expires_at: endDate.toISOString()
+            })
+            .eq('id', userId);
+
+        if (profileSyncError) {
+            console.error('Warning: Failed to sync profile plan status', profileSyncError);
         }
 
         console.log(`[SubscriptionController] Subscription assigned successfully for user ${userId} by admin ${adminDomain}`);

@@ -57,18 +57,20 @@ exports.getUsers = async (req, res) => {
             });
 
             return {
-                id: u.id,
-                name: 'User', // Profiles table might need name column sync or we fetch metadata
-                email: u.email,
-                status: 'Active',
-                mobile: 'N/A',
-                // Add domain info so Super Admin knows where they came from
-                signupDomain: u.signup_domain,
-                adminStatus: u.role || 'Standard',
-                createdOn: formattedDate,
-                lastSignIn: null
-            };
-        });
+                return {
+                    id: u.id,
+                    name: u.full_name || u.name || 'User',
+                    email: u.email,
+                    status: 'Active',
+                    mobile: u.phone || u.mobile || 'N/A',
+                    // Add domain info so Super Admin knows where they came from
+                    signupDomain: u.signup_domain,
+                    adminStatus: u.role || 'Standard',
+                    current_plan: u.plan_name || 'Free',
+                    createdOn: formattedDate,
+                    lastSignIn: null
+                };
+            });
 
         console.log(`[UsersController] Returning ${mappedUsers.length} users for domain ${adminDomain}`);
         res.json(mappedUsers);
@@ -435,5 +437,80 @@ exports.impersonateUser = async (req, res) => {
     } catch (err) {
         console.error('Impersonation Error:', err);
         res.status(500).json({ message: 'Internal Server Error during impersonation.' });
+    }
+};
+
+exports.assignPlan = async (req, res) => {
+    try {
+        const { userId, planId, durationDays } = req.body;
+        console.log('Assign Plan Request:', { userId, planId, durationDays });
+
+        if (!userId || !planId) {
+            return res.status(400).json({ message: 'User ID and Plan ID are required.' });
+        }
+
+        if (!supabaseAdmin) {
+            return res.status(500).json({ message: 'Server configuration error.' });
+        }
+
+        // 1. Fetch Plan Details
+        const { data: plan, error: planError } = await supabaseAdmin
+            .from('plans')
+            .select('*')
+            .eq('id', planId)
+            .single();
+
+        if (planError || !plan) {
+            return res.status(404).json({ message: 'Plan not found.' });
+        }
+
+        // 2. Validate Domain (Isolation)
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        if (!isSuperAdmin && plan.domain !== adminDomain) {
+            return res.status(403).json({ message: 'Access Denied: You cannot assign plans from other domains.' });
+        }
+
+        // 3. Calculate Expiry
+        let finalDuration = durationDays ? parseInt(durationDays) : 30;
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + finalDuration);
+
+        // 4. Update Profile
+        const updateData = {
+            plan_name: plan.name,
+            plan_status: 'active',
+            plan_expires_at: expiryDate.toISOString()
+        };
+
+        const { error: updateError } = await supabaseAdmin
+            .from('profiles')
+            .update(updateData)
+            .eq('id', userId);
+
+        if (updateError) {
+            console.error('Profile Plan Update Error:', updateError);
+            return res.status(400).json({ message: 'Failed to update user profile with plan.', error: updateError.message });
+        }
+
+        // 5. Add strictly to history
+        const subscriptionData = {
+            user_id: userId,
+            plan_id: planId,
+            start_date: new Date().toISOString(),
+            end_date: expiryDate.toISOString(),
+            status: 'active'
+        };
+
+        await supabaseAdmin.from('user_subscriptions').insert([subscriptionData]);
+
+        res.json({ message: 'Plan assigned successfully', plan: plan.name, expiresAt: expiryDate });
+
+    } catch (err) {
+        console.error('Assign Plan Exception:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
     }
 };

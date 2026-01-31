@@ -12,5 +12,7 @@ router.post('/delete-hard', verifyAdminToken, UsersController.hardDeleteUser);
 router.post('/change-password', verifyAdminToken, UsersController.changeUserPassword);
 router.post('/login-as', verifyAdminToken, UsersController.impersonateUser);
 router.post('/status-toggle', verifyAdminToken, UsersController.toggleUserStatus);
+router.post('/assign-plan', verifyAdminToken, UsersController.assignPlan);
+
 
 module.exports = router;

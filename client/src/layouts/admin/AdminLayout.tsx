@@ -10,31 +10,62 @@ const AdminLayout = () => {
     const location = useLocation();
     const [theme, setTheme] = useState<ThemeConfig>(PRESETS[0]);
     const [isAdminSuper, setIsAdminSuper] = useState(false);
+    const [adminEmail, setAdminEmail] = useState('');
+    const [adminName, setAdminName] = useState('Admin');
 
     useEffect(() => {
+        const verifyLegacyToken = async () => {
+            const token = localStorage.getItem('adminToken');
+            if (!token) return false;
+            try {
+                const res = await fetch('/api/admin/auth/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const adminData = await res.json();
+                    setAdminEmail(adminData.email || '');
+                    setAdminName(adminData.name || 'Administrator');
+                    // Dynamic Role Check: Only set as super if role strictly matches
+                    setIsAdminSuper(adminData.role === 'super_admin');
+                    return true;
+                }
+            } catch (e) {
+                console.error("Token verification failed", e);
+            }
+            return false;
+        };
+
         const checkRole = async () => {
             const { data: { user } } = await supabase.auth.getUser();
+
             if (user) {
+                setAdminEmail(user.email || '');
                 const { data } = await supabase
                     .from('profiles')
-                    .select('role')
+                    .select('role, full_name, name')
                     .eq('id', user.id)
                     .single();
 
-                if (!data || ((data as any).role !== 'admin' && (data as any).role !== 'super_admin')) {
-                    // Not an admin, redirect to login or home
-                    console.warn('Unauthorized access to admin panel');
-                    navigate('/admin/auth/login');
-                    return;
+                if (data) {
+                    const profile = data as any;
+                    if (profile.role === 'admin' || profile.role === 'super_admin') {
+                        // Success via Supabase
+                        setAdminName(profile.full_name || profile.name || 'Admin');
+                        if (profile.role === 'super_admin') setIsAdminSuper(true);
+                        return;
+                    }
                 }
-
-                if (data && (data as any).role === 'super_admin') {
-                    setIsAdminSuper(true);
-                }
-            } else {
-                navigate('/admin/auth/login');
             }
+
+            // Fallback: Check for Backend Legacy Token if Supabase failed or user is not admin
+            const legacySuccess = await verifyLegacyToken();
+            if (legacySuccess) return;
+
+            // If both fail, redirect
+            console.warn('Unauthorized access to admin panel');
+            navigate('/admin/auth/login');
         };
+
         checkRole();
     }, []);
 
@@ -110,8 +141,8 @@ const AdminLayout = () => {
                     <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[var(--bg-color)]/50">
                         <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">AD</div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-[var(--text-color)] truncate">Super Admin</p>
-                            <p className="text-xs text-slate-400 truncate">admin@upshopi.com</p>
+                            <p className="text-sm font-bold text-[var(--text-color)] truncate">{adminName}</p>
+                            <p className="text-xs text-slate-400 truncate">{adminEmail}</p>
                         </div>
                     </div>
                 </div>

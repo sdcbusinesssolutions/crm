@@ -9,9 +9,8 @@ exports.getDashboardStats = async (req, res) => {
             return res.status(403).json({ message: 'Domain information missing' });
         }
 
-        // Check if super admin
-        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
-        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+        // STRICT Super Admin Check
+        const isSuperAdmin = adminRole === 'super_admin';
 
         // Get current date boundaries
         const now = new Date();
@@ -19,24 +18,42 @@ exports.getDashboardStats = async (req, res) => {
         const todayEnd = new Date(todayStart);
         todayEnd.setDate(todayEnd.getDate() + 1);
 
-        // Fetch profiles with domain filtering
-        let profilesQuery = supabaseAdmin
+        let totalUsers = 0;
+        let tenantUserCount = 0;
+        // Profiles used for global stats/trends
+        let profiles = [];
+
+        // 1. Fetch Tenant Specific Profiles (for Workspace Usage)
+        const { data: tenantProfiles, error: tenantError } = await supabaseAdmin
             .from('profiles')
-            .select('id, created_at, signup_domain, last_sign_in_at');
+            .select('id, created_at, signup_domain')
+            .eq('signup_domain', adminDomain);
 
-        if (!isSuperAdmin) {
-            profilesQuery = profilesQuery.eq('signup_domain', adminDomain);
+        if (tenantError) {
+            console.error('Error fetching tenant profiles:', tenantError);
         }
 
-        const { data: profiles, error: profilesError } = await profilesQuery;
-
-        if (profilesError) {
-            console.error('Error fetching profiles:', profilesError);
-            return res.status(500).json({ message: 'Failed to fetch user data' });
+        if (tenantProfiles) {
+            tenantUserCount = tenantProfiles.length;
+            if (!isSuperAdmin) {
+                profiles = tenantProfiles;
+                totalUsers = tenantUserCount;
+            }
         }
 
-        // Calculate stats
-        const totalUsers = profiles.length;
+        // 2. If Super Admin, fetch ALL profiles for "Total Users" & Trends
+        if (isSuperAdmin) {
+            const { data: allProfiles, error: allError } = await supabaseAdmin
+                .from('profiles')
+                .select('id, created_at, signup_domain');
+
+            if (allProfiles) {
+                profiles = allProfiles;
+                totalUsers = allProfiles.length;
+            }
+        }
+
+        // Calculate stats based on 'profiles' (Global if Super, Local if Tenant)
 
         // Today's signups
         const todaySignups = profiles.filter(p => {
@@ -45,20 +62,11 @@ exports.getDashboardStats = async (req, res) => {
         }).length;
 
         // Active users today (signed in today)
-        const todayActiveUsers = profiles.filter(p => {
-            if (!p.last_sign_in_at) return false;
-            const lastSignIn = new Date(p.last_sign_in_at);
-            return lastSignIn >= todayStart && lastSignIn < todayEnd;
-        }).length;
+        // Note: profiles table doesn't have last_sign_in_at yet. Use auth data or skip.
+        const todayActiveUsers = 0;
 
         // Active users (signed in within last 7 days)
-        const sevenDaysAgo = new Date(now);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const activeUsers = profiles.filter(p => {
-            if (!p.last_sign_in_at) return false;
-            const lastSignIn = new Date(p.last_sign_in_at);
-            return lastSignIn >= sevenDaysAgo;
-        }).length;
+        const activeUsers = 0;
 
         // Get contacts count
         let contactsQuery = supabaseAdmin
@@ -71,8 +79,33 @@ exports.getDashboardStats = async (req, res) => {
 
         const { count: contacts } = await contactsQuery;
 
+        // Fetch Tenant Limits & Plan
+        let tenantInfo = { limit: 10, plan: 'Free', daysLeft: 999 };
+
+        if (adminDomain) {
+            const { data: limitData } = await supabaseAdmin
+                .from('tenant_limits')
+                .select('user_limit')
+                .eq('domain', adminDomain)
+                .single();
+            if (limitData) tenantInfo.limit = limitData.user_limit;
+
+            const { data: planData } = await supabaseAdmin
+                .from('tenant_plans')
+                .select('plan_name, expires_at')
+                .eq('domain', adminDomain)
+                .single();
+            if (planData) {
+                tenantInfo.plan = planData.plan_name;
+                if (planData.expires_at) {
+                    const diff = new Date(planData.expires_at) - new Date();
+                    tenantInfo.daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                }
+            }
+        }
+
         // Generate signup trends data
-        const signupTrends = await generateSignupTrends(profiles, isSuperAdmin ? null : adminDomain);
+        const signupTrends = await generateSignupTrends(profiles, null);
 
         const stats = {
             totalUsers,
@@ -80,9 +113,17 @@ exports.getDashboardStats = async (req, res) => {
             todayActiveUsers,
             todaySignups,
             contacts: contacts || 0,
-            signupTrends
+            signupTrends,
+            tenantStats: {
+                user_count: tenantUserCount,
+                user_limit: tenantInfo.limit,
+                plan_name: tenantInfo.plan,
+                days_left: tenantInfo.daysLeft
+            }
         };
 
+        res.setHeader('Cache-Control', 'no-cache');
+        console.log("Stats Response Debug:", JSON.stringify(stats));
         res.json(stats);
     } catch (err) {
         console.error('Dashboard stats error:', err);

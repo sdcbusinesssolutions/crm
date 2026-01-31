@@ -6,7 +6,7 @@ interface PricingOption {
     interval: 'day' | 'week' | 'month' | 'year';
     interval_count: number;
     price_id: string;
-    amount: number;
+    amount: number | string;
     enabled: boolean;
 }
 
@@ -143,9 +143,14 @@ const PlanEditor: React.FC<PlanEditorProps> = ({ plan, onSave, onCancel }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        // Clean up pricing array: remove disabled items if you want, or keep them. 
-        // For now we keep them but only enabled ones might optionally be processed by backend logic if needed.
-        await onSave(formData);
+
+        // Sanitize pricing: Convert string amounts to numbers
+        const cleanedPricing = formData.pricing.map(p => ({
+            ...p,
+            amount: typeof p.amount === 'string' ? (parseFloat(p.amount) || 0) : p.amount
+        }));
+
+        await onSave({ ...formData, pricing: cleanedPricing });
         setIsSubmitting(false);
     };
 
@@ -357,7 +362,7 @@ const PlanEditor: React.FC<PlanEditorProps> = ({ plan, onSave, onCancel }) => {
                                                 type="number"
                                                 className="w-full pl-6 pr-8 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-700 text-xs"
                                                 value={option.amount}
-                                                onChange={e => handlePricingChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                                                onChange={e => handlePricingChange(index, 'amount', e.target.value)}
                                                 disabled={!option.enabled && !isCustom}
                                             />
                                             <span className="absolute right-3 top-2 text-[10px] text-slate-400">INR</span>

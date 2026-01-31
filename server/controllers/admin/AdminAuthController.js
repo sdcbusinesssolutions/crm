@@ -11,11 +11,16 @@ exports.loginAdmin = async (req, res) => {
     try {
         if (origin.startsWith('http')) {
             currentDomain = new URL(origin).hostname;
+        } else {
+            currentDomain = origin.split(':')[0];
         }
     } catch (e) { }
 
+    // Check if this is a local request BEFORE we overwrite currentDomain
+    const isLocalRequest = currentDomain.includes('localhost') || currentDomain.includes('127.0.0.1');
+
     // Allow fallback to env DOMAIN if localhost
-    if (currentDomain.includes('localhost')) {
+    if (isLocalRequest) {
         currentDomain = process.env.DOMAIN || 'clickube.com';
     }
 
@@ -57,14 +62,18 @@ exports.loginAdmin = async (req, res) => {
 
     // A. Standard Password Login Logic
     // 1. Check Demo Credentials (Dynamic)
-    if (email.toLowerCase() === expectedAdminEmail.toLowerCase() && password === 'Admin@12345') {
+    const isStandardMatch = email.toLowerCase() === expectedAdminEmail.toLowerCase();
+    const isLocalMatch = isLocalRequest && email.toLowerCase() === 'admin@localhost.com';
 
-        // SECURITY CHECK: Is this Admin actually banned in the global database?
-        // Even if they have the hardcoded password, we can block them by creating a 'Shadow User' in Supabase 
-        // with the same email and banning it.
-        const { supabaseAdmin } = require('../../lib/supabaseClient'); // Lazy load to avoid circular deps if any
+    if ((isStandardMatch || isLocalMatch) && password === 'Admin@12345') {
+
+        let role = 'admin'; // Default role
+        let adminName = 'Administrator';
+
+        // SECURITY CHECK & ROLE ENRICHMENT
+        const { supabaseAdmin } = require('../../lib/supabaseClient'); // Lazy load
         if (supabaseAdmin) {
-            // Check if a user exists with this email and is banned
+            // Check if a user exists with this email
             const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
             if (users) {
                 const adminUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
@@ -74,6 +83,18 @@ exports.loginAdmin = async (req, res) => {
                         console.warn(`[Blocked Login] Banned Admin tried to login: ${email}`);
                         return res.status(403).json({ message: 'This Admin Account has been suspended by Super Admin.' });
                     }
+
+                    // Fetch Profile for Role
+                    const { data: profile } = await supabaseAdmin
+                        .from('profiles')
+                        .select('role, full_name, name')
+                        .eq('id', adminUser.id)
+                        .single();
+
+                    if (profile) {
+                        role = profile.role || role;
+                        adminName = profile.full_name || profile.name || adminName;
+                    }
                 }
             }
         }
@@ -81,10 +102,11 @@ exports.loginAdmin = async (req, res) => {
         const token = jwt.sign({
             id: 'admin-' + currentDomain,
             email,
-            managed_domain: currentDomain // Tag the token with the domain
+            managed_domain: currentDomain,
+            role: role // Embed dynamic role
         }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
 
-        return res.json({ token, admin: { email, name: 'Administrator', domain: currentDomain } });
+        return res.json({ token, admin: { email, name: adminName, domain: currentDomain, role } });
     }
 
     // 2. (Optional) Supabase Database Logic
@@ -125,14 +147,10 @@ exports.loginAdmin = async (req, res) => {
         const normalize = (d) => d ? d.trim().toLowerCase().replace(/^www\./, '') : '';
         const normAssigned = normalize(profile.signup_domain);
         const normCurrent = normalize(currentDomain);
-        const isLocalhost = normCurrent.includes('localhost') || normCurrent.includes('127.0.0.1');
 
-        // Allow Super Admin to login anywhere (optional, but good for management)
-        // OR Enforce strict tenancy even for admins.
-        // Let's enforce strict tenancy EXCEPT for localhost/Super Admin scenarios if needed.
-        // For now: Strict match.
-        if (normAssigned !== normCurrent && !isLocalhost && profile.role !== 'super_admin') {
-            console.warn(`[Admin Login Blocked] Domain Mismatch. Assigned: ${normAssigned}, Current: ${normCurrent}`);
+        // Use the preserved isLocalRequest check
+        if (normAssigned !== normCurrent && !isLocalRequest && profile.role !== 'super_admin') {
+            console.warn(`[Admin Login Blocked] Domain Mismatch. Assigned: ${normAssigned}, Current: ${normCurrent}, IsLocal: ${isLocalRequest}`);
             return res.status(403).json({ message: 'Invalid Domain: You cannot access this dashboard.' });
         }
 

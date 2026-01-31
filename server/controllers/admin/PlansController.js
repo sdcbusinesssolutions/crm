@@ -4,22 +4,30 @@ exports.getAllPlans = async (req, res) => {
     try {
         if (!supabaseAdmin) return res.status(500).json({ message: 'DB setup error' });
 
-        // Extract domain from admin token (set by authMiddleware)
         const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole = req.admin?.role;
 
-        if (!adminDomain) {
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' || adminDomain === MASTER_DOMAIN || adminDomain === 'localhost';
+
+        if (!adminDomain && !isSuperAdmin) {
             console.error('Admin domain not found in token');
             return res.status(403).json({ message: 'Domain information missing' });
         }
 
-        console.log(`[PlansController] Fetching plans for domain: ${adminDomain}`);
+        console.log(`[PlansController] Fetching plans for request from: ${adminDomain} (SuperAdmin: ${isSuperAdmin})`);
 
-        // Filter plans by domain
-        const { data, error } = await supabaseAdmin
-            .from('plans')
-            .select('*')
-            .eq('domain', adminDomain)
-            .order('created_at', { ascending: true });
+        let query = supabaseAdmin.from('plans').select('*');
+
+        // Filter plans by domain (unless Super Admin)
+        if (!isSuperAdmin) {
+            query = query.eq('domain', adminDomain);
+        } else if (req.query.domain) {
+            // Optional: Super Admin filtering by specific domain
+            query = query.eq('domain', req.query.domain);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: true });
 
         if (error) {
             console.error('Fetch Plans Error:', error);

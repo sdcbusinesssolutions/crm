@@ -40,6 +40,15 @@ const Users = () => {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [deletingUser, setDeletingUser] = useState<any>(null);
 
+    // Assign Plan State
+    const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+    const [assigningUser, setAssigningUser] = useState<any>(null);
+    const [availablePlans, setAvailablePlans] = useState<any[]>([]);
+    const [selectedPlanId, setSelectedPlanId] = useState('');
+    const [planDuration, setPlanDuration] = useState('30');
+    const [isCustomDuration, setIsCustomDuration] = useState(false);
+
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -56,6 +65,39 @@ const Users = () => {
         checkSuperAdmin();
         fetchUsers();
     }, []);
+
+    useEffect(() => {
+        if (!selectedPlanId || !availablePlans.length) return;
+        const plan = availablePlans.find(p => p.id === selectedPlanId);
+        if (!plan) return;
+
+        // Check for Custom Plan (case insensitive)
+        const isCustom = (plan.name || '').toLowerCase().includes('custom');
+        setIsCustomDuration(isCustom);
+
+        if (isCustom) {
+            // If strictly custom plan, allow manual input (keep current or default)
+            return;
+        }
+
+        // Calculate duration from pricing
+        if (plan.pricing && Array.isArray(plan.pricing) && plan.pricing.length > 0) {
+            // Find first enabled pricing or fallback to first
+            const pricing = plan.pricing.find((p: any) => p.enabled) || plan.pricing[0];
+            if (pricing) {
+                let days = 30;
+                const count = parseInt(pricing.interval_count) || 1;
+                switch (pricing.interval) {
+                    case 'day': days = count; break;
+                    case 'week': days = count * 7; break;
+                    case 'month': days = count * 30; break;
+                    case 'year': days = count * 365; break;
+                    default: days = 30;
+                }
+                setPlanDuration(days.toString());
+            }
+        }
+    }, [selectedPlanId, availablePlans]);
 
     const fetchDomains = async () => {
         try {
@@ -94,6 +136,22 @@ const Users = () => {
             setToast({ type: 'error', title: 'Error', message: 'Failed to load users' });
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchPlans = async () => {
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/plans', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAvailablePlans(data);
+                if (data.length > 0) setSelectedPlanId(data[0].id);
+            }
+        } catch (error) {
+            console.error("Failed to load plans", error);
         }
     };
 
@@ -189,6 +247,40 @@ const Users = () => {
         }
     };
 
+    const handleAssignPlanSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!assigningUser || !selectedPlanId) return;
+
+        setIsSubmitting(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/users/assign-plan', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: assigningUser.id,
+                    planId: selectedPlanId,
+                    durationDays: planDuration
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                setToast({ type: 'success', title: 'Success', message: `Plan assigned to ${assigningUser.name}` });
+                setIsPlanModalOpen(false);
+                setAssigningUser(null);
+                fetchUsers(); // Refresh to show new plan status
+            } else {
+                setToast({ type: 'error', title: 'Error', message: data.message || 'Failed to assign plan' });
+            }
+        } catch (error) {
+            console.error(error);
+            setToast({ type: 'error', title: 'Error', message: 'Network error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // Filter Logic
     const filteredUsers = users.filter(user => {
         if (!searchTerm) return true;
@@ -227,6 +319,10 @@ const Users = () => {
     const handleAction = async (action: string, user: any) => {
         if (action === 'Login') {
             try {
+                // Check if user is active first? No, server handles it.
+                // But if plan expired, they can't login.
+                // Impersonation bypasses login check usually, but good to know.
+
                 setToast({ type: 'info', title: 'Impersonating...', message: `Generating login link for ${user.name}...` });
                 const token = localStorage.getItem('adminToken');
                 const res = await fetch('/api/admin/users/login-as', {
@@ -359,6 +455,7 @@ const Users = () => {
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Domain</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
+                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Role</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
                                         <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Actions</th>
@@ -413,6 +510,11 @@ const Users = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
+                                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                    {user.current_plan || 'Free'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
                                                 <div className="text-xs text-slate-500">{user.createdOn}</div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -423,7 +525,11 @@ const Users = () => {
                                                     ) : (
                                                         <button onClick={() => handleAction('deactivate', user)} className="px-2 py-1 text-xs font-bold text-amber-600 bg-amber-50 rounded hover:bg-amber-100 transition-colors">Block</button>
                                                     )}
-                                                    <button onClick={() => handleAction('Sub', user)} className="px-2 py-1 text-xs font-bold text-slate-600 bg-slate-100 rounded hover:bg-slate-200 transition-colors">Plan</button>
+                                                    <button onClick={() => {
+                                                        setAssigningUser(user);
+                                                        fetchPlans();
+                                                        setIsPlanModalOpen(true);
+                                                    }} className="px-2 py-1 text-xs font-bold text-brand-600 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Plan</button>
                                                     <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
                                                     <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
@@ -717,6 +823,90 @@ const Users = () => {
                         </button>
                     </div>
                 </div>
+            </Modal>
+
+            {/* Assign Plan Modal */}
+            <Modal
+                isOpen={isPlanModalOpen}
+                onClose={() => setIsPlanModalOpen(false)}
+                title="Assign Plan"
+            >
+                <form onSubmit={handleAssignPlanSubmit} className="space-y-4">
+                    <p className="text-sm text-slate-600 mb-4">
+                        Assigning a plan to <span className="font-bold text-slate-900">{assigningUser?.name}</span>.
+                        This will override their current subscription.
+                    </p>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Select Plan</label>
+                        {availablePlans.length > 0 ? (
+                            <div className="space-y-2">
+                                {availablePlans.map(plan => (
+                                    <label key={plan.id} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-all ${selectedPlanId === plan.id ? 'border-brand-500 bg-brand-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="radio"
+                                                name="plan"
+                                                value={plan.id}
+                                                checked={selectedPlanId === plan.id}
+                                                onChange={() => setSelectedPlanId(plan.id)}
+                                                className="text-brand-600 focus:ring-brand-500"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-900">{plan.name}</div>
+                                                <div className="text-xs text-slate-500">
+                                                    {(plan.pricing && plan.pricing[0]) ? `${plan.pricing[0].amount} ${plan.pricing[0].currency || 'INR'}` : 'Custom Pricing'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center p-4 bg-slate-50 rounded-lg text-slate-500">
+                                No plans available. Please create a plan first.
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">Duration (Days)</label>
+                        {isCustomDuration ? (
+                            <input
+                                type="number"
+                                min="1"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800"
+                                value={planDuration}
+                                onChange={e => setPlanDuration(e.target.value)}
+                                placeholder="30"
+                            />
+                        ) : (
+                            <div className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-medium">
+                                {planDuration} Days
+                            </div>
+                        )}
+                        <p className="text-xs text-slate-500 mt-1">
+                            Plan will expire on {new Date(Date.now() + parseInt(planDuration || '0') * 86400000).toLocaleDateString()}.
+                        </p>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={() => setIsPlanModalOpen(false)}
+                            className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting || availablePlans.length === 0}
+                            className="px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                        >
+                            {isSubmitting ? 'Assigning...' : 'Assign Plan'}
+                        </button>
+                    </div>
+                </form>
             </Modal>
         </div>
     );

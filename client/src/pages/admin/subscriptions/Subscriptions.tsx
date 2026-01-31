@@ -37,10 +37,47 @@ const Subscriptions = () => {
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editData, setEditData] = useState({ id: '', planId: '', status: '', expiryDate: '' });
+    const [isEditCustomDuration, setIsEditCustomDuration] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
 
     // Toast State
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
+
+    const fetchUsersAndPlans = async () => {
+        const token = localStorage.getItem('adminToken');
+        try {
+            const [usersRes, plansRes] = await Promise.all([
+                fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
+                fetch('/api/admin/plans', { headers: { 'Authorization': `Bearer ${token}` } })
+            ]);
+
+            if (usersRes.ok) setAvailableUsers(await usersRes.json());
+            if (plansRes.ok) setAvailablePlans(await plansRes.json());
+        } catch (e) {
+            console.error('Failed to load options', e);
+        }
+    };
+
+    const fetchSubscriptions = async () => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/subscriptions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setSubs(data);
+            } else {
+                setToast({ type: 'error', title: 'Error', message: 'Failed to fetch subscriptions' });
+            }
+        } catch (error) {
+            console.error(error);
+            setToast({ type: 'error', title: 'Error', message: 'Failed to load subscriptions' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleViewHistory = async (userId: string) => {
         setHistoryModalOpen(true);
@@ -128,11 +165,36 @@ const Subscriptions = () => {
         }
     };
 
-    // ... useEffect ...
+    const handleEditPlanChange = (newPlanId: string) => {
+        setEditData(prev => ({ ...prev, planId: newPlanId }));
 
-    useEffect(() => {
-        fetchSubscriptions();
-    }, []);
+        // Find existing plan details
+        const plan = availablePlans.find(p => p.id === newPlanId);
+        if (!plan) return;
+
+        const isCustom = (plan.name || '').toLowerCase().includes('custom');
+        setIsEditCustomDuration(isCustom);
+
+        if (isCustom) return; // Allow manual date
+
+        if (plan.pricing && Array.isArray(plan.pricing) && plan.pricing.length > 0) {
+            const pricing = plan.pricing.find((p: any) => p.enabled) || plan.pricing[0];
+            if (pricing) {
+                let days = 30;
+                const count = parseInt(pricing.interval_count) || 1;
+                switch (pricing.interval) {
+                    case 'day': days = count; break;
+                    case 'week': days = count * 7; break;
+                    case 'month': days = count * 30; break;
+                    case 'year': days = count * 365; break;
+                    default: days = 30;
+                }
+                const newDate = new Date();
+                newDate.setDate(newDate.getDate() + days);
+                setEditData(prev => ({ ...prev, planId: newPlanId, expiryDate: newDate.toISOString().split('T')[0] }));
+            }
+        }
+    };
 
     useEffect(() => {
         if (isAssignModalOpen) {
@@ -140,41 +202,9 @@ const Subscriptions = () => {
         }
     }, [isAssignModalOpen]);
 
-    const fetchUsersAndPlans = async () => {
-        const token = localStorage.getItem('adminToken');
-        try {
-            const [usersRes, plansRes] = await Promise.all([
-                fetch('/api/admin/users', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/admin/plans', { headers: { 'Authorization': `Bearer ${token}` } })
-            ]);
-
-            if (usersRes.ok) setAvailableUsers(await usersRes.json());
-            if (plansRes.ok) setAvailablePlans(await plansRes.json());
-        } catch (e) {
-            console.error('Failed to load options', e);
-        }
-    };
-
-    const fetchSubscriptions = async () => {
-        setIsLoading(true);
-        try {
-            const token = localStorage.getItem('adminToken');
-            const res = await fetch('/api/admin/subscriptions', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setSubs(data);
-            } else {
-                setToast({ type: 'error', title: 'Error', message: 'Failed to fetch subscriptions' });
-            }
-        } catch (error) {
-            console.error(error);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to load subscriptions' });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    useEffect(() => {
+        fetchSubscriptions();
+    }, []);
 
     const handleAssignSubscription = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -560,7 +590,7 @@ const Subscriptions = () => {
                         <select
                             className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-brand-500 text-sm"
                             value={editData.planId}
-                            onChange={e => setEditData({ ...editData, planId: e.target.value })}
+                            onChange={e => handleEditPlanChange(e.target.value)}
                         >
                             <option value="">-- No Change --</option>
                             {availablePlans.map(p => (
@@ -584,11 +614,14 @@ const Subscriptions = () => {
                         <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
                         <input
                             type="date"
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-brand-500 text-sm"
+                            className={`w-full px-3 py-2 border rounded-lg outline-none text-sm ${!isEditCustomDuration ? 'bg-slate-100 text-slate-500' : 'border-slate-300 focus:ring-brand-500'}`}
                             value={editData.expiryDate}
                             onChange={e => setEditData({ ...editData, expiryDate: e.target.value })}
+                            disabled={!isEditCustomDuration}
                         />
-                        <p className="text-xs text-slate-400 mt-1">Changing this effectively extends or shortens the subscription.</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {isEditCustomDuration ? "Changing this effectively extends or shortens the subscription." : "Auto-calculated based on plan duration."}
+                        </p>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">

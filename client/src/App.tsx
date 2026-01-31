@@ -190,6 +190,56 @@ const MainApp: React.FC = () => {
         return true; // Validation passed
     };
 
+    const validatePlan = async (currentSession: Session) => {
+        if (!currentSession?.user) return true;
+
+        // Bypass plan check for localhost to avoid lockouts during dev
+        const hostname = window.location.hostname;
+        if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            console.log("[Plan Check] Localhost detected. Bypassing plan validation.");
+            return true;
+        }
+
+        try {
+            // Check Role first - Super Admins never need plans
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role')
+                .eq('id', currentSession.user.id)
+                .single();
+
+            if (profile && (profile as any).role === 'super_admin') {
+                console.log("[Plan Check] Super Admin detected. Bypassing plan validation.");
+                return true;
+            }
+
+            // RPC call to check status
+            const { data, error } = await (supabase.rpc as any)('check_user_plan_status', { target_user_id: currentSession.user.id });
+
+            if (error) {
+                // warning only, don't block if RPC is missing
+                console.warn("Plan check skipped (RPC error):", error.message);
+                return true;
+            }
+
+            if (data && data.length > 0) {
+                const status = data[0];
+                if (status.is_allowed === false) {
+                    console.warn("Blocking login due to expired plan:", status.message);
+                    // Show user feedback (alert is crude but effective for locking out)
+                    alert(status.message);
+                    await supabase.auth.signOut();
+                    tokenService.clearAccessToken();
+                    return false;
+                }
+            }
+            return true;
+        } catch (e) {
+            console.error("Plan validation exception", e);
+            return true;
+        }
+    };
+
     // Check for existing session on load and handle redirects
     useEffect(() => {
         // Check if we are coming back from an auth redirect (email link)
@@ -214,6 +264,12 @@ const MainApp: React.FC = () => {
                     // Validate Domain BEFORE setting session
                     const isValid = await validateDomain(session);
                     if (!isValid) return; // Stop loading if redirecting
+
+                    const isPlanValid = await validatePlan(session);
+                    if (!isPlanValid) {
+                        setSession(null);
+                        return;
+                    }
 
                     setSession(session);
                     tokenService.setAccessToken(session.access_token);
@@ -263,7 +319,9 @@ const MainApp: React.FC = () => {
                 await new Promise(resolve => setTimeout(resolve, 100));
 
                 // If validation fails, this will trigger a redirect/signout
-                validateDomain(session).catch(e => console.error("Async Domain Validation Error:", e));
+                validateDomain(session).then(async (valid) => {
+                    if (valid) await validatePlan(session);
+                }).catch(e => console.error("Async Validation Error:", e));
             }
 
             if (event === 'SIGNED_IN' && window.location.hash.includes('access_token')) {

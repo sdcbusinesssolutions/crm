@@ -31,20 +31,14 @@ const Dashboard = () => {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (response.ok) {
-                    setStats(await response.json());
+                    const data = await response.json();
+                    setStats(data);
+                    if (data.tenantStats) {
+                        setTenantStats(data.tenantStats);
+                    }
                 }
             } catch (e) {
                 console.error("Stats fetch failed", e);
-            }
-
-            // Tenant Stats
-            try {
-                const { data, error } = await supabase.rpc('get_my_tenant_stats' as any);
-                if (!error && data && (data as any[]).length > 0) {
-                    setTenantStats((data as any[])[0]);
-                }
-            } catch (e) {
-                console.error("Tenant stats failed", e);
             }
             setLoading(false);
         };
