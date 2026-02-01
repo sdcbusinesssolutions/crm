@@ -31,8 +31,8 @@ const Icons = {
         </svg>
     ),
     Chart: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>,
-    Users: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
-    User: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
+    Users: ({ className, style }: { className?: string; style?: React.CSSProperties }) => <svg className={className || "w-5 h-5"} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
+    User: ({ className, style }: { className?: string; style?: React.CSSProperties }) => <svg className={className || "w-5 h-5"} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
     MoreVerticalIcon: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>,
 
     // Stats Icons (Dark Outline inside Green Circle)
@@ -41,10 +41,10 @@ const Icons = {
     Roles: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 00 .33 1.82l.06.06a2 2 0 01 0 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 00 9 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 01 0 2.83l.06.06a1.65 1.65 0 00 .33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 01 2-2h.09A1.65 1.65 0 00 4.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 01 0-2.83 2 2 0 01 2.83 0l.06.06a1.65 1.65 0 00 1.82.33H9a1.65 1.65 0 00 1.51-1V3a2 2 0 01 2-2 2 2 0 01 2 2v.09a1.65 1.65 0 00 1 1.51 1.65 1.65 0 00 1.82-.33l.06-.06a2 2 0 01 2.83 0 2 2 0 01 0 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 00 1.51 1H21a2 2 0 01 2 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>,
     Selected: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>,
     // New Icons for Dynamic Stats
-    Template: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
-    Flow: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-    Campaign: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>,
-    Pipeline: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>,
+    Template: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
+    Flow: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+    Campaign: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>,
+    Pipeline: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>,
     // New Icons for Categories
     Group: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     Tag: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 8V3h4z" /></svg>,
@@ -114,12 +114,12 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     ];
 
     // Category Data for Bottom Right Card
-    const categoryData = [
-        { label: 'Groups', val: stats?.summary.totalGroups || 0, icon: <Icons.Group className="w-4 h-4 text-blue-500" /> },
-        { label: 'Tags', val: 0, icon: <Icons.Tag className="w-4 h-4 text-purple-500" /> }, // Placeholder for now
-        { label: 'Form Builder', val: stats?.summary.totalFlows || 0, icon: <Icons.Flow className="w-4 h-4 text-orange-500" /> },
-        { label: 'WhatsForm', val: stats?.integrationStats?.breakdown?.['whatsform'] || 0, icon: <Icons.Globe className="w-4 h-4 text-green-500" /> },
-        { label: 'Sheet Automation', val: stats?.integrationStats?.breakdown?.['google'] || 0, icon: <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7.5-4h15M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" /></svg> }
+    const categoryData: { label: string; val: number; icon: React.ReactNode; target: MenuItem }[] = [
+        { label: 'Groups', val: stats?.summary.totalGroups || 0, icon: <Icons.Group className="w-4 h-4 text-blue-500" />, target: 'Contact Groups' },
+        { label: 'Tags', val: 0, icon: <Icons.Tag className="w-4 h-4 text-purple-500" />, target: 'Tags' }, // Placeholder for now
+        { label: 'Form Builder', val: stats?.summary.totalFlows || 0, icon: <Icons.Flow className="w-4 h-4 text-orange-500" />, target: 'Form Builder' },
+        { label: 'WhatsForm', val: stats?.integrationStats?.breakdown?.['whatsform'] || 0, icon: <Icons.Globe className="w-4 h-4 text-green-500" />, target: 'Whatsapp Forms' },
+        { label: 'Sheet Automation', val: stats?.integrationStats?.breakdown?.['google'] || 0, icon: <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7.5-4h15M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" /></svg>, target: 'Sheet Automation' }
     ];
 
     return (
@@ -134,7 +134,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* COL 1: Donuts - THICK Rings (Restored per Ref) */}
                 <div className="flex flex-col gap-4 h-full">
                     {/* Leads (Total) */}
-                    <div className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative">
+                    <div
+                        onClick={() => onNavigate('Contacts')}
+                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    >
                         <div className="w-full flex justify-between items-center mb-1">
                             <h3 className="font-bold text-slate-800 text-[11px]">Leads</h3>
                             <div className="flex items-center gap-1">
@@ -157,7 +160,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     </div>
 
                     {/* Won / Lost */}
-                    <div className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative">
+                    <div
+                        onClick={() => onNavigate('Pipelines')}
+                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    >
                         <div className="w-full flex justify-between items-center mb-1">
                             <h3 className="font-bold text-slate-800 text-[11px]">Won / Lost</h3>
                             <div className="flex items-center gap-1">
@@ -181,7 +187,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 </div>
 
                 {/* COL 2: 3D Funnel - Boxed & Centered */}
-                <div className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 bg-white h-full">
+                <div
+                    onClick={() => onNavigate('Pipelines')}
+                    className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 bg-white h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                >
                     {/* Header */}
                     <div className="absolute top-4 w-full flex items-center justify-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
@@ -239,7 +248,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     {/* Top Row: Forecast + Bar Chart */}
                     <div className="flex gap-4 h-[180px]">
                         {/* Forecast Gauge - Card Style */}
-                        <div className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative">
+                        <div
+                            onClick={() => onNavigate('Pipelines')}
+                            className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                        >
                             <div className="w-full flex justify-between items-start mb-0.5">
                                 <h3 className="font-bold text-slate-800 text-[11px] leading-tight max-w-[120px]">Pipeline Value Sales Forecast</h3>
                                 <Icons.MoreVerticalIcon className="w-3 h-3 text-slate-400" />
@@ -286,7 +298,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         </div>
 
                         {/* Bar Chart - Card Style */}
-                        <div className="w-[55%] flex flex-col h-full border border-[#84cc16] rounded-lg p-3">
+                        <div
+                            onClick={() => onNavigate('Follow-up')}
+                            className="w-[55%] flex flex-col h-full border border-[#84cc16] rounded-lg p-3 cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                        >
                             <div className="flex items-center gap-1 mb-1">
                                 <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
                                 <h3 className="font-bold text-slate-800 text-[11px]">Followup Status</h3>
@@ -317,12 +332,31 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                     {/* Bottom Row: Stats + Selection */}
                     <div className="flex gap-4 flex-1">
-                        {/* Stats Grid - Green Circles with Dark Icons */}
                         <div className="w-[45%] grid grid-cols-2 gap-2 mt-1">
-                            <StatItem label="Template" val={totalTemplates} icon={<Icons.Template />} />
-                            <StatItem label="Automation Flow" val={totalFlows} icon={<Icons.Flow />} />
-                            <StatItem label="Active Campaigns" val={totalCampaigns} icon={<Icons.Campaign />} />
-                            <StatItem label="Pipeline" val={totalPipelines} icon={<Icons.Pipeline />} />
+                            <StatItem
+                                label="Template"
+                                val={totalTemplates}
+                                icon={<Icons.Template />}
+                                onClick={() => onNavigate('Whatsapp Templates')}
+                            />
+                            <StatItem
+                                label="Automation Flow"
+                                val={totalFlows}
+                                icon={<Icons.Flow />}
+                                onClick={() => onNavigate('Flows')}
+                            />
+                            <StatItem
+                                label="Active Campaigns"
+                                val={totalCampaigns}
+                                icon={<Icons.Campaign />}
+                                onClick={() => onNavigate('Campaigns')}
+                            />
+                            <StatItem
+                                label="Pipeline"
+                                val={totalPipelines}
+                                icon={<Icons.Pipeline />}
+                                onClick={() => onNavigate('Pipelines')}
+                            />
                         </div>
 
                         {/* Lead Categories (Replaces Selection Rate) */}
@@ -330,10 +364,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             <h3 className="text-[11px] font-bold text-slate-800 mb-2">Lead Categories</h3>
                             <div className="flex flex-col gap-2">
                                 {categoryData.map((d, i) => (
-                                    <div key={i} className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0">
+                                    <div
+                                        key={i}
+                                        onClick={() => onNavigate(d.target)}
+                                        className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0 cursor-pointer hover:bg-slate-50/80 rounded-md px-1 transition-colors group"
+                                    >
                                         <div className="flex items-center gap-2">
-                                            <div className="p-1 bg-slate-50 rounded-full">{d.icon}</div>
-                                            <span className="text-[10px] font-bold text-slate-600">{d.label}</span>
+                                            <div className="p-1 bg-slate-50 rounded-full group-hover:bg-white border border-transparent group-hover:border-slate-100 transition-all">{d.icon}</div>
+                                            <span className="text-[10px] font-bold text-slate-600 group-hover:text-slate-800 transition-colors">{d.label}</span>
                                         </div>
                                         <span className="text-[11px] font-black text-slate-800">{d.val}</span>
                                     </div>
@@ -380,8 +418,11 @@ const DonutRing: React.FC<{ value: number; target: number; color: string; label:
     );
 };
 
-const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode }> = ({ label, val, icon }) => (
-    <div className="h-full w-full border border-[#84cc16] bg-white rounded-lg p-2 flex flex-col items-center justify-center text-center">
+const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; onClick?: () => void }> = ({ label, val, icon, onClick }) => (
+    <div
+        onClick={onClick}
+        className={`h-full w-full border border-[#84cc16] bg-white rounded-lg p-2 flex flex-col items-center justify-center text-center ${onClick ? 'cursor-pointer hover:shadow-md transition-all active:scale-[0.98]' : ''}`}
+    >
         <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-white">
             {icon}
         </div>
