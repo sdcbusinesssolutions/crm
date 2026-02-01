@@ -24,13 +24,20 @@ exports.getDashboardStats = async (req, res) => {
         let profiles = [];
 
         // 1. Fetch Tenant Specific Profiles (for Workspace Usage)
+        // 1. Fetch Tenant Specific Profiles (for Workspace Usage)
+        // Normalize domain to handle potential case/whitespace issues
+        const safeDomain = (adminDomain || '').trim();
+        console.log(`[DashboardController] Fetching stats for domain: '${safeDomain}' (Original: '${adminDomain}')`);
+
         const { data: tenantProfiles, error: tenantError } = await supabaseAdmin
             .from('profiles')
             .select('id, created_at, signup_domain, plan_expires_at, plan_name, full_name, name, email')
-            .eq('signup_domain', adminDomain);
+            .ilike('signup_domain', safeDomain);
 
         if (tenantError) {
             console.error('Error fetching tenant profiles:', tenantError);
+        } else {
+            console.log(`[DashboardController] Found ${tenantProfiles?.length || 0} profiles for domain '${safeDomain}'`);
         }
 
         if (tenantProfiles) {
@@ -64,56 +71,75 @@ exports.getDashboardStats = async (req, res) => {
         let expiringUsersList = [];
 
         // Filter valid profiles for expiry stats
-        if (profiles && profiles.length > 0) {
-            profiles.forEach(p => {
-                if (p.plan_expires_at) {
-                    const expMs = new Date(p.plan_expires_at).getTime();
-                    const diff = expMs - nowMs;
+        const profileMap = new Map(profiles.map(p => [p.id, p]));
+        const userIds = profiles.map(p => p.id);
 
-                    let status = null;
-                    let daysLeft = 0;
+        // Fetch subscriptions dynamically to ensure accuracy
+        // We fetch all subscriptions for the domain's users (filtered in memory if needed or via query if possible)
+        let subsData = [];
+        if (userIds.length > 0) {
+            let query = supabaseAdmin
+                .from('user_subscriptions')
+                .select('user_id, plan_id, end_date, status')
+                .order('end_date', { ascending: false }); // Latest first
 
-                    if (diff < 0) {
-                        expiredCount++;
-                        status = 'Expired';
-                        daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+            // Optimize query if possible
+            if (userIds.length <= 100) {
+                query = query.in('user_id', userIds);
+            }
 
-                        expiringUsersList.push({
-                            name: p.full_name || p.name || 'User',
-                            email: p.email,
-                            plan: p.plan_name || 'Free',
-                            expiry: p.plan_expires_at,
-                            status,
-                            daysLeft
-                        });
-                    } else {
-                        daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                        if (diff <= weekMs) {
-                            expiringWeekCount++;
-                            status = 'Expiring (Week)';
-                            expiringUsersList.push({
-                                name: p.full_name || p.name || 'User',
-                                email: p.email,
-                                plan: p.plan_name || 'Free',
-                                expiry: p.plan_expires_at,
-                                status,
-                                daysLeft
-                            });
-                        } else if (diff <= monthMs) {
-                            expiringMonthCount++;
-                            expiringUsersList.push({
-                                name: p.full_name || p.name || 'User',
-                                email: p.email,
-                                plan: p.plan_name || 'Free',
-                                expiry: p.plan_expires_at,
-                                status: 'Expiring (Month)',
-                                daysLeft
-                            });
-                        }
-                    }
-                }
-            });
+            const { data, error } = await query;
+            if (!error && data) {
+                subsData = data.filter(s => profileMap.has(s.user_id));
+            } else if (error) {
+                console.error('Error fetching subscriptions for stats:', error);
+            }
         }
+
+        // Determine latest effective subscription per user
+        const userLatestSub = new Map();
+        subsData.forEach(sub => {
+            if (!userLatestSub.has(sub.user_id)) {
+                userLatestSub.set(sub.user_id, sub);
+            }
+        });
+
+        // Calculate stats
+        userLatestSub.forEach((sub, userId) => {
+            const p = profileMap.get(userId);
+            if (!sub.end_date) return;
+
+            const expMs = new Date(sub.end_date).getTime();
+            const diff = expMs - nowMs;
+            let status = null;
+            let daysLeft = 0;
+
+            if (diff < 0) {
+                expiredCount++;
+                status = 'Expired';
+                daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+            } else {
+                daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                if (diff <= weekMs) {
+                    expiringWeekCount++;
+                    status = 'Expiring (Week)';
+                } else if (diff <= monthMs) {
+                    expiringMonthCount++;
+                    status = 'Expiring (Month)';
+                }
+            }
+
+            if (status) {
+                expiringUsersList.push({
+                    name: p.full_name || p.name || 'User',
+                    email: p.email,
+                    plan: p.plan_name || 'Plan',
+                    expiry: sub.end_date,
+                    status,
+                    daysLeft
+                });
+            }
+        });
 
         expiringUsersList.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
         const recentExpirations = expiringUsersList.slice(0, 15);
@@ -147,7 +173,7 @@ exports.getDashboardStats = async (req, res) => {
             .select('id', { count: 'exact', head: true });
 
         if (!isSuperAdmin) {
-            contactsQuery = contactsQuery.eq('domain', adminDomain);
+            contactsQuery = contactsQuery.ilike('domain', safeDomain);
         }
 
         const { count: contacts } = await contactsQuery;
@@ -155,18 +181,18 @@ exports.getDashboardStats = async (req, res) => {
         // Fetch Tenant Limits & Plan
         let tenantInfo = { limit: 10, plan: 'Free', daysLeft: 999 };
 
-        if (adminDomain) {
+        if (safeDomain) {
             const { data: limitData } = await supabaseAdmin
                 .from('tenant_limits')
                 .select('user_limit')
-                .eq('domain', adminDomain)
+                .eq('domain', safeDomain) // Assuming tenant_limits domain is normalized
                 .single();
             if (limitData) tenantInfo.limit = limitData.user_limit;
 
             const { data: planData } = await supabaseAdmin
                 .from('tenant_plans')
                 .select('plan_name, expires_at')
-                .eq('domain', adminDomain)
+                .eq('domain', safeDomain)
                 .single();
             if (planData) {
                 tenantInfo.plan = planData.plan_name;

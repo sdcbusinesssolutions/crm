@@ -29,7 +29,7 @@ exports.getAllSubscriptions = async (req, res) => {
         }
 
         // Fetch Plans (filter by domain for regular admins)
-        let plansQuery = supabaseAdmin.from('plans').select('id, name, domain');
+        let plansQuery = supabaseAdmin.from('plans').select('id, name, domain, pricing');
         if (!isSuperAdmin) {
             plansQuery = plansQuery.eq('domain', adminDomain);
         }
@@ -37,8 +37,6 @@ exports.getAllSubscriptions = async (req, res) => {
 
         // Fetch Users (Profiles) instead of Auth API to avoid hangs
         let profilesQuery = supabaseAdmin.from('profiles').select('*');
-
-        // Optimization: We could filter profiles by valid user IDs from subs, but fetching all for domain is standard pattern here
 
         if (!isSuperAdmin) {
             profilesQuery = profilesQuery.eq('signup_domain', adminDomain);
@@ -48,27 +46,20 @@ exports.getAllSubscriptions = async (req, res) => {
 
         if (profilesError) {
             console.error('Fetch Profiles Error:', profilesError);
-            // Continue? If profiles fail, we can't show user details.
-            // But we should likely return error or empty? UsersController returns empty on error.
-            // We'll proceed with empty profiles.
         }
 
         const safeProfiles = profiles || [];
         const profileMap = new Map(safeProfiles.map(p => [p.id, p]));
-        const planMap = new Map(plans?.map(p => [p.id, { name: p.name, domain: p.domain }]));
+        const planMap = new Map(plans?.map(p => [p.id, { name: p.name, domain: p.domain, pricing: p.pricing }]));
 
-        // Filter subscriptions based on domain (by checking if user profile exists in our filtered fetch)
+        // Filter subscriptions based on domain
         let filteredSubs = subs;
         if (!isSuperAdmin) {
-            // Only show subscriptions where the user belongs to this admin's domain
-            // Since we filtered profiles by domain, valid users are in profileMap.
-            // If user not in profileMap, they are not in this domain (or deleted).
             filteredSubs = subs.filter(sub => profileMap.has(sub.user_id));
         }
 
         const formattedData = filteredSubs.map(sub => {
             const profile = profileMap.get(sub.user_id);
-            // Fallback for name: profile.full_name -> profile.name -> profile.email -> 'Unknown'
             const userName = profile ? (profile.full_name || profile.name || profile.email) : 'Unknown User';
             const userEmail = profile?.email;
 
@@ -76,7 +67,26 @@ exports.getAllSubscriptions = async (req, res) => {
             const planName = planInfo?.name || 'Unknown Plan';
             const isExpired = new Date(sub.end_date) < new Date();
 
-            // Check domain match again if needed? No, filtered above.
+            // Fallback amount logic
+            let displayAmount = sub.amount;
+            if (displayAmount === null || displayAmount === undefined || displayAmount === 0) {
+                if (planInfo && planInfo.pricing && Array.isArray(planInfo.pricing)) {
+                    // Try to find a matching price logic
+                    const enabledPrice = planInfo.pricing.find(p => p.enabled && (
+                        !sub.payment_term ||
+                        p.name === sub.payment_term ||
+                        `${p.interval_count || 1} ${p.interval || 'month'}(s)` === sub.payment_term
+                    ));
+
+                    if (enabledPrice) {
+                        displayAmount = enabledPrice.amount;
+                    } else {
+                        // Fallback to first enabled if no precise match
+                        const anyPrice = planInfo.pricing.find(p => p.enabled);
+                        if (anyPrice) displayAmount = anyPrice.amount;
+                    }
+                }
+            }
 
             return {
                 id: sub.id,
@@ -86,18 +96,12 @@ exports.getAllSubscriptions = async (req, res) => {
                 plan: planName,
                 created: new Date(sub.start_date).toLocaleDateString(),
                 expiry: new Date(sub.end_date).toLocaleDateString(),
-                charges: `${sub.amount || 0} ${sub.currency || 'INR'}`,
+                charges: `${displayAmount !== undefined && displayAmount !== null ? displayAmount : 0} ${sub.currency || 'INR'}`,
                 type: sub.payment_term,
                 status: sub.status === 'active' && !isExpired ? 'Active' : (sub.status === 'cancelled' ? 'Cancelled' : 'Expired'),
                 raw_status: sub.status
             };
         });
-
-        // Skip lines 65-84 (replaced by mapping above)
-        // I need to return the response here to match the replacement block structure?
-        // No, I am replacing lines 38-63 (fetching and filtering) AND the mapping loop (lines 65-84)?
-        // My replacement block includes the mapping.
-        // I will target up to line 84.
 
         console.log(`[SubscriptionController] Returning ${formattedData.length} subscriptions for domain ${adminDomain}`);
         res.json(formattedData);

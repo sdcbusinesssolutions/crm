@@ -1,0 +1,46 @@
+﻿[dotenv@17.2.3] injecting env (16) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+Checking Tenant Limits...
+[
+  {
+    domain: 'clickube.com',
+    user_limit: 10,
+    created_at: '2026-01-15T10:17:05.585714+00:00',
+    updated_at: '2026-01-16T10:47:08.423594+00:00'
+  },
+  {
+    domain: 'chatmat.in',
+    user_limit: 50,
+    created_at: '2026-01-15T10:17:05.585714+00:00',
+    updated_at: '2026-01-17T19:39:42.583877+00:00'
+  },
+  {
+    domain: 'app.zaplychat.com',
+    user_limit: 2,
+    created_at: '2026-01-25T06:11:01.655927+00:00',
+    updated_at: '2026-01-25T06:11:13.63653+00:00'
+  },
+  {
+    domain: 'apidashboard.in',
+    user_limit: 0,
+    created_at: '2026-01-25T06:14:48.930743+00:00',
+    updated_at: '2026-01-25T06:14:48.930743+00:00'
+  },
+  {
+    domain: 'apiautomation.in',
+    user_limit: 11,
+    created_at: '2026-01-16T11:16:00.822802+00:00',
+    updated_at: '2026-01-25T07:49:58.962862+00:00'
+  },
+  {
+    domain: 'whatsappflow.in',
+    user_limit: 5,
+    created_at: '2026-01-25T06:11:32.19192+00:00',
+    updated_at: '2026-01-31T07:37:38.279122+00:00'
+  },
+  {
+    domain: 'localhost.com',
+    user_limit: 10,
+    created_at: '2026-01-31T15:45:56.453388+00:00',
+    updated_at: '2026-01-31T15:45:56.453388+00:00'
+  }
+]
