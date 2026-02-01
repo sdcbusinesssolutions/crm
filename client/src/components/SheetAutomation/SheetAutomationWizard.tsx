@@ -401,7 +401,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 <div className="flex space-x-4">
                     {[1, 2, 3, 4, 5].map(s => (
                         <div key={s} className={`flex items-center space-x-2 ${step >= s ? 'opacity-100' : 'opacity-40'}`}>
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === s ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === s ? 'bg-[#c2410c] text-white' : 'bg-slate-200 text-slate-600'}`}>
                                 {s}
                             </div>
                             <span className="text-sm font-medium text-slate-700">
@@ -422,7 +422,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 type="text"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full border border-slate-300 rounded px-3 py-2" placeholder="e.g. Birthday Wishes"
+                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all" placeholder="e.g. Birthday Wishes"
                             />
                         </div>
                         <div>
@@ -433,7 +433,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         key={t}
                                         onClick={() => setFormData({ ...formData, schedule_type: t })}
                                         className={`flex-1 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-slate-300
-                                            ${formData.schedule_type === t ? 'bg-orange-50 text-orange-600' : 'bg-white text-slate-600 hover:bg-slate-50'}
+                                            ${formData.schedule_type === t ? '!bg-[#c2410c] !text-white !border-[#c2410c]' : 'bg-white text-slate-600 hover:text-[#c2410c] hover:bg-orange-50'}
                                         `}
                                     >
                                         {t === 'custom' ? 'One-Time' : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -458,8 +458,8 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                                 setFormData({ ...formData, schedule_days: newDays });
                                             }}
                                             className={`w-10 h-10 rounded-full text-xs font-bold transition-all border ${(formData.schedule_days || []).includes(day)
-                                                ? 'bg-orange-500 text-white border-orange-600'
-                                                : 'bg-white text-slate-500 border-slate-300 hover:border-orange-300'
+                                                ? '!bg-[#c2410c] !text-white !border-[#c2410c]'
+                                                : 'bg-white text-slate-500 border-slate-300 hover:border-[#c2410c] hover:text-[#c2410c]'
                                                 }`}
                                         >
                                             {day}
@@ -474,7 +474,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Day of Month</label>
                                 <select
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                     value={formData.schedule_day_of_month || 1}
                                     onChange={e => setFormData({ ...formData, schedule_day_of_month: parseInt(e.target.value) })}
                                 >
@@ -490,7 +490,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Date & Time</label>
                                 <input
                                     type="datetime-local"
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                     onChange={e => {
                                         setFormData({ ...formData, schedule_time: e.target.value });
                                     }}
@@ -503,7 +503,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     type="time"
                                     value={formData.schedule_time}
                                     onChange={e => setFormData({ ...formData, schedule_time: e.target.value })}
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                 />
                             </div>
                         )}
@@ -516,7 +516,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Use Integration</label>
                             <select
-                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                 value={formData.connection_id}
                                 onChange={e => setFormData({ ...formData, connection_id: e.target.value })}
                             >
@@ -535,7 +535,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             <label className="block text-sm font-medium text-slate-700 mb-1">Spreadsheet ID</label>
                             <div className="flex gap-2">
                                 <input
-                                    className="flex-1 border border-slate-300 rounded px-3 py-2"
+                                    className="flex-1 border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                     placeholder="Paste Spreadsheet ID here"
                                     value={formData.spreadsheet_id}
                                     onChange={e => setFormData({ ...formData, spreadsheet_id: e.target.value })}
@@ -543,7 +543,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 <button
                                     onClick={() => handleSheetSelect(formData.spreadsheet_id)}
                                     disabled={isFetchingSheets || !formData.spreadsheet_id}
-                                    className="px-4 py-2 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 text-sm font-medium whitespace-nowrap"
+                                    className="px-4 py-2 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 text-sm font-medium whitespace-nowrap focus:ring-1 focus:ring-[#c2410c] outline-none"
                                 >
                                     {isFetchingSheets ? 'Fetching...' : 'Fetch Sheets'}
                                 </button>
@@ -556,7 +556,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             <label className="block text-sm font-medium text-slate-700">Sheet Tab</label>
                             <button
                                 onClick={() => setManualSheetEntry(!manualSheetEntry)}
-                                className="text-xs text-blue-600 hover:text-blue-800 underline pb-1"
+                                className="text-xs text-[#c2410c] hover:text-[#9a3412] underline pb-1"
                             >
                                 {manualSheetEntry ? 'Select from list' : 'Enter manually'}
                             </button>
@@ -565,7 +565,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         {manualSheetEntry ? (
                             <div>
                                 <input
-                                    className="w-full border border-slate-300 rounded px-3 py-2"
+                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                     placeholder="Type exactly as it appears (e.g. Sheet1)"
                                     value={formData.sheet_name}
                                     onChange={e => setFormData({ ...formData, sheet_name: e.target.value })}
@@ -577,7 +577,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             </div>
                         ) : (
                             <select
-                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                 value={formData.sheet_name}
                                 onChange={e => handleTabSelect(e.target.value)}
                                 disabled={!manualSheetEntry && sheetTabs.length === 0}
@@ -614,7 +614,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     <div className="text-sm text-slate-500 animate-pulse py-2 px-3">Loading columns...</div>
                                 ) : (
                                     <select
-                                        className="flex-1 w-1/3 border border-slate-300 rounded px-3 py-2 text-sm"
+                                        className="flex-1 w-1/3 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                         value={trigger.column}
                                         onChange={e => {
                                             const newTriggers = [...formData.triggers];
@@ -628,7 +628,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 )}
 
                                 <select
-                                    className="w-1/3 border border-slate-300 rounded px-3 py-2 text-sm"
+                                    className="w-1/3 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                     value={trigger.operator}
                                     onChange={e => {
                                         const newTriggers = [...formData.triggers];
@@ -680,7 +680,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         {['date_equals', 'date_before', 'date_after'].includes(trigger.operator) ? (
                                             <input
                                                 type="date"
-                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                                 value={trigger.value}
                                                 onChange={e => {
                                                     const newTriggers = [...formData.triggers];
@@ -763,7 +763,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     triggers: [...formData.triggers, { column: '', operator: 'equals', value: '' }]
                                 });
                             }}
-                            className="flex items-center gap-2 text-sm text-orange-600 font-medium hover:text-orange-700 font"
+                            className="flex items-center gap-2 text-sm text-[#c2410c] font-medium hover:text-[#9a3412] font"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -779,7 +779,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Select Template</label>
                             <select
-                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                 value={formData.template_id}
                                 onChange={e => handleTemplateSelect(e.target.value)}
                             >
@@ -812,7 +812,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             <span className="w-40 text-sm font-bold text-slate-800">Phone Number</span>
                             <span className="text-slate-400">→</span>
                             <select
-                                className="flex-1 w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                                className="flex-1 w-full border border-slate-300 rounded px-3 py-2 bg-white focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                 value={formData.mapping['phone']?.value || ''}
                                 onChange={e => setFormData(p => ({
                                     ...p,
@@ -863,7 +863,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                     <div className="flex-1">
                                         {currentMap.type === 'column' ? (
                                             <select
-                                                className="w-full border border-slate-300 rounded px-3 py-2 bg-white"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 bg-white focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                                 value={currentMap.value}
                                                 onChange={e => setFormData(p => ({
                                                     ...p,
@@ -876,7 +876,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         ) : (
                                             <input
                                                 type={param.includes('IMAGE') || param.includes('VIDEO') ? 'url' : 'text'}
-                                                className="w-full border border-slate-300 rounded px-3 py-2"
+                                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-[#c2410c] focus:border-[#c2410c] outline-none transition-all"
                                                 placeholder={param.includes('IMAGE') ? "Paste Image URL..." : "Type custom value..."}
                                                 value={currentMap.value}
                                                 onChange={e => setFormData(p => ({
@@ -908,7 +908,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 )}
 
                 {step < 5 ? (
-                    <button onClick={handleNext} className="px-6 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">
+                    <button onClick={handleNext} className="px-6 py-2 bg-[#c2410c] text-white rounded hover:bg-[#9a3412]">
                         Next
                     </button>
                 ) : (
