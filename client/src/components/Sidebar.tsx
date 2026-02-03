@@ -156,7 +156,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     };
 
     const renderItem = (item: MenuItem, icon: React.ReactNode, hasSubmenu: boolean = false, isSubItem: boolean = false, isBeta: boolean = false) => {
-        const isActive = activeItem === item;
+        let isActive = activeItem === item;
+
+        // Parent Active State Logic:
+        // A parent menu should appear active if one of its children is currently selected.
+        if (item === 'Manage' && manageSubItems.includes(activeItem)) isActive = true;
+        else if (item === 'Settings' && (settingsSubItems.includes(activeItem) || activeItem === 'Settings')) isActive = true;
+        else if (item === 'Contacts' && (contactSubItems.includes(activeItem) || activeItem === 'Contacts')) isActive = true;
+
         const displayLabel = item === 'Contacts' ? 'Lead CRM' : item;
 
         // Resolve icon for subitems
@@ -207,9 +214,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             );
         }
 
+        let isExpanded = false;
+        if (item === 'Manage') isExpanded = isManageOpen;
+        if (item === 'Settings') isExpanded = isSettingsOpen;
+        if (item === 'Contacts') isExpanded = isContactsOpen;
+
+        // Visual Update: Expanded parents appear active (dark brand color)
+        const showActiveStyle = isActive || (isExpanded && hasSubmenu);
+
         // --- EXPANDED STATE STYLING ---
         // Update: Hovering now triggers brand-600 color for icons and brand-50 bg
-        const mainIconClass = `transition-transform duration-300 w-5 h-5 ${isActive ? 'text-white' : 'text-[var(--color-brand)]'}`;
+        const mainIconClass = `transition-transform duration-300 w-5 h-5 ${showActiveStyle ? 'text-white' : 'text-[var(--color-brand)]'}`;
         const styledMainIcon = React.isValidElement(finalIcon)
             ? React.cloneElement(finalIcon as React.ReactElement, {
                 className: `${(finalIcon.props as any).className || ''} ${mainIconClass}`.replace(/w-5 h-5/g, '')
@@ -235,17 +250,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             );
         }
 
-        let isExpanded = false;
-        if (item === 'Manage') isExpanded = isManageOpen;
-        if (item === 'Settings') isExpanded = isSettingsOpen;
-        if (item === 'Contacts') isExpanded = isContactsOpen;
-
         return (
             <div
                 key={item}
-                onClick={() => handleItemClick(item, hasSubmenu)}
+                onClick={() => {
+                    // Interaction Update: Text Body always selects/navigates.
+                    // Expansion is strictly handled by the chevron/arrow.
+                    onNavigate(item);
+                }}
                 title={showCollapsed ? displayLabel : ''}
-                className={`group flex items-center justify-between px-4 py-3 mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${isActive ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-600'
+                className={`group flex items-center justify-between px-4 py-3 mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-600'
                     }`}
             >
                 <div className={`flex items-center space-x-3 relative z-10`}>
@@ -257,9 +271,22 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             </span>
                         )}
                     </div>
-                    <span className={`text-[14px] leading-5 font-medium ${isActive ? 'text-white' : 'text-slate-600 group-hover:text-brand-600'}`}>{displayLabel}</span>
+                    <span className={`text-[14px] leading-5 font-medium ${showActiveStyle ? 'text-white' : 'text-slate-600 group-hover:text-brand-600'}`}>{displayLabel}</span>
                 </div>
-                {hasSubmenu && <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'text-white/80' : 'text-slate-400 group-hover:text-brand-600'} ${isExpanded ? 'rotate-180' : ''}`} />}
+                {hasSubmenu && (
+                    <div
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Expanded State Toggle Logic
+                            if (item === 'Manage') setIsManageOpen(!isManageOpen);
+                            else if (item === 'Settings') setIsSettingsOpen(!isSettingsOpen);
+                            else if (item === 'Contacts') setIsContactsOpen(!isContactsOpen);
+                        }}
+                        className="p-1 -mr-2 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                    >
+                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'text-white/80' : 'text-slate-400 group-hover:text-brand-600'} ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                )}
             </div>
         );
     };
