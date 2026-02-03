@@ -22,14 +22,32 @@ echo "------------------------------------------------------"
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
-# 1.5 Build Shared Image ONCE
+# 1.5 Detect Docker Compose and Build Shared Image
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+    echo "✅ Using Docker Compose Plugin (docker compose)"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+    echo "✅ Using Docker Compose Standalone (docker-compose)"
+else
+    echo "⚠️  Docker Compose not found. Attempting fallback installation..."
+    if [ -w /usr/local/bin ]; then
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        chmod +x /usr/local/bin/docker-compose
+        DOCKER_COMPOSE_CMD="docker-compose"
+    else
+        echo "❌ Cannot install docker-compose (no write info). Please install it manually."
+        exit 1
+    fi
+fi
+
 export IMAGE_TAG="latest"
 echo "🏗️  Building Shared Docker Image (whatsapp-app:$IMAGE_TAG)..."
 docker build -t "whatsapp-app:$IMAGE_TAG" .
 
 # 2. Loop Through CSV (Skipping Header)
 # Using 'tail -n +2' to skip header, and Internal Field Separator (IFS) to parse CSV
-tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain; do
+tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal; do
     
     # Aggressive cleaning of variables to remove spaces and newlines
     domain=$(echo "$domain" | tr -d '\r' | xargs)
@@ -42,6 +60,7 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     sbServiceKey=$(echo "$sbServiceKey" | tr -d '\r' | xargs)
     certResolver=$(echo "$certResolver" | tr -d '\r' | xargs)
     masterDomain=$(echo "$masterDomain" | tr -d '\r' | xargs)
+    runLocal=$(echo "$runLocal" | tr -d '\r' | xargs)
     
     if [ -z "$domain" ]; then continue; fi
     
@@ -58,7 +77,6 @@ tail -n +2 "$CSV_FILE" | while IFS=, read -r domain vpsIp vpsPassword deployEnab
     # Explicitly set BridgeDomain to Self (User Requirement)
     # This ensures "Bridge" refers to the tenant's own URL, while "Master" refers to the Auth Authority
     bridgeDomain="https://$domain"
-
     
     # Skip if not enabled (Case insensitive check)
     if [[ "${deployEnabled,,}" != "true" ]]; then
@@ -134,7 +152,7 @@ EOF
 
     # 4. Run Docker Compose (Now it will naturally read .env)
     # NOTE: removed --build since we built 'latest' once at the top
-    docker-compose -p "$projectParam" up -d
+    $DOCKER_COMPOSE_CMD -p "$projectParam" up -d
     
     # 4. Cleanup (optional, but good to keep distinct files)
     # mv .env.bak .env  <-- We leave it as is or restore? 
@@ -165,7 +183,8 @@ docker image prune -f
 # 5. Start Global Services (Backup)
 echo "💾 Starting Database Backup System..."
 if [ -f "docker-compose-backup.yml" ]; then
-    docker-compose -f docker-compose-backup.yml up -d --build --remove-orphans
+    $DOCKER_COMPOSE_CMD -f docker-compose-backup.yml up -d --build --remove-orphans
+
     echo "   ✅ Backup Service Running (Check with 'docker logs database_backup_worker')"
 else
     echo "   ⚠️  docker-compose-backup.yml not found. Backup system skipped."

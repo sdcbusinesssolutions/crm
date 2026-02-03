@@ -108,24 +108,35 @@ foreach ($group in $grouped) {
     $count = $domains.Count
     
     Write-Host "SERVER: $vpsIp ($count domains)" -ForegroundColor Cyan
+    Write-Host "Tip: Setup SSH keys to avoid password prompts: ssh-copy-id root@$vpsIp" -ForegroundColor DarkGray
 
     $tempCsv = "domains_temp_$vpsIp.csv"
     $domains | Export-Csv -Path $tempCsv -NoTypeInformation
     $remoteDir = "/www/wwwroot/whatsapp-app"
     
-    Write-Host "Creating Remote Directory..."
+    # Prepare local staging folder for single-batch upload
+    $stagingDir = "staging_$vpsIp"
+    New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
+    Copy-Item "deploy-package.zip" -Destination "$stagingDir/deploy-package.zip"
+    Copy-Item $tempCsv -Destination "$stagingDir/domains.csv"
+    Copy-Item "remote_exec.sh" -Destination "$stagingDir/remote_exec.sh"
+
+    # 1. Create Directory (1st Prompt)
+    Write-Host "Initializing Remote Server..."
+    # dirname $remoteDir - removed
     ssh "root@$vpsIp" "mkdir -p $remoteDir"
 
-    Write-Host "Uploading Files..."
-    scp "deploy-package.zip" "root@${vpsIp}:${remoteDir}/"
-    scp $tempCsv "root@${vpsIp}:${remoteDir}/domains.csv"
-    scp "remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
+    # 2. Upload Bundle (2nd Prompt)
+    Write-Host "Uploading Bundle (Zip, Config, Script)..."
+    scp "$stagingDir/deploy-package.zip" "$stagingDir/domains.csv" "$stagingDir/remote_exec.sh" "root@${vpsIp}:${remoteDir}/"
 
+    # Cleanup local staging
+    Remove-Item $stagingDir -Recurse -Force
     Remove-Item $tempCsv
 
-    Write-Host "Running Deployment..."
-    ssh "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh"
-    ssh -t "root@$vpsIp" "bash $remoteDir/remote_exec.sh $remoteDir"
+    # 3. Execute Deployment (3rd Prompt)
+    Write-Host "Executing Deployment..."
+    ssh -t "root@$vpsIp" "chmod +x $remoteDir/remote_exec.sh && bash $remoteDir/remote_exec.sh $remoteDir"
     
     Write-Host "Done: $vpsIp" -ForegroundColor Green
 }
