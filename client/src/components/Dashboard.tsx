@@ -542,14 +542,14 @@ const WhatsAppScannerCard: React.FC<{
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-center gap-3 min-h-[200px] h-fit w-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
+        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
             {/* Shimmer on Hover */}
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
             {/* Background Blob Effects */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
-            <div className="z-10 text-center w-full">
+            <div className="z-10 text-center w-full mt-2">
                 <div className="flex items-center justify-center gap-2 mb-2">
                     <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
                         <Icons.WhatsApp />
@@ -581,29 +581,31 @@ const WhatsAppScannerCard: React.FC<{
             </div>
 
             {/* QR Code Area */}
-            <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
-                {phone ? (
-                    <QRCodeCanvas
-                        value={qrLink}
-                        size={100}
-                        level={"H"}
-                        className="w-24 h-24 object-contain"
-                        fgColor="#0f172a"
-                        bgColor="#FFFFFF"
-                    />
-                ) : (
-                    <div className="w-24 h-24 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
-                        Configure in Settings
-                    </div>
-                )}
-                {phone && <p className="text-[10px] text-center text-slate-500 font-bold mt-2 uppercase tracking-wide group-hover:text-emerald-600">Scan to Chat</p>}
-            </div>
+            <div className="flex-1 flex flex-col justify-end w-full items-center">
+                <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
+                    {phone ? (
+                        <QRCodeCanvas
+                            value={qrLink}
+                            size={100}
+                            level={"H"}
+                            className="w-24 h-24 object-contain"
+                            fgColor="#0f172a"
+                            bgColor="#FFFFFF"
+                        />
+                    ) : (
+                        <div className="w-24 h-24 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
+                            Configure in Settings
+                        </div>
+                    )}
+                    {phone && <p className="text-[10px] text-center text-slate-500 font-bold mt-2 uppercase tracking-wide group-hover:text-emerald-600">Scan to Chat</p>}
+                </div>
 
-            {!phone && (
-                <button onClick={onConnect} className="z-10 mt-3 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-lg backdrop-blur-sm transition-all">
-                    Connect Account
-                </button>
-            )}
+                {!phone && (
+                    <button onClick={onConnect} className="z-10 mt-3 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-lg backdrop-blur-sm transition-all">
+                        Connect Account
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
