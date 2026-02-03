@@ -394,13 +394,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <div
                                         key={i}
                                         onClick={() => onNavigate(d.target)}
-                                        className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0 cursor-pointer hover:bg-slate-50/80 rounded-md px-1 transition-colors group"
+                                        className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0 cursor-pointer hover:bg-slate-50/80 rounded-md px-1 transition-all duration-300 group hover:scale-[1.02] opacity-0 animate-slide-in-right"
+                                        style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'forwards' }}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="p-1 bg-slate-50 rounded-full group-hover:bg-white border border-transparent group-hover:border-slate-100 transition-all">{d.icon}</div>
+                                            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-white border border-transparent group-hover:border-slate-100 transition-all shadow-sm">{d.icon}</div>
                                             <span className="text-[10px] font-bold text-slate-600 group-hover:text-slate-800 transition-colors">{d.label}</span>
                                         </div>
-                                        <span className="text-[11px] font-black text-slate-800">{d.val}</span>
+                                        <span className="text-[11px] font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-full">{d.val}</span>
                                     </div>
                                 ))}
                             </div>
