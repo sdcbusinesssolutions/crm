@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MenuItem } from './Sidebar';
 import { DashboardStats } from './Dashboard';
 
@@ -105,6 +105,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
     const forecastDisplayVal = formatINR(pipelineValRaw);
 
+    // Animation Effect
+    const [displayedPercent, setDisplayedPercent] = useState(0);
+    const [animatedFollowupWidths, setAnimatedFollowupWidths] = useState<number[]>([0, 0, 0, 0]);
+
     // Followup Data for Right Panel
     const followupData = [
         { label: 'TODAY', val: stats?.taskStats?.today || 0, color: '#facc15' }, // Yellow
@@ -112,6 +116,22 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
         { label: 'LATE', val: stats?.taskStats?.breakdown?.overdue?.total || 0, color: '#ef4444' }, // Red
         { label: 'DONE', val: stats?.taskStats?.completed || 1, color: '#22c55e' }  // Green
     ];
+
+    // Calculate max value for scaling widths
+    const maxFollowupVal = Math.max(...followupData.map(d => d.val), 1);
+
+    useEffect(() => {
+        // Delay to allow start-at-zero animation on mount
+        const timer = setTimeout(() => {
+            setDisplayedPercent(forecastPercent);
+
+            // Animate widths for followup bars
+            setAnimatedFollowupWidths(followupData.map(d => (d.val / maxFollowupVal) * 100));
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [forecastPercent, stats]); // Recalculate when stats update
+
 
     // Category Data for Bottom Right Card
     const categoryData: { label: string; val: number; icon: React.ReactNode; target: MenuItem }[] = [
@@ -282,7 +302,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <text x="140" y="72" className="text-[7px] fill-slate-600 font-black" textAnchor="middle">{formatINR(forecastTarget * 0.75)}</text>
 
                                     {/* Needle */}
-                                    <path d="M100 100 L100 35" stroke="#1e293b" strokeWidth="3" strokeLinecap="round" transform={`rotate(${forecastPercent * 1.8 - 90}, 100, 100)`} />
+                                    <path
+                                        d="M100 100 L100 35"
+                                        stroke="#1e293b"
+                                        strokeWidth="3"
+                                        strokeLinecap="round"
+                                        transform={`rotate(${displayedPercent * 1.8 - 90}, 100, 100)`}
+                                        style={{ transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }} // Spring-like bounce
+                                    />
                                     <circle cx="100" cy="100" r="6" fill="#1e293b" />
                                 </svg>
 
@@ -313,9 +340,9 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         <div className="flex-1 h-3 bg-slate-100 rounded-full relative overflow-hidden">
                                             {/* Progress with gradient effect */}
                                             <div
-                                                className="absolute left-0 top-0 h-full rounded-full"
+                                                className="absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out"
                                                 style={{
-                                                    width: '30%', // Mock fixed width for visual, or use calc logic
+                                                    width: `${animatedFollowupWidths[i] || 0}%`,
                                                     backgroundColor: d.color,
                                                     boxShadow: '0 0 10px rgba(0,0,0,0.1) inset'
                                                 }}
