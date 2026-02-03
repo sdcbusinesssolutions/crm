@@ -39,6 +39,15 @@ RUN echo "✅ Compilation Successful (Warnings above are normal)"
 # Using -slim for wider compatibility with pkg binaries (glibc vs musl)
 FROM node:18-slim
 
+ENV TZ="Asia/Kolkata"
+
+# Install TZ Data (Required for Slim images)
+RUN apt-get update && \
+    apt-get install -y tzdata && \
+    ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
+    echo "Asia/Kolkata" > /etc/timezone && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # 1. Copy the Server Binary from Stage 2
