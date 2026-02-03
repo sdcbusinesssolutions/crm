@@ -85,3 +85,14 @@ body {
 .animate-slide-in-right {
   animation: slideInRight 0.5s ease-out forwards;
 }
+
+/* Dashed Stroke Spin for Funnel Rim */
+@keyframes strokeSpin {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+.animate-stroke-spin {
+  animation: strokeSpin 20s linear infinite;
+}

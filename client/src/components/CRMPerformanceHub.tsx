@@ -170,6 +170,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 value={totalLeads}
                                 target={1500}
                                 color="#1e3a8a" // Navy
+                                trackColor="#2563eb" // Blue-600 solid - Darker
                                 label=""
                                 icon="group"
                                 knobColor="#1e3a8a"
@@ -196,6 +197,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 value={wonLostCount}
                                 target={500}
                                 color="#84cc16" // Lime
+                                trackColor="#65a30d" // Lime-600 solid - Darker Green
                                 label=""
                                 icon="user"
                                 knobColor="#84cc16"
@@ -229,6 +231,16 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         <div className="w-[300px] h-[50px] absolute top-[30px] z-10">
                             <svg viewBox="0 0 300 50" className="w-full h-full drop-shadow-md overflow-visible">
                                 <ellipse cx="150" cy="25" rx="148" ry="24" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="1" />
+                                {/* Rotating Dashed Border Overlay */}
+                                <ellipse
+                                    cx="150" cy="25" rx="148" ry="24"
+                                    fill="none"
+                                    stroke="#334155"
+                                    strokeWidth="2"
+                                    strokeDasharray="15 25"
+                                    strokeLinecap="round"
+                                    className="animate-stroke-spin opacity-80"
+                                />
                                 <ellipse cx="150" cy="25" rx="110" ry="14" fill="#334155" /> {/* Dark Hole */}
                             </svg>
                         </div>
@@ -417,12 +429,12 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
 // --- Sub Components ---
 
-const DonutRing: React.FC<{ value: number; target: number; color: string; label: string; icon: string; knobColor: string; knobBg?: string; size?: number }> = ({ value, target, color, label, icon, knobColor, knobBg = 'white', size = 120 }) => {
+const DonutRing: React.FC<{ value: number; target: number; color: string; trackColor?: string; label: string; icon: string; knobColor: string; knobBg?: string; size?: number }> = ({ value, target, color, trackColor = '#f1f5f9', label, icon, knobColor, knobBg = 'white', size = 120 }) => {
     return (
         <div className="relative" style={{ width: size, height: size }}>
             <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
                 {/* Thick Track */}
-                <circle cx="20" cy="20" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="6" />
+                <circle cx="20" cy="20" r="15.5" fill="none" stroke={trackColor} strokeWidth="6" />
                 {/* Thick Value Arc */}
                 <circle
                     cx="20" cy="20" r="15.5"
