@@ -108,19 +108,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     };
 
     const handleItemClick = (item: MenuItem, hasSubmenu: boolean) => {
-        // Interaction Update: Clicking any item in collapsed mode expands the sidebar
+        // Interaction Update: Click only navigates, does NOT expand sidebar (User Request)
         if (isCollapsed) {
-            setIsCollapsed(false);
-
-            // If expanding, ensure the correct submenu is open if applicable
-            if (hasSubmenu) {
-                if (item === 'Manage') setIsManageOpen(true);
-                else if (item === 'Settings') setIsSettingsOpen(true);
-                else if (item === 'Contacts') { setIsContactsOpen(true); onNavigate(item); }
-            } else {
-                // If it's a direct link, navigate immediately
-                onNavigate(item);
-            }
+            if (item !== 'Manage') onNavigate(item);
             return;
         }
 
