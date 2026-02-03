@@ -96,7 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
     useEffect(() => {
         if (manageSubItems.includes(activeItem)) setIsManageOpen(true);
-        if (settingsSubItems.includes(activeItem) || activeItem === 'Settings') setIsSettingsOpen(true);
+        if (settingsSubItems.includes(activeItem)) setIsSettingsOpen(true);
         if (contactSubItems.includes(activeItem)) setIsContactsOpen(true);
     }, [activeItem]);
 
