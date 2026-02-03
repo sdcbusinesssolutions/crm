@@ -58,6 +58,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     const activeLeads = stats?.summary.activeLeads || 1034;
     const inactiveLeads = totalLeads - activeLeads; // ~1900
 
+    const [isGaugeHovered, setIsGaugeHovered] = useState(false);
+
     // Dynamic Stats for Bottom Grid
     const totalTemplates = stats?.summary.totalTemplates || 0;
     const totalFlows = stats?.summary.totalFlows || 0;
@@ -176,6 +178,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 knobColor="#1e3a8a"
                                 knobBg="#84cc16"
                                 size={135}
+                                valueClassName="animate-soft-blink"
                             />
                         </div>
                     </div>
@@ -252,7 +255,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 {/* Level 1: Navy Blue */}
                                 <path d="M0,0 L300,0 L260,86 L40,86 Z" fill="#172554" stroke="white" strokeWidth="2" />
                                 <text x="150" y="48" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[0].label}</text>
-                                <text x="150" y="78" textAnchor="middle" fill="white" className="text-2xl font-bold">{Number(funnelSteps[0].value).toLocaleString()}</text>
+                                <text x="150" y="78" textAnchor="middle" fill="white" className="text-2xl font-bold animate-soft-blink">{Number(funnelSteps[0].value).toLocaleString()}</text>
 
                                 {/* Level 2: Lime Green */}
                                 <path d="M40,86 L260,86 L226,172 L74,172 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
@@ -282,7 +285,9 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* Forecast Gauge - Card Style */}
                         <div
                             onClick={() => onNavigate('Pipelines')}
-                            className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                            onMouseEnter={() => setIsGaugeHovered(true)}
+                            onMouseLeave={() => setIsGaugeHovered(false)}
+                            className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98] group"
                         >
                             <div className="w-full flex justify-between items-start mb-0.5">
                                 <h3 className="font-bold text-slate-800 text-[11px] leading-tight max-w-[120px]">Pipeline Value Sales Forecast</h3>
@@ -319,8 +324,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         stroke="#1e293b"
                                         strokeWidth="3"
                                         strokeLinecap="round"
-                                        transform={`rotate(${displayedPercent * 1.8 - 90}, 100, 100)`}
-                                        style={{ transition: 'transform 1.2s cubic-bezier(0.34, 1.56, 0.64, 1)' }} // Spring-like bounce
+                                        transform={`rotate(${(isGaugeHovered ? Math.min(displayedPercent + 10, 100) : displayedPercent) * 1.8 - 90}, 100, 100)`}
+                                        style={{ transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }} // Spring-like bounce
                                     />
                                     <circle cx="100" cy="100" r="6" fill="#1e293b" />
                                 </svg>
@@ -377,24 +382,28 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 val={totalTemplates}
                                 icon={<Icons.Template />}
                                 onClick={() => onNavigate('Whatsapp Templates')}
+                                delay={0}
                             />
                             <StatItem
                                 label="Automation Flow"
                                 val={totalFlows}
                                 icon={<Icons.Flow />}
                                 onClick={() => onNavigate('Flows')}
+                                delay={100}
                             />
                             <StatItem
                                 label="Active Campaigns"
                                 val={totalCampaigns}
                                 icon={<Icons.Campaign />}
                                 onClick={() => onNavigate('Campaigns')}
+                                delay={200}
                             />
                             <StatItem
                                 label="Pipeline"
                                 val={totalPipelines}
                                 icon={<Icons.Pipeline />}
                                 onClick={() => onNavigate('Pipelines')}
+                                delay={300}
                             />
                         </div>
 
@@ -406,7 +415,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <div
                                         key={i}
                                         onClick={() => onNavigate(d.target)}
-                                        className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0 cursor-pointer hover:bg-slate-50/80 rounded-md px-1 transition-all duration-300 group hover:scale-[1.02] opacity-0 animate-slide-in-right"
+                                        className="flex items-center justify-between border-b border-slate-50 last:border-0 pb-1 last:pb-0 cursor-pointer hover:bg-emerald-50/50 rounded-md px-1 transition-all duration-300 group hover:scale-[1.02] hover:shadow-md hover:border-emerald-200 opacity-0 animate-slide-in-right"
                                         style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'forwards' }}
                                     >
                                         <div className="flex items-center gap-2">
@@ -429,7 +438,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
 // --- Sub Components ---
 
-const DonutRing: React.FC<{ value: number; target: number; color: string; trackColor?: string; label: string; icon: string; knobColor: string; knobBg?: string; size?: number }> = ({ value, target, color, trackColor = '#f1f5f9', label, icon, knobColor, knobBg = 'white', size = 120 }) => {
+const DonutRing: React.FC<{ value: number; target: number; color: string; trackColor?: string; label: string; icon: string; knobColor: string; knobBg?: string; size?: number; valueClassName?: string }> = ({ value, target, color, trackColor = '#f1f5f9', label, icon, knobColor, knobBg = 'white', size = 120, valueClassName = '' }) => {
     return (
         <div className="relative" style={{ width: size, height: size }}>
             <svg viewBox="0 0 40 40" className="w-full h-full -rotate-90">
@@ -450,7 +459,7 @@ const DonutRing: React.FC<{ value: number; target: number; color: string; trackC
                 <div className="mb-0.5">
                     {icon === 'group' ? <Icons.Users className="w-5 h-5" style={{ color }} /> : <Icons.User className="w-5 h-5" style={{ color }} />}
                 </div>
-                <span className="text-2xl font-black text-slate-800 tracking-tight leading-none">{value.toLocaleString()}</span>
+                <span className={`text-2xl font-black text-slate-800 tracking-tight leading-none ${valueClassName}`}>{value.toLocaleString()}</span>
                 <span className="text-[9px] font-bold text-slate-400 mt-0.5">{label}</span>
             </div>
 
@@ -458,12 +467,13 @@ const DonutRing: React.FC<{ value: number; target: number; color: string; trackC
     );
 };
 
-const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; onClick?: () => void }> = ({ label, val, icon, onClick }) => (
+const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; onClick?: () => void; delay?: number }> = ({ label, val, icon, onClick, delay = 0 }) => (
     <div
         onClick={onClick}
-        className={`h-full w-full border border-[#84cc16] bg-white rounded-lg p-2 flex flex-col items-center justify-center text-center ${onClick ? 'cursor-pointer hover:shadow-md transition-all active:scale-[0.98]' : ''}`}
+        className={`h-full w-full border border-[#84cc16] bg-white rounded-lg p-2 flex flex-col items-center justify-center text-center opacity-0 animate-fade-in-up ${onClick ? 'cursor-pointer hover:shadow-xl hover:scale-105 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all duration-300 transform' : ''}`}
+        style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
     >
-        <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-white">
+        <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-white shadow-sm group-hover:scale-110 transition-transform">
             {icon}
         </div>
         <div className="text-[10px] font-bold text-slate-500 mb-0.5">{label}</div>
