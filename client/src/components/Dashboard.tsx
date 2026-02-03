@@ -750,7 +750,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
 
                         {/* A. WhatsApp Connection (Scanner) */}
-                        <div className="md:col-span-1 lg:col-span-1 animate-fade-in-up h-full" style={{ animationDelay: '0ms' }}>
+                        <div className="md:col-span-1 lg:col-span-1 animate-fade-in-up h-full flex flex-col py-4" style={{ animationDelay: '0ms' }}>
+                            {/* Spacer to align with CRMPipelineHub Header (text-lg + pb-2) approx 36px */}
+                            <div className="h-9 shrink-0 hidden md:block"></div>
                             <WhatsAppScannerCard
                                 phone={stats?.connection?.phone || null}
                                 id={stats?.connection?.id || null}
