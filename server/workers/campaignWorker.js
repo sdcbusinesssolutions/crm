@@ -75,37 +75,39 @@ class CampaignWorker {
     }
 
     async processScheduledCampaigns() {
-        // Find campaigns that are SCHEDULED and due
-        const { data: campaigns, error } = await this.supabase
+        // Find campaigns that are SCHEDULED and due, and magically lock them to PROCESSING atomically.
+        // This prevents multiple workers from picking up the same campaign.
+        const now = new Date().toISOString();
+
+        const { data: startedCampaigns, error } = await this.supabase
             .from('campaigns')
-            .select('id')
+            .update({ status: 'PROCESSING' })
             .eq('status', 'SCHEDULED')
-            .lte('scheduled_at', new Date().toISOString());
+            .lte('scheduled_at', now)
+            .select('id, title'); // Return the IDs we successfully claimed
 
         if (error) {
             if (error.message && (error.message.includes('fetch failed') || error.message.includes('ECONNRESET'))) {
                 console.warn('[Worker] Transient Network Error (Supabase Connection): Retrying in next tick...');
             } else {
-                console.error('Error fetching scheduled campaigns:', error);
-                // DEBUG: Inspect the client config
-                try {
-                    // Access verify value if possible or just log what we have
-                    const key = this.supabase?.supabaseKey || 'UNKNOWN';
-                    const keyLen = key ? key.length : 0;
-                    const keySnippet = keyLen > 10 ? key.substring(0, 5) + '...' + key.substring(keyLen - 5) : 'SHORT';
-                    console.error(`[Worker DEBUG] Using Key: Length=${keyLen}, Snippet=${keySnippet}`);
-                } catch (d) { }
+                console.error('Error processing scheduled campaigns:', error);
             }
             return;
         }
 
-        if (campaigns && campaigns.length > 0) {
-            console.log(`Found ${campaigns.length} due campaigns. Starting...`);
-            const ids = campaigns.map(c => c.id);
-            await this.supabase
-                .from('campaigns')
-                .update({ status: 'PROCESSING' })
-                .in('id', ids);
+        if (startedCampaigns && startedCampaigns.length > 0) {
+            console.log(`[Worker] Atomically locked & started ${startedCampaigns.length} campaigns:`, startedCampaigns.map(c => c.title).join(', '));
+
+            // Log the start event for each
+            startedCampaigns.forEach(c => {
+                try {
+                    logCampaignRequest('CAMPAIGN_STARTED', {
+                        campaignId: c.id,
+                        title: c.title,
+                        workerId: this.workerId
+                    });
+                } catch (ignore) { }
+            });
         }
     }
 

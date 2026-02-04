@@ -458,7 +458,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 contactGroupId: recipientType === 'group' ? selectedGroup : null,
                 manualNumbers: recipientType === 'manual' ? processedManualNumbers : [],
 
-                scheduledAt: sendNow ? null : scheduledAt,
+                scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
                 sendNow,
                 phoneNumberId: selectedPhoneNumber,
 
