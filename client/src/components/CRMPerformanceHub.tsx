@@ -148,7 +148,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
         <div className="w-full h-full bg-white border-2 border-blue-600 rounded-[24px] p-4 shadow-sm font-sans flex flex-col">
             {/* Header */}
             <div className="w-full text-center pb-2">
-                <h2 className="text-lg font-black tracking-wide uppercase" style={{ color: '#07523d' }}>Lead Pipeline Automation</h2>
+                <h2 className="text-lg font-black tracking-wide uppercase" style={{ color: '#07523d' }}>Lead Pipeline Automation CRM</h2>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 h-full">
