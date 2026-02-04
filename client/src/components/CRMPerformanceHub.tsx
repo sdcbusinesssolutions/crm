@@ -110,6 +110,15 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     // Animation Effect
     const [displayedPercent, setDisplayedPercent] = useState(0);
     const [animatedFollowupWidths, setAnimatedFollowupWidths] = useState<number[]>([0, 0, 0, 0]);
+    const [breathingOffset, setBreathingOffset] = useState(0);
+
+    // Breathing Animation Loop
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setBreathingOffset(prev => (prev === 0 ? 5 : 0)); // Move 5 degrees then back
+        }, 1500);
+        return () => clearInterval(interval);
+    }, []);
 
     // Followup Data for Right Panel
     const followupData = [
@@ -185,28 +194,47 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                     {/* Won / Lost */}
                     <div
-                        onClick={() => onNavigate('Pipelines')}
+                        onClick={() => onNavigate('Follow-up')}
                         className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
                     >
+                        {/* Header */}
                         <div className="w-full flex justify-between items-center mb-1">
-                            <h3 className="font-bold text-slate-800 text-[11px]">Won / Lost</h3>
+                            <h3 className="font-bold text-slate-800 text-[11px]">Follow up</h3>
                             <div className="flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full border border-lime-500 bg-[#1e3a8a]"></span>
                                 <span className="w-6 h-[1px] bg-slate-200"></span>
                             </div>
                         </div>
-                        <div className="flex-1 flex items-center justify-center">
-                            <DonutRing
-                                value={wonLostCount}
-                                target={500}
-                                color="#84cc16" // Lime
-                                trackColor="#65a30d" // Lime-600 solid - Darker Green
-                                label=""
-                                icon="user"
-                                knobColor="#84cc16"
-                                knobBg="#1e3a8a" // Blue bg for knob
-                                size={135}
-                            />
+
+                        <div className="flex-1 flex items-center justify-between px-2">
+                            {/* Left: Pending Donut */}
+                            <div className="flex items-center justify-center">
+                                <DonutRing
+                                    value={0}
+                                    target={100}
+                                    color="#10b981" // Green
+                                    trackColor="#f1f5f9"
+                                    label="PENDING"
+                                    icon="" // No inner icon, just text 0
+                                    knobColor="#10b981"
+                                    knobBg="#10b981"
+                                    size={110}
+                                    valueClassName="text-3xl"
+                                />
+                            </div>
+
+                            {/* Right: Stats List */}
+                            <div className="flex flex-col gap-2 flex-1 ml-4 justify-center">
+                                {followupData.map((d, i) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
+                                            <span className="text-[10px] font-bold text-slate-700 uppercase">{d.label === 'TODAY' ? 'DUE TODAY' : d.label === 'NEXT' ? 'UPCOMING' : d.label === 'LATE' ? 'OVERDUE' : 'COMPLETED'}</span>
+                                        </div>
+                                        <span className="text-[11px] font-black text-slate-800">{d.val}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -318,14 +346,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <text x="100" y="55" className="text-[7px] fill-slate-600 font-black" textAnchor="middle">{formatINR(forecastTarget * 0.5)}</text>
                                     <text x="140" y="72" className="text-[7px] fill-slate-600 font-black" textAnchor="middle">{formatINR(forecastTarget * 0.75)}</text>
 
-                                    {/* Needle */}
+                                    {/* Needle with Breathing Animation */}
                                     <path
                                         d="M100 100 L100 35"
                                         stroke="#1e293b"
                                         strokeWidth="3"
                                         strokeLinecap="round"
-                                        transform={`rotate(${(isGaugeHovered ? Math.min(displayedPercent + 10, 100) : displayedPercent) * 1.8 - 90}, 100, 100)`}
-                                        style={{ transition: 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }} // Spring-like bounce
+                                        transform={`rotate(${((isGaugeHovered ? Math.min(displayedPercent + 10, 100) : displayedPercent) * 1.8 - 90) + breathingOffset}, 100, 100)`}
+                                        style={{ transition: 'transform 1s ease-in-out' }}
                                     />
                                     <circle cx="100" cy="100" r="6" fill="#1e293b" />
                                 </svg>
