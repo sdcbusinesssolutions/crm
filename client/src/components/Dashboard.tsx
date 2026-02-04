@@ -581,14 +581,14 @@ const WhatsAppScannerCard: React.FC<{
             </div>
 
             {/* QR Code Area */}
-            <div className="flex-1 flex flex-col justify-end w-full items-center">
+            <div className="flex-1 flex flex-col justify-center w-full items-center">
                 <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
                     {phone ? (
                         <QRCodeCanvas
                             value={qrLink}
-                            size={100}
+                            size={128}
                             level={"H"}
-                            className="w-24 h-24 object-contain"
+                            className="w-32 h-32 object-contain"
                             fgColor="#0f172a"
                             bgColor="#FFFFFF"
                         />
