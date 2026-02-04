@@ -168,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         else if (item === 'Settings' && (settingsSubItems.includes(activeItem) || activeItem === 'Settings')) isActive = true;
         else if (item === 'Contacts' && (contactSubItems.includes(activeItem) || activeItem === 'Contacts')) isActive = true;
 
-        const displayLabel = item === 'Contacts' ? 'Lead CRM' : item;
+        const displayLabel = item === 'Contacts' ? 'Lead CRM' : item === 'Manage' ? 'Template' : item;
 
         // Resolve icon for subitems
         let finalIcon = icon;
