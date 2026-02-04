@@ -480,6 +480,10 @@ class SheetAutomationService {
                 // It usually means "Check daily for NEW people".
                 // We only enable Recurrence (resetting history) if there is a Logic Condition that implies repetition (e.g., Birthday).
 
+                if (auto.schedule_config?.recurring === true) {
+                    isRecurring = true;
+                }
+
                 /*
                 if (freq && ['daily', 'weekly', 'monthly'].includes(freq)) {
                     // OLD: isRecurring = true; 

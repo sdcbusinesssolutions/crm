@@ -86,9 +86,8 @@ Before sending, the system calculates a "Fingerprint" (Hash) of the row data.
 | Schedule Type | Rule | Reset Time |
 | :--- | :--- | :--- |
 | **Manual (Test Button)** | **ALWAYS SEND** | N/A |
-| **Daily Schedule** | **Once Per Day** | Midnight IST |
-| **Weekly Schedule** | **Once Per Day** | Midnight IST |
-| **One-Time / Custom** | **Once Forever** | Never |
+| **Schedule (Recurring ✅)** | **Once Per Day** | Midnight IST |
+| **Schedule (Recurring ❌)** | **Once Forever** | Never (Lifetime Memory) |
 
 ### Retry Logic (Anti-Loop)
 *   **Scenario**: Invalid data (e.g., missing phone).

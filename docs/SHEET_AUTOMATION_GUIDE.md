@@ -43,24 +43,35 @@ You might notice that creating a Trigger in the **Flow List** also adds an entry
 Use this for **Recurring Messages** or **Batch Processing**.
 
 ### How it works
-1.  **System Check:** The system checks your sheet at the **Time** you selected (e.g., every day at 10 AM).
-2.  **Detection:** It scans **ALL** rows in the sheet to see who needs a message.
-3.  **Safety Logic (Deduplication):**
-    *   **Logic 1 (Standard):** If you give **NO Date Condition**, the system will send to each person **Once in their Lifetime**. It remembers who it sent to (using a digital fingerprint) and will *never* send to them again.
-    *   **Logic 2 (Recurring):** If you give a **Date Condition** (e.g., "Birthday IS Today"), the system will send **Once per Year** (or per recurrence).
+1.  **System Check:** The system checks your sheet at the **Time** you selected (e.g., every day at 09:00 AM IST).
+     *   **Daily:** Checks every day at that time.
+     *   **Weekly:** Checks on specific days (e.g., Mon, Wed, Fri) at that time.
+     *   **Monthly:** Checks on a specific date (e.g., 1st of month) at that time.
+2.  **Detection:** It scans **ALL** rows in the sheet to see who needs a message based on your Conditions.
+3.  **Deduplication (The "Recurring" Checkbox):**
+    *   **🔲 Unchecked (Default - "Safe Mode"):** The system sends to each person **Once in their Lifetime**. Perfect for "Daily Welcome Bots" or "Payment Reminders". Even if the schedule runs daily, it remembers who received it 6 months ago and skips them.
+    *   **✅ Checked ("Recurring Mode"):** The system allows re-sending to the same person **every time the schedule runs**. Perfect for "Daily Team Updates" or "Weekly Newsletters". It only prevents sending duplicates *on the same day*.
 
 ### ✅ Example 1: Daily Birthday Bot 🎂
-*   **Trigger:** Schedule (Daily @ 9 AM).
+*   **Schedule:** Daily @ 9 AM.
 *   **Condition:** `Birthday Column` **IS** `Today`.
-*   **Result:** System checks every day. If a row matches today's date, it sends a message. Next year, it sends again.
+*   **Recurring Checkbox:** **Unchecked** (System automatically resets history for Birthday/Anniversary conditions yearly).
 
-### ✅ Example 2: Daily Welcome Bot (Slow) 🐢
-*   **Trigger:** Schedule (Daily @ 6 PM).
-*   **Condition:** None (or Status is Empty).
-*   **Result:** System checks once a day at 6 PM. It finds all *new* people added today and sends them a message. It will **SKIP** anyone it sent to yesterday.
+### ✅ Example 2: Daily Welcome Bot (Batch) 🐢
+*   **Schedule:** Daily @ 6 PM.
+*   **Condition:** `Status` **IS** `Empty`.
+*   **Recurring Checkbox:** **Unchecked**.
+*   **Result:** Checks once a day. Finds all *new* people added today. Sends them a message. Skips yesterday's people.
+
+### ✅ Example 3: Daily Team Update (Broadcast) 📢
+*   **Schedule:** Daily @ 10 AM.
+*   **Condition:** `Team` **EQUALS** `Sales`.
+*   **Recurring Checkbox:** **✅ Checked**.
+*   **Result:** Every day at 10 AM, **everyone** in the Sales team gets the message.
 
 ### ❌ What to avoid
-*   **Missing Status Column?** No problem! The system now has a "Lifetime Memory". It won't spam your users daily unless you specifically set a Date Condition like "Is Today".
+*   **Missing Status Column?** No problem! The system has a "Lifetime Memory" (if checkbox is unchecked).
+*   **Using Recurring Checkbox without conditions:** Be careful! If you check "Recurring" and have 10,000 rows, it will try to send 10,000 messages *every day*. Always use conditions (e.g., `Active` = `Yes`).
 
 ---
 

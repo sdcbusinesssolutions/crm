@@ -22,6 +22,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
         schedule_days: [] as string[],
         schedule_day_of_month: 1,
+        recurring: false, // New Field
 
         triggers: [{ column: '', operator: 'equals', value: '' }] as { column: string, operator: string, value: string }[],
         template_id: '',
@@ -77,6 +78,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                     schedule_time: sched.time || '09:00',
                     schedule_days: sched.days || [],
                     schedule_day_of_month: sched.day_of_month || 1,
+                    recurring: sched.recurring || false,
 
                     triggers: data.trigger_condition || [],
 
@@ -358,7 +360,8 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 frequency: formData.schedule_type, // 'daily', 'weekly', 'monthly'
                 time: formData.schedule_time,
                 days: formData.schedule_days, // Array of days ['Mon', 'Fri']
-                day_of_month: formData.schedule_day_of_month // 1-31
+                day_of_month: formData.schedule_day_of_month, // 1-31
+                recurring: formData.recurring // New Flag
             },
             trigger_condition: formData.triggers, // Send array directly
             template_config: {
@@ -507,6 +510,28 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 />
                             </div>
                         )}
+
+                        {/* Recurring Checkbox */}
+                        <div className="pt-4 border-t border-slate-100">
+                            <div className="flex items-start gap-3">
+                                <div className="flex items-center h-5">
+                                    <input
+                                        id="recurring"
+                                        type="checkbox"
+                                        checked={formData.recurring}
+                                        onChange={e => setFormData({ ...formData, recurring: e.target.checked })}
+                                        className="w-4 h-4 text-[#c2410c] border-slate-300 rounded focus:ring-[#c2410c]"
+                                    />
+                                </div>
+                                <div>
+                                    <label htmlFor="recurring" className="block text-sm font-medium text-slate-700">Allow Recurring Runs (Re-send to same people)</label>
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        If checked, this automation will send messages to matching rows <b>every time</b> the schedule runs.<br />
+                                        If unchecked, it will only send to <b>new</b> rows matching the condition (One-Time per row).
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
