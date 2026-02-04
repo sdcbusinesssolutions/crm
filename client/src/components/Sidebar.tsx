@@ -95,7 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     const contactSubItems: MenuItem[] = ['Overview', 'Contact List', 'Contact Groups', 'Pipelines', 'Follow-up', 'Form Builder', 'Tags', 'Input Fields', 'Form Contact'];
 
     useEffect(() => {
-        if (manageSubItems.includes(activeItem)) setIsManageOpen(true);
+        // if (manageSubItems.includes(activeItem)) setIsManageOpen(true);
         if (settingsSubItems.includes(activeItem)) setIsSettingsOpen(true);
         if (contactSubItems.includes(activeItem)) setIsContactsOpen(true);
     }, [activeItem]);
@@ -110,7 +110,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     const handleItemClick = (item: MenuItem, hasSubmenu: boolean) => {
         // Interaction Update: Click only navigates, does NOT expand sidebar (User Request)
         if (isCollapsed) {
-            if (item !== 'Manage') onNavigate(item);
+            if (item === 'Manage') {
+                onNavigate(manageSubItems[0]);
+            } else {
+                onNavigate(item);
+            }
             return;
         }
 
@@ -256,7 +260,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 onClick={() => {
                     // Interaction Update: Text Body always selects/navigates.
                     // Expansion is strictly handled by the chevron/arrow.
-                    onNavigate(item);
+                    if (item === 'Manage') {
+                        onNavigate(manageSubItems[0]);
+                    } else {
+                        onNavigate(item);
+                    }
                 }}
                 title={showCollapsed ? displayLabel : ''}
                 className={`group flex items-center justify-between px-4 py-3 mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-600 hover:bg-brand-50 hover:text-brand-600'
