@@ -199,6 +199,35 @@ class SheetAutomationService {
         return oauth2Client;
     }
 
+
+    /**
+     * Optimistic Locking to prevent Race Conditions (Double Sends).
+     * Attempts to update last_run_at ONLY if it hasn't changed since we read it.
+     * Returns true if we successfully claimed the lock (updated 1 row).
+     */
+    async claimJobLock(auto) {
+        let q = supabaseAdmin.from('sheet_automations')
+            .update({ last_run_at: new Date() })
+            .eq('id', auto.id);
+
+        if (auto.last_run_at) {
+            // If previous run exists, we must match it exactly.
+            q = q.eq('last_run_at', auto.last_run_at);
+        } else {
+            // If never run, ensure it's still null.
+            q = q.is('last_run_at', null);
+        }
+
+        const { data, error } = await q.select();
+
+        if (error) {
+            console.error('[SheetAuto] Lock Error:', error.message);
+            return false;
+        }
+        // If we updated 1 row, we claimed the lock.
+        return data && data.length === 1;
+    }
+
     /**
      * MAIN ENTRY POINT: Run all active automations
      */
@@ -422,10 +451,13 @@ class SheetAutomationService {
 
     async executeJob(auto, isManual = false) {
         // 1. LOCK: Update last_run_at immediately to prevent race conditions
+        // 1. LOCK: Update last_run_at immediately to prevent race conditions (Optimistic Locking)
         if (!isManual) {
-            await supabaseAdmin.from('sheet_automations').update({
-                last_run_at: new Date()
-            }).eq('id', auto.id);
+            const claimed = await this.claimJobLock(auto);
+            if (!claimed) {
+                console.warn(`[SheetAutomation] Race Condition Detected for ${auto.name}. Skipping execution.`);
+                return { status: 'skipped_lock' };
+            }
         }
 
         const logSummary = {
