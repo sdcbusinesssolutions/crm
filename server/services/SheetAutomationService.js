@@ -266,7 +266,15 @@ class SheetAutomationService {
         const logReason = (reason) => {
             // Only log valid candidates (has schedule_config) to avoid spam
             if (auto.schedule_config) {
-                // console.log(`[Schedule Check] ${auto.name} (IST: ${currentHour}:${currentMinute}) - SKIPPED: ${reason}`);
+                // Log granular reasons to file for debugging user complaints
+                logGoogleSheetEvent('SCHEDULE_CHECK_SKIP', {
+                    automation_id: auto.id,
+                    automation_name: auto.name,
+                    reason: reason,
+                    current_ist: `${currentHour}:${currentMinute}`,
+                    target_time: auto.schedule_config?.time,
+                    last_run: auto.last_run_at
+                });
             }
         };
 
@@ -275,7 +283,11 @@ class SheetAutomationService {
             if (!auto.last_run_at) return true;
             const lastRunDate = new Date(auto.last_run_at);
             const diffMinutes = (now - lastRunDate) / 1000 / 60;
-            return diffMinutes >= 5;
+            const shouldRun = diffMinutes >= 5;
+            if (!shouldRun) {
+                // Too spammy to log every skip? Maybe only on verbose
+            }
+            return shouldRun;
         }
 
         if (auto.automation_type === 'schedule') {
@@ -300,6 +312,12 @@ class SheetAutomationService {
 
                 if (isDue) {
                     console.log(`[Schedule Check] MATCH (One-Time)! Executing ${auto.name}.`);
+                    logGoogleSheetEvent('SCHEDULE_MATCH', {
+                        automation_id: auto.id,
+                        name: auto.name,
+                        type: 'CUSTOM_ONE_TIME',
+                        time: time
+                    });
                     return true;
                 }
                 logReason("One-Time: Waiting for time.");
@@ -311,7 +329,7 @@ class SheetAutomationService {
 
             if (frequency === 'weekly') {
                 if (days && days.includes(currentDayStr)) isCorrectDate = true;
-                else logReason(`Weekly mismatch. Today: ${currentDayStr}, Config: ${days}`);
+                else logReason(`Weekly mismatch. Today: ${currentDayStr}, Config: ${JSON.stringify(days)}`);
             } else if (frequency === 'monthly') {
                 if (day_of_month && parseInt(day_of_month) === currentDateNum) isCorrectDate = true;
                 else logReason(`Monthly mismatch. Today: ${currentDateNum}, Config: ${day_of_month}`);
@@ -362,13 +380,20 @@ class SheetAutomationService {
                     const hasRunForThisSlot = (lrHour > targetHour) || (lrHour === targetHour && lrMinute >= targetMinute);
 
                     if (hasRunForThisSlot) {
-                        logReason(`Already ran for this time slot today. Last: ${lrHour}:${lrMinute}, Target: ${time}`);
+                        logReason(`Already ran for this time slot today. Last Run: ${lrHour}:${lrMinute}, Target: ${time}`);
                         return false;
                     }
                 }
             }
 
             console.log(`[Schedule Check] MATCH! Executing ${auto.name}. Current IST: ${currentHour}:${currentMinute}, Target: ${time}`);
+            logGoogleSheetEvent('SCHEDULE_MATCH', {
+                automation_id: auto.id,
+                name: auto.name,
+                type: frequency,
+                time: time,
+                current_ist: `${currentHour}:${currentMinute}`
+            });
             return true;
         }
 
@@ -514,6 +539,19 @@ class SheetAutomationService {
             // 5. Processing Loop
             const isScheduleLogic = auto.automation_type === 'schedule' || isManual;
 
+            // Pre-process logging context
+            const baseLogContext = {
+                automation_id: auto.id,
+                automation_name: auto.name,
+                sheet_id: spreadsheetId,
+                sheet_name: auto.sheet_name
+            };
+
+            logGoogleSheetEvent('SHEET_FETCH_SUCCESS', {
+                ...baseLogContext,
+                row_count: dataRows.length
+            });
+
             if (!isScheduleLogic && auto.automation_type === 'new_row') {
                 const lastIndex = auto.last_processed_row_index || 0;
                 const newRows = dataRows.slice(lastIndex);
@@ -524,21 +562,39 @@ class SheetAutomationService {
                     statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
                 }
 
+                logGoogleSheetEvent('NEW_ROWS_DETECTED', {
+                    ...baseLogContext,
+                    count: newRows.length,
+                    start_index: lastIndex
+                });
+
                 for (let i = 0; i < newRows.length; i++) {
                     const row = newRows[i];
                     const rowObj = this.mapRow(headers, row);
+                    const phone = rowObj[auto.mapping_config?.phone_col] || 'unknown';
 
                     // FIX: Apply Filtering Logic (Conditions)
                     const conditionMet = this.checkCondition(auto.trigger_condition, rowObj);
                     if (!conditionMet) {
-                        console.log(`[SheetAuto] New Row Skipped (Condition Failed): Phone=${rowObj[auto.mapping_config?.phone_col]}`);
-                        // We still count this as "processed" so we don't get stuck, effectively skipping it.
+                        console.log(`[SheetAuto] New Row Skipped (Condition Failed): Phone=${phone}`);
+                        logGoogleSheetEvent('ROW_SKIPPED', {
+                            ...baseLogContext,
+                            reason: 'Condition Failed',
+                            phone: phone,
+                            row_data: rowObj
+                        });
                         continue;
                     }
 
                     try {
                         await this.sendMessageWithHistory(auto, rowObj, null);
                         logSummary.sent_successfully++;
+
+                        logGoogleSheetEvent('MESSAGE_SENT', {
+                            ...baseLogContext,
+                            phone: phone,
+                            mode: 'New Row'
+                        });
 
                         if (statusColIndex !== -1) {
                             const rowIndex = lastIndex + i + 2;
@@ -550,8 +606,18 @@ class SheetAutomationService {
                         if (e.message !== 'Skipped: Duplicate Pending/Sent') {
                             logSummary.errors++;
                             console.error('Send Error:', e);
+                            logGoogleSheetEvent('SEND_ERROR', {
+                                ...baseLogContext,
+                                phone: phone,
+                                error: e.message
+                            });
                         } else {
                             logSummary.already_sent++;
+                            logGoogleSheetEvent('ROW_SKIPPED', {
+                                ...baseLogContext,
+                                reason: 'Duplicate (Pending/Sent)',
+                                phone: phone
+                            });
                         }
                     }
                 }
@@ -569,9 +635,17 @@ class SheetAutomationService {
                     statusColIndex = headers.findIndex(h => h && String(h).trim().toLowerCase() === String(statusColName).trim().toLowerCase());
                 }
 
+                logGoogleSheetEvent('START_SCHEDULE_SCAN', {
+                    ...baseLogContext,
+                    total_rows: dataRows.length,
+                    dedupe_mode: dedupeMode,
+                    recurring_mode: isRecurring
+                });
+
                 for (let i = 0; i < dataRows.length; i++) {
                     const row = dataRows[i];
                     const rowObj = this.mapRow(headers, row);
+                    const phone = rowObj[auto.mapping_config?.phone_col] || 'unknown';
 
                     // DEBUG: Log first row to verifying mapping
                     // console.log('[SheetAuto] Processing Row:', JSON.stringify(rowObj));
@@ -580,7 +654,7 @@ class SheetAutomationService {
                     const conditionMet = this.checkCondition(auto.trigger_condition, rowObj);
                     if (conditionMet) {
                         logSummary.conditions_met++;
-                        console.log(`[SheetAuto] Condition MET for row: Phone=${rowObj[auto.mapping_config?.phone_col]}`);
+                        console.log(`[SheetAuto] Condition MET for row: Phone=${phone}`);
 
                         // B. Check Write-back Status (Case Insensitive Lookup)
                         const statusCol = auto.mapping_config?.status_column;
@@ -593,6 +667,12 @@ class SheetAutomationService {
                             if (actualKey && rowObj[actualKey]?.trim().toLowerCase() === 'sent') {
                                 logSummary.already_sent++;
                                 console.log(`[SheetAuto] Skipped: Already marked as SENT in sheet (Col: ${actualKey}).`);
+
+                                logGoogleSheetEvent('ROW_SKIPPED', {
+                                    ...baseLogContext,
+                                    phone: phone,
+                                    reason: 'Status Column is SENT'
+                                });
                                 continue;
                             }
                         }
@@ -609,7 +689,14 @@ class SheetAutomationService {
                             // SCHEDULE TRIGGER: Strict Deduplication
                             if (sentHashes.has(rowHash)) {
                                 logSummary.already_sent++;
-                                // console.log('[SheetAuto] Skipped: Duplicate hash in history.');
+                                const msg = `Skipped: Message already sent to this row (Safety Lock). RowHash=${rowHash.substring(0, 8)}`;
+                                console.log(`[SheetAuto] ${msg}`);
+                                logGoogleSheetEvent('ROW_SKIPPED', {
+                                    ...baseLogContext,
+                                    phone: phone,
+                                    reason: 'Already Sent (History/Dedupe Prevention)',
+                                    hash: rowHash
+                                });
                                 continue;
                             }
                         }
@@ -623,6 +710,12 @@ class SheetAutomationService {
                             // Success -> Add to local dedupe set
                             sentHashes.add(rowHash);
 
+                            logGoogleSheetEvent('MESSAGE_SENT', {
+                                ...baseLogContext,
+                                phone: phone,
+                                hash: rowHash
+                            });
+
                             if (statusColIndex !== -1) {
                                 const rowIndex = i + 2; // 1-based (header=1) + index
                                 await this.writeStatus(authClient, spreadsheetId, auto.sheet_name, rowIndex, statusColIndex, 'Sent');
@@ -631,9 +724,19 @@ class SheetAutomationService {
                             if (e.message === 'Skipped: Duplicate Pending/Sent') {
                                 logSummary.already_sent++;
                                 console.log('[SheetAuto] Skipped due to concurrency (Duplicate Pending).');
+                                logGoogleSheetEvent('ROW_SKIPPED', {
+                                    ...baseLogContext,
+                                    phone: phone,
+                                    reason: 'Concurrency (Duplicate Pending)'
+                                });
                             } else {
                                 logSummary.errors++;
                                 console.error('[SheetAuto] Send Error:', e.message);
+                                logGoogleSheetEvent('SEND_ERROR', {
+                                    ...baseLogContext,
+                                    phone: phone,
+                                    error: e.message
+                                });
 
                                 // CRITICAL: Even if it fails (e.g. invalid template), we MUST add to history
                                 // to prevent the scheduler from retrying this same bad row every minute forever.
@@ -642,10 +745,9 @@ class SheetAutomationService {
                             }
                         }
                     } else {
-                        console.log(`[SheetAuto] Condition FAILED for row. Phone=${rowObj[auto.mapping_config?.phone_col] || 'N/A'}`);
-                        console.log(`   - Condition: ${JSON.stringify(auto.trigger_condition)}`);
-                        console.log(`   - Row Value: ${rowObj[auto.trigger_condition?.column]}`);
-                        console.log(`   - Parsed Date: ${this.parseDate(rowObj[auto.trigger_condition?.column])}`);
+                        // Condition Failed
+                        // Only log verbose if needed, usually just count
+                        // console.log(`[SheetAuto] Condition FAILED for row. Phone=${phone}`);
                     }
                 }
 
@@ -666,13 +768,12 @@ class SheetAutomationService {
             }
 
             // Log to File System
-            logGoogleSheetEvent('EXECUTION_SUMMARY', {
-                automation_id: auto.id,
-                automation_name: auto.name,
+            logGoogleSheetEvent('JOB_SUMMARY', {
+                ...baseLogContext,
                 is_manual: isManual,
                 recurring_mode: isRecurring ? 'YES' : 'NO',
                 dedupe_mode: dedupeMode,
-                ...logSummary
+                stats: logSummary
             });
 
             return logSummary;
