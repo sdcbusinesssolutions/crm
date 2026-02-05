@@ -186,11 +186,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                 try {
                     await moveLeadToStage(id, targetStageId);
                     fetchBoardData(selectedPipelineId || '');
-                    setToast({
+                    /* setToast({
                         type: 'success',
                         title: 'Lead Moved',
                         message: 'Lead status updated successfully.'
-                    });
+                    }); */
                 } catch (error) {
                     console.error('Failed to move lead', error);
                     setToast({
