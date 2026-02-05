@@ -210,7 +210,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             {/* Center: Pending Donut */}
                             <div className="flex items-center justify-center mt-1">
                                 <DonutRing
-                                    value={0}
+                                    value={followupData[3].val}
                                     target={100}
                                     color="#84cc16"
                                     trackColor="#84cc16"
