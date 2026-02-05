@@ -1056,7 +1056,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         onDragStart={(e) => handleDragStart(e, 'lead', lead.id)}
                                                         className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
                                                     >
-                                                        <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: column.stage.color }}></div>
+                                                        <div className="absolute left-0 top-0 right-0 h-1" style={{ backgroundColor: column.stage.color }}></div>
 
                                                         <div className="flex justify-between items-center mb-3">
                                                             <div className="flex items-center gap-3 overflow-hidden">
