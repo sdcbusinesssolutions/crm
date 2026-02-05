@@ -725,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             `}</style>
 
             {/* Top Navigation Bar */}
-            <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-4 md:px-8 md:py-5 flex items-center justify-between sticky top-0">
+            <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 md:px-8 flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-3">
                     {onToggleSidebar && (
                         <button
@@ -736,8 +736,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         </button>
                     )}
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Overview</h1>
-                        <p className="text-xs md:text-sm font-bold text-slate-500 mt-1 tracking-wide">COMMAND CENTER</p>
+                        <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Dashboard</h1>
                     </div>
                 </div>
                 {/* Right side actions removed as per request (moved to sidebar) */}
