@@ -258,7 +258,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                 {/* COL 2: 3D Funnel - Boxed & Centered */}
                 <div
-                    onClick={() => onNavigate('Pipelines')}
+                    onClick={() => onNavigate('Contacts')}
                     className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 bg-white h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
                 >
                     {/* Header */}
