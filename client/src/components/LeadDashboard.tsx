@@ -229,40 +229,40 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     return (
         <div className="p-6 space-y-8 animate-fade-in text-slate-800">
             {/* Hero Section */}
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white p-6">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white p-4">
                 {/* Abstract Background Shapes */}
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
 
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <div>
-                        <h2 className="text-2xl font-extrabold mb-1 tracking-tight">Lead Overview</h2>
-                        <p className="text-slate-300 max-w-xl text-sm">
+                        <h2 className="text-lg font-extrabold mb-0.5 tracking-tight">Lead Overview</h2>
+                        <p className="text-slate-300 max-w-xl text-xs">
                             Here's what's happening with your <strong>{pipelines.find(p => p.id === activePipelineId)?.name || 'Pipeline'}</strong> today.
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                         <div className="relative group">
                             <select
                                 value={activePipelineId || ''}
                                 onChange={(e) => setActivePipelineId(e.target.value)}
-                                className="appearance-none w-full md:w-64 pl-4 pr-10 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white font-bold backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all cursor-pointer"
+                                className="appearance-none w-full md:w-52 pl-3 pr-8 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white text-sm font-bold backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all cursor-pointer"
                             >
                                 {pipelines.map(p => (
                                     <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
                                 ))}
                             </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
                         <button
                             onClick={() => onNavigate('pipelines')}
-                            className="px-6 py-3 bg-brand-500 hover:bg-brand-400 text-white rounded-xl font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
+                            className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
                         >
                             <span>Go to Board</span>
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                         </button>
                     </div>
                 </div>
