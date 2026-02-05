@@ -213,7 +213,7 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                                     {auto.last_run_at ? new Date(auto.last_run_at).toLocaleString() : '-'}
                                 </td>
                                 <td className="px-6 py-4 text-right border-b border-slate-100">
-                                    <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center justify-end gap-2 text-right">
                                         <button
                                             onClick={() => handleToggleStatus(auto)}
                                             className="p-1 text-slate-400 hover:text-brand-600 transition-colors"
