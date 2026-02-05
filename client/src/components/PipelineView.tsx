@@ -1054,40 +1054,40 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         key={lead.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, 'lead', lead.id)}
-                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
+                                                        className="bg-[var(--color-surface)] p-3 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
                                                     >
                                                         <div className="absolute left-0 top-0 right-0 h-1" style={{ backgroundColor: column.stage.color }}></div>
 
-                                                        <div className="flex justify-between items-center mb-3">
-                                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${avatarClass}`}>
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <div className="flex items-center gap-2.5 overflow-hidden">
+                                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${avatarClass}`}>
                                                                     {(lead.name || '?').charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <div className="text-sm font-bold text-slate-800 truncate pr-2">{lead.name || 'Unnamed Lead'}</div>
+                                                                <div className="text-xs font-bold text-slate-800 truncate pr-2">{lead.name || 'Unnamed Lead'}</div>
                                                             </div>
                                                         </div>
 
-                                                        <div className="space-y-2 mb-3 bg-gradient-to-br from-slate-50 to-white p-3 rounded-xl border border-slate-200/60 shadow-sm">
+                                                        <div className="space-y-1 mb-2 bg-gradient-to-br from-slate-50 to-white p-2.5 rounded-xl border border-slate-200/60 shadow-sm">
                                                             {lead.company && (
-                                                                <div className="text-xs text-slate-700 font-semibold flex items-center gap-2.5">
-                                                                    <div className="w-6 h-6 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
-                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                                                <div className="text-[11px] text-slate-700 font-semibold flex items-center gap-2">
+                                                                    <div className="w-5 h-5 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                                                     </div>
                                                                     {lead.company}
                                                                 </div>
                                                             )}
                                                             {lead.email && (
-                                                                <div className="text-xs text-slate-700 font-semibold flex items-center gap-2.5 truncate">
-                                                                    <div className="w-6 h-6 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
-                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                                <div className="text-[11px] text-slate-700 font-semibold flex items-center gap-2 truncate">
+                                                                    <div className="w-5 h-5 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                                     </div>
                                                                     <span className="truncate">{lead.email}</span>
                                                                 </div>
                                                             )}
                                                             {lead.phone && (
-                                                                <div className="text-xs text-slate-700 font-semibold flex items-center gap-2.5">
-                                                                    <div className="w-6 h-6 rounded-lg bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
-                                                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                                <div className="text-[11px] text-slate-700 font-semibold flex items-center gap-2">
+                                                                    <div className="w-5 h-5 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                                                                     </div>
                                                                     {lead.phone}
                                                                 </div>
@@ -1095,16 +1095,16 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         </div>
 
                                                         {lead.tags && lead.tags.length > 0 && (
-                                                            <div className="flex flex-wrap gap-1 mb-3">
+                                                            <div className="flex flex-wrap gap-1 mb-2">
                                                                 {lead.tags.slice(0, 3).map(tag => (
-                                                                    <span key={tag} className="text-[10px] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 px-2 py-0.5 rounded-md font-medium">
+                                                                    <span key={tag} className="text-[10px] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 px-1.5 py-0.5 rounded-md font-medium">
                                                                         {tag}
                                                                     </span>
                                                                 ))}
                                                             </div>
                                                         )}
 
-                                                        <div className="flex justify-between items-center pt-3 border-t border-[var(--color-border)]">
+                                                        <div className="flex justify-between items-center pt-2 border-t border-[var(--color-border)]">
                                                             {/* Left Side: Actions */}
                                                             <div className="flex items-center gap-1">
                                                                 {/* Edit */}
