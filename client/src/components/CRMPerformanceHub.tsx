@@ -289,6 +289,17 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     strokeLinecap="round"
                                     className="animate-stroke-spin"
                                 />
+                                {/* Red Dashes Interspersed */}
+                                <ellipse
+                                    cx="150" cy="25" rx="148" ry="24"
+                                    fill="none"
+                                    stroke="#ef4444"
+                                    strokeWidth="4"
+                                    strokeDasharray="20 20"
+                                    strokeDashoffset="20"
+                                    strokeLinecap="round"
+                                    className="animate-stroke-spin"
+                                />
                                 <ellipse cx="150" cy="25" rx="110" ry="14" fill="#334155" /> {/* Dark Hole */}
                             </svg>
                         </div>
