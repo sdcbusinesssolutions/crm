@@ -1332,7 +1332,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             </div>
 
             {/* Main Chat Area */}
-            <div className={`flex-1 flex flex-col bg-[#efeae2] fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+            <div className={`flex-1 flex flex-col bg-[#0b141a] fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                 {activeChat ? (
                     <>
                         {/* Chat Header */}
@@ -1453,7 +1453,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </header>
 
                         {/* Messages Area */}
-                        <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")', backgroundRepeat: 'repeat', backgroundSize: '400px' }}>
+                        <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                             {/* Date Divider */}
                             <div className="flex justify-center my-4">
                                 <span className="bg-white/90 shadow-sm px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today</span>
