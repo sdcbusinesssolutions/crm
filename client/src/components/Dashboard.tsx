@@ -563,7 +563,7 @@ const WhatsAppScannerCard: React.FC<{
 
                 {/* Health & Limits Block */}
                 {phone && (
-                    <div className="mt-2 flex items-center justify-center gap-4 bg-white/5 rounded-xl p-2 border border-white/10">
+                    <div className="mt-2 flex items-center justify-center gap-4 bg-white/5 rounded-xl p-2 border border-[#84cc16]">
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Quality</span>
                             <div className="flex items-center gap-1.5 justify-center mt-0.5">
