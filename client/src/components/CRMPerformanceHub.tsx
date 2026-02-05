@@ -206,34 +206,51 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             </div>
                         </div>
 
-                        <div className="flex-1 flex items-center justify-between px-2">
-                            {/* Left: Pending Donut */}
-                            <div className="flex items-center justify-center">
+                        <div className="flex-1 flex flex-col items-center justify-between py-1 px-1">
+                            {/* Center: Pending Donut */}
+                            <div className="flex items-center justify-center mt-1">
                                 <DonutRing
                                     value={0}
                                     target={100}
-                                    color="#10b981" // Green
-                                    trackColor="#f1f5f9"
-                                    label="PENDING"
-                                    icon="" // No inner icon, just text 0
-                                    knobColor="#10b981"
-                                    knobBg="#10b981"
-                                    size={110}
+                                    color="#84cc16"
+                                    trackColor="#84cc16"
+                                    label=""
+                                    icon=""
+                                    knobColor="#84cc16"
+                                    knobBg="#84cc16"
+                                    size={135}
                                     valueClassName="text-3xl"
                                 />
                             </div>
 
-                            {/* Right: Stats List */}
-                            <div className="flex flex-col gap-2 flex-1 ml-4 justify-center">
-                                {followupData.map((d, i) => (
-                                    <div key={i} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>
-                                            <span className="text-[10px] font-bold text-slate-700 uppercase">{d.label === 'TODAY' ? 'DUE TODAY' : d.label === 'NEXT' ? 'UPCOMING' : d.label === 'LATE' ? 'OVERDUE' : 'COMPLETED'}</span>
-                                        </div>
-                                        <span className="text-[11px] font-black text-slate-800">{d.val}</span>
+                            {/* Bottom: Stats Rows */}
+                            <div className="w-full flex flex-col gap-1.5 mt-2">
+                                {/* Row 1: Today & Upcoming */}
+                                <div className="flex items-center justify-between px-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: followupData[0].color }}></span>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase">DUE TODAY</span>
+                                        <span className="text-[10px] font-black text-slate-800">{followupData[0].val}</span>
                                     </div>
-                                ))}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: followupData[1].color }}></span>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase">UPCOMING</span>
+                                        <span className="text-[10px] font-black text-slate-800">{followupData[1].val}</span>
+                                    </div>
+                                </div>
+                                {/* Row 2: Overdue & Completed */}
+                                <div className="flex items-center justify-between px-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: followupData[2].color }}></span>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase">OVERDUE</span>
+                                        <span className="text-[10px] font-black text-slate-800">{followupData[2].val}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: followupData[3].color }}></span>
+                                        <span className="text-[9px] font-bold text-slate-500 uppercase">COMPLETED</span>
+                                        <span className="text-[10px] font-black text-slate-800">{followupData[3].val}</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

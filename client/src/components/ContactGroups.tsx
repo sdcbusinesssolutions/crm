@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ContactGroup } from '../types';
 import { contactGroupService } from '../services/contactGroupService';
-import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, UsersIcon, ChevronDownIcon, BriefcaseIcon } from './icons';
+import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, UsersIcon, ChevronDownIcon, BriefcaseIcon, DownloadIcon } from './icons';
 
 interface ContactGroupsProps {
     onGroupClick?: (groupId: string) => void;
@@ -27,6 +27,7 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     const [editingGroup, setEditingGroup] = useState<ContactGroup | null>(null);
     const [formData, setFormData] = useState<Partial<ContactGroup>>({ name: '', description: '', contactCount: 0 });
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'single' | 'bulk'; id?: string; count?: number }>({ isOpen: false, type: 'single' });
+    const [exportingId, setExportingId] = useState<string | null>(null);
 
     useEffect(() => {
         if (onGroupCountUpdate) {
@@ -90,6 +91,47 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
         const newStatus = group.status === 'Active' ? 'Archive' : 'Active';
         await contactGroupService.saveGroup({ ...group, status: newStatus as 'Active' | 'Archive' });
         await loadGroups();
+    };
+
+    const handleExport = async (group: ContactGroup) => {
+        setExportingId(group.id);
+        try {
+            const contacts = await contactGroupService.exportGroupContacts(group.id);
+            if (!contacts || contacts.length === 0) {
+                alert('No contacts found in this group.');
+                setExportingId(null);
+                return;
+            }
+
+            // Convert to CSV
+            const headers = ['Name', 'Phone', 'Email', 'Source', 'Status', 'Created At'];
+            const csvContent = [
+                headers.join(','),
+                ...contacts.map(c => [
+                    `"${c.name || ''}"`,
+                    `"${c.phone || ''}"`,
+                    `"${c.email || ''}"`,
+                    `"${c.source || ''}"`,
+                    `"${c.status || ''}"`,
+                    `"${c.created_at ? new Date(c.created_at).toLocaleDateString() : ''}"`
+                ].join(','))
+            ].join('\n');
+
+            // Download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${group.name}_contacts.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Export failed:', error);
+            alert('Failed to export contacts.');
+        } finally {
+            setExportingId(null);
+        }
     };
 
     const handleSelectAll = () => {
@@ -194,7 +236,20 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                                             <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(group.createdAt)}</td>
                                             <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">{formatDate(group.updatedAt || group.createdAt)}</td>
                                             <td className="px-6 py-4 text-sm text-slate-500">{group.description || '-'}</td>
-                                            <td className="px-6 py-4 text-right"><div className="flex items-center justify-end space-x-2"><button onClick={() => handleOpenModal(group)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleArchive(group)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><BriefcaseIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(group.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-4 h-4" /></button></div></td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end space-x-2">
+                                                    <button onClick={() => handleExport(group)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Export Contacts">
+                                                        {exportingId === group.id ? (
+                                                            <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                                        ) : (
+                                                            <DownloadIcon className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                    <button onClick={() => handleOpenModal(group)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleArchive(group)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><BriefcaseIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleDelete(group.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                </div>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -206,7 +261,17 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                                 <div key={group.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(group.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}>
                                     <div className="absolute top-5 right-5"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(group.id)} onChange={() => handleSelectRow(group.id)} /></div>
                                     <h3 className="font-bold text-slate-900 text-lg">{group.name}</h3>
-                                    <div className="flex justify-end gap-3 pt-3 border-t border-slate-100"><button onClick={() => handleOpenModal(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(group.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div>
+                                    <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                                        <button onClick={() => handleExport(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-green-600 border border-slate-200 hover:border-green-200">
+                                            {exportingId === group.id ? (
+                                                <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                                            ) : (
+                                                <DownloadIcon className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                        <button onClick={() => handleOpenModal(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button>
+                                        <button onClick={() => handleDelete(group.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

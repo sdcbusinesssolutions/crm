@@ -118,4 +118,52 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+
+router.get('/:id/export', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Use Admin to fetch all without limits
+    const supabase = supabaseAdmin;
+
+    // We need to fetch all contacts for this group. 
+    // Since we maintain group_ids as a JSONB/Array column, we can use the 'cs' (contains) operator.
+    // However, Supabase JS uses .contains('column', ['value']) for array columns.
+
+    // FETCH ALL STRATEGY (Looping) to ensure we get > 1000 contacts if needed
+    let allContacts = [];
+    let pageIndex = 0;
+    const chunkSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const from = pageIndex * chunkSize;
+      const to = from + chunkSize - 1;
+
+      const { data: chunk, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('user_id', req.user.id)
+        .contains('group_ids', [id])
+        .range(from, to);
+
+      if (error) throw error;
+
+      if (chunk && chunk.length > 0) {
+        allContacts = allContacts.concat(chunk);
+        if (chunk.length < chunkSize) hasMore = false;
+        else pageIndex++;
+      } else {
+        hasMore = false;
+      }
+
+      if (allContacts.length > 150000) break; // Hard safety limit
+    }
+
+    res.json(allContacts);
+  } catch (err) {
+    console.error("Error exporting group contacts:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

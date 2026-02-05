@@ -52,5 +52,17 @@ export const contactGroupService = {
         } catch (e) {
             console.error("Error deleting group", e);
         }
+    },
+
+    exportGroupContacts: async (id: string): Promise<any[]> => {
+        try {
+            const headers = await getHeaders();
+            const res = await fetch(`/api/groups/${id}/export`, { headers });
+            if (!res.ok) throw new Error('Failed to export contacts');
+            return await res.json();
+        } catch (e) {
+            console.error("Error exporting group contacts", e);
+            return [];
+        }
     }
 };
