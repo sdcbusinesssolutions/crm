@@ -6,6 +6,7 @@ import Modal from './Modal';
 import DatabaseSetup from './DatabaseSetup';
 import Toast from './Toast';
 import PhoneInputWithCountry from './PhoneInputWithCountry';
+import EmailModal from './EmailModal';
 import {
     getPipelines,
     getKanbanBoard,
@@ -75,6 +76,10 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
     const [newAppointment, setNewAppointment] = useState({ title: '', start_time: '', end_time: '', description: '' });
     const [newCallLog, setNewCallLog] = useState({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
+
+    // Email Modal State
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [emailRecipient, setEmailRecipient] = useState({ email: '', name: '' });
 
     const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
 
@@ -1136,7 +1141,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 {/* Email */}
                                                                 {lead.email && (
                                                                     <button
-                                                                        onClick={(e) => { e.stopPropagation(); window.open(`mailto:${lead.email}`, '_blank'); }}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEmailRecipient({ email: lead.email, name: lead.name || '' });
+                                                                            setIsEmailModalOpen(true);
+                                                                        }}
                                                                         className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
                                                                         title="Email"
                                                                     >
@@ -1869,6 +1878,14 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                     />
                 )
             }
+
+            {/* Email Modal */}
+            <EmailModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                recipientEmail={emailRecipient.email}
+                recipientName={emailRecipient.name}
+            />
         </div >
     );
 };
