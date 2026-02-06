@@ -106,5 +106,35 @@ export const inboxService = {
             console.error("Failed to clear chat", e);
             throw e;
         }
+    },
+
+    blockContact: async (conversationId: string): Promise<boolean> => {
+        try {
+            const headers = getAuthHeaders();
+            const response = await fetch(`${API_BASE}/conversations/${conversationId}/block`, {
+                method: 'POST',
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to block contact');
+            return true;
+        } catch (e) {
+            console.error("Failed to block contact", e);
+            throw e;
+        }
+    },
+
+    unblockContact: async (conversationId: string): Promise<boolean> => {
+        try {
+            const headers = getAuthHeaders();
+            const response = await fetch(`${API_BASE}/conversations/${conversationId}/unblock`, {
+                method: 'POST',
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to unblock contact');
+            return true;
+        } catch (e) {
+            console.error("Failed to unblock contact", e);
+            throw e;
+        }
     }
 };

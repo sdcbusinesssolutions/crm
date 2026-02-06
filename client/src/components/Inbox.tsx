@@ -59,6 +59,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
+    const [contactStatus, setContactStatus] = useState<string | null>(null);
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -169,6 +170,35 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
     );
+
+    // Load contact status when active chat changes
+    useEffect(() => {
+        if (!activeChat) {
+            setContactStatus(null);
+            return;
+        }
+
+        const loadContactStatus = async () => {
+            try {
+                const phone = activeChat.contact_phone;
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const { data: contact } = await (supabase
+                    .from('contacts') as any)
+                    .select('status')
+                    .eq('phone', phone)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                setContactStatus(contact?.status || 'Active');
+            } catch (error) {
+                console.error('Failed to load contact status:', error);
+                setContactStatus('Active');
+            }
+        };
+        loadContactStatus();
+    }, [activeChat]);
 
     const filteredChats = useMemo(() => {
         return conversations.filter(chat => {
@@ -585,6 +615,42 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
         setIsHeaderMenuOpen(false);
+    };
+
+    const handleBlockContact = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!activeChatId) return;
+
+        if (window.confirm("Are you sure you want to block this contact? They will be marked as 'Blocked'.")) {
+            try {
+                await inboxService.blockContact(activeChatId);
+                setContactStatus('Blocked'); // Update local state
+                alert("Contact blocked successfully.");
+                setIsHeaderMenuOpen(false);
+            } catch (error: any) {
+                console.error("Error blocking contact:", error);
+                alert(`Failed to block contact: ${error.message || "Unknown error"}`);
+            }
+        }
+    };
+
+    const handleUnblockContact = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!activeChatId) return;
+
+        if (window.confirm("Are you sure you want to unblock this contact? They will be marked as 'Active'.")) {
+            try {
+                await inboxService.unblockContact(activeChatId);
+                setContactStatus('Active'); // Update local state
+                alert("Contact unblocked successfully.");
+                setIsHeaderMenuOpen(false);
+            } catch (error: any) {
+                console.error("Error unblocking contact:", error);
+                alert(`Failed to unblock contact: ${error.message || "Unknown error"}`);
+            }
+        }
     };
 
     const handleExportChat = (e: React.MouseEvent) => {
@@ -1655,9 +1721,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     <DownloadIcon className="w-4 h-4" /> Export Chat
                                                 </button>
                                                 <div className="h-px bg-slate-100 my-1"></div>
-                                                <button className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
-                                                    <CloseIcon className="w-4 h-4" /> Block Contact
-                                                </button>
+                                                {contactStatus === 'Blocked' ? (
+                                                    <button onClick={handleUnblockContact} className="w-full text-left px-4 py-3 text-sm text-green-600 hover:bg-green-50 transition-colors flex items-center gap-2 font-medium">
+                                                        <CheckIcon className="w-4 h-4" /> Unblock Contact
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={handleBlockContact} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
+                                                        <CloseIcon className="w-4 h-4" /> Block Contact
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={(e) => {
                                                         setIsHeaderMenuOpen(false);

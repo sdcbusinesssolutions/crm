@@ -353,4 +353,134 @@ router.delete('/messages/:conversationId', async (req, res) => {
     }
 });
 
+// ==========================================
+// 7. Block Contact (User-Specific)
+// ==========================================
+router.post('/conversations/:conversationId/block', async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user.id; // Get the authenticated user's ID
+        const { supabaseAdmin } = require('../lib/supabaseClient'); // Use Admin execution to bypass RLS
+
+        console.log(`[Inbox] Block request from user ${userId} for conversation ${conversationId}`);
+
+        // 1. Get Conversation to find phone number AND verify ownership
+        const { data: conversation, error: convErr } = await supabaseAdmin
+            .from('conversations')
+            .select('contact_phone, user_id')
+            .eq('id', conversationId)
+            .single();
+
+        if (convErr || !conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        // 2. Verify the conversation belongs to the requesting user
+        if (conversation.user_id !== userId) {
+            console.warn(`[Inbox] Unauthorized block attempt. Conversation owner: ${conversation.user_id}, Requestor: ${userId}`);
+            return res.status(403).json({ error: 'Unauthorized: You do not own this conversation' });
+        }
+
+        const phone = conversation.contact_phone;
+
+        console.log(`[Inbox] Blocking contact with phone ${phone} for user ${userId}...`);
+
+        // 3. Update Contact Status to 'Blocked' ONLY for this specific user
+        const { data: updatedContact, error: updateErr } = await supabaseAdmin
+            .from('contacts')
+            .update({ status: 'Blocked' })
+            .eq('phone', phone)
+            .eq('user_id', userId) // ✅ CRITICAL: Only update for THIS user
+            .select() // Return updated record
+            .maybeSingle(); // Use maybeSingle in case contact doesn't exist (only raw conversation)
+
+        if (updateErr) throw updateErr;
+
+        if (!updatedContact) {
+            // If contact doesn't exist in 'contacts' table, create it as blocked for THIS user
+            console.warn(`[Inbox] Contact not found for phone ${phone} and user ${userId}. Creating blocked contact record.`);
+
+            await supabaseAdmin.from('contacts').insert({
+                user_id: userId, // ✅ Use the authenticated user's ID
+                phone: phone,
+                name: 'Unknown',
+                status: 'Blocked',
+                source: 'Inbox Block'
+            });
+        }
+
+        console.log(`[Inbox] Contact ${phone} blocked successfully for user ${userId}.`);
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error blocking contact:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==========================================
+// 8. Unblock Contact (User-Specific)
+// ==========================================
+router.post('/conversations/:conversationId/unblock', async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user.id; // Get the authenticated user's ID
+        const { supabaseAdmin } = require('../lib/supabaseClient'); // Use Admin execution to bypass RLS
+
+        console.log(`[Inbox] Unblock request from user ${userId} for conversation ${conversationId}`);
+
+        // 1. Get Conversation to find phone number AND verify ownership
+        const { data: conversation, error: convErr } = await supabaseAdmin
+            .from('conversations')
+            .select('contact_phone, user_id')
+            .eq('id', conversationId)
+            .single();
+
+        if (convErr || !conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        // 2. Verify the conversation belongs to the requesting user
+        if (conversation.user_id !== userId) {
+            console.warn(`[Inbox] Unauthorized unblock attempt. Conversation owner: ${conversation.user_id}, Requestor: ${userId}`);
+            return res.status(403).json({ error: 'Unauthorized: You do not own this conversation' });
+        }
+
+        const phone = conversation.contact_phone;
+
+        console.log(`[Inbox] Unblocking contact with phone ${phone} for user ${userId}...`);
+
+        // 3. Update Contact Status to 'Active' ONLY for this specific user
+        const { data: updatedContact, error: updateErr } = await supabaseAdmin
+            .from('contacts')
+            .update({ status: 'Active' })
+            .eq('phone', phone)
+            .eq('user_id', userId) // ✅ CRITICAL: Only update for THIS user
+            .select() // Return updated record
+            .maybeSingle(); // Use maybeSingle in case contact doesn't exist
+
+        if (updateErr) throw updateErr;
+
+        if (!updatedContact) {
+            // If contact doesn't exist, create it as Active for THIS user
+            console.warn(`[Inbox] Contact not found for phone ${phone} and user ${userId}. Creating active contact record.`);
+
+            await supabaseAdmin.from('contacts').insert({
+                user_id: userId, // ✅ Use the authenticated user's ID
+                phone: phone,
+                name: 'Unknown',
+                status: 'Active',
+                source: 'Inbox Unblock'
+            });
+        }
+
+        console.log(`[Inbox] Contact ${phone} unblocked successfully for user ${userId}.`);
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Error unblocking contact:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
