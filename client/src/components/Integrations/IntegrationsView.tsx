@@ -124,6 +124,44 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) 
                             Coming Soon
                         </button>
                     </div>
+
+                    {/* Webhook Integration */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 text-purple-600 font-bold text-xl">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">Webhook Integration</h3>
+                        <p className="text-slate-500 text-sm mb-6">
+                            Receive and send data via webhooks to connect with external systems
+                        </p>
+                        <button
+                            onClick={() => window.location.href = '/flows'}
+                            className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
+                            style={{ backgroundColor: brandColor, color: '#fff' }}>
+                            Configure
+                        </button>
+                    </div>
+
+                    {/* API Integration */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-4 text-emerald-600 font-bold text-xl">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">API Integration</h3>
+                        <p className="text-slate-500 text-sm mb-6">
+                            Access our REST API to build custom integrations and automations
+                        </p>
+                        <button
+                            onClick={() => window.location.href = '/flows'}
+                            className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
+                            style={{ backgroundColor: brandColor, color: '#fff' }}>
+                            View Documentation
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
