@@ -1282,9 +1282,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     return (
         <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
             {/* Left Sidebar: Conversation List */}
-            <div className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+            <div className={`w-full md:w-80 lg:w-96 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
-                <div className="p-4 border-b border-slate-100 bg-white z-20">
+                <div className="p-4 bg-white z-20">
                     <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
                             {/* Mobile Menu Button (Only if onToggleSidebar is provided) */}
@@ -1495,7 +1495,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 {activeChat ? (
                     <>
                         {/* Chat Header */}
-                        <header className="bg-white px-3 py-2 border-b border-slate-200 flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
+                        <header className="bg-white px-3 py-2 border-b border-[#00684a] flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
                             <div
                                 className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden mr-2 cursor-pointer hover:bg-slate-50 rounded-lg p-1 transition-colors"
                                 onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}
@@ -1572,16 +1572,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     );
                                 })()}
 
-                                <button onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-400 hover:bg-slate-50'}`}>
+                                <button onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-600 hover:bg-slate-50'}`}>
                                     <UsersIcon className="w-5 h-5" />
                                 </button>
-                                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg"><SearchIcon className="w-5 h-5" /></button>
+                                <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg"><SearchIcon className="w-5 h-5" /></button>
 
                                 {/* 3 Dot Menu Trigger */}
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsHeaderMenuOpen(!isHeaderMenuOpen)}
-                                        className={`p-2 rounded-lg transition-colors ${isHeaderMenuOpen ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
+                                        className={`p-2 rounded-lg transition-colors ${isHeaderMenuOpen ? 'bg-brand-50 text-brand-600' : 'text-slate-600 hover:text-brand-600 hover:bg-slate-50'}`}
                                     >
                                         <MoreVerticalIcon className="w-5 h-5" />
                                     </button>
