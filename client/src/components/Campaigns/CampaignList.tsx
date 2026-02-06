@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { PlusIcon, SearchIcon, EyeIcon } from '../icons';
+import { PlusIcon, SearchIcon, EyeIcon, TrashIcon } from '../icons';
 import { supabase } from '../../lib/supabase';
 
 interface Campaign {
@@ -46,6 +46,29 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
             console.error('Error fetching campaigns:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleDelete = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!window.confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) return;
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const response = await fetch(`/api/campaigns/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to delete campaign');
+
+            // Refresh list
+            fetchCampaigns();
+        } catch (error) {
+            console.error('Error deleting campaign:', error);
+            alert('Failed to delete campaign');
         }
     };
 
@@ -201,6 +224,14 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                                                     </button>
                                                     <button className="px-3 py-1.5 bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-xs font-bold rounded-[var(--radius-btn)] hover:bg-[var(--color-surface)] transition-all">
                                                         Archive
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDelete(campaign.id, e)}
+                                                        className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-[var(--radius-btn)] hover:bg-red-100 transition-all flex items-center gap-1"
+                                                        title="Delete Campaign"
+                                                    >
+                                                        <TrashIcon className="w-3 h-3" />
+                                                        Delete
                                                     </button>
                                                 </div>
                                             </td>

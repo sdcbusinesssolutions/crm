@@ -395,4 +395,32 @@ router.get('/:id/export', async (req, res) => {
     }
 });
 
+// DELETE /:id - Delete Campaign
+router.delete('/:id', async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+
+        // 1. Delete associated queue items first (if cascade isn't set, better safe)
+        const { error: queueError } = await supabase
+            .from('campaign_queue')
+            .delete()
+            .eq('campaign_id', req.params.id);
+
+        if (queueError) throw queueError;
+
+        // 2. Delete the campaign
+        const { error } = await supabase
+            .from('campaigns')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (e) {
+        console.error('Delete Error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
