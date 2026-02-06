@@ -12,6 +12,7 @@ import { themeService } from '../services/themeService';
 import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
 import { Conversation, Message } from '../types';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -32,7 +33,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [filterTag, setFilterTag] = useState('');
     const [messageInput, setMessageInput] = useState('');
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
+    const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+
+    // Recording State
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    // Track user intent for attachment type (e.g. sending image as 'document')
+    const attachmentTypeRef = useRef<string>('document');
     const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -275,7 +285,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const handleAttachmentClick = (type: string) => {
         if (fileInputRef.current) {
-            // In a real app, you might restrict accept types based on 'type'
+            attachmentTypeRef.current = type;
+            let accept = '*/*';
+            switch (type) {
+                case 'image': accept = 'image/*'; break;
+                case 'video': accept = 'video/*'; break;
+                case 'audio': accept = 'audio/*'; break;
+                case 'document': accept = '*/*'; break;
+            }
+            fileInputRef.current.accept = accept;
             fileInputRef.current.click();
         }
         setIsAttachmentOpen(false);
@@ -323,10 +341,20 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             // Optimistic UI
             const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            let type = 'document';
-            if (file.type.startsWith('image')) type = 'image';
-            else if (file.type.startsWith('video')) type = 'video';
-            else if (file.type.startsWith('audio')) type = 'audio';
+
+            // Determine type: Use user selection if 'document', otherwise auto-detect to ensure consistency
+            let type = attachmentTypeRef.current;
+
+            // If user clicked 'document', keep it as document (even if it's an image)
+            // If user clicked media types, verify/force the detected type matches
+            if (type !== 'document') {
+                if (file.type.startsWith('image')) type = 'image';
+                else if (file.type.startsWith('video')) type = 'video';
+                else if (file.type.startsWith('audio')) type = 'audio';
+                else type = 'document'; // Fallback if they picked a file not matching the requested media
+            } else {
+                type = 'document';
+            }
 
             const optimisticMsg: Message = {
                 id: tempId,
@@ -369,6 +397,120 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
         // Reset input
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const formatDuration = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const sendVoiceMessage = async (audioBlob: Blob) => {
+        // WhatsApp API does not support audio/webm. We convert to audio/ogg (content is usually Opus, which WA accepts as OGG)
+        const file = new File([audioBlob], `voice_message_${Date.now()}.ogg`, { type: 'audio/ogg' });
+
+        // Optimistic UI
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const optimisticMsg: Message = {
+            id: tempId,
+            conversation_id: activeChatId,
+            type: 'audio',
+            text: 'Voice Message',
+            direction: 'out',
+            status: 'sent',
+            created_at: new Date().toISOString(),
+            media_url: URL.createObjectURL(file), // Local preview
+            filename: file.name,
+            mime_type: file.type
+        };
+        setMessages(prev => [...prev, optimisticMsg]);
+        isSendingRef.current = true;
+
+        try {
+            const mediaUrl = await inboxService.uploadMedia(file);
+            if (mediaUrl) {
+                const sentMsg = await inboxService.sendMessage(activeChatId, {
+                    type: 'audio',
+                    media_url: mediaUrl,
+                    text: 'Voice Message'
+                });
+                if (sentMsg) {
+                    setMessages(prev => {
+                        const updated = prev.map(m => m.id === tempId ? sentMsg : m);
+                        return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error sending voice message:", error);
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+        } finally {
+            isSendingRef.current = false;
+        }
+    };
+
+    const handleStartRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            const chunks: BlobPart[] = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                // Only send if it wasn't cancelled (checked via state in caller, but safely handled here)
+                // We'll rely on handleStopRecording to trigger the send if appropriate
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            // Custom method attached to the recorder to access chunks later if needed
+            // @ts-ignore
+            mediaRecorder.getBlob = () => new Blob(chunks, { type: 'audio/webm' });
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingDuration(0);
+
+            timerIntervalRef.current = setInterval(() => {
+                setRecordingDuration(prev => prev + 1);
+            }, 1000);
+
+        } catch (err) {
+            console.error("Error accessing microphone:", err);
+            alert("Could not access microphone. Please ensure permissions are granted.");
+        }
+    };
+
+    const handleStopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            const recorder = mediaRecorderRef.current;
+
+            recorder.addEventListener('stop', () => {
+                // @ts-ignore
+                const blob = recorder.getBlob();
+                sendVoiceMessage(blob);
+            }, { once: true });
+
+            recorder.stop();
+            setIsRecording(false);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        }
+    };
+
+    const handleCancelRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop(); // Stops stream but we don't handle data
+            setIsRecording(false);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        }
+    };
+
+    const handleEmojiClick = (emojiData: EmojiClickData) => {
+        setMessageInput((prev) => prev + emojiData.emoji);
     };
 
     const handleExportContactList = (e: React.MouseEvent) => {
@@ -1332,7 +1474,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             </div>
 
             {/* Main Chat Area */}
-            <div className={`flex-1 flex flex-col bg-[#0b141a] fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+            <div
+                className={`flex-1 flex flex-col fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
+                style={{
+                    backgroundColor: '#161717',
+                    backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')",
+                    backgroundSize: '400px',
+                    backgroundBlendMode: 'overlay',
+                    backgroundRepeat: 'repeat'
+                }}
+            >
                 {activeChat ? (
                     <>
                         {/* Chat Header */}
@@ -1509,7 +1660,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
 
                         {/* Input Area */}
-                        <div className="bg-white px-4 py-3 border-t border-slate-200 flex items-end space-x-2 shrink-0 relative">
+                        <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md">
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
 
                             {/* Attachment Menu */}
@@ -1533,7 +1684,26 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 </>
                             )}
 
-                            <button className="p-2 text-slate-400 hover:text-brand-600 transition-colors"><EmojiIcon className="w-6 h-6" /></button>
+                            <button
+                                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                                className={`p-2 transition-colors ${isEmojiPickerOpen ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
+                            >
+                                <EmojiIcon className="w-6 h-6" />
+                            </button>
+
+                            {isEmojiPickerOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsEmojiPickerOpen(false)}></div>
+                                    <div className="absolute bottom-16 left-0 z-40 animate-fade-in shadow-2xl rounded-2xl overflow-hidden border border-[#00684a]/20">
+                                        <EmojiPicker
+                                            onEmojiClick={handleEmojiClick}
+                                            width={350}
+                                            height={450}
+                                            previewConfig={{ showPreview: false }}
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             <button
                                 onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
@@ -1542,25 +1712,55 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <PaperClipIcon className="w-6 h-6" />
                             </button>
 
-                            <div className="flex-1 bg-slate-100 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-400 transition-all flex items-center px-3 py-2">
-                                <textarea
-                                    rows={1}
-                                    placeholder="Type a message..."
-                                    value={messageInput}
-                                    onChange={(e) => setMessageInput(e.target.value)}
-                                    onKeyDown={handleKeyDown}
-                                    className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
-                                />
-                            </div>
-                            {messageInput.trim() ? (
-                                <button onClick={handleSendMessage} className="p-2.5 bg-brand-600 text-white rounded-full shadow-md hover:bg-brand-700 transition-transform active:scale-95">
+                            {isRecording ? (
+                                <div className="flex-1 bg-slate-100 rounded-3xl border border-red-500/30 flex items-center justify-between px-4 py-2 animate-pulse-subtle">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                                        <span className="text-slate-700 font-mono font-medium min-w-[3rem]">{formatDuration(recordingDuration)}</span>
+                                        <span className="text-xs text-slate-400">Recording...</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={handleCancelRecording}
+                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors tooltip hover:bg-red-50 rounded-full"
+                                            title="Cancel recording"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={handleStopRecording}
+                                            className="p-2 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95 flex items-center justify-center"
+                                            title="Send voice message"
+                                        >
+                                            <PaperAirplaneIcon className="w-4 h-4 ml-0.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 bg-slate-100 rounded-2xl border border-[#00684a] focus-within:ring-1 focus-within:ring-[#00684a] flex items-center px-4 py-2">
+                                    <textarea
+                                        rows={1}
+                                        placeholder="Type a message..."
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onKeyDown={handleKeyDown}
+                                        className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
+                                    />
+                                </div>
+                            )}
+
+                            {!isRecording && (messageInput.trim() ? (
+                                <button onClick={handleSendMessage} className="p-2.5 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95">
                                     <PaperAirplaneIcon className="w-5 h-5" />
                                 </button>
                             ) : (
-                                <button className="p-2.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors">
+                                <button
+                                    onClick={handleStartRecording}
+                                    className="p-2.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
+                                >
                                     <MicrophoneIcon className="w-5 h-5" />
                                 </button>
-                            )}
+                            ))}
                         </div>
                     </>
                 ) : (

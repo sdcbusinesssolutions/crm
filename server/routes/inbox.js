@@ -121,8 +121,8 @@ router.post('/messages/:conversationId', async (req, res) => {
                     const ext = path.extname(localPath).toLowerCase();
                     const mimeTypes = {
                         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
-                        '.mp4': 'video/mp4', '.3gp': 'video/3gpp', '.mov': 'video/mp4',
-                        '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.wav': 'audio/wav', '.mpeg': 'audio/mpeg',
+                        '.mp4': 'video/mp4', '.3gp': 'video/3gpp', '.mov': 'video/mp4', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.webm': 'video/webm', '.mpeg': 'video/mpeg',
+                        '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.wav': 'audio/wav', '.mpeg-audio': 'audio/mpeg',
                         '.pdf': 'application/pdf',
                         '.doc': 'application/msword',
                         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -130,9 +130,9 @@ router.post('/messages/:conversationId', async (req, res) => {
                         '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
                         '.xls': 'application/vnd.ms-excel',
                         '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                        '.csv': 'text/plain', // WhatsApp rejects text/csv, must be text/plain
+                        '.csv': 'text/csv',
                         '.txt': 'text/plain',
-                        '.json': 'text/plain' // WhatsApp rejects application/json, must be text/plain
+                        '.json': 'application/json'
                     };
 
                     let mimeType = mimeTypes[ext] || 'application/octet-stream';
@@ -150,12 +150,11 @@ router.post('/messages/:conversationId', async (req, res) => {
 
                     if (fileSizeInBytes > 15 * 1024 * 1024) { // 15MB (safety buffer)
                         if (type === 'video' || type === 'audio') {
-                            console.warn(`File size (${fileSizeInBytes}) exceeds 16MB limit for ${type}. Switching to 'document' mode.`);
-                            type = 'document'; // Force message type to document
+                            console.warn(`File size (${fileSizeInBytes}) exceeds 16MB limit for ${type}. Switching to 'document' mode with MIME: ${mimeType}`);
+                            type = 'document'; // Force message type to document to allow up to 100MB
 
-                            // Force MIME type to something that allows 100MB uploads
-                            // 'text/plain' is safe and allows 100MB.
-                            mimeType = 'text/plain';
+                            // DO NOT force text/plain. WhatsApp accepts native video/audio MIME types when sent as 'document'.
+                            // Only use application/octet-stream if strictly needed by a specific edge case, but native is better.
                         }
                     }
 
