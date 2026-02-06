@@ -525,6 +525,96 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         }
     };
 
+    // Export Leads to CSV
+    const handleExportLeads = () => {
+        if (!filteredBoardData) return;
+
+        // Collect all leads from filtered columns
+        const allLeads: Lead[] = [];
+        filteredBoardData.columns.forEach(col => {
+            col.leads.forEach(lead => {
+                allLeads.push({
+                    ...lead,
+                    stage_name: col.stage.name
+                } as any);
+            });
+        });
+
+        if (allLeads.length === 0) {
+            setToast({
+                type: 'warning',
+                title: 'No Leads',
+                message: 'No leads to export with current filters.'
+            });
+            return;
+        }
+
+        // Create CSV content
+        const headers = [
+            'Name',
+            'Email',
+            'Phone',
+            'Company',
+            'Stage',
+            'Value',
+            'Status',
+            'Source',
+            'Created At',
+            'Last Contact'
+        ];
+
+        const csvRows = [headers.join(',')];
+
+        allLeads.forEach(lead => {
+            const row = [
+                `"${(lead.name || '').replace(/"/g, '""')}"`,
+                `"${(lead.email || '').replace(/"/g, '""')}"`,
+                `"${(lead.phone || '').replace(/"/g, '""')}"`,
+                `"${(lead.company || '').replace(/"/g, '""')}"`,
+                `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
+                lead.estimated_value || 0,
+                `"${(lead.status || '').replace(/"/g, '""')}"`,
+                `"${(lead.source || '').replace(/"/g, '""')}"`,
+                `"${lead.created_at ? new Date(lead.created_at).toLocaleString() : ''}"`,
+                `"${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleString() : ''}"`
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+
+        // Create download link
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+
+        // Generate filename with filters info
+        let filename = 'leads';
+        if (filters.stageIds.length > 0) {
+            filename += '_filtered_stages';
+        }
+        if (filters.search) {
+            filename += '_search';
+        }
+        if (filters.quickFilter !== 'all') {
+            filename += `_${filters.quickFilter}`;
+        }
+        filename += `_${new Date().toISOString().split('T')[0]}.csv`;
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setToast({
+            type: 'success',
+            title: 'Export Successful',
+            message: `Exported ${allLeads.length} lead(s) to CSV.`
+        });
+    };
+
     // Scroll Sync Logic
     const mainScrollRef = useRef<HTMLDivElement>(null);
     const topScrollRef = useRef<HTMLDivElement>(null);
@@ -626,6 +716,28 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     </button>
                                 )}
                             </div>
+
+                            {/* Search Bar - Inline after delete button */}
+                            <div className="flex-1 max-w-md">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Search..."
+                                        value={filters.search}
+                                        onChange={e => setFilters({ ...filters, search: e.target.value })}
+                                        className="w-full bg-white border border-[var(--color-border)] focus:border-[var(--color-brand)] rounded-lg pl-9 pr-9 py-2 text-sm text-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all placeholder:text-slate-400"
+                                    />
+                                    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    {filters.search && (
+                                        <button
+                                            onClick={() => setFilters({ ...filters, search: '' })}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+                                        >
+                                            <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex items-center justify-between w-full md:w-auto gap-3">
@@ -636,13 +748,67 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                {/* Filter Toggle */}
+                                {/* Sort Dropdown */}
+                                <div className="relative">
+                                    <select
+                                        value={filters.sortBy}
+                                        onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
+                                        className="bg-white border border-[var(--color-border)] focus:border-[var(--color-brand)] rounded-lg pl-3 pr-8 py-2 text-sm text-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="created_at_desc">Newest First</option>
+                                        <option value="created_at_asc">Oldest First</option>
+                                        <option value="value_desc">Value: High to Low</option>
+                                        <option value="value_asc">Value: Low to High</option>
+                                    </select>
+                                    <svg className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+
+                                {/* Quick Filter Dropdown */}
+                                <div className="relative">
+                                    <select
+                                        value={filters.quickFilter}
+                                        onChange={(e) => setFilters({ ...filters, quickFilter: e.target.value })}
+                                        className={`border rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-1 outline-none transition-all appearance-none cursor-pointer ${filters.quickFilter !== 'all'
+                                            ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                                            : 'bg-white text-[var(--color-text)] border-[var(--color-border)] focus:border-[var(--color-brand)] focus:ring-[var(--color-brand)]'
+                                            }`}
+                                    >
+                                        <option value="all">All Leads</option>
+                                        <option value="hot">🔥 Hot Leads</option>
+                                        <option value="cold">❄️ Cold Leads</option>
+                                        <option value="high_value">💰 High Value</option>
+                                    </select>
+                                    <svg className={`w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.quickFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                </div>
+
+                                {/* Filters Toggle Button */}
                                 <button
                                     onClick={() => setShowFilters(!showFilters)}
-                                    className={`p-2 rounded-lg shadow-sm border transition-all ${showFilters ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)] border-[var(--color-brand)]/20' : 'bg-[var(--color-surface)] text-[var(--color-text)] opacity-40 border-[var(--color-border)] hover:text-[var(--color-text)] hover:opacity-100 hover:border-[var(--color-text)]/20'}`}
-                                    title="Toggle Filters"
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${showFilters
+                                        ? 'bg-[var(--color-brand)] text-white'
+                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
+                                        }`}
+                                    title="Filter by Stage"
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                                    Filters
+                                    {filters.stageIds.length > 0 && (
+                                        <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                                            {filters.stageIds.length}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Export Button */}
+                                <button
+                                    onClick={handleExportLeads}
+                                    className="px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]/5"
+                                    title="Export Leads to CSV"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    Export
                                 </button>
 
                                 {/* View Toggles */}
@@ -666,144 +832,57 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                         </div>
                     </div>
 
-                    {/* Filter Panel */}
+                    {/* Stage Filters - Collapsible */}
                     {showFilters && (
-                        <div className="absolute top-full left-0 right-0 md:static md:mt-4 p-4 md:p-5 bg-[var(--color-surface)] border-b md:border border-[var(--color-border)] md:rounded-2xl shadow-xl md:shadow-sm animate-in fade-in slide-in-from-top-2 flex flex-col gap-4 z-20 max-h-[80vh] overflow-y-auto">
-                            {/* Row 1: Search & Sort & View */}
-                            <div className="flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-4">
-                                {/* Search Filter */}
-                                <div className="flex-1 min-w-[200px]">
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            placeholder="Search Name, Email, Phone..."
-                                            value={filters.search}
-                                            onChange={e => setFilters({ ...filters, search: e.target.value })}
-                                            className="w-full bg-[var(--color-bg)] border border-[var(--color-brand)] rounded-lg pl-10 pr-4 py-2.5 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none transition-all placeholder:opacity-50 shadow-sm"
-                                        />
-                                        <svg className="w-5 h-5 text-[var(--color-brand)] absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                    </div>
-                                </div>
-
-                                {/* Sort By */}
-                                <div className="min-w-[180px]">
-                                    <div className="relative">
-                                        <select
-                                            value={filters.sortBy}
-                                            onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                                            className="w-full bg-[var(--color-bg)] border border-[var(--color-brand)] rounded-lg pl-3 pr-8 py-2.5 text-sm text-[var(--color-text)] focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none transition-all appearance-none cursor-pointer shadow-sm font-medium"
-                                        >
-                                            <option value="created_at_desc">Newest First</option>
-                                            <option value="created_at_asc">Oldest First</option>
-                                            <option value="value_desc">Value: High to Low</option>
-                                            <option value="value_asc">Value: Low to High</option>
-                                        </select>
-                                        <svg className="w-4 h-4 text-[var(--color-brand)] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                                    </div>
-                                </div>
-
-                                {/* View Type Toggles */}
-                                <div className="flex items-center gap-1 bg-[var(--color-bg)] p-1 rounded-lg border border-[var(--color-border)]">
-                                    {['Pipeline', 'Date', 'Smart Buckets'].map((type) => (
-                                        <button
-                                            key={type}
-                                            onClick={() => setFilters({ ...filters, viewType: type })}
-                                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${filters.viewType === type ? 'bg-[var(--color-surface)] text-[var(--color-brand)] shadow-sm' : 'text-[var(--color-text)] opacity-60 hover:opacity-100'}`}
-                                        >
-                                            {type}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Refresh Button */}
+                        <div className="p-4 md:p-5 bg-[var(--color-surface)] border-b md:border md:border-t-0 border-[var(--color-border)] md:rounded-b-2xl shadow-sm animate-in fade-in slide-in-from-top-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mr-2">Stage:</span>
                                 <button
-                                    onClick={() => fetchBoardData(selectedPipelineId || '')}
-                                    className="p-2.5 text-[var(--color-text)] opacity-60 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-transparent hover:border-[var(--color-brand)]/20"
-                                    title="Refresh Board"
+                                    onClick={() => setFilters({ ...filters, stageIds: [] })}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.stageIds.length === 0
+                                        ? 'bg-[var(--color-brand)] text-white'
+                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
+                                        }`}
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    All Stages
                                 </button>
-                            </div>
-
-                            <div className="h-px bg-[var(--color-border)] opacity-50" />
-
-                            {/* Row 2: Dynamic Stage Filters */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Filter by Stage</label>
-                                <div className="flex flex-wrap gap-2">
+                                {boardData?.columns.map(col => (
                                     <button
-                                        onClick={() => setFilters({ ...filters, stageIds: [] })}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${filters.stageIds.length === 0
-                                            ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white shadow-md'
-                                            : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
+                                        key={col.stage.id}
+                                        onClick={() => {
+                                            const newStageIds = filters.stageIds.includes(col.stage.id)
+                                                ? filters.stageIds.filter(id => id !== col.stage.id)
+                                                : [...filters.stageIds, col.stage.id];
+                                            setFilters({ ...filters, stageIds: newStageIds });
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${filters.stageIds.includes(col.stage.id)
+                                            ? 'bg-[var(--color-brand)] text-white'
+                                            : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
                                             }`}
                                     >
-                                        All Stages
+                                        <span className={`w-2 h-2 rounded-full ${filters.stageIds.includes(col.stage.id) ? 'bg-white' : ''}`} style={{ backgroundColor: filters.stageIds.includes(col.stage.id) ? undefined : col.stage.color }}></span>
+                                        {col.stage.name}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${filters.stageIds.includes(col.stage.id) ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                            {col.total_count}
+                                        </span>
                                     </button>
-                                    {boardData?.columns.map(col => (
-                                        <button
-                                            key={col.stage.id}
-                                            onClick={() => {
-                                                const newStageIds = filters.stageIds.includes(col.stage.id)
-                                                    ? filters.stageIds.filter(id => id !== col.stage.id)
-                                                    : [...filters.stageIds, col.stage.id];
-                                                setFilters({ ...filters, stageIds: newStageIds });
-                                            }}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-2 ${filters.stageIds.includes(col.stage.id)
-                                                ? 'bg-[var(--color-brand)] border-[var(--color-brand)] text-white shadow-md'
-                                                : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
-                                                }`}
-                                        >
-                                            <span className={`w-2 h-2 rounded-full ${filters.stageIds.includes(col.stage.id) ? 'bg-white' : ''}`} style={{ backgroundColor: filters.stageIds.includes(col.stage.id) ? undefined : col.stage.color }}></span>
-                                            {col.stage.name}
-                                            <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${filters.stageIds.includes(col.stage.id) ? 'bg-white/20' : 'bg-[var(--color-surface)] border border-[var(--color-border)]'}`}>
-                                                {col.total_count}
-                                            </span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Row 3: Smart Lists */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Smart Lists</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {[
-                                        { id: 'all', label: 'All Leads', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
-                                        { id: 'hot', label: 'Hot Leads (New)', icon: 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z' },
-                                        { id: 'cold', label: 'Cold Leads (>30 Days)', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-                                        { id: 'high_value', label: 'High Value (>$1k)', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
-                                    ].map(item => (
-                                        <button
-                                            key={item.id}
-                                            onClick={() => setFilters({ ...filters, quickFilter: item.id })}
-                                            className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all flex items-center gap-2 ${filters.quickFilter === item.id
-                                                ? 'bg-[var(--color-surface)] border-[var(--color-brand)] text-[var(--color-brand)] shadow-sm ring-1 ring-[var(--color-brand)]'
-                                                : 'bg-[var(--color-bg)] border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)] opacity-70 hover:opacity-100'
-                                                }`}
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} /></svg>
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Close Filters Button (Mobile Only) */}
-                            <div className="md:hidden pt-4 border-t border-[var(--color-border)]">
-                                <button
-                                    onClick={() => setShowFilters(false)}
-                                    className="w-full py-3 bg-[var(--color-brand)] text-white rounded-xl font-bold text-sm shadow-lg shadow-[var(--color-brand)]/20 active:scale-95 transition-all"
-                                >
-                                    Apply Filters & Close
-                                </button>
+                                ))}
+                                {(filters.search || filters.stageIds.length > 0 || filters.quickFilter !== 'all') && (
+                                    <button
+                                        onClick={() => setFilters({ search: '', stageIds: [], sortBy: 'created_at_desc', quickFilter: 'all', viewType: 'Pipeline' })}
+                                        className="ml-auto text-xs text-[var(--color-brand)] hover:underline font-medium flex items-center gap-1"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                        Clear all
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* ... (Modals) ... */}
+            {/* Modals */}
             <Modal
                 isOpen={isDeletePipelineModalOpen}
                 onClose={() => setIsDeletePipelineModalOpen(false)}
@@ -1324,47 +1403,49 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             </div>
 
             {/* Pagination Controls */}
-            {boardData && (
-                <div className="border-t border-[var(--color-border)] p-3 bg-[var(--color-surface)] flex flex-col md:flex-row justify-between items-center gap-4 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sticky bottom-0">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">Rows per page:</span>
-                        <select
-                            value={limit}
-                            onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                            className="bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-lg text-sm font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-[var(--color-brand)] cursor-pointer text-[var(--color-text)]"
-                        >
-                            <option value="10">10</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                    </div>
+            {
+                boardData && (
+                    <div className="border-t border-[var(--color-border)] p-3 bg-[var(--color-surface)] flex flex-col md:flex-row justify-between items-center gap-4 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sticky bottom-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">Rows per page:</span>
+                            <select
+                                value={limit}
+                                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                                className="bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-lg text-sm font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-[var(--color-brand)] cursor-pointer text-[var(--color-text)]"
+                            >
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
 
-                    <div className="flex items-center gap-4">
-                        <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">
-                            Page {(boardData.pagination?.page || 1)} of {(boardData.pagination?.totalPages || 1)} <span className="normal-case opacity-70">({boardData.pagination?.total || 0} items)</span>
-                        </span>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={(boardData.pagination?.page || 1) === 1}
-                                className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
-                                title="Previous Page"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <button
-                                onClick={() => setPage(p => Math.min((boardData.pagination?.totalPages || 1), p + 1))}
-                                disabled={(boardData.pagination?.page || 1) >= (boardData.pagination?.totalPages || 1)}
-                                className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
-                                title="Next Page"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                            </button>
+                        <div className="flex items-center gap-4">
+                            <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">
+                                Page {(boardData.pagination?.page || 1)} of {(boardData.pagination?.totalPages || 1)} <span className="normal-case opacity-70">({boardData.pagination?.total || 0} items)</span>
+                            </span>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    disabled={(boardData.pagination?.page || 1) === 1}
+                                    className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
+                                    title="Previous Page"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                                </button>
+                                <button
+                                    onClick={() => setPage(p => Math.min((boardData.pagination?.totalPages || 1), p + 1))}
+                                    disabled={(boardData.pagination?.page || 1) >= (boardData.pagination?.totalPages || 1)}
+                                    className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
+                                    title="Next Page"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Edit Lead Modal */}
             <Modal
