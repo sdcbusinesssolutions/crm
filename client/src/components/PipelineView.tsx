@@ -100,7 +100,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         };
     }, [boardData, filters.stageIds]);
 
-    const totalLeads = filteredBoardData?.columns.reduce((acc, col) => acc + col.leads.length, 0) || 0;
+    const totalLeads = boardData?.pagination?.total || 0;
 
     const handleCreateStage = async () => {
         if (!newStageName.trim() || !selectedPipelineId) return;

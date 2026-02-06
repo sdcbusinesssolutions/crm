@@ -305,7 +305,6 @@ router.get('/:id/kanban', async (req, res) => {
 
         if (stagesError) throw stagesError;
 
-        // 3. Fetch Leads with Pagination
         // 3. Fetch Leads with Pagination, Search, and Filters
         let leadsQuery = supabase
             .from('leads')
@@ -350,13 +349,46 @@ router.get('/:id/kanban', async (req, res) => {
 
         if (leadsError) throw leadsError;
 
-        // 4. Construct Kanban Board
+        // 4. Get total count for each stage (with same filters applied)
+        const stageCountsPromises = stages.map(async (stage) => {
+            let countQuery = supabase
+                .from('leads')
+                .select('id', { count: 'exact', head: true })
+                .eq('pipeline_id', pipelineId)
+                .eq('stage_id', stage.id);
+
+            // Apply same filters as main query
+            if (req.query.search) {
+                const s = req.query.search;
+                countQuery = countQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+            }
+
+            if (quickFilter === 'high_value') {
+                countQuery = countQuery.gte('estimated_value', 1000);
+            } else if (quickFilter === 'hot') {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                countQuery = countQuery.gte('created_at', d.toISOString());
+            } else if (quickFilter === 'cold') {
+                const d = new Date();
+                d.setDate(d.getDate() - 30);
+                countQuery = countQuery.lt('created_at', d.toISOString());
+            }
+
+            const { count: stageCount } = await countQuery;
+            return { stageId: stage.id, count: stageCount || 0 };
+        });
+
+        const stageCounts = await Promise.all(stageCountsPromises);
+        const stageCountMap = Object.fromEntries(stageCounts.map(sc => [sc.stageId, sc.count]));
+
+        // 5. Construct Kanban Board
         const columns = stages.map(stage => {
             const stageLeads = leads.filter(lead => lead.stage_id === stage.id);
             return {
                 stage: stage,
                 leads: stageLeads, // Only leads in current page
-                total_count: stageLeads.length // Count of visible leads (not total in DB for stage, which is a trade-off)
+                total_count: stageCountMap[stage.id] || 0 // Actual total count for this stage (with filters applied)
             };
         });
 
