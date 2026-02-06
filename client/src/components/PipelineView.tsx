@@ -185,25 +185,53 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             // Move Lead
             if (!boardData) return;
 
-            // Optimistic update
+            // Find source and target columns
             const sourceCol = boardData.columns.find(c => c.leads.some(l => l.id === id));
-            if (sourceCol && sourceCol.stage.id !== targetStageId) {
-                try {
-                    await moveLeadToStage(id, targetStageId);
-                    fetchBoardData(selectedPipelineId || '');
-                    /* setToast({
-                        type: 'success',
-                        title: 'Lead Moved',
-                        message: 'Lead status updated successfully.'
-                    }); */
-                } catch (error) {
-                    console.error('Failed to move lead', error);
-                    setToast({
-                        type: 'error',
-                        title: 'Error',
-                        message: 'Failed to move lead.'
-                    });
+            const targetCol = boardData.columns.find(c => c.stage.id === targetStageId);
+
+            if (!sourceCol || !targetCol || sourceCol.stage.id === targetStageId) return;
+
+            // Find the lead being moved
+            const leadToMove = sourceCol.leads.find(l => l.id === id);
+            if (!leadToMove) return;
+
+            // OPTIMISTIC UPDATE: Immediately update the UI
+            const updatedColumns = boardData.columns.map(col => {
+                if (col.stage.id === sourceCol.stage.id) {
+                    // Remove lead from source column
+                    return {
+                        ...col,
+                        leads: col.leads.filter(l => l.id !== id),
+                        total_count: col.total_count - 1
+                    };
+                } else if (col.stage.id === targetStageId) {
+                    // Add lead to target column
+                    return {
+                        ...col,
+                        leads: [...col.leads, { ...leadToMove, stage_id: targetStageId }],
+                        total_count: col.total_count + 1
+                    };
                 }
+                return col;
+            });
+
+            // Update UI immediately
+            setBoardData({ ...boardData, columns: updatedColumns });
+
+            // Make API call in background
+            try {
+                await moveLeadToStage(id, targetStageId);
+                // Optionally refresh to ensure sync
+                // fetchBoardData(selectedPipelineId || '');
+            } catch (error) {
+                console.error('Failed to move lead', error);
+                // Revert on error
+                fetchBoardData(selectedPipelineId || '');
+                setToast({
+                    type: 'error',
+                    title: 'Error',
+                    message: 'Failed to move lead. Changes reverted.'
+                });
             }
         } else if (type === 'stage') {
             // Reorder Stage
@@ -1138,7 +1166,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         key={lead.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, 'lead', lead.id)}
-                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
+                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden animate-in fade-in slide-in-from-bottom-2"
                                                     >
                                                         <div className="absolute left-0 top-0 right-0 h-1" style={{ backgroundColor: column.stage.color }}></div>
 
