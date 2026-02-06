@@ -187,6 +187,7 @@ router.use('/client-logs', clientLogRoutes); // Public Client Logging
 router.use('/dashboard', requireAuth, dashboardRoutes);
 router.use('/contacts', requireAuth, contactsRoutes);
 router.use('/groups', requireAuth, groupsRoutes);
+router.use('/tags', requireAuth, require('./routes/tags'));
 router.use('/fields', requireAuth, fieldsRoutes);
 router.use('/pipelines', requireAuth, pipelinesRoutes);
 router.use('/stages', requireAuth, stagesRoutes);

@@ -95,6 +95,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     const [templates, setTemplates] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
     const [phoneNumbers, setPhoneNumbers] = useState<any[]>([]);
+    const [availableTags, setAvailableTags] = useState<any[]>([]);
     const [availableFields, setAvailableFields] = useState<any[]>(DEFAULT_CONTACT_FIELDS);
 
     // Form State
@@ -128,8 +129,9 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     // Mobile Tab State
     const [activeTab, setActiveTab] = useState<'form' | 'preview'>('form');
 
-    const [recipientType, setRecipientType] = useState<'group' | 'manual'>('group');
+    const [recipientType, setRecipientType] = useState<'group' | 'manual' | 'tags'>('group');
     const [manualInput, setManualInput] = useState('');
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     useEffect(() => {
         fetchData();
@@ -355,11 +357,12 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
             if (!session) return;
             const headers = { 'Authorization': `Bearer ${session.access_token}` };
 
-            const [tplRes, grpRes, phRes, customFields] = await Promise.all([
+            const [tplRes, grpRes, phRes, customFields, tagsRes] = await Promise.all([
                 fetch('/api/whatsapp/templates', { headers }),
                 fetch('/api/groups', { headers }),
                 fetch('/api/settings/whatsapp', { headers }),
-                inputFieldService.getInputs()
+                inputFieldService.getInputs(),
+                fetch('/api/tags', { headers })
             ]);
 
             if (tplRes.ok) {
@@ -374,6 +377,10 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 const data = await phRes.json();
                 setPhoneNumbers(data || []);
                 if (data.length > 0) setSelectedPhoneNumber(data[0].phone_number_id);
+            }
+            if (tagsRes.ok) {
+                const data = await tagsRes.json();
+                setAvailableTags(data || []);
             }
 
             // Merge Custom Fields (Always running to ensure even if empty we get defaults)
@@ -403,6 +410,11 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
 
         if (recipientType === 'group' && !selectedGroup) {
             setToast({ type: 'error', title: 'Validation Error', message: 'Please select an audience group.' });
+            return;
+        }
+
+        if (recipientType === 'tags' && selectedTags.length === 0) {
+            setToast({ type: 'error', title: 'Validation Error', message: 'Please select at least one tag.' });
             return;
         }
 
@@ -454,9 +466,10 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 templateName: selectedTemplate.name,
                 languageCode: selectedTemplate.language,
 
-                recipientType, // 'group' or 'manual'
+                recipientType, // 'group', 'manual', or 'tags'
                 contactGroupId: recipientType === 'group' ? selectedGroup : null,
                 manualNumbers: recipientType === 'manual' ? processedManualNumbers : [],
+                selectedTags: recipientType === 'tags' ? selectedTags : [],
 
                 scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
                 sendNow,
@@ -788,6 +801,18 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         />
                                         <span className={`text-sm font-bold ${recipientType === 'manual' ? 'text-[var(--color-brand)]' : 'text-[var(--color-text)] opacity-60'} group-hover:opacity-100 transition-opacity`}>Paste Numbers</span>
                                     </label>
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${recipientType === 'tags' ? 'border-[var(--color-brand)]' : 'border-[var(--color-text)] opacity-40'}`}>
+                                            {recipientType === 'tags' && <div className="w-2 h-2 rounded-full bg-[var(--color-brand)]" />}
+                                        </div>
+                                        <input
+                                            type="radio"
+                                            checked={recipientType === 'tags'}
+                                            onChange={() => setRecipientType('tags')}
+                                            className="hidden"
+                                        />
+                                        <span className={`text-sm font-bold ${recipientType === 'tags' ? 'text-[var(--color-brand)]' : 'text-[var(--color-text)] opacity-60'} group-hover:opacity-100 transition-opacity`}>Select by Tags</span>
+                                    </label>
                                 </div>
 
                                 {recipientType === 'group' ? (
@@ -804,7 +829,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                             ))}
                                         </select>
                                     </div>
-                                ) : (
+                                ) : recipientType === 'manual' ? (
                                     <div className="space-y-1">
                                         <textarea
                                             value={manualInput}
@@ -816,6 +841,40 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         <p className="text-xs text-[var(--color-text)] opacity-50">
                                             Enter comma separated numbers. Must include 91 prefix (12 digits total).
                                         </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <p className="text-xs text-[var(--color-text)] opacity-60 mb-2">Select one or more tags to target contacts</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {availableTags.length === 0 ? (
+                                                <p className="text-sm text-[var(--color-text)] opacity-40 italic py-2">No tags available</p>
+                                            ) : (
+                                                availableTags.map(tag => (
+                                                    <button
+                                                        key={tag.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedTags(prev =>
+                                                                prev.includes(tag.name)
+                                                                    ? prev.filter(t => t !== tag.name)
+                                                                    : [...prev, tag.name]
+                                                            );
+                                                        }}
+                                                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border ${selectedTags.includes(tag.name)
+                                                            ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                                                            : 'bg-[var(--color-bg)] text-[var(--color-text)] border-[var(--color-border)] hover:border-[var(--color-brand)]'
+                                                            }`}
+                                                    >
+                                                        {tag.name}
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                        {selectedTags.length > 0 && (
+                                            <p className="text-xs text-[var(--color-brand)] font-medium mt-2">
+                                                {selectedTags.length} tag{selectedTags.length > 1 ? 's' : ''} selected
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </div>

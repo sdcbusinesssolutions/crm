@@ -133,6 +133,32 @@ router.post('/create', async (req, res) => {
                 };
             });
 
+        } else if (recipientType === 'tags') {
+            // Fetch contacts by tags
+            const selectedTags = req.body.selectedTags || [];
+            if (!selectedTags.length) {
+                return res.status(400).json({ error: 'No tags selected.' });
+            }
+
+            // Query contacts that have ANY of the selected tags
+            const { data: contacts, error: tagsErr } = await supabase
+                .from('contacts')
+                .select('id, phone, name, email, tags')
+                .eq('user_id', user.id);
+
+            if (tagsErr) throw tagsErr;
+            if (!contacts?.length) return res.status(400).json({ error: 'No contacts found.' });
+
+            // Filter contacts that have at least one of the selected tags
+            validContacts = contacts.filter(contact => {
+                if (!contact.tags || !Array.isArray(contact.tags)) return false;
+                return selectedTags.some(tag => contact.tags.includes(tag));
+            });
+
+            if (!validContacts.length) {
+                return res.status(400).json({ error: 'No contacts found with the selected tags.' });
+            }
+
         } else {
             // Existing Group Logic
             if (!contactGroupId) {
