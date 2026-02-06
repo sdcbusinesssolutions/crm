@@ -1138,7 +1138,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         key={lead.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, 'lead', lead.id)}
-                                                        className="bg-[var(--color-surface)] p-2 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
+                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden"
                                                     >
                                                         <div className="absolute left-0 top-0 right-0 h-1" style={{ backgroundColor: column.stage.color }}></div>
 
@@ -1147,13 +1147,13 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${avatarClass}`}>
                                                                     {(lead.name || '?').charAt(0).toUpperCase()}
                                                                 </div>
-                                                                <div className="text-[10px] font-bold text-slate-800 truncate pr-2">{lead.name || 'Unnamed Lead'}</div>
+                                                                <div className="text-[12px] font-medium text-black truncate pr-2">{lead.name || 'Unnamed Lead'}</div>
                                                             </div>
                                                         </div>
 
                                                         <div className="space-y-0.5 mb-1.5 bg-gradient-to-br from-slate-50 to-white p-1.5 rounded-lg border border-slate-200/60 shadow-sm">
                                                             {lead.company && (
-                                                                <div className="text-[10px] text-slate-700 font-semibold flex items-center gap-1.5">
+                                                                <div className="text-[12px] text-black font-medium flex items-center gap-1.5">
                                                                     <div className="w-4 h-4 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
                                                                         <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                                                     </div>
@@ -1161,7 +1161,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 </div>
                                                             )}
                                                             {lead.email && (
-                                                                <div className="text-[10px] text-slate-700 font-semibold flex items-center gap-1.5 truncate">
+                                                                <div className="text-[12px] text-black font-medium flex items-center gap-1.5 truncate">
                                                                     <div className="w-4 h-4 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
                                                                         <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                                     </div>
@@ -1169,7 +1169,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 </div>
                                                             )}
                                                             {lead.phone && (
-                                                                <div className="text-[10px] text-slate-700 font-semibold flex items-center gap-1.5">
+                                                                <div className="text-[12px] text-black font-medium flex items-center gap-1.5">
                                                                     <div className="w-4 h-4 rounded-md bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 shrink-0">
                                                                         <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                                                                     </div>
