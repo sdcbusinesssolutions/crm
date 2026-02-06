@@ -1510,7 +1510,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     {(activeChat.contact_name || activeChat.contact_phone).substring(0, 2).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-900 text-sm truncate leading-tight">
+                                    <h3 className="font-bold text-black text-sm truncate leading-tight">
                                         {activeChat.contact_name || activeChat.contact_phone}
                                     </h3>
                                     {(() => {
@@ -1531,10 +1531,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         }
 
                                         return (
-                                            <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                                            <p className="text-xs text-black flex items-center gap-1 truncate">
                                                 {/* Always show phone number if name is present, then status */}
                                                 {activeChat.contact_name && (
-                                                    <span className="font-medium text-slate-400 mr-1">{activeChat.contact_phone} •</span>
+                                                    <span className="font-medium text-black mr-1">{activeChat.contact_phone} •</span>
                                                 )}
                                                 <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${isSessionOpen ? 'bg-green-500' : 'bg-slate-400'}`}></span>
                                                 {statusText}
@@ -1636,8 +1636,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     return (
                                         <React.Fragment key={msg.id + (msg.status || '')}>
                                             {isNewDay && (
-                                                <div className="flex justify-center my-4 sticky top-0 z-10 pointer-events-none">
-                                                    <span className="bg-white/90 shadow-sm px-3 py-1 rounded-lg text-[10px] font-bold text-slate-500 uppercase tracking-wider backdrop-blur-sm border border-slate-100">
+                                                <div className="flex justify-center my-4 z-10 pointer-events-none">
+                                                    <span className="bg-white/90 shadow-sm px-3 py-1 rounded-lg text-[10px] font-bold text-black uppercase tracking-wider backdrop-blur-sm border border-slate-100 font-outfit">
                                                         {dateLabel}
                                                     </span>
                                                 </div>
@@ -1694,7 +1694,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                             <button
                                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                                className={`p-2 transition-colors ${isEmojiPickerOpen ? 'text-brand-600' : 'text-slate-400 hover:text-brand-600'}`}
+                                className={`p-2 transition-colors ${isEmojiPickerOpen ? 'text-brand-600' : 'text-slate-600 hover:text-brand-600'}`}
                             >
                                 <EmojiIcon className="w-6 h-6" />
                             </button>
@@ -1715,7 +1715,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                             <button
                                 onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
-                                className={`p-2 transition-colors ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-400 hover:text-brand-600'}`}
+                                className={`p-2 transition-colors ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
                             >
                                 <PaperClipIcon className="w-6 h-6" />
                             </button>
@@ -1764,7 +1764,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             ) : (
                                 <button
                                     onClick={handleStartRecording}
-                                    className="p-2.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
+                                    className="p-2.5 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
                                 >
                                     <MicrophoneIcon className="w-5 h-5" />
                                 </button>
