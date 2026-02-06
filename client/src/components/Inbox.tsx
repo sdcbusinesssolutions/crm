@@ -591,16 +591,37 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         e.preventDefault();
         e.stopPropagation();
         if (!activeChat) return;
-        const chatExport = {
-            contact: activeChat.contact_name || activeChat.contact_phone,
-            messages: messages
-        };
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(chatExport, null, 2));
+
+        // Define CSV Headers
+        const headers = ['Date', 'Time', 'Sender', 'Type', 'Content', 'Status'];
+
+        // Map messages to rows
+        const rows = messages.map(msg => {
+            const date = new Date(msg.created_at);
+            const dateStr = date.toLocaleDateString();
+            const timeStr = date.toLocaleTimeString();
+            const sender = msg.direction === 'out' ? 'Business' : (activeChat.contact_name || activeChat.contact_phone);
+            const content = msg.text ? `"${msg.text.replace(/"/g, '""')}"` : (msg.media_url || '[Media]');
+            const status = msg.status;
+
+            return [
+                dateStr,
+                timeStr,
+                sender,
+                msg.type,
+                content,
+                status
+            ].join(',');
+        });
+
+        // Combine headers and rows
+        const csvContent = [headers.join(','), ...rows].join('\n');
+
+        const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `chat_history_${(activeChat.contact_name || 'chat').replace(/\s+/g, '_')}.json`);
+        downloadAnchorNode.setAttribute("download", `chat_history_${(activeChat.contact_name || 'chat').replace(/\s+/g, '_')}.csv`);
         document.body.appendChild(downloadAnchorNode);
-        downloadAnchorNode.click();
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
         setIsHeaderMenuOpen(false);
