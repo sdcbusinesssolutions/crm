@@ -58,6 +58,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isAtBottomRef = useRef(true);
+    const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -512,6 +513,34 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const handleEmojiClick = (emojiData: EmojiClickData) => {
         setMessageInput((prev) => prev + emojiData.emoji);
+    };
+
+    const handleClearChat = (e?: React.MouseEvent) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        if (!activeChatId) return;
+        setIsClearChatModalOpen(true);
+    };
+
+    const confirmClearChat = async () => {
+        if (!activeChatId) return;
+
+        try {
+            await inboxService.clearChat(activeChatId);
+
+            setMessages([]);
+            // Also update the last message in the conversation list locally if needed
+            setConversations(prev => prev.map(c =>
+                c.id === activeChatId ? { ...c, last_message: null, updated_at: new Date().toISOString() } : c
+            ));
+            setIsClearChatModalOpen(false);
+        } catch (error: any) {
+            console.error("Error clearing chat:", error);
+            alert(`Failed to clear chat history: ${error.message || "Unknown error"}`);
+            setIsClearChatModalOpen(false);
+        }
     };
 
     const handleExportContactList = (e: React.MouseEvent) => {
@@ -1543,7 +1572,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     })()}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 lg:mr-24">
                                 {/* 24h Window Timer */}
                                 {(() => {
                                     const lastIncoming = [...messages].reverse().find(m => m.direction === 'in');
@@ -1576,6 +1605,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <UsersIcon className="w-5 h-5" />
                                 </button>
                                 <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg"><SearchIcon className="w-5 h-5" /></button>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="p-2 text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors border border-red-100"
+                                    title="Clear Chat History"
+                                >
+                                    <TrashIcon className="w-5 h-5" />
+                                </button>
 
                                 {/* 3 Dot Menu Trigger */}
                                 <div className="relative">
@@ -1601,7 +1637,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 <button className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
                                                     <CloseIcon className="w-4 h-4" /> Block Contact
                                                 </button>
-                                                <button className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium">
+                                                <button
+                                                    onClick={(e) => {
+                                                        setIsHeaderMenuOpen(false);
+                                                        handleClearChat();
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium"
+                                                >
                                                     <TrashIcon className="w-4 h-4" /> Clear Chat
                                                 </button>
                                             </div>
@@ -1922,6 +1964,36 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
                 )
             }
+            {/* Clear Chat Confirmation Modal */}
+            {isClearChatModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 transform transition-all scale-100">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <TrashIcon className="w-6 h-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Clear Chat History?</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                                Are you sure you want to delete all messages in this conversation? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setIsClearChatModalOpen(false)}
+                                    className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmClearChat}
+                                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm shadow-red-200 transition-colors"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

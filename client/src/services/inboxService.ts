@@ -91,5 +91,20 @@ export const inboxService = {
             console.error("Failed to mark as read", e);
             return false;
         }
+    },
+
+    clearChat: async (conversationId: string): Promise<boolean> => {
+        try {
+            const headers = getAuthHeaders();
+            const response = await fetch(`${API_BASE}/messages/${conversationId}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (!response.ok) throw new Error('Failed to clear chat');
+            return true;
+        } catch (e) {
+            console.error("Failed to clear chat", e);
+            throw e;
+        }
     }
 };

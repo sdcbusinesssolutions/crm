@@ -321,4 +321,36 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
     }
 });
 
+// ==========================================
+// 6. Clear Chat History
+// ==========================================
+router.delete('/messages/:conversationId', async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const { supabaseAdmin } = require('../lib/supabaseClient'); // Use Admin execution to bypass RLS
+
+        console.log(`[Inbox] Clearing chat history for ${conversationId}...`);
+
+        // Delete all messages for this conversation
+        const { error, count } = await supabaseAdmin
+            .from('messages')
+            .delete({ count: 'exact' })
+            .eq('conversation_id', conversationId);
+
+        if (error) throw error;
+
+        // Reset Last Message string in conversation
+        await supabaseAdmin
+            .from('conversations')
+            .update({ last_message: null, updated_at: new Date().toISOString() })
+            .eq('id', conversationId);
+
+        console.log(`[Inbox] Cleared chat history for ${conversationId}. Deleted ${count} messages.`);
+        res.json({ success: true, count });
+    } catch (error) {
+        console.error('Error clearing chat history:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 module.exports = router;
