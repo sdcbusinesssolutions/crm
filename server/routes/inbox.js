@@ -121,8 +121,8 @@ router.post('/messages/:conversationId', async (req, res) => {
                     const ext = path.extname(localPath).toLowerCase();
                     const mimeTypes = {
                         '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp',
-                        '.mp4': 'video/mp4', '.3gp': 'video/3gpp', '.mov': 'video/mp4', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.webm': 'video/webm', '.mpeg': 'video/mpeg',
-                        '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.aac': 'audio/aac', '.wav': 'audio/wav', '.mpeg-audio': 'audio/mpeg',
+                        '.mp4': 'video/mp4', '.3gp': 'video/3gpp', '.mov': 'video/mp4', '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska', '.webm': 'audio/webm', '.mpeg': 'video/mpeg',
+                        '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.opus': 'audio/ogg', '.aac': 'audio/aac', '.wav': 'audio/wav', '.mpeg-audio': 'audio/mpeg',
                         '.pdf': 'application/pdf',
                         '.doc': 'application/msword',
                         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -152,9 +152,17 @@ router.post('/messages/:conversationId', async (req, res) => {
                         if (type === 'video' || type === 'audio') {
                             console.warn(`File size (${fileSizeInBytes}) exceeds 16MB limit for ${type}. Switching to 'document' mode with MIME: ${mimeType}`);
                             type = 'document'; // Force message type to document to allow up to 100MB
+                        }
+                    }
 
-                            // DO NOT force text/plain. WhatsApp accepts native video/audio MIME types when sent as 'document'.
-                            // Only use application/octet-stream if strictly needed by a specific edge case, but native is better.
+                    // --- AUDIO FORMAT CHECK ---
+                    // WhatsApp ONLY supports: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg
+                    // If we have audio/webm (common from browsers), we MUST send as 'document' or it will fail.
+                    if (type === 'audio') {
+                        const supportedAudio = ['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg'];
+                        if (!supportedAudio.includes(mimeType)) {
+                            console.warn(`Unsupported audio MIME type: ${mimeType}. Switching to 'document' mode to ensure delivery.`);
+                            type = 'document';
                         }
                     }
 
