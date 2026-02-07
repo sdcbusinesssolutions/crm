@@ -744,30 +744,30 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             {/* Toolbar */}
             {/* Toolbar */}
             <div className="sticky top-0 z-10 bg-[var(--color-bg)] pt-4 px-4 md:px-6 pb-2">
-                <div className="p-2 rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-slate-50 to-white shadow-sm flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="p-1.5 rounded-2xl border border-[var(--color-border)] bg-gradient-to-r from-slate-50 to-white shadow-sm flex flex-col gap-2">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                         <div className="flex items-center gap-2 w-full md:w-auto">
                             {/* Pipeline Selector */}
                             <div className="relative group flex-1 md:flex-none w-full md:w-auto">
                                 {/* Avatar Overlay */}
                                 {selectedPipeline && (
-                                    <div className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center pointer-events-none z-10">
-                                        <span className="text-emerald-700 font-black text-xs">{selectedPipeline.name.charAt(0).toUpperCase()}</span>
+                                    <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center pointer-events-none z-10">
+                                        <span className="text-emerald-700 font-black text-[10px]">{selectedPipeline.name.charAt(0).toUpperCase()}</span>
                                     </div>
                                 )}
 
                                 <select
                                     value={selectedPipelineId || ''}
                                     onChange={(e) => setSelectedPipelineId(e.target.value)}
-                                    className="w-full md:w-auto appearance-none pl-12 pr-10 py-2.5 bg-[var(--color-input-bg)] border border-[var(--color-brand)] rounded-xl text-sm font-black text-slate-900 focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none shadow-sm min-w-[200px] cursor-pointer hover:border-[var(--color-brand)]/80 transition-colors uppercase tracking-tight"
+                                    className="w-full md:w-auto appearance-none pl-9 pr-8 py-1.5 bg-[var(--color-input-bg)] border border-[var(--color-brand)] rounded-xl text-sm font-black text-slate-900 focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent outline-none shadow-sm min-w-[180px] cursor-pointer hover:border-[var(--color-brand)]/80 transition-colors uppercase tracking-tight"
                                 >
                                     {pipelines.length === 0 && <option value="">No Pipelines</option>}
                                     {pipelines.map(p => (
                                         <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                 </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-brand)] transition-colors">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-brand)] transition-colors">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
                             </div>
 
@@ -775,78 +775,77 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                             <div className="flex items-center gap-1 shrink-0">
                                 <button
                                     onClick={() => setIsCreatingPipeline(true)}
-                                    className="p-2.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
+                                    className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
                                     title="New Pipeline"
                                 >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                                 </button>
                                 {selectedPipelineId && (
                                     <button
                                         onClick={handleSetDefaultPipeline}
-                                        className={`p-2.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
+                                        className={`p-1.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
                                             ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10 border-[var(--color-brand)]/20'
                                             : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100 hover:bg-[var(--color-surface)] border-[var(--color-border)]'
                                             }`}
                                         title={selectedPipeline?.is_default ? "Default Pipeline" : "Set as Default Pipeline"}
                                     >
-                                        <svg className="w-5 h-5" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                                        <svg className="w-4 h-4" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
                                     </button>
                                 )}
                                 {selectedPipelineId && (
                                     <button
                                         onClick={handleDeletePipeline}
-                                        className="p-2.5 text-[var(--color-text)] opacity-40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
+                                        className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
                                         title="Delete Pipeline"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                     </button>
                                 )}
                             </div>
 
                             {/* Search Bar - Inline after delete button */}
-                            <div className="flex-1 max-w-md">
-                                <div className="relative">
+                            <div className="flex-1 max-w-lg min-w-[200px] ml-1">
+                                <div className="relative group">
                                     <input
                                         type="text"
                                         placeholder="Search..."
                                         value={filters.search}
                                         onChange={e => setFilters({ ...filters, search: e.target.value })}
-                                        className="w-full bg-white border border-[var(--color-border)] focus:border-[var(--color-brand)] rounded-lg pl-9 pr-9 py-2 text-sm text-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all placeholder:text-slate-400"
+                                        className="w-full bg-white border border-slate-300 focus:border-[var(--color-brand)] rounded-xl pl-8 pr-8 py-1.5 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-[var(--color-brand)]/20 outline-none transition-all placeholder:text-slate-400 shadow-sm hover:border-[var(--color-brand)]/60"
                                     />
-                                    <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    <svg className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 group-hover:text-[var(--color-brand)] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     {filters.search && (
                                         <button
                                             onClick={() => setFilters({ ...filters, search: '' })}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 rounded-full transition-colors"
                                         >
-                                            <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                            <svg className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                         </button>
                                     )}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between w-full md:w-auto gap-3">
-                            {/* Total Count */}
-                            <div className="bg-[var(--color-bg)] text-[var(--color-text)] opacity-70 px-3 py-1.5 rounded-full text-xs font-bold border border-[var(--color-border)] flex items-center gap-2 whitespace-nowrap">
-                                <span className="w-2 h-2 rounded-full bg-[var(--color-brand)]"></span>
-                                <span className="hidden xs:inline">Total Leads:</span> {totalLeads}
+                        <div className="flex items-center justify-between w-full md:w-auto gap-2">
+                            {/* Total Count - Just Count */}
+                            <div className="bg-[var(--color-brand)]/10 text-[var(--color-brand)] px-3 py-1.5 rounded-full text-xs font-bold border border-[var(--color-brand)]/20 flex items-center gap-2 whitespace-nowrap shadow-sm min-w-[3rem] justify-center" title="Total Leads">
+                                {totalLeads}
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                                 {/* Sort Dropdown */}
                                 <div className="relative">
                                     <select
                                         value={filters.sortBy}
                                         onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                                        className="bg-white border border-[var(--color-border)] focus:border-[var(--color-brand)] rounded-lg pl-3 pr-8 py-2 text-sm text-[var(--color-text)] focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all appearance-none cursor-pointer"
+                                        className="bg-white border border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] rounded-xl pl-2.5 pr-7 py-1.5 text-sm text-[var(--color-brand)] font-medium focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all appearance-none cursor-pointer hover:bg-[var(--color-brand)]/5 shadow-sm"
                                     >
                                         <option value="created_at_desc">Newest First</option>
                                         <option value="created_at_asc">Oldest First</option>
                                         <option value="value_desc">Value: High to Low</option>
                                         <option value="value_asc">Value: Low to High</option>
                                     </select>
-                                    <svg className="w-4 h-4 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    <svg className="w-3.5 h-3.5 text-[var(--color-brand)]/70 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
 
                                 {/* Quick Filter Dropdown */}
@@ -854,9 +853,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     <select
                                         value={filters.quickFilter}
                                         onChange={(e) => setFilters({ ...filters, quickFilter: e.target.value })}
-                                        className={`border rounded-lg pl-3 pr-8 py-2 text-sm focus:ring-1 outline-none transition-all appearance-none cursor-pointer ${filters.quickFilter !== 'all'
+                                        className={`border rounded-xl pl-2.5 pr-7 py-1.5 text-sm focus:ring-1 outline-none transition-all appearance-none cursor-pointer shadow-sm font-medium ${filters.quickFilter !== 'all'
                                             ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
-                                            : 'bg-white text-[var(--color-text)] border-[var(--color-border)] focus:border-[var(--color-brand)] focus:ring-[var(--color-brand)]'
+                                            : 'bg-white text-[var(--color-brand)] border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] focus:ring-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'
                                             }`}
                                     >
                                         <option value="all">All Leads</option>
@@ -864,54 +863,52 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         <option value="cold">❄️ Cold Leads</option>
                                         <option value="high_value">💰 High Value</option>
                                     </select>
-                                    <svg className={`w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.quickFilter !== 'all' ? 'text-white' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    <svg className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.quickFilter !== 'all' ? 'text-white' : 'text-[var(--color-brand)]/70'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
 
-                                {/* Filters Toggle Button */}
+                                {/* Filters Toggle Button - Icon Only */}
                                 <button
                                     onClick={() => setShowFilters(!showFilters)}
-                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${showFilters
+                                    className={`p-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center shadow-sm ${showFilters
                                         ? 'bg-[var(--color-brand)] text-white'
-                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
+                                        : 'bg-white border border-[var(--color-brand)]/20 text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'
                                         }`}
                                     title="Filter by Stage"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                                    Filters
                                     {filters.stageIds.length > 0 && (
-                                        <span className="bg-white/20 px-1.5 py-0.5 rounded-full text-xs font-bold">
+                                        <span className="ml-1 bg-[var(--color-brand)] text-white px-1 h-3.5 flex items-center justify-center rounded-full text-[9px] font-bold">
                                             {filters.stageIds.length}
                                         </span>
                                     )}
                                 </button>
 
-                                {/* Export Button */}
+                                {/* Export Button - Icon Only */}
                                 <button
                                     onClick={handleExportLeads}
-                                    className="px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)] hover:bg-[var(--color-brand)]/5"
+                                    className="p-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center bg-white border border-[var(--color-brand)]/20 text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 shadow-sm"
                                     title="Export Leads to CSV"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    Export
                                 </button>
 
                                 {/* View Toggles */}
-                                <div className="flex bg-[var(--color-bg)] p-1 rounded-lg border border-[var(--color-border)]">
+                                <div className="flex bg-[var(--color-bg)] p-0.5 rounded-xl border border-[var(--color-brand)]/20 shadow-sm">
                                     <button
                                         onClick={() => setViewMode('kanban')}
-                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'kanban' ? 'bg-[var(--color-surface)] text-[var(--color-brand)] shadow-sm' : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100'}`}
+                                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'kanban' ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)] shadow-sm' : 'text-[var(--color-brand)]/40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'}`}
                                         title="Kanban View"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
                                     </button>
                                     <button
                                         onClick={() => setViewMode('list')}
-                                        className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-[var(--color-surface)] text-[var(--color-brand)] shadow-sm' : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100'}`}
+                                        className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)] shadow-sm' : 'text-[var(--color-brand)]/40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'}`}
                                         title="List View"
                                     >
-                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
                                     </button>
                                 </div>
                             </div>
