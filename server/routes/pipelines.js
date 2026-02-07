@@ -305,101 +305,79 @@ router.get('/:id/kanban', async (req, res) => {
 
         if (stagesError) throw stagesError;
 
-        // 3. Fetch Leads with Pagination, Search, and Filters
-        let leadsQuery = supabase
-            .from('leads')
-            .select('*', { count: 'exact' })
-            .eq('pipeline_id', pipelineId);
-
-        // Search Support (Server-Side)
-        if (req.query.search) {
-            const s = req.query.search;
-            leadsQuery = leadsQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
-        }
-
-        // Quick Filters Support
-        const quickFilter = req.query.quickFilter;
-        if (quickFilter === 'high_value') {
-            leadsQuery = leadsQuery.gte('estimated_value', 1000);
-        } else if (quickFilter === 'hot') {
-            const d = new Date();
-            d.setDate(d.getDate() - 7);
-            leadsQuery = leadsQuery.gte('created_at', d.toISOString());
-        } else if (quickFilter === 'cold') {
-            const d = new Date();
-            d.setDate(d.getDate() - 30);
-            // "Cold" usually means OLDER than 30 days
-            leadsQuery = leadsQuery.lt('created_at', d.toISOString());
-        }
-
-        // Sort Support
-        const sortBy = req.query.sortBy || 'created_at_desc';
-        if (sortBy === 'created_at_asc') {
-            leadsQuery = leadsQuery.order('created_at', { ascending: true });
-        } else if (sortBy === 'value_desc') {
-            leadsQuery = leadsQuery.order('estimated_value', { ascending: false });
-        } else if (sortBy === 'value_asc') {
-            leadsQuery = leadsQuery.order('estimated_value', { ascending: true });
-        } else {
-            // Default
-            leadsQuery = leadsQuery.order('created_at', { ascending: false });
-        }
-
-        const { data: leads, count, error: leadsError } = await leadsQuery.range(from, to);
-
-        if (leadsError) throw leadsError;
-
-        // 4. Get total count for each stage (with same filters applied)
-        const stageCountsPromises = stages.map(async (stage) => {
-            let countQuery = supabase
+        // 3. Fetch Leads Per Stage (Parallel)
+        const stageDataPromises = stages.map(async (stage) => {
+            let query = supabase
                 .from('leads')
-                .select('id', { count: 'exact', head: true })
+                .select('*', { count: 'exact' })
                 .eq('pipeline_id', pipelineId)
                 .eq('stage_id', stage.id);
 
-            // Apply same filters as main query
+            // Search Support
             if (req.query.search) {
                 const s = req.query.search;
-                countQuery = countQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+                query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
             }
 
-            if (quickFilter === 'high_value') {
-                countQuery = countQuery.gte('estimated_value', 1000);
-            } else if (quickFilter === 'hot') {
+            // Quick Filters
+            if (req.query.quickFilter === 'high_value') {
+                query = query.gte('estimated_value', 1000);
+            } else if (req.query.quickFilter === 'hot') {
                 const d = new Date();
                 d.setDate(d.getDate() - 7);
-                countQuery = countQuery.gte('created_at', d.toISOString());
-            } else if (quickFilter === 'cold') {
+                query = query.gte('created_at', d.toISOString());
+            } else if (req.query.quickFilter === 'cold') {
                 const d = new Date();
                 d.setDate(d.getDate() - 30);
-                countQuery = countQuery.lt('created_at', d.toISOString());
+                query = query.lt('created_at', d.toISOString());
             }
 
-            const { count: stageCount } = await countQuery;
-            return { stageId: stage.id, count: stageCount || 0 };
-        });
+            // Sorting
+            const sortBy = req.query.sortBy || 'created_at_desc';
+            if (sortBy === 'created_at_asc') {
+                query = query.order('created_at', { ascending: true });
+            } else if (sortBy === 'value_desc') {
+                query = query.order('estimated_value', { ascending: false });
+            } else if (sortBy === 'value_asc') {
+                query = query.order('estimated_value', { ascending: true });
+            } else {
+                query = query.order('created_at', { ascending: false });
+            }
 
-        const stageCounts = await Promise.all(stageCountsPromises);
-        const stageCountMap = Object.fromEntries(stageCounts.map(sc => [sc.stageId, sc.count]));
+            // Per-Stage Pagination (Initial Load: 20)
+            // We use a fixed initial limit of 20 to populate the board fast.
+            // Frontend will handle "load more" per stage using the /api/leads endpoint.
+            query = query.range(0, 19);
 
-        // 5. Construct Kanban Board
-        const columns = stages.map(stage => {
-            const stageLeads = leads.filter(lead => lead.stage_id === stage.id);
+            const { data, count, error } = await query;
+            if (error) throw error;
+
             return {
-                stage: stage,
-                leads: stageLeads, // Only leads in current page
-                total_count: stageCountMap[stage.id] || 0 // Actual total count for this stage (with filters applied)
+                stage,
+                leads: data || [],
+                total_count: count || 0
             };
         });
+
+        const columnsData = await Promise.all(stageDataPromises);
+
+        // 5. Construct Kanban Board
+        const columns = columnsData.map(c => ({
+            stage: c.stage,
+            leads: c.leads,
+            total_count: c.total_count
+        }));
 
         res.json({
             pipeline,
             columns,
+            // Pagination object is essentially deprecated for global view, 
+            // but we can return total leads sum for stats if needed.
             pagination: {
-                page,
-                limit,
-                total: count,
-                totalPages: Math.ceil((count || 0) / limit)
+                page: 1,
+                limit: 20,
+                total: columns.reduce((acc, col) => acc + col.total_count, 0),
+                totalPages: 1
             }
         });
     } catch (err) {

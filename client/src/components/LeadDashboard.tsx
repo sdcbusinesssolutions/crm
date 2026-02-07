@@ -121,7 +121,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             }
 
             try {
-                globalLeads = await getLeads();
+                // Fetch up to 1000 recent leads for stats sampling
+                globalLeads = await getLeads(undefined, undefined, 1, 1000);
             } catch (err) {
                 console.warn("Global leads fetch failed, falling back to board leads", err);
                 globalLeads = board.columns.flatMap(col => col.leads);
@@ -187,8 +188,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             let total = 0;
             let val = 0;
             const stageStats = board.columns.map(col => {
-                const count = col.leads.length;
-                const colVal = col.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0);
+                const count = col.total_count || col.leads.length; // Use total_count from backend
+                const colVal = col.value || col.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0); // Backend might not send value sum yet, so this is partial.
+                // Note: Value sum will be incorrect with pagination. Ideally backend sends stage total value.
                 total += count;
                 val += colVal;
                 return {

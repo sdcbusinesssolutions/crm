@@ -131,3 +131,27 @@ body {
 .animate-soft-blink {
   animation: softBlink 1.5s infinite ease-in-out;
 }
+
+/* Force Dark Custom Scrollbar for Pipeline Columns */
+.custom-scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background-color: #94a3b8;
+  border-radius: 4px;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+}

@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
             .from('leads')
             .select('*')
             .eq('user_id', req.user.id)
-            .order('created_at', { ascending: false });
+
 
         if (pipeline_id) {
             query = query.eq('pipeline_id', pipeline_id);
@@ -22,6 +22,47 @@ router.get('/', async (req, res) => {
 
         if (stage_id) {
             query = query.eq('stage_id', stage_id);
+        }
+
+        // Search Support
+        if (req.query.search) {
+            const s = req.query.search;
+            query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+        }
+
+        // Quick Filters
+        if (req.query.quickFilter === 'high_value') {
+            query = query.gte('estimated_value', 1000);
+        } else if (req.query.quickFilter === 'hot') {
+            const d = new Date();
+            d.setDate(d.getDate() - 7);
+            query = query.gte('created_at', d.toISOString());
+        } else if (req.query.quickFilter === 'cold') {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            query = query.lt('created_at', d.toISOString());
+        }
+
+        // Sorting
+        const sortBy = req.query.sortBy || 'created_at_desc';
+        if (sortBy === 'created_at_asc') {
+            query = query.order('created_at', { ascending: true });
+        } else if (sortBy === 'value_desc') {
+            query = query.order('estimated_value', { ascending: false });
+        } else if (sortBy === 'value_asc') {
+            query = query.order('estimated_value', { ascending: true });
+        } else {
+            query = query.order('created_at', { ascending: false });
+        }
+
+        // Add Pagination
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50; // Default 50
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        if (req.query.page || req.query.limit) {
+            query = query.range(from, to);
         }
 
         const { data, error } = await query;

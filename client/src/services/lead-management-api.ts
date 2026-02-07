@@ -193,12 +193,20 @@ export const deleteStage = async (id: string): Promise<boolean> => {
 // LEAD FUNCTIONS
 // =====================================================
 
-export const getLeads = async (pipelineId?: string, stageId?: string): Promise<Lead[]> => {
+export const getLeads = async (pipelineId?: string, stageId?: string, page: number = 1, limit: number = 50, filters?: any): Promise<Lead[]> => {
     try {
         const headers = await getHeaders();
         const params = new URLSearchParams();
         if (pipelineId) params.append('pipeline_id', pipelineId);
         if (stageId) params.append('stage_id', stageId);
+        params.append('page', page.toString());
+        params.append('limit', limit.toString());
+
+        if (filters) {
+            if (filters.search) params.append('search', filters.search);
+            if (filters.sortBy) params.append('sortBy', filters.sortBy);
+            if (filters.quickFilter && filters.quickFilter !== 'all') params.append('quickFilter', filters.quickFilter);
+        }
 
         const url = `/api/leads${params.toString() ? '?' + params.toString() : ''}`;
         const res = await fetch(url, { headers });

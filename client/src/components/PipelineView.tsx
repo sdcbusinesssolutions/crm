@@ -23,7 +23,8 @@ import {
     getNotes, createNote, deleteNote,
     getTasks, createTask, updateTask, deleteTask,
     getAppointments, createAppointment, deleteAppointment,
-    getCallLogs, createCallLog, deleteCallLog
+    getCallLogs, createCallLog, deleteCallLog,
+    getLeads
 } from '../services/lead-management-api';
 
 interface PipelineViewProps {
@@ -45,8 +46,10 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const [isDeleteStageModalOpen, setIsDeleteStageModalOpen] = useState(false);
     const [stageToDelete, setStageToDelete] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
-    const [page, setPage] = useState(1);
-    const [limit, setLimit] = useState(50);
+    const [page, setPage] = useState(1); // Kept for initial load context if needed, but primary is per-stage
+    const [limit, setLimit] = useState(20); // Initial per-stage limit
+    const [stagePages, setStagePages] = useState<Record<string, number>>({});
+    const [loadingStage, setLoadingStage] = useState<Record<string, boolean>>({});
     const [filters, setFilters] = useState({
         search: '',
         stageIds: [] as string[],
@@ -123,17 +126,19 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         loadPipelines();
     }, []);
 
-    // Load board when pipeline changes, pagination changes, or server filters change
+    // Load board when pipeline changes, sorting changes, or filters change. Page handled separately for load-more.
     useEffect(() => {
         if (!selectedPipelineId) return;
 
-        // Debounce fetch to prevent API flood
+        // Reset page to 1 when filters change
+        setPage(1);
+
         const timer = setTimeout(() => {
             loadBoard(selectedPipelineId);
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [selectedPipelineId, page, limit, filters.search, filters.sortBy, filters.quickFilter]);
+    }, [selectedPipelineId, limit, filters.search, filters.sortBy, filters.quickFilter, filters.stageIds]);
 
     const loadPipelines = async () => {
         try {
@@ -155,12 +160,65 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const loadBoard = async (pipelineId: string) => {
         setLoading(true);
         try {
-            const data = await getKanbanBoard(pipelineId, page, limit, filters);
+            // getKanbanBoard now returns top 20 leads per stage
+            const data = await getKanbanBoard(pipelineId, 1, 20, filters);
             setBoardData(data);
+
+            // Initialize stage pages
+            const initialPages: Record<string, number> = {};
+            if (data.columns) {
+                data.columns.forEach(col => {
+                    initialPages[col.stage.id] = 1;
+                });
+            }
+            setStagePages(initialPages);
         } catch (error) {
             console.error('Failed to load board', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadMoreLeadsForStage = async (stageId: string) => {
+        if (loadingStage[stageId] || !selectedPipelineId || !boardData) return;
+
+        const currentColumn = boardData.columns.find(c => c.stage.id === stageId);
+        if (!currentColumn) return;
+
+        // Check if we have loaded all leads
+        if (currentColumn.leads.length >= currentColumn.total_count) return;
+
+        setLoadingStage(prev => ({ ...prev, [stageId]: true }));
+        try {
+            const nextPage = (stagePages[stageId] || 1) + 1;
+            const newLeads = await getLeads(selectedPipelineId, stageId, nextPage, 20, filters);
+
+            if (newLeads && newLeads.length > 0) {
+                // Update board data
+                setBoardData(prev => {
+                    if (!prev) return null;
+                    return {
+                        ...prev,
+                        columns: prev.columns.map(col => {
+                            if (col.stage.id === stageId) {
+                                // Filter out duplicates just in case
+                                const existingIds = new Set(col.leads.map(l => l.id));
+                                const uniqueNewLeads = newLeads.filter(l => !existingIds.has(l.id));
+                                return {
+                                    ...col,
+                                    leads: [...col.leads, ...uniqueNewLeads]
+                                };
+                            }
+                            return col;
+                        })
+                    };
+                });
+                setStagePages(prev => ({ ...prev, [stageId]: nextPage }));
+            }
+        } catch (error) {
+            console.error(`Failed to load more leads for stage ${stageId}`, error);
+        } finally {
+            setLoadingStage(prev => ({ ...prev, [stageId]: false }));
         }
     };
 
@@ -682,7 +740,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     }, [filteredBoardData, viewMode]);
 
     return (
-        <div className="h-full flex flex-col bg-[var(--color-bg)]">
+        <div className="w-full h-[calc(100vh-190px)] flex flex-col bg-[var(--color-bg)]">
             {/* Toolbar */}
             {/* Toolbar */}
             <div className="sticky top-0 z-10 bg-[var(--color-bg)] pt-4 px-4 md:px-6 pb-2">
@@ -1135,7 +1193,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         key={column.stage.id}
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, 'stage', column.stage.id)}
-                                        className="w-[85vw] md:w-80 flex-shrink-0 flex flex-col bg-[var(--color-surface)]/50 rounded-2xl border border-[var(--color-border)] max-h-full backdrop-blur-sm snap-center"
+                                        className="w-[85vw] md:w-80 flex-shrink-0 flex flex-col bg-[var(--color-surface)]/50 rounded-2xl border border-[var(--color-border)] h-full backdrop-blur-sm snap-center"
                                         onDragOver={handleDragOver}
                                         onDrop={(e) => handleDrop(e, column.stage.id)}
                                     >
@@ -1155,7 +1213,16 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         </div>
 
                                         {/* Leads List */}
-                                        <div className="flex-1 overflow-y-auto p-3 space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                        <div
+                                            className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar-dark"
+                                            onScroll={(e) => {
+                                                const target = e.currentTarget;
+                                                // Trigger load more when 200px from bottom
+                                                if (target.scrollHeight - target.scrollTop <= target.clientHeight + 200) {
+                                                    loadMoreLeadsForStage(column.stage.id);
+                                                }
+                                            }}
+                                        >
                                             {column.leads.map(lead => {
                                                 const colors = ['bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-violet-100 text-violet-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-indigo-100 text-indigo-700', 'bg-cyan-100 text-cyan-700'];
                                                 const colorIndex = (lead.id.charCodeAt(0) + (lead.name?.length || 0)) % colors.length;
@@ -1299,6 +1366,21 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                     </div>
                                                 );
                                             })}
+                                            {loadingStage[column.stage.id] && (
+                                                <div className="space-y-3 pt-2">
+                                                    {[1, 2].map((i) => (
+                                                        <div key={i} className="bg-[var(--color-surface)] p-4 rounded-xl border border-[var(--color-border)] opacity-60 animate-pulse">
+                                                            <div className="flex justify-between items-center mb-1.5">
+                                                                <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <div className="h-3 bg-slate-100 rounded w-3/4"></div>
+                                                                <div className="h-3 bg-slate-100 rounded w-1/2"></div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -1430,50 +1512,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                 )}
             </div>
 
-            {/* Pagination Controls */}
-            {
-                boardData && (
-                    <div className="border-t border-[var(--color-border)] p-3 bg-[var(--color-surface)] flex flex-col md:flex-row justify-between items-center gap-4 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sticky bottom-0">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">Rows per page:</span>
-                            <select
-                                value={limit}
-                                onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                                className="bg-[var(--color-input-bg)] border border-[var(--color-border)] rounded-lg text-sm font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-[var(--color-brand)] cursor-pointer text-[var(--color-text)]"
-                            >
-                                <option value="10">10</option>
-                                <option value="20">20</option>
-                                <option value="50">50</option>
-                                <option value="100">100</option>
-                            </select>
-                        </div>
 
-                        <div className="flex items-center gap-4">
-                            <span className="text-xs font-bold text-[var(--color-text)] opacity-70 uppercase tracking-wider">
-                                Page {(boardData.pagination?.page || 1)} of {(boardData.pagination?.totalPages || 1)} <span className="normal-case opacity-70">({boardData.pagination?.total || 0} items)</span>
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={(boardData.pagination?.page || 1) === 1}
-                                    className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
-                                    title="Previous Page"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                                </button>
-                                <button
-                                    onClick={() => setPage(p => Math.min((boardData.pagination?.totalPages || 1), p + 1))}
-                                    disabled={(boardData.pagination?.page || 1) >= (boardData.pagination?.totalPages || 1)}
-                                    className="p-2 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-bg)] hover:text-[var(--color-brand)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-[var(--color-text)]"
-                                    title="Next Page"
-                                >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
 
             {/* Edit Lead Modal */}
             <Modal
