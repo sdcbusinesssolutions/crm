@@ -1592,10 +1592,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             {/* Main Chat Area */}
             <div
-                className={`flex-1 flex flex-col fixed md:static inset-0 z-[200] md:z-auto transform transition-transform duration-300 ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
+                className={`flex-1 flex flex-col fixed md:relative inset-0 z-[200] md:z-auto transform transition-transform duration-300 h-[100dvh] md:h-auto ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
                 style={{
                     backgroundColor: '#333333',
-                    position: 'relative'
                 }}
             >
                 {/* Background Pattern */}
@@ -1803,7 +1802,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
 
                         {/* Input Area */}
-                        <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md z-10">
+                        <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md z-50" style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}>
                             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
 
                             {/* Attachment Menu */}
