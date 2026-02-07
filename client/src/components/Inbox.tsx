@@ -316,6 +316,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const handleAttachmentClick = (type: string) => {
         if (fileInputRef.current) {
+            // Reset value to ensure onChange triggers even if same file selected
+            fileInputRef.current.value = '';
+
             attachmentTypeRef.current = type;
             let accept = '*/*';
             switch (type) {
@@ -332,6 +335,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
+
+        if (file && !activeChatId) {
+            alert("Please select a chat to send media.");
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         if (file && activeChatId && !isSendingRef.current) {
             isSendingRef.current = true;
             // File Size Limits (MB)
@@ -482,6 +492,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     };
 
     const handleStartRecording = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Microphone access not supported. Please ensure you are using HTTPS.");
+            return;
+        }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
@@ -1803,7 +1817,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                         {/* Input Area */}
                         <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md z-50" style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}>
-                            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
+                            <input type="file" ref={fileInputRef} style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }} onChange={handleFileSelected} />
 
                             {/* Attachment Menu */}
                             {isAttachmentOpen && (
