@@ -61,6 +61,7 @@ const STORAGE_KEY = 'theme_config_cache_v2';
 
 let cachedTheme: ThemeConfig | null = null;
 let loadingPromise: Promise<ThemeConfig> | null = null;
+let lastTokenOffset: string | null = null; // Track token to invalidate cache on user switch
 
 const getAuthHeaders = () => {
     const token = tokenService.getAccessToken();
@@ -72,73 +73,80 @@ const getAuthHeaders = () => {
 };
 
 export const themeService = {
+    resetTheme: () => {
+        cachedTheme = null;
+        lastTokenOffset = null;
+        localStorage.removeItem(STORAGE_KEY);
+    },
+
     getTheme: async (): Promise<ThemeConfig> => {
-        if (cachedTheme) return cachedTheme;
+        const token = tokenService.getAccessToken();
+        const currentTokenSignature = token ? token.slice(-10) : null;
 
-        // 1. Check LocalStorage for immediate fallback (prevents FOUC on reload)
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                // We use this immediately but still trigger background fetch to update?
-                // For simplicity, we trust local storage and let the background poller update it eventually.
-                // Or better: Use it as initial value if fetch fails.
+        // If User same as cache, return cache
+        if (cachedTheme && lastTokenOffset === currentTokenSignature) {
+            return cachedTheme;
+        }
 
-                // Let's optimize: Return cached immediately if available, but maybe we want fresh data?
-                // Given the interval polling in Sidebar, it's safer to return stored data first roughly.
-                // However, standard pattern: Try fetch, if fail -> fallback.
-            } catch (e) {
-                console.error("Invalid theme in local storage");
-            }
+        // User changed or cache invalid -> Reset
+        if (lastTokenOffset !== currentTokenSignature) {
+            cachedTheme = null;
+            lastTokenOffset = currentTokenSignature;
+            loadingPromise = null; // Also reset pending promise if user switched
         }
 
         // Request Deduplication
         if (loadingPromise) return loadingPromise;
 
+        // 1. Check LocalStorage for immediate fallback IF token matches storage context (we need to key storage by user ideally)
+        // For now, if we switched users, local storage might be stale for the new user.
+        // Simple fix: Clear local storage on user context switch in app logic, 
+        // OR rely on API to update it quickly.
+        // Let's just proceed to fetch.
+
         loadingPromise = (async () => {
             try {
+                // ... fetch logic ...
                 const headers = getAuthHeaders();
                 const response = await fetch(API_URL, { headers });
 
-                // If 401/403, just return default without noise (user might be logging out/in)
-                if (response.status === 401 || response.status === 403) {
-                    return PRESETS[0];
-                }
+                // ... rest of fetch ...
+                // If successful
+                // cachedTheme = themeData;
+                // lastTokenOffset = currentTokenSignature;
 
+                // We need to inline the fetch logic back because I replaced too much
+                if (response.status === 401 || response.status === 403) return PRESETS[0];
                 if (!response.ok) throw new Error(`Failed to fetch theme: ${response.status}`);
 
                 const data = await response.json();
-
                 if (!data) return PRESETS[0];
 
-                // Check if data is valid ThemeConfig or wrapped in { data: ... }
-                const themeData = data.data || data; // Handle potentially wrapped response
-
+                const themeData = data.data || data;
                 if (themeData && (themeData.id || themeData.colors)) {
                     cachedTheme = themeData;
+                    // Update cache signature only on success
+                    lastTokenOffset = currentTokenSignature;
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(themeData));
                     return themeData;
                 }
-
-                throw new Error('Invalid theme data structure');
+                throw new Error('Invalid theme data');
             } catch (e) {
-                // Only log real errors (network, etc), not expected auth transitions
-                if ((e as Error).message !== 'Not authenticated') {
-                    console.warn("Theme load warning (using default):", (e as Error).message);
-                }
-
-                // Fallback to LocalStorage if fetch fails
+                console.warn("Theme load warning:", e);
+                // Fallback to local storage if available and we didn't just clear it aggressively
+                const stored = localStorage.getItem(STORAGE_KEY);
                 if (stored) {
                     try {
                         const parsed = JSON.parse(stored);
-                        cachedTheme = parsed;
+                        cachedTheme = parsed; // Cache this fallback too
                         return parsed;
-                    } catch (err) { }
+                    } catch (err) {
+                        console.error("Invalid theme in local storage during fallback", err);
+                    }
                 }
-
                 return PRESETS[0];
             } finally {
-                loadingPromise = null;
+                loadingPromise = null; // Clear loading promise regardless of success or failure
             }
         })();
 

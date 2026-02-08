@@ -449,6 +449,7 @@ const MainApp: React.FC = () => {
         await supabase.auth.signOut();
         setSession(null);
         tokenService.clearAccessToken();
+        themeService.resetTheme();
     }, []);
 
     const handleNavigateToWhatsAppBuilder = useCallback((flowId: string | null) => {
