@@ -973,11 +973,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     </div>
 
                     {/* Template Health (Smaller Card) */}
-                    <div className="bg-gradient-to-br from-[#4c1d95] to-[#020617] border border-white/10 rounded-3xl p-8 flex flex-col justify-between lg:col-span-2 relative overflow-hidden group shadow-2xl hover:shadow-purple-500/10 transition-shadow duration-300">
+                    <div className="bg-gradient-to-br from-[#50C878] to-[#020617] border border-white/10 rounded-3xl p-8 flex flex-col justify-between lg:col-span-2 relative overflow-hidden group shadow-2xl hover:shadow-emerald-500/10 transition-shadow duration-300">
                         <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-[0.03] shine-effect" />
                         <div className="flex justify-between items-center mb-6 relative z-10">
-                            <h3 className="font-bold text-lg text-white">System Health & Templates</h3>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{stats?.summary.totalTemplates} Total Templates</span>
+                            <h3 className="font-bold text-lg text-emerald-100">System Health & Templates</h3>
+                            <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">{stats?.summary.totalTemplates} Total Templates</span>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -986,12 +986,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                                 {tTotal > 0 ? (
                                     <div className="relative w-40 h-40">
                                         <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                                            <path className="text-slate-800 drop-shadow-sm" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                                            {tStats.approved > 0 && <path className="text-emerald-500" strokeDasharray={`${(tStats.approved / tTotal) * 100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />}
+                                            <path className="text-emerald-900/20 drop-shadow-sm" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                                            {tStats.approved > 0 && <path className="text-[#bef264]" strokeDasharray={`${(tStats.approved / tTotal) * 100}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />}
                                         </svg>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                                             <span className="text-3xl font-black text-white">{tStats.approved}</span>
-                                            <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mt-0.5">Active</span>
+                                            <span className="text-[9px] font-bold text-[#bef264] uppercase tracking-widest mt-0.5">Active</span>
                                         </div>
                                     </div>
                                 ) : (
@@ -1001,21 +1001,21 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
                             {/* Detailed Stats */}
                             <div className="col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <div className="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/5 text-center hover:bg-white/10 transition-colors">
+                                <div className="bg-emerald-500/10 backdrop-blur-sm p-4 rounded-2xl border border-emerald-500/20 text-center hover:bg-emerald-500/20 transition-colors">
                                     <span className="block text-2xl font-black text-white">{tStats.approved}</span>
-                                    <span className="text-[10px] font-bold text-emerald-400 uppercase">Approved</span>
+                                    <span className="text-[10px] font-bold text-[#bef264] uppercase">Approved</span>
                                 </div>
-                                <div className="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/5 text-center hover:bg-white/10 transition-colors">
+                                <div className="bg-emerald-500/10 backdrop-blur-sm p-4 rounded-2xl border border-emerald-500/20 text-center hover:bg-emerald-500/20 transition-colors">
                                     <span className="block text-2xl font-black text-white">{tStats.pending}</span>
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase">Pending</span>
+                                    <span className="text-[10px] font-bold text-amber-300 uppercase">Pending</span>
                                 </div>
-                                <div className="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/5 text-center hover:bg-white/10 transition-colors">
+                                <div className="bg-emerald-500/10 backdrop-blur-sm p-4 rounded-2xl border border-emerald-500/20 text-center hover:bg-emerald-500/20 transition-colors">
                                     <span className="block text-2xl font-black text-white">{tStats.rejected}</span>
-                                    <span className="text-[10px] font-bold text-red-400 uppercase">Rejected</span>
+                                    <span className="text-[10px] font-bold text-red-300 uppercase">Rejected</span>
                                 </div>
-                                <div className="bg-white/5 backdrop-blur-sm p-4 rounded-2xl border border-white/5 text-center hover:bg-white/10 transition-colors">
+                                <div className="bg-emerald-500/10 backdrop-blur-sm p-4 rounded-2xl border border-emerald-500/20 text-center hover:bg-emerald-500/20 transition-colors">
                                     <span className="block text-2xl font-black text-white">{stats?.summary.totalFlows || 0}</span>
-                                    <span className="text-[10px] font-bold text-blue-400 uppercase">Active Flows</span>
+                                    <span className="text-[10px] font-bold text-sky-300 uppercase">Active Flows</span>
                                 </div>
                             </div>
                         </div>
