@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { getTasks, updateTask, deleteTask, getLeads, createTask, getPipelines, createLead } from '../services/lead-management-api';
 import { themeService } from '../services/themeService';
+import { contactService } from '../services/contactService';
 import { format, isToday, isPast, isFuture, parseISO } from 'date-fns';
 import Papa from 'papaparse';
 
@@ -38,10 +39,46 @@ const FollowUpManager: React.FC = () => {
         const timer = setTimeout(async () => {
             if (isModalOpen) {
                 try {
-                    const results = await getLeads(undefined, undefined, 1, 10, { search: contactSearch });
-                    setContactOptions(results || []);
+                    const searchTerm = contactSearch.replace(/,/g, '');
+
+                    // 1. Search existing Leads (CRM)
+                    const leadsPromise = getLeads(undefined, undefined, 1, 10, { search: searchTerm });
+
+                    // 2. Search raw Contacts (Address Book)
+                    // We only search contacts if we have a search term, to avoid fetching all contacts unnecessarily
+                    const contactsPromise = searchTerm
+                        ? contactService.getContactsPaginated(1, 10, searchTerm).then(res => res.data)
+                        : Promise.resolve([]);
+
+                    const [leadResults, contactResults] = await Promise.all([leadsPromise, contactsPromise]);
+
+                    // 3. Merge: Prioritize Leads. If a contact exists as a lead, use the lead.
+                    // Map existing leads by phone for easy lookup
+                    const leadPhoneMap = new Map();
+                    leadResults.forEach(l => {
+                        if (l.phone) leadPhoneMap.set(l.phone, l);
+                    });
+
+                    // Filter out contacts that are already in the lead results
+                    const newContacts = contactResults.filter((c: any) => {
+                        // Check if this contact's phone is already in the lead results
+                        return !leadPhoneMap.has(c.phone);
+                    }).map((c: any) => ({
+                        // Transform Contact to a Lead-like temporary structure for display
+                        id: `temp_contact_${c.id}`, // Temporary ID to distinguish
+                        is_raw_contact: true, // Flag to identify raw contact
+                        original_contact_id: c.id,
+                        name: c.name,
+                        phone: c.phone,
+                        status: 'Contact', // Visual indicator
+                        source: 'Address Book'
+                    }));
+
+                    // Combine: Leads first, then new contacts
+                    setContactOptions([...leadResults, ...newContacts]);
+
                 } catch (e) {
-                    console.error("Failed to search leads", e);
+                    console.error("Failed to search leads/contacts", e);
                 }
             }
         }, 300);
@@ -693,15 +730,36 @@ const FollowUpManager: React.FC = () => {
                                                     contactOptions.map(lead => (
                                                         <div
                                                             key={lead.id}
-                                                            onClick={() => {
-                                                                setFormData({ ...formData, lead_id: lead.id });
-                                                                setContactSearch(lead.name || lead.phone);
+                                                            onClick={async () => {
+                                                                // If this is a raw contact, create a lead from it first
+                                                                if (lead.is_raw_contact) {
+                                                                    try {
+                                                                        const newLead = await createLead({
+                                                                            name: lead.name,
+                                                                            phone: lead.phone,
+                                                                            source: 'manual',
+                                                                            custom_data: { original_contact_id: lead.original_contact_id }
+                                                                        });
+                                                                        setFormData({ ...formData, lead_id: newLead.id });
+                                                                        setContactSearch(newLead.name || newLead.phone);
+                                                                    } catch (err) {
+                                                                        console.error("Failed to create lead from contact", err);
+                                                                        alert("Failed to link contact.");
+                                                                    }
+                                                                } else {
+                                                                    // Existing lead
+                                                                    setFormData({ ...formData, lead_id: lead.id });
+                                                                    setContactSearch(lead.name || lead.phone);
+                                                                }
                                                                 setIsDropdownOpen(false);
                                                             }}
                                                             className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 flex flex-col"
                                                         >
                                                             <span className="font-bold text-slate-800">{lead.name}</span>
-                                                            <span className="text-xs text-slate-500">{lead.phone} • {lead.status}</span>
+                                                            <div className="flex justify-between items-center text-xs text-slate-500">
+                                                                <span>{lead.phone}</span>
+                                                                {lead.is_raw_contact && <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">From Contacts</span>}
+                                                            </div>
                                                         </div>
                                                     ))
                                                 ) : (

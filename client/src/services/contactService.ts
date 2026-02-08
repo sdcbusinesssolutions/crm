@@ -29,10 +29,15 @@ export const contactService = {
         }
     },
 
-    getContactsPaginated: async (page: number, limit: number): Promise<{ data: Contact[], total: number }> => {
+    getContactsPaginated: async (page: number, limit: number, search?: string): Promise<{ data: Contact[], total: number }> => {
         try {
             const headers = await getHeaders();
-            const res = await fetch(`/api/contacts?page=${page}&limit=${limit}`, { headers });
+            let url = `/api/contacts?page=${page}&limit=${limit}`;
+            if (search) {
+                // Remove commas client-side too just in case, though backend handles it
+                url += `&search=${encodeURIComponent(search.replace(/,/g, ''))}`;
+            }
+            const res = await fetch(url, { headers });
             if (!res.ok) throw new Error('Failed to fetch paginated contacts');
             return await res.json();
         } catch (e) {

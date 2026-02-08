@@ -15,13 +15,20 @@ router.get('/', async (req, res) => {
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
-      // Use Admin to bypass limits and get accurate total
-      const { data: rawData, count, error } = await supabaseAdmin
+      let query = supabaseAdmin
         .from('contacts')
         .select('*', { count: 'exact' })
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
+
+      if (req.query.search) {
+        const s = req.query.search.replace(/,/g, '');
+        if (s) {
+          query = query.or(`name.ilike.%${s}%,phone.ilike.%${s}%`);
+        }
+      }
+
+      const { data: rawData, count, error } = await query.range(from, to);
 
       if (error) throw error;
 
