@@ -10,6 +10,7 @@ import {
 import { inboxService } from '../services/inboxService';
 import { themeService } from '../services/themeService';
 import { tagService, Tag } from '../services/tagService';
+import { contactService } from '../services/contactService';
 import { supabase } from '../lib/supabase';
 import { Conversation, Message } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
@@ -19,6 +20,9 @@ const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+import ContactEditModal from './ContactEditModal';
+import { Contact } from '../types';
 
 interface InboxProps {
     onToggleSidebar?: () => void;
@@ -60,6 +64,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const isAtBottomRef = useRef(true);
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState<string | null>(null);
+    const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false);
+    const [editingContactData, setEditingContactData] = useState<Contact | null>(null);
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -73,18 +79,18 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [availableTagsList]);
 
     // Load Conversations
+    const loadConversations = async () => {
+        try {
+            const data = await inboxService.getConversations();
+            // Deduplicate by id
+            const unique = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            setConversations(unique);
+        } catch (error) {
+            console.error('Failed to load conversations:', error);
+        }
+    };
+
     useEffect(() => {
-        const loadConversations = async () => {
-            try {
-                const data = await inboxService.getConversations();
-                // Deduplicate by id
-                const unique = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                console.log('Loaded conversations:', unique.length);
-                setConversations(unique);
-            } catch (error) {
-                console.error('Failed to load conversations:', error);
-            }
-        };
         loadConversations();
 
         // Load tags
@@ -94,6 +100,42 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         const interval = setInterval(loadConversations, 5000);
         return () => clearInterval(interval);
     }, []);
+
+    const handleStartEditContact = async () => {
+        if (!activeChat) return;
+
+        // Try to find existing contact by phone
+        try {
+            const contact = await contactService.getContactByPhone(activeChat.contact_phone);
+            setEditingContactData(contact);
+            setIsEditContactModalOpen(true);
+        } catch (e) {
+            console.error("Error fetching contact for edit", e);
+            // Fallback to new/unknown contact mode
+            setEditingContactData(null);
+            setIsEditContactModalOpen(true);
+        }
+    };
+
+    const handleEditSave = async () => {
+        await loadConversations();
+        // Also refresh active chat status/info if needed
+        if (activeChat) {
+            // force refresh of contact status
+            const phone = activeChat.contact_phone;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: contact } = await (supabase
+                    .from('contacts') as any)
+                    .select('status')
+                    .eq('phone', phone)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+
+                setContactStatus(contact?.status || 'Active');
+            }
+        }
+    };
 
     // Load Messages & Mark as Read
     useEffect(() => {
@@ -1967,6 +2009,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <button onClick={handleExportContact} className="flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
                                             <DownloadIcon className="w-4 h-4" /> <span>Export</span>
                                         </button>
+                                        <button onClick={handleStartEditContact} className="col-span-2 flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 transition-colors">
+                                            <EditIcon className="w-4 h-4" /> <span>Edit User Details</span>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -2100,6 +2145,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
                 </div>
             )}
+
+            {/* Edit Contact Modal */}
+            <ContactEditModal
+                isOpen={isEditContactModalOpen}
+                onClose={() => setIsEditContactModalOpen(false)}
+                contact={editingContactData}
+                onSave={handleEditSave}
+                initialPhoneNumber={activeChat?.contact_phone}
+                initialName={activeChat?.contact_name}
+            />
         </div >
     );
 };
