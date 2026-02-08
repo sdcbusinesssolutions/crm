@@ -26,8 +26,14 @@ router.get('/', async (req, res) => {
 
         // Search Support
         if (req.query.search) {
-            const s = req.query.search;
-            query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+            // Sanitize and quote the search string properly for PostgREST syntax if needed, 
+            // but for ilike with supa-js, simple string interpolation works unless it contains comma.
+            // However, Supabase client handles parameterization, but in .or() raw string, we must be careful.
+            // Replacing comma with nothing or handling it is safer.
+            const s = req.query.search.replace(/,/g, '');
+            if (s) {
+                query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+            }
         }
 
         // Quick Filters
