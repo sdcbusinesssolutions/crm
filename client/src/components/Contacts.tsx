@@ -217,7 +217,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                                 key={tab.id}
                                 onClick={() => handleTabClick(tab.id)}
                                 className={`
-                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[110px] md:min-w-[140px] shadow-sm transform hover:scale-[1.02]
+                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[110px] md:min-w-[140px] shadow-sm transform hover:scale-[1.02] shrink-0
                                     ${activeTab === tab.id ? tab.activeClass : tab.inactiveClass}
                                 `}
                             >
