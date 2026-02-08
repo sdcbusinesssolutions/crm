@@ -134,7 +134,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         }
     };
 
-    const tabInactiveClass = 'bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-all';
+    const tabInactiveClass = 'bg-brand-600 text-white border border-brand-600 hover:bg-brand-700 hover:border-brand-700 transition-all shadow-md';
 
     const tabs = [
         {
@@ -149,42 +149,42 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             id: 'contacts',
             label: 'Contacts',
             icon: UsersIcon,
-            activeClass: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30',
+            activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.contacts
         },
         {
             id: 'groups',
             label: 'Groups',
-            activeClass: 'bg-fuchsia-500 text-white shadow-lg shadow-fuchsia-500/30',
+            activeClass: 'bg-amber-600 text-white shadow-lg shadow-amber-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.groups
         },
         {
             id: 'pipelines',
             label: 'Pipelines',
-            activeClass: 'bg-violet-500 text-white shadow-lg shadow-violet-500/30',
+            activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.pipelines
         },
         {
             id: 'forms',
             label: 'Form Builder',
-            activeClass: 'bg-blue-500 text-white shadow-lg shadow-blue-500/30',
+            activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.forms
         },
         {
             id: 'follow-up',
             label: 'Follow-up',
-            activeClass: 'bg-amber-500 text-white shadow-lg shadow-amber-500/30',
+            activeClass: 'bg-rose-600 text-white shadow-lg shadow-rose-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.followUps
         },
         {
             id: 'inputs',
             label: 'Custom Fields',
-            activeClass: 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30',
+            activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20',
             inactiveClass: tabInactiveClass,
             count: counts.inputs
         },
@@ -226,7 +226,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                                 {tab.count !== null && (
                                     <span className={`
                                         ml-1 px-2 py-0.5 rounded-md text-[10px] 
-                                        ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white/50 border border-black/5'}
+                                        ${activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-white text-brand-600 shadow-sm'}
                                     `}>
                                         {tab.count}
                                     </span>

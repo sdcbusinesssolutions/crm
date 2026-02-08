@@ -10,7 +10,7 @@ export const PRESETS: ThemeConfig[] = [
         maxFileSize: 16,
         sidebarDisplay: 'both',
         appNameType: 'text',
-        colors: { brand: '#ea580c', background: '#f8fafc', surface: '#ffffff', text: '#0f172a', sidebarText: '#475569', sidebarActiveBg: '#fff7ed', border: '#e2e8f0', inputBg: '#ffffff' }
+        colors: { brand: '#0ea774', background: '#f8fafc', surface: '#ffffff', text: '#0f172a', sidebarText: '#475569', sidebarActiveBg: '#fff7ed', border: '#e2e8f0', inputBg: '#ffffff' }
     },
     {
         id: 'ocean',
@@ -57,7 +57,7 @@ export const PRESETS: ThemeConfig[] = [
 ];
 
 const API_URL = '/api/settings/branding';
-const STORAGE_KEY = 'theme_config_cache';
+const STORAGE_KEY = 'theme_config_cache_v2';
 
 let cachedTheme: ThemeConfig | null = null;
 let loadingPromise: Promise<ThemeConfig> | null = null;

@@ -187,18 +187,18 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                 <table className="w-full text-sm border-separate border-spacing-0">
                     <thead>
                         <tr className="shadow-sm">
-                            <th className="px-6 py-4 w-16 text-center font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white rounded-tl-lg rounded-bl-lg border-r border-orange-700/30">#</th>
-                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white border-r border-orange-700/30">Schedule Name</th>
-                            <th className="px-6 py-4 text-center font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white border-r border-orange-700/30">Status</th>
-                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white border-r border-orange-700/30">Next Trigger</th>
-                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white border-r border-orange-700/30">Last Run</th>
-                            <th className="px-6 py-4 text-right font-bold uppercase tracking-wider text-[11px] bg-[#c2410c] text-white rounded-tr-lg rounded-br-lg">Action</th>
+                            <th className="px-6 py-4 w-16 text-center font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white rounded-tl-lg rounded-bl-lg border-r border-brand-700/30">#</th>
+                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white border-r border-brand-700/30">Schedule Name</th>
+                            <th className="px-6 py-4 text-center font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white border-r border-brand-700/30">Status</th>
+                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white border-r border-brand-700/30">Next Trigger</th>
+                            <th className="px-6 py-4 font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white border-r border-brand-700/30">Last Run</th>
+                            <th className="px-6 py-4 text-right font-bold uppercase tracking-wider text-[11px] bg-brand-600 text-white rounded-tr-lg rounded-br-lg">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                         {automations.map((auto, idx) => (
                             <tr key={auto.id} className="hover:bg-slate-50 transition-colors group">
-                                <td className="px-6 py-4 text-center text-slate-400 font-mono text-xs border-b border-slate-100">{idx + 1}</td>
+                                <td className="px-6 py-4 text-center text-slate-400 text-xs border-b border-slate-100">{idx + 1}</td>
                                 <td className="px-6 py-4 font-bold text-slate-700 group-hover:text-brand-600 transition-colors border-b border-slate-100">{auto.name}</td>
                                 <td className="px-6 py-4 text-center border-b border-slate-100">
                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border ${auto.status === 'active' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'
@@ -225,7 +225,7 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             )}
                                         </button>
-                                        <button onClick={() => handleTrigger(auto.id)} className="p-1 text-slate-400 hover:text-orange-500 transition-colors" title="Test Run">
+                                        <button onClick={() => handleTrigger(auto.id)} className="p-1 text-slate-400 hover:text-brand-600 transition-colors" title="Test Run">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                                         </button>
                                         <button onClick={() => onEdit(auto.id)} className="p-1 text-slate-400 hover:text-blue-500 transition-colors" title="Edit">
