@@ -218,6 +218,25 @@ export const getLeads = async (pipelineId?: string, stageId?: string, page: numb
     }
 };
 
+export const createLead = async (lead: Partial<Lead>): Promise<Lead> => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch('/api/leads', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(lead)
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to create lead');
+        }
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to create lead', e);
+        throw e;
+    }
+};
+
 export const moveLeadToStage = async (leadId: string, stageId: string): Promise<Lead | null> => {
     try {
         const headers = await getHeaders();

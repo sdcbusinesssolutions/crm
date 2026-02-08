@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { getTasks, updateTask, deleteTask, getLeads, createTask, getPipelines } from '../services/lead-management-api';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { getTasks, updateTask, deleteTask, getLeads, createTask, getPipelines, createLead } from '../services/lead-management-api';
 import { themeService } from '../services/themeService';
 import { format, isToday, isPast, isFuture, parseISO } from 'date-fns';
 import Papa from 'papaparse';
@@ -27,10 +27,40 @@ const FollowUpManager: React.FC = () => {
     });
     const [isSaving, setIsSaving] = useState(false);
 
+    // Searchable Dropdown State
+    const [contactSearch, setContactSearch] = useState('');
+    const [contactOptions, setContactOptions] = useState<any[]>([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(async () => {
+            if (isModalOpen) {
+                try {
+                    const results = await getLeads(undefined, undefined, 1, 10, { search: contactSearch });
+                    setContactOptions(results || []);
+                } catch (e) {
+                    console.error("Failed to search leads", e);
+                }
+            }
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [contactSearch, isModalOpen]);
+
     useEffect(() => {
         loadTasks();
         loadLeads();
         loadPipelines(); // Fetch pipelines
+
+        // Click outside to close dropdown
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const loadTasks = async () => {
@@ -67,37 +97,98 @@ const FollowUpManager: React.FC = () => {
     const openCreateModal = () => {
         setEditingTask(null);
         setFormData({ title: '', description: '', due_date: '', lead_id: '' });
+        setContactSearch(''); // Reset search
+        setContactOptions([]); // Reset options
         setIsModalOpen(true);
     };
 
     // Open Modal for Editing/Viewing
     const openEditModal = (task: any) => {
         setEditingTask(task);
+        const taskLead = leads.find(l => l.id === task.lead_id) || (task.leads ? task.leads : null);
         setFormData({
             title: task.title || '',
             description: task.description || '',
             due_date: task.due_date ? format(parseISO(task.due_date), "yyyy-MM-dd'T'HH:mm") : '', // Format for datetime-local input
             lead_id: task.lead_id || ''
         });
+        setContactSearch(taskLead ? taskLead.name || taskLead.phone : '');
         setIsModalOpen(true);
+    };
+
+    const handleCreateNewContact = async () => {
+        if (!contactSearch) return;
+        setIsSaving(true);
+        try {
+            const isPhone = /^[+\d\s-]+$/.test(contactSearch) && contactSearch.replace(/\D/g, '').length >= 10;
+            const newLead = await createLead({
+                name: contactSearch, // Name is the search term
+                phone: isPhone ? contactSearch : undefined,
+                source: 'manual'
+            });
+
+            setLeads(prev => [newLead, ...prev]); // Add to local cache
+            setFormData({ ...formData, lead_id: newLead.id });
+            setContactSearch(newLead.name || newLead.phone);
+            setIsDropdownOpen(false);
+            // Optionally auto-select
+        } catch (error) {
+            console.error("Failed to create new contact", error);
+            alert("Failed to create new contact from search term.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.lead_id) {
+
+        let finalLeadId = formData.lead_id;
+
+        // If no lead selected but we have search text, try to find or create
+        if (!finalLeadId && contactSearch) {
+            const exactMatch = contactOptions.find(l =>
+                l.name?.toLowerCase() === contactSearch.toLowerCase() ||
+                l.phone === contactSearch
+            );
+
+            if (exactMatch) {
+                finalLeadId = exactMatch.id;
+            } else {
+                // Suggest creating? Or block?
+                // The user requested manual number entry. So we create if not found.
+                if (window.confirm(`Contact '${contactSearch}' not found. Create new contact?`)) {
+                    // Logic similar to handleCreateNewContact but inline
+                    // ... actually handleCreateNewContact serves this purpose.
+                    // For now, block and ask user to select or create explicitly to avoid accidents.
+                    alert(`Please select a contact or click 'Create New'`);
+                    return;
+                }
+                return;
+            }
+        }
+
+        if (!finalLeadId) {
             alert('Please select a contact');
             return;
         }
+
         setIsSaving(true);
         try {
+            const payload = { ...formData, lead_id: finalLeadId };
+            let savedTask;
+
             if (editingTask) {
                 // Update existing
-                const updated = await updateTask(editingTask.id, formData);
-                setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...updated, leads: leads.find(l => l.id === formData.lead_id) } : t));
+                const updated = await updateTask(editingTask.id, payload);
+                savedTask = { ...updated, leads: leads.find(l => l.id === finalLeadId) || contactOptions.find(l => l.id === finalLeadId) };
+                setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...savedTask } : t));
             } else {
                 // Create new
-                const created = await createTask(formData);
-                setTasks([...tasks, { ...created, leads: leads.find(l => l.id === formData.lead_id) }]);
+                const created = await createTask(payload);
+                // Ensure we have lead info in the task object for display
+                savedTask = { ...created, leads: leads.find(l => l.id === finalLeadId) || contactOptions.find(l => l.id === finalLeadId) };
+                setTasks([...tasks, savedTask]);
             }
             setIsModalOpen(false);
         } catch (error) {
@@ -120,6 +211,7 @@ const FollowUpManager: React.FC = () => {
             setTasks(updatedTaskList);
 
             // 2. Prepare form for NEW task with same lead
+            const currentLead = leads.find(l => l.id === editingTask.lead_id);
             setEditingTask(null); // Switch to create mode
             setFormData({
                 title: '',
@@ -127,6 +219,7 @@ const FollowUpManager: React.FC = () => {
                 due_date: '',
                 lead_id: editingTask.lead_id // Keep the same lead
             });
+            setContactSearch(currentLead ? currentLead.name || currentLead.phone : '');
 
             // Modal stays open, but now in "Create" mode
             setIsSaving(false);
@@ -567,18 +660,70 @@ const FollowUpManager: React.FC = () => {
 
                                 <div>
                                     <label className="block text-sm font-medium mb-1 opacity-80">Contact *</label>
-                                    <select
-                                        required
-                                        value={formData.lead_id}
-                                        onChange={e => setFormData({ ...formData, lead_id: e.target.value })}
-                                        className="w-full px-4 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        disabled={!!editingTask} // Lock contact when editing
-                                    >
-                                        <option value="">Select a contact...</option>
-                                        {leads.map(lead => (
-                                            <option key={lead.id} value={lead.id}>{lead.name} ({lead.phone})</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative" ref={dropdownRef}>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                required={!formData.lead_id}
+                                                value={contactSearch}
+                                                onChange={(e) => {
+                                                    setContactSearch(e.target.value);
+                                                    setFormData({ ...formData, lead_id: '' }); // Clear selection on type
+                                                    setIsDropdownOpen(true);
+                                                }}
+                                                onFocus={() => setIsDropdownOpen(true)}
+                                                placeholder="Search name or enter phone..."
+                                                className="w-full pl-10 pr-4 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                                disabled={!!editingTask} // Lock contact when editing
+                                            />
+                                            {formData.lead_id && (
+                                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                                    <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Dropdown Results */}
+                                        {isDropdownOpen && !editingTask && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                                {contactOptions.length > 0 ? (
+                                                    contactOptions.map(lead => (
+                                                        <div
+                                                            key={lead.id}
+                                                            onClick={() => {
+                                                                setFormData({ ...formData, lead_id: lead.id });
+                                                                setContactSearch(lead.name || lead.phone);
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className="px-4 py-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0 flex flex-col"
+                                                        >
+                                                            <span className="font-bold text-slate-800">{lead.name}</span>
+                                                            <span className="text-xs text-slate-500">{lead.phone} • {lead.status}</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-4 py-3 text-sm text-slate-500 text-center">
+                                                        {contactSearch ? 'No contacts found' : 'Start typing to search...'}
+                                                    </div>
+                                                )}
+
+                                                {/* Create Option */}
+                                                {contactSearch && !contactOptions.find(c => c.name === contactSearch || c.phone === contactSearch) && (
+                                                    <div
+                                                        onClick={handleCreateNewContact}
+                                                        className="px-4 py-3 bg-brand-50 hover:bg-brand-100 cursor-pointer border-t border-brand-100 flex items-center gap-2 text-brand-700 font-bold"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                                        Create "{contactSearch}"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-1 pl-1">Search by name or enter a phone number to create a new contact.</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium mb-1 opacity-80">Title *</label>
