@@ -5,7 +5,7 @@ import ContactGroups from './ContactGroups';
 import InputFields from './InputFields';
 import PipelineView from './PipelineView';
 import FormBuilder from './FormBuilder';
-import FollowUpManager from './FollowUpManager';
+import FollowUpManager from './FollowUps/FollowUpManager';
 import LeadDashboard from './LeadDashboard';
 import { getPipelines } from '../services/lead-management-api';
 import { contactService } from '../services/contactService';

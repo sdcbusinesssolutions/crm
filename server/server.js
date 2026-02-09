@@ -169,6 +169,9 @@ const integrationsRoutes = require('./routes/integrations'); // New: Import inte
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 
 // Admin Routes
+const followUpRoutes = require('./routes/followUps');
+const dripCampaignRoutes = require('./routes/dripCampaigns');
+
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
@@ -196,6 +199,9 @@ router.use('/notes', requireAuth, notesRoutes);
 router.use('/tasks', requireAuth, tasksRoutes);
 router.use('/appointments', requireAuth, appointmentsRoutes);
 router.use('/call-logs', requireAuth, callLogsRoutes);
+
+router.use('/follow-ups', requireAuth, followUpRoutes);
+router.use('/drip-campaigns', requireAuth, dripCampaignRoutes);
 
 // Soft-Auth Branding Route (Must be before protected /settings mount to function correctly)
 const brandingRoutes = require('./routes/branding');
@@ -284,6 +290,14 @@ if (require.main === module) {
       const Scheduler = require('./workers/scheduler');
       const scheduler = new Scheduler(supabaseUrl, serviceKey);
       scheduler.start();
+
+      // Start Drip Campaign Engine (New)
+      const dripEngine = require('./workers/dripProcessor');
+      const workerCount = parseInt(process.env.DRIP_WORKER_COUNT || '1');
+      console.log(`[DripEngine] Starting ${workerCount} worker(s)...`);
+      for (let i = 0; i < workerCount; i++) {
+        setTimeout(() => dripEngine.start(), i * 2000); // Stagger start by 2s
+      }
     } else {
       console.warn('⚠️ Campaign Worker not started: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     }

@@ -42,6 +42,7 @@ import ContactTags from './components/ContactTags';
 import WhatsAppApiSettings from './components/WhatsAppApiSettings';
 import CreateCampaignComponent from './components/Campaigns/CreateCampaign';
 import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAutomation';
+import DripCampaignManager from './components/DripCampaigns/DripCampaignManager';
 
 import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
@@ -665,6 +666,10 @@ const MainApp: React.FC = () => {
                     </div>
                 </div>
             );
+        }
+
+        if (activeMenuItem === 'Drip Campaigns') {
+            return <DripCampaignManager onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
         return (

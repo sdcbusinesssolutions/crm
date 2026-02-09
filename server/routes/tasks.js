@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 
         let query = supabase
             .from('tasks')
-            .select('*, leads ( name, phone )')
+            .select('*, leads ( name, phone, pipelines ( name ) )')
             .eq('user_id', req.user.id)
             .order('due_date', { ascending: true });
 
