@@ -46,21 +46,6 @@ export const contactService = {
         }
     },
 
-    getContactByPhone: async (phone: string): Promise<Contact | null> => {
-        try {
-            const headers = await getHeaders();
-            const res = await fetch(`/api/contacts?search=${encodeURIComponent(phone)}&limit=1`, { headers });
-            if (!res.ok) throw new Error('Failed to fetch contact');
-            const data = await res.json();
-            // detailed match
-            const found = (data.data || []).find((c: Contact) => c.phone.includes(phone) || phone.includes(c.phone));
-            return found || null;
-        } catch (e) {
-            console.error("Failed to find contact by phone", e);
-            return null;
-        }
-    },
-
     saveContact: async (contact: Contact): Promise<void> => {
         try {
             const headers = await getHeaders();
