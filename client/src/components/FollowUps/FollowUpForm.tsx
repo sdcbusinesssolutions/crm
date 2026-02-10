@@ -11,16 +11,31 @@ interface FollowUpFormProps {
 }
 
 const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCancel }) => {
+    // Helper to format date for datetime-local input
+    const formatDateForInput = (dateStr?: string) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     const [formData, setFormData] = useState<Partial<FollowUp>>({
-        title: '',
-        description: '',
-        scheduled_at: '',
         status: 'PENDING',
         priority: 'MEDIUM',
         type: 'CALL',
         recurrence_rule: null,
         contact_id: '',
-        ...initialData
+        ...initialData,
+        title: initialData?.title || '',
+        description: initialData?.description || '',
+        scheduled_at: formatDateForInput(initialData?.scheduled_at)
     });
 
     // Recurrence State
@@ -55,6 +70,15 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     ]);
 
     useEffect(() => {
+        // Sync formData with initialData when it changes
+        if (initialData) {
+            setFormData(prev => ({
+                ...prev,
+                ...initialData,
+                scheduled_at: formatDateForInput(initialData.scheduled_at)
+            }));
+        }
+
         if (initialData?.recurrence_rule) {
             setRecurrence({
                 enabled: true,
@@ -66,7 +90,29 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
         // Pre-fill contact search if editing
         if (initialData?.contacts) {
-            setContactSearch(initialData.contacts.name || initialData.contacts.phone);
+            const { name, phone } = initialData.contacts;
+            if (name && name !== '~' && name !== 'Unknown') {
+                setContactSearch(`${name} (${phone || 'No Phone'})`);
+            } else {
+                setContactSearch(phone || name || '');
+            }
+        } else if (!initialData?.id) {
+            // Reset if adding new
+            setContactSearch('');
+        }
+
+        // Pre-fill drip campaign if active
+        // Note: We need to cast contacts to any because FollowUp interface might not fully reflect the deep nested structure we fetched
+        const contactData = initialData?.contacts as any;
+        if (contactData?.drip_enrollments && Array.isArray(contactData.drip_enrollments)) {
+            const active = contactData.drip_enrollments.find((e: any) => e.status === 'ACTIVE');
+            if (active && active.drip_campaign_id) {
+                setSelectedCampaignId(active.drip_campaign_id);
+                // If we could store is_looping in DB we would restore it here, but unrelated to bug.
+
+                // Also restore stop_at if it matches scheduled_at? 
+                // The form uses scheduled_at as stop_at for the drip, so this is implicit.
+            }
         }
     }, [initialData]);
 

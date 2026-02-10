@@ -17,9 +17,10 @@ router.get('/', async (req, res) => {
                     phone,
                     drip_enrollments (
                         id,
+                        drip_campaign_id,
                         status,
                         stop_at,
-                        created_at,
+                        started_at,
                         drip_campaigns (name)
                     )
                 )

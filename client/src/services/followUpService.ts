@@ -19,7 +19,8 @@ export interface FollowUp {
             id: string;
             status: string;
             stop_at: string;
-            created_at: string;
+            started_at: string;
+            drip_campaign_id?: string;
             drip_campaigns?: {
                 name: string;
             };
