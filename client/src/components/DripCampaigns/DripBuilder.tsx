@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { dripCampaignService, DripCampaign, DripStep } from '../../services/dripCampaignService';
 import { integrationsService } from '../../services/integrationsService';
+import { tagService } from '../../services/tagService';
+import { pipelineService } from '../../services/pipelineService';
 import {
     ArrowLeftIcon,
     SettingsIcon,
@@ -38,6 +40,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [templates, setTemplates] = useState<any[]>([]);
     const [gmailConnections, setGmailConnections] = useState<any[]>([]);
     const [smtpConnections, setSmtpConnections] = useState<any[]>([]);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [availableStages, setAvailableStages] = useState<any[]>([]);
 
     // --- State: UI ---
     const [loading, setLoading] = useState(false);
@@ -60,9 +64,25 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
         }
         loadTemplates();
         loadEmailConnections();
+        loadMetadata();
     }, [campaignId, activeTab]);
 
     // --- Loaders ---
+    const loadMetadata = async () => {
+        try {
+            const tags = await tagService.getTags();
+            setAvailableTags(tags.map(t => t.name));
+
+            const pipelines = await pipelineService.getPipelines();
+            let stages: any[] = [];
+            for (const p of pipelines) {
+                const pStages = await pipelineService.getPipelineStages(p.id);
+                // Simple sort by display order if available
+                stages.push(...pStages.map(s => ({ ...s, pipelineName: p.name })));
+            }
+            setAvailableStages(stages);
+        } catch (e) { console.error('Failed to load metadata', e); }
+    };
     const loadCampaign = async (id: string) => {
         setLoading(true);
         try {
@@ -172,6 +192,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
         } catch (e) { alert("Failed"); }
     };
 
+    const handleDeleteEnrollment = async (id: string) => {
+        if (!window.confirm("Delete this enrollment record?")) return;
+        try {
+            await dripCampaignService.deleteEnrollment(id);
+            loadEnrollments();
+        } catch (e) { alert("Failed"); }
+    };
+
     // --- Canvas Logic ---
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return; // Only left click
@@ -270,7 +298,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                             <td className="px-6 py-4 font-medium text-white">{en.contact?.name}<div className="text-xs text-slate-500">{en.contact?.phone}</div></td>
                                             <td className="px-6 py-4"><span className={`px-2 py-0.5 rounded text-xs font-bold border ${en.status === 'ACTIVE' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>{en.status}</span></td>
                                             <td className="px-6 py-4">{en.current_step?.step_order || '-'}</td>
-                                            <td className="px-6 py-4"><button onClick={() => handleStopEnrollment(en.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Stop</button></td>
+                                            <td className="px-6 py-4 flex gap-3">
+                                                <button onClick={() => handleStopEnrollment(en.id)} className="text-yellow-500 hover:text-yellow-400 text-xs font-bold">Stop</button>
+                                                <button onClick={() => handleDeleteEnrollment(en.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -450,17 +481,35 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                         {campaign.trigger_type !== 'MANUAL' && (
                                             <div>
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Trigger Value</label>
-                                                <input
-                                                    type="text"
-                                                    value={campaign.trigger_value || ''}
-                                                    onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
-                                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
-                                                    placeholder={
-                                                        campaign.trigger_type === 'TAG_ADDED' ? 'e.g. VIP' :
-                                                            campaign.trigger_type === 'pipeline_STAGE_CHANGED' ? 'e.g. Negotiation' :
-                                                                'Trigger Value'
-                                                    }
-                                                />
+                                                {campaign.trigger_type === 'TAG_ADDED' ? (
+                                                    <select
+                                                        value={campaign.trigger_value || ''}
+                                                        onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                    >
+                                                        <option value="">Select Tag...</option>
+                                                        {availableTags.map((t, i) => <option key={i} value={t}>{t}</option>)}
+                                                    </select>
+                                                ) : campaign.trigger_type === 'pipeline_STAGE_CHANGED' ? (
+                                                    <select
+                                                        value={campaign.trigger_value || ''}
+                                                        onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                    >
+                                                        <option value="">Select Stage...</option>
+                                                        {availableStages.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.pipelineName} - {s.name}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        value={campaign.trigger_value || ''}
+                                                        onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                        placeholder="Trigger Value"
+                                                    />
+                                                )}
                                             </div>
                                         )}
                                         <div>

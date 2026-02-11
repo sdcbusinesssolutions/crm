@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 const GmailService = require('../services/GmailService');
 const SmtpService = require('../services/SmtpService');
+const WhatsAppService = require('../services/whatsappService');
 
 // Environment check
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -205,76 +206,118 @@ async function processDrips() {
                     // IDEMPOTENCY KEY: Unique per enrollment + step
                     const idempotencyKey = `MSG-${enrollment.id}-${step.id}`;
 
-                    const { skipped } = await logAction(enrollment, 'MESSAGE_SENT', {
-                        template: step.step_config.template_name,
-                        to: enrollment.contact.phone
-                    }, idempotencyKey);
-
-                    if (skipped) {
-                        success = true; // Auto-advance if already done
+                    if (!enrollment.contact.phone) {
+                        await logAction(enrollment, 'SKIPPED', { reason: 'Missing Phone Number' });
+                        console.log(`[DripEngine] SKIPPING WA for ${enrollment.id}: No Phone Number`);
+                        success = true; // Skip this step
                     } else {
-                        // ACTUAL SENDING LOGIC (Simulated)
-                        console.log(`[DripEngine] SENT WA to ${enrollment.contact.phone}: ${step.step_config.template_name}`);
-                        success = true;
+                        const { skipped } = await logAction(enrollment, 'MESSAGE_SENT', {
+                            template: step.step_config.template_name,
+                            to: enrollment.contact.phone
+                        }, idempotencyKey);
+
+                        if (skipped) {
+                            success = true; // Auto-advance if already done
+                        } else {
+                            // REAL SENDING LOGIC
+                            try {
+                                const templateName = step.step_config.template_name;
+                                // Simple text for now, or template if we had full config
+                                // The UI seems to select a template. 
+                                // We need to form the correct content object for WhatsAppService.
+                                // Assumption: step_config.template_name implies a template message.
+
+                                // Construct basic template object
+                                const content = {
+                                    name: templateName,
+                                    language: { code: 'en' }, // Defaulting to 'en', should come from config
+                                    components: [
+                                        {
+                                            type: 'body',
+                                            parameters: [] // Parameters would need to be mapped if dynamic
+                                        }
+                                    ]
+                                };
+
+                                await WhatsAppService.sendMessage(
+                                    enrollment.drip_campaign.user_id,
+                                    enrollment.contact.phone,
+                                    'template',
+                                    content
+                                );
+
+                                console.log(`[DripEngine] SENT WA to ${enrollment.contact.phone}: ${templateName}`);
+                                success = true;
+                            } catch (sendErr) {
+                                console.error(`[DripEngine] WhatsApp Failed: ${sendErr.message}`);
+                                // Log failure but move on to avoid infinite loop
+                                await logAction(enrollment, 'FAILED', { error: sendErr.message });
+                                success = true;
+                            }
+                        }
                     }
 
                 } else if (step.step_type === 'EMAIL') {
                     const idempotencyKey = `EMAIL-${enrollment.id}-${step.id}`;
 
-                    // Optimistic Locking: Log first
-                    const { skipped } = await logAction(enrollment, 'EMAIL_SENT', { to: enrollment.contact.email }, idempotencyKey);
-
-                    if (skipped) {
-                        success = true;
+                    if (!enrollment.contact.email) {
+                        await logAction(enrollment, 'SKIPPED', { reason: 'Missing Email Address' });
+                        console.log(`[DripEngine] SKIPPING Email for ${enrollment.id}: No Email`);
+                        success = true; // Skip this step
                     } else {
-                        try {
-                            const config = step.step_config || {};
-                            const toEmail = enrollment.contact.email;
+                        // Optimistic Locking: Log first
+                        const { skipped } = await logAction(enrollment, 'EMAIL_SENT', { to: enrollment.contact.email }, idempotencyKey);
 
-                            if (!toEmail) throw new Error('Contact has no email address');
-
-                            if (config.provider === 'GMAIL') {
-                                if (!config.connectionId) throw new Error('No Gmail connection selected');
-
-                                await GmailService.sendEmail(
-                                    enrollment.drip_campaign.user_id,
-                                    config.connectionId,
-                                    toEmail,
-                                    config.subject,
-                                    config.body
-                                );
-
-                            } else if (config.provider === 'SMTP') {
-                                if (!config.connectionId) throw new Error('No SMTP connection selected');
-
-                                // Fetch connection manually for SMTP as Service needs raw config
-                                const { data: conn } = await supabase
-                                    .from('user_integrations')
-                                    .select('credentials')
-                                    .eq('id', config.connectionId)
-                                    .single();
-
-                                if (!conn) throw new Error('SMTP Connection not found');
-
-                                await SmtpService.sendEmail(
-                                    conn.credentials,
-                                    conn.credentials.fromEmail,
-                                    toEmail,
-                                    config.subject,
-                                    config.body
-                                );
-                            } else {
-                                throw new Error(`Unknown or missing Email provider: ${config.provider}`);
-                            }
-
-                            console.log(`[DripEngine] SENT Email to ${toEmail} via ${config.provider}`);
+                        if (skipped) {
                             success = true;
+                        } else {
+                            try {
+                                const config = step.step_config || {};
+                                const toEmail = enrollment.contact.email;
 
-                        } catch (sendErr) {
-                            console.error(`[DripEngine] Email Failed: ${sendErr.message}`);
-                            // We already logged SUCCESS, strictly we should revert it or log a failure. 
-                            // Current arch relies on catching below to log ERROR.
-                            throw sendErr;
+                                if (config.provider === 'GMAIL') {
+                                    if (!config.connectionId) throw new Error('No Gmail connection selected');
+
+                                    await GmailService.sendEmail(
+                                        enrollment.drip_campaign.user_id,
+                                        config.connectionId,
+                                        toEmail,
+                                        config.subject,
+                                        config.body
+                                    );
+
+                                } else if (config.provider === 'SMTP') {
+                                    if (!config.connectionId) throw new Error('No SMTP connection selected');
+
+                                    // Fetch connection manually for SMTP as Service needs raw config
+                                    const { data: conn } = await supabase
+                                        .from('user_integrations')
+                                        .select('credentials')
+                                        .eq('id', config.connectionId)
+                                        .single();
+
+                                    if (!conn) throw new Error('SMTP Connection not found');
+
+                                    await SmtpService.sendEmail(
+                                        conn.credentials,
+                                        conn.credentials.fromEmail,
+                                        toEmail,
+                                        config.subject,
+                                        config.body
+                                    );
+                                } else {
+                                    throw new Error(`Unknown or missing Email provider: ${config.provider}`);
+                                }
+
+                                console.log(`[DripEngine] SENT Email to ${toEmail} via ${config.provider}`);
+                                success = true;
+
+                            } catch (sendErr) {
+                                console.error(`[DripEngine] Email Failed: ${sendErr.message}`);
+                                // Log failure but move on
+                                await logAction(enrollment, 'FAILED', { error: sendErr.message });
+                                success = true;
+                            }
                         }
                     }
 

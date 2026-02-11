@@ -3,6 +3,7 @@ const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const { logCRMEvent } = require('../utils/logger');
 const flowEngine = require('../services/flowEngine');
+const DripTriggerService = require('../services/DripTriggerService');
 
 // GET /api/leads
 router.get('/', async (req, res) => {
@@ -157,6 +158,10 @@ router.post('/', async (req, res) => {
                 name: data.name,
                 pipelineId: data.pipeline_id
             });
+
+            if (data.stage_id) {
+                DripTriggerService.handleStageChanged(user.id, data, data.stage_id).catch(err => console.error('Lead Create Drip Error:', err));
+            }
         } catch (e) { }
 
         try {
@@ -231,6 +236,11 @@ router.put('/:id', async (req, res) => {
                 leadId: req.params.id,
                 updates: Object.keys(payload)
             });
+
+            if (payload.stage_id) {
+                // If stage changed, trigger drips
+                DripTriggerService.handleStageChanged(user.id, data, payload.stage_id).catch(err => console.error('Lead Update Drip Error:', err));
+            }
         } catch (e) { }
 
         try {
@@ -282,6 +292,8 @@ router.put('/:id/move', async (req, res) => {
                 leadId: req.params.id,
                 newStageId: stage_id
             });
+
+            DripTriggerService.handleStageChanged(user.id, data, stage_id).catch(err => console.error('Lead Move Drip Error:', err));
         } catch (e) { }
 
         try {

@@ -341,6 +341,28 @@ router.post('/enrollments/:enrollmentId/stop', async (req, res) => {
     }
 });
 
+// Delete an Enrollment
+router.delete('/enrollments/:enrollmentId', async (req, res) => {
+    try {
+        const supabase = await getAuthenticatedSupabase(req);
+        // Ensure user owns the campaign linked to this enrollment (implicit via RLS usually, but safer to check)
+        // RLS on drip_enrollments usually requires user_id on the table or join.
+        // If RLS is set up correctly on 'drip_enrollments' (e.g. via join to drip_campaigns), this is simple.
+        // Assuming RLS allows delete if user owns the campaign.
+
+        const { error } = await supabase
+            .from('drip_enrollments')
+            .delete()
+            .eq('id', req.params.enrollmentId);
+
+        if (error) throw error;
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting enrollment:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 function calculateDelay(startDate, value, unit) {
     const date = new Date(startDate);
     if (!value) return date; // Immediate

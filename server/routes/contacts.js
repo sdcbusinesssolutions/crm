@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+const DripTriggerService = require('../services/DripTriggerService');
 
 // GET /api/contacts
 router.get('/', async (req, res) => {
@@ -169,7 +170,7 @@ router.post('/', async (req, res) => {
       // 1. Fetch existing contact to get current custom_data
       const { data: existing, error: fetchErr } = await supabase
         .from('contacts')
-        .select('custom_data')
+        .select('custom_data, tags')
         .eq('id', id)
         .single();
 
@@ -207,6 +208,17 @@ router.post('/', async (req, res) => {
         throw error;
       }
       console.log('Update successful, returned updated_at:', data?.custom_data?.updated_at);
+
+      // Check for added tags
+      const oldTags = existing?.tags || [];
+      const newTags = payload.tags || [];
+      const addedTags = newTags.filter(t => !oldTags.includes(t));
+
+      if (addedTags.length > 0) {
+        // Run async (fire and forget)
+        DripTriggerService.handleTagAdded(user.id, data, addedTags).catch(err => console.error('Trigger Error:', err));
+      }
+
       result = data;
     } else {
       console.log('Inserting new contact (checking for duplicates first)...');
@@ -214,7 +226,7 @@ router.post('/', async (req, res) => {
       // 1. Check for duplicate phone number
       const { data: duplicate, error: dupError } = await supabase
         .from('contacts')
-        .select('id, custom_data, group_ids')
+        .select('id, custom_data, group_ids, tags')
         .eq('user_id', user.id)
         .eq('phone', payload.phone)
         .maybeSingle();
@@ -252,6 +264,15 @@ router.post('/', async (req, res) => {
 
         if (error) throw error;
         result = data;
+
+        // Check for added tags in duplicate merge
+        const oldTags = duplicate.tags || [];
+        const newTags = payload.tags || [];
+        const addedTags = newTags.filter(t => !oldTags.includes(t));
+
+        if (addedTags.length > 0) {
+          DripTriggerService.handleTagAdded(user.id, data, addedTags).catch(err => console.error('Dup Trigger Error:', err));
+        }
       } else {
         // 3. Normal Insert
         const { data, error } = await supabase
@@ -260,6 +281,12 @@ router.post('/', async (req, res) => {
           .select()
           .single();
         if (error) throw error;
+
+        // Trigger for new contact
+        if (payload.tags && payload.tags.length > 0) {
+          DripTriggerService.handleTagAdded(user.id, data, payload.tags).catch(err => console.error('Insert Trigger Error:', err));
+        }
+
         result = data;
       }
     }

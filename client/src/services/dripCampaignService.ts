@@ -168,5 +168,15 @@ export const dripCampaignService = {
         });
         if (!res.ok) throw new Error('Failed to stop enrollment');
         return true;
+    },
+
+    async deleteEnrollment(enrollmentId: string) {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/drip-campaigns/enrollments/${enrollmentId}`, {
+            method: 'DELETE',
+            headers
+        });
+        if (!res.ok) throw new Error('Failed to delete enrollment');
+        return true;
     }
 };
