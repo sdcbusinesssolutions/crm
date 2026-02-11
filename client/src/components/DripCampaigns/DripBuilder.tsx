@@ -444,7 +444,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                             >
                                                 <option value="TAG_ADDED">Tag Added</option>
                                                 <option value="pipeline_STAGE_CHANGED">Stage Changed</option>
-                                                <option value="MANUAL">Manual Start</option>
+                                                <option value="MANUAL">Follow-up / Manual</option>
                                             </select>
                                         </div>
                                         {campaign.trigger_type !== 'MANUAL' && (
@@ -455,7 +455,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                     value={campaign.trigger_value || ''}
                                                     onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
                                                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
-                                                    placeholder="e.g. Tag Name"
+                                                    placeholder={
+                                                        campaign.trigger_type === 'TAG_ADDED' ? 'e.g. VIP' :
+                                                            campaign.trigger_type === 'pipeline_STAGE_CHANGED' ? 'e.g. Negotiation' :
+                                                                'Trigger Value'
+                                                    }
                                                 />
                                             </div>
                                         )}
