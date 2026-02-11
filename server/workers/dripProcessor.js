@@ -1,5 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
+const GmailService = require('../services/GmailService');
+const SmtpService = require('../services/SmtpService');
 
 // Environment check
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -218,13 +220,62 @@ async function processDrips() {
 
                 } else if (step.step_type === 'EMAIL') {
                     const idempotencyKey = `EMAIL-${enrollment.id}-${step.id}`;
+
+                    // Optimistic Locking: Log first
                     const { skipped } = await logAction(enrollment, 'EMAIL_SENT', { to: enrollment.contact.email }, idempotencyKey);
 
                     if (skipped) {
                         success = true;
                     } else {
-                        console.log(`[DripEngine] SENT Email to ${enrollment.contact.email}`);
-                        success = true;
+                        try {
+                            const config = step.step_config || {};
+                            const toEmail = enrollment.contact.email;
+
+                            if (!toEmail) throw new Error('Contact has no email address');
+
+                            if (config.provider === 'GMAIL') {
+                                if (!config.connectionId) throw new Error('No Gmail connection selected');
+
+                                await GmailService.sendEmail(
+                                    enrollment.drip_campaign.user_id,
+                                    config.connectionId,
+                                    toEmail,
+                                    config.subject,
+                                    config.body
+                                );
+
+                            } else if (config.provider === 'SMTP') {
+                                if (!config.connectionId) throw new Error('No SMTP connection selected');
+
+                                // Fetch connection manually for SMTP as Service needs raw config
+                                const { data: conn } = await supabase
+                                    .from('user_integrations')
+                                    .select('credentials')
+                                    .eq('id', config.connectionId)
+                                    .single();
+
+                                if (!conn) throw new Error('SMTP Connection not found');
+
+                                await SmtpService.sendEmail(
+                                    conn.credentials,
+                                    conn.credentials.fromEmail,
+                                    toEmail,
+                                    config.subject,
+                                    config.body
+                                );
+                            } else {
+                                throw new Error(`Unknown or missing Email provider: ${config.provider}`);
+                            }
+
+                            console.log(`[DripEngine] SENT Email to ${toEmail} via ${config.provider}`);
+                            success = true;
+
+                        } catch (sendErr) {
+                            console.error(`[DripEngine] Email Failed: ${sendErr.message}`);
+                            // We already logged SUCCESS, strictly we should revert it or log a failure. 
+                            // Current arch relies on catching below to log ERROR.
+                            throw sendErr;
+                        }
                     }
 
                 } else if (step.step_type === 'WAIT') {
@@ -324,20 +375,7 @@ async function processDrips() {
     }
 }
 
-async function logAction(enrollment, action, details = {}) {
-    try {
-        const { error } = await supabase
-            .from('drip_logs')
-            .insert({
-                drip_enrollment_id: enrollment.id,
-                contact_id: enrollment.contact_id, // Important for faster lookups
-                action_type: action,
-                details: details,
-                status: 'SUCCESS'
-            });
-        if (error) console.error('[DripEngine] Log Error:', error);
-    } catch (e) { console.error('[DripEngine] Log Except:', e); }
-}
+
 
 function calculateDelay(startDate, value, unit) {
     const date = new Date(startDate);
