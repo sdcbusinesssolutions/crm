@@ -60,15 +60,35 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   useEffect(() => {
     const loadFlow = async () => {
       setLoading(true);
-      const flow = await flowService.getFlow(flowId);
-      if (flow) {
-        setNodes(flow.nodes);
-        setEdges(flow.edges);
-        setFlowName(flow.name);
-        setFlowStatus(flow.status);
+      if (flowId === 'new') {
+        // Initialize new flow in memory
+        setNodes([
+          {
+            id: `OnMessage-${Date.now()}`,
+            type: NodeType.OnMessage,
+            position: { x: 50, y: 50 },
+            data: {
+              label: 'On Message',
+              messageType: 'Text',
+              keywords: [],
+              phoneNumbers: []
+            },
+          }
+        ]);
+        setEdges([]);
+        setFlowName('Untitled Flow');
+        setFlowStatus('Draft');
       } else {
-        showNotification('Flow not found', 'error');
-        onBackRef.current();
+        const flow = await flowService.getFlow(flowId);
+        if (flow) {
+          setNodes(flow.nodes);
+          setEdges(flow.edges);
+          setFlowName(flow.name);
+          setFlowStatus(flow.status);
+        } else {
+          showNotification('Flow not found', 'error');
+          onBackRef.current();
+        }
       }
       setLoading(false);
     };
@@ -78,12 +98,26 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const currentFlow = await flowService.getFlow(flowId);
-      if (currentFlow) {
-        const updatedFlow: Flow = { ...currentFlow, name: flowName, status: flowStatus, nodes, edges, updatedAt: new Date().toLocaleDateString() };
-        await flowService.saveFlow(updatedFlow);
-        showNotification('Flow saved successfully!', 'success');
+      if (flowId === 'new') {
+        // Create new flow
+        await flowService.createFlow({
+          name: flowName,
+          status: flowStatus,
+          nodes,
+          edges,
+          description: 'Created via Flow Builder'
+        });
+        showNotification('Flow created successfully!', 'success');
         onBackRef.current();
+      } else {
+        // Update existing flow
+        const currentFlow = await flowService.getFlow(flowId);
+        if (currentFlow) {
+          const updatedFlow: Flow = { ...currentFlow, name: flowName, status: flowStatus, nodes, edges, updatedAt: new Date().toLocaleDateString() };
+          await flowService.saveFlow(updatedFlow);
+          showNotification('Flow saved successfully!', 'success');
+          onBackRef.current();
+        }
       }
     } catch (error) {
       showNotification('Error saving flow.', 'error');

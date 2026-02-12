@@ -83,9 +83,8 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
         setIsLoading(false);
     };
 
-    const handleCreateFlow = async () => {
-        const newFlow = await flowService.createFlow();
-        onNavigateToFlow(newFlow.id);
+    const handleCreateFlow = () => {
+        onNavigateToFlow('new');
     };
 
     const handleDeleteFlowClick = (e: React.MouseEvent, id: string) => {
@@ -385,15 +384,15 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                         ) : (
                             <>
                                 {/* Desktop Table View */}
-                                <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
                                     <table className="min-w-full divide-y divide-slate-100">
                                         <thead className="bg-brand-600 text-white shadow-md">
                                             <tr>
-                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Name</th>
-                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Trigger</th>
-                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
-                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Last Updated</th>
-                                                <th className="px-6 py-5 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
+                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Name</th>
+                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Trigger</th>
+                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Status</th>
+                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Last Updated</th>
+                                                <th className="px-6 py-5 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
