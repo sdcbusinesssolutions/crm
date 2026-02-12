@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch');
+// Node 18+ has native fetch, no need to require it
+// const fetch = require('node-fetch');
 const GmailService = require('../services/GmailService');
 const SmtpService = require('../services/SmtpService');
 const WhatsAppService = require('../services/whatsappService');
