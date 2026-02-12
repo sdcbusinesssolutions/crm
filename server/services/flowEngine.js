@@ -187,6 +187,27 @@ class FlowEngine {
                     }
                 }
 
+                // 3. Handle STUCK sessions (Active/Processing for > 5 mins)
+                // This cleans up sessions that crashed or got stuck in a race condition lock
+                const stuckThreshold = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+                const { data: stuckSessions, error: stuckError } = await rpcClient
+                    .from('flow_sessions')
+                    .select('*')
+                    .in('status', ['active', 'processing'])
+                    .lt('last_interaction_at', stuckThreshold);
+
+                if (!stuckError && stuckSessions && stuckSessions.length > 0) {
+                    console.log(`[FlowEngine Scheduler] Found ${stuckSessions.length} STUCK sessions (Active/Processing > 5m). Cleaning up...`);
+                    for (const session of stuckSessions) {
+                        // Mark as timeout/error
+                        await rpcClient.rpc('update_session_status', {
+                            p_session_id: session.id,
+                            p_status: 'timeout'
+                        });
+                        console.log(`[FlowEngine Scheduler] Session ${session.id} marked as timeout (Stuck).`);
+                    }
+                }
+
             } catch (err) {
                 console.error('[FlowEngine Scheduler] Critical Loop Error:', err);
             }
@@ -636,9 +657,10 @@ class FlowEngine {
                 last_interaction_at: new Date().toISOString()
             })
             .eq('id', session.id)
-            // Ensure we only lock if it's NOT already processing (and ideally is waiting_input or active)
-            // We use .neq('status', 'processing') as the atomic guard.
-            .neq('status', 'processing')
+            // CRITICAL FIX: Only allow continuation if the session is explicitly waiting for input.
+            // This prevents race conditions where a user replies while the bot is still 'active' (executing logic) 
+            // or 'processing' (handling another concurrent request).
+            .eq('status', 'waiting_input')
             .select();
 
         if (lockError || !lockedSession || lockedSession.length === 0) {
