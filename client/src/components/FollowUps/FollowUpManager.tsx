@@ -442,11 +442,14 @@ const FollowUpManager: React.FC = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-green-50">
-                            <h3 className="font-bold text-lg text-green-900">
+                        <div className="px-6 py-4 border-b border-brand-500/30 flex justify-between items-center bg-brand-600 shadow-lg shadow-brand-900/10">
+                            <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
                                 {editingFollowUp ? 'Edit Follow-Up' : 'Create New Follow-Up'}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                            <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg">
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>

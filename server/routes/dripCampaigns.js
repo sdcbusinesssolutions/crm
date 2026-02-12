@@ -287,8 +287,32 @@ router.post('/:id/enroll', async (req, res) => {
         const existingContactIds = new Set((existing || []).map(e => e.contact_id));
         const newContacts = contact_ids.filter(id => !existingContactIds.has(id));
 
+        // Update settings for existing active enrollments (Upsert behavior for settings)
+        if (existingContactIds.size > 0) {
+            const updates = {};
+            // Only update fields if provided in request
+            if (stop_at !== undefined) updates.stop_at = stop_at ? new Date(stop_at) : null;
+            if (notification_rules !== undefined) updates.notification_rules = notification_rules;
+            if (is_looping !== undefined) updates.is_looping = is_looping;
+
+            // Only perform update if there are changes to make
+            if (Object.keys(updates).length > 0) {
+                await supabase
+                    .from('drip_enrollments')
+                    .update(updates)
+                    .eq('drip_campaign_id', campaign.id)
+                    .in('contact_id', Array.from(existingContactIds))
+                    .in('status', ['ACTIVE', 'PAUSED', 'PROCESSING']);
+            }
+        }
+
         if (newContacts.length === 0) {
-            return res.json({ success: true, count: 0, message: 'All contacts are already enrolled.' });
+            return res.json({
+                success: true,
+                count: 0,
+                updated: existingContactIds.size,
+                message: 'Existing enrollments updated. No new enrollments created.'
+            });
         }
 
         // Create enrollment records with stop_at
