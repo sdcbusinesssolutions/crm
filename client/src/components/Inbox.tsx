@@ -981,8 +981,18 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 let headerMedia = null;
                 let headerText = data._rendered_header_text; // From backend or simple param extraction
 
-                if (headerParam?.type === 'image') headerMedia = <img src={headerParam.image?.link} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" onLoad={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
-                else if (headerParam?.type === 'video') headerMedia = <video src={headerParam.video?.link} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" onLoadedData={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
+                if (headerParam?.type === 'image') {
+                    const imgSrc = headerParam.image?.link || msg.media_url;
+                    if (imgSrc) {
+                        headerMedia = <img src={imgSrc} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" onLoad={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
+                    }
+                }
+                else if (headerParam?.type === 'video') {
+                    const videoSrc = headerParam.video?.link || msg.media_url;
+                    if (videoSrc) {
+                        headerMedia = <video src={videoSrc} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" onLoadedData={() => (isAtBottomRef.current || shouldForceScrollRef.current) && scrollToBottom(shouldForceScrollRef.current)} />;
+                    }
+                }
                 else if (headerParam?.type === 'document') headerMedia = <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-t-lg border-b border-slate-200"><DocumentFileIcon className="w-5 h-5 text-red-500" /> <span className="text-xs font-medium text-slate-700">Document Header</span></div>;
 
                 // 2. BODY & FOOTER
@@ -1322,7 +1332,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 if (headerType === 'text') {
                     headerText = data.header?.text;
                 } else if (headerType && data.header?.[headerType]) {
-                    headerMediaUrl = data.header[headerType].link || data.header[headerType].id;
+                    // Fallback to msg.media_url if link is missing
+                    headerMediaUrl = data.header[headerType].link || msg.media_url;
                 }
 
                 const bodyText = data.body?.text;
