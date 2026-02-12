@@ -81,6 +81,9 @@ router.put('/:id', async (req, res) => {
         if (due_date !== undefined) payload.due_date = due_date;
         if (is_completed !== undefined) payload.is_completed = is_completed;
 
+        // Always update the timestamp
+        payload.updated_at = new Date().toISOString();
+
         const { data, error } = await supabase
             .from('tasks')
             .update(payload)

@@ -40,8 +40,8 @@ const OpenAIIntegrationCard: React.FC = () => {
             setIsEditing(false);
             setShowForm(false);
             alert('OpenAI Key Saved Successfully');
-        } catch (e) {
-            alert('Failed to save API Key');
+        } catch (e: any) {
+            alert(e.message || 'Failed to save API Key');
         } finally {
             setIsLoading(false);
         }

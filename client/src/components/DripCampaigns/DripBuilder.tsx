@@ -12,7 +12,8 @@ import {
     ClockIcon,
     CheckIcon,
     ChevronDownIcon,
-    PlayIcon
+    PlayIcon,
+    SparklesIcon
 } from '../icons';
 
 // --- Types ---
@@ -40,6 +41,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [templates, setTemplates] = useState<any[]>([]);
     const [gmailConnections, setGmailConnections] = useState<any[]>([]);
     const [smtpConnections, setSmtpConnections] = useState<any[]>([]);
+    const [openaiConnections, setOpenaiConnections] = useState<any[]>([]);
     const [availableTags, setAvailableTags] = useState<string[]>([]);
     const [availableStages, setAvailableStages] = useState<any[]>([]);
 
@@ -117,12 +119,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
     const loadEmailConnections = async () => {
         try {
-            const [gmail, smtp] = await Promise.all([
+            const [gmail, smtp, openai] = await Promise.all([
                 integrationsService.getGmailConnections().catch(() => []),
-                integrationsService.getSmtpConnections().catch(() => [])
+                integrationsService.getSmtpConnections().catch(() => []),
+                integrationsService.getOpenAIConnections().catch(() => [])
             ]);
             setGmailConnections(gmail || []);
             setSmtpConnections(smtp || []);
+            setOpenaiConnections(openai || []);
         } catch (e) { console.error(e); }
     };
 
@@ -145,7 +149,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
         }
     };
 
-    const handleAddStep = async (type: 'WHATSAPP_MESSAGE' | 'EMAIL') => {
+    const handleAddStep = async (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
         if (!campaignId) {
             if (window.confirm("Please save first.")) handleSaveCampaign(true);
             return;
@@ -154,7 +158,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
             campaign_id: campaignId,
             step_order: (campaign.steps?.length || 0) + 1,
             step_type: type,
-            step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : {},
+            step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
             delay_value: 1,
             delay_unit: 'DAYS'
         };
@@ -393,13 +397,15 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                 <div className="flex items-start gap-4">
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
                                                         ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                                        : 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                                        : step.step_type === 'EMAIL'
+                                                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                                            : 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
                                                         }`}>
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>}
+                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
-                                                            <h4 className="font-bold text-slate-200 text-sm">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : 'Email'}</h4>
+                                                            <h4 className="font-bold text-slate-200 text-sm">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
                                                             <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded transition-all">
                                                                 <TrashIcon className="w-3.5 h-3.5" />
                                                             </button>
@@ -435,6 +441,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                 <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-700 text-sm font-bold text-slate-300 hover:text-white flex items-center gap-2">
                                                     <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                     Email
+                                                </button>
+                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-700 text-sm font-bold text-slate-300 hover:text-white flex items-center gap-2">
+                                                    <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
                                                 </button>
                                             </div>
                                         )}
@@ -585,21 +594,170 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                             </div>
 
                                             {selectedStep.step_type === 'WHATSAPP_MESSAGE' && (
-                                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">WhatsApp Template</label>
-                                                    <select
-                                                        value={selectedStep.step_config?.template_id || ''}
-                                                        onChange={(e) => {
-                                                            const tpl = templates.find(t => t.id === e.target.value);
-                                                            handleUpdateStep(selectedStep.id, {
-                                                                step_config: { ...selectedStep.step_config, template_id: tpl?.id, template_name: tpl?.name }
-                                                            });
-                                                        }}
-                                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-sm focus:border-brand-500 outline-none"
-                                                    >
-                                                        <option value="">Select Template...</option>
-                                                        {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.language})</option>)}
-                                                    </select>
+                                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                                                    <div>
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">WhatsApp Template</label>
+                                                        <select
+                                                            value={selectedStep.step_config?.template_id || ''}
+                                                            onChange={(e) => {
+                                                                const tpl = templates.find(t => t.id === e.target.value);
+                                                                handleUpdateStep(selectedStep.id, {
+                                                                    step_config: {
+                                                                        ...selectedStep.step_config,
+                                                                        template_id: tpl?.id,
+                                                                        template_name: tpl?.name,
+                                                                        template_language: tpl?.language,
+                                                                        parameters: {} // Reset params on change
+                                                                    }
+                                                                });
+                                                            }}
+                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-sm focus:border-brand-500 outline-none"
+                                                        >
+                                                            <option value="">Select Template...</option>
+                                                            {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.language})</option>)}
+                                                        </select>
+                                                    </div>
+
+                                                    {/* Template Variable Mapping */}
+                                                    {(() => {
+                                                        const tpl = templates.find(t => t.id === selectedStep.step_config?.template_id);
+                                                        if (!tpl) return null;
+
+                                                        const components = tpl.components || [];
+                                                        const header = components.find((c: any) => c.type === 'HEADER');
+                                                        const body = components.find((c: any) => c.type === 'BODY');
+
+                                                        // Parse Body Params ({{1}}, {{2}})
+                                                        const bodyText = body?.text || '';
+                                                        const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
+                                                        const bodyParamCount = bodyMatch.length; // Approximate, assuming {{1}}..{{N}}
+
+                                                        return (
+                                                            <div className="space-y-4 animate-fade-in">
+                                                                {/* Header Mapping */}
+                                                                {header && (
+                                                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                                                                        <div className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
+                                                                            Header ({header.format})
+                                                                        </div>
+                                                                        {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header.format) && (
+                                                                            <div>
+                                                                                <label className="text-[10px] text-slate-500 mb-1 block">Media URL (Image/Video/Doc)</label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
+                                                                                    placeholder={`https://example.com/file.${header.format === 'IMAGE' ? 'jpg' : header.format === 'VIDEO' ? 'mp4' : 'pdf'}`}
+                                                                                    value={selectedStep.step_config?.parameters?.header?.url || ''}
+                                                                                    onChange={(e) => {
+                                                                                        const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                        handleUpdateStep(selectedStep.id, {
+                                                                                            step_config: {
+                                                                                                ...selectedStep.step_config,
+                                                                                                parameters: {
+                                                                                                    ...currentParams,
+                                                                                                    header: { type: header.format, url: e.target.value }
+                                                                                                }
+                                                                                            }
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                        {header.format === 'TEXT' && header.text?.includes('{{1}}') && (
+                                                                            <div>
+                                                                                <label className="text-[10px] text-slate-500 mb-1 block">Header Variable {'{{1}}'}</label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
+                                                                                    placeholder="Enter value or {{contact.name}}"
+                                                                                    value={selectedStep.step_config?.parameters?.header?.text || ''}
+                                                                                    onChange={(e) => {
+                                                                                        const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                        handleUpdateStep(selectedStep.id, {
+                                                                                            step_config: {
+                                                                                                ...selectedStep.step_config,
+                                                                                                parameters: {
+                                                                                                    ...currentParams,
+                                                                                                    header: { type: 'TEXT', text: e.target.value }
+                                                                                                }
+                                                                                            }
+                                                                                        });
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Body Mapping */}
+                                                                {bodyParamCount > 0 && (
+                                                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                                                                        <div className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
+                                                                            Body Variables
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            {Array.from({ length: bodyParamCount }).map((_, i) => (
+                                                                                <div key={i}>
+                                                                                    <label className="text-[10px] text-slate-500 mb-1 block">Variable {'{{' + (i + 1) + '}}'}</label>
+                                                                                    <div className="flex gap-1">
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none font-mono text-slate-300"
+                                                                                            placeholder="Value..."
+                                                                                            value={selectedStep.step_config?.parameters?.body?.[i] || ''}
+                                                                                            onChange={(e) => {
+                                                                                                const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                                const currentBody = [...(currentParams.body || [])];
+                                                                                                currentBody[i] = e.target.value;
+                                                                                                handleUpdateStep(selectedStep.id, {
+                                                                                                    step_config: {
+                                                                                                        ...selectedStep.step_config,
+                                                                                                        parameters: {
+                                                                                                            ...currentParams,
+                                                                                                            body: currentBody
+                                                                                                        }
+                                                                                                    }
+                                                                                                });
+                                                                                            }}
+                                                                                        />
+                                                                                        {/* Quick Var Inserter */}
+                                                                                        <button
+                                                                                            className="px-2 bg-slate-800 border border-slate-700 rounded-lg text-[10px] font-bold text-slate-400 hover:text-brand-400 hover:border-brand-500"
+                                                                                            onClick={() => {
+                                                                                                const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                                const currentBody = [...(currentParams.body || [])];
+                                                                                                currentBody[i] = '{{contact.name}}';
+                                                                                                handleUpdateStep(selectedStep.id, {
+                                                                                                    step_config: {
+                                                                                                        ...selectedStep.step_config,
+                                                                                                        parameters: {
+                                                                                                            ...currentParams,
+                                                                                                            body: currentBody
+                                                                                                        }
+                                                                                                    }
+                                                                                                });
+                                                                                            }}
+                                                                                            title="Insert Name"
+                                                                                        >
+                                                                                            Name
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Helper Text */}
+                                                                <div className="text-[10px] text-slate-500 italic px-1">
+                                                                    Use <span className="font-mono text-brand-400">{'{{contact.name}}'}</span>, <span className="font-mono text-brand-400">{'{{contact.first_name}}'}</span>, <span className="font-mono text-brand-400">{'{{contact.phone}}'}</span> to insert dynamic data.
+                                                                </div>
+                                                            </div>
+
+                                                        );
+                                                    })()}
                                                 </div>
                                             )}
 
@@ -638,6 +796,112 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                         className="w-full h-32 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none resize-none"
                                                         placeholder="Email body..."
                                                     />
+                                                </div>
+                                            )}
+
+                                            {selectedStep.step_type === 'AI_INTENT' && (
+                                                <div className="space-y-4">
+                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Analysis Engine</label>
+                                                        <div className="flex flex-col gap-2 mb-4">
+                                                            <label className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'OPENAI'
+                                                                ? 'bg-emerald-500/10 border-emerald-500/50'
+                                                                : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                                                                }`}>
+                                                                <div className="flex items-start gap-3">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="analysis_mode"
+                                                                        value="OPENAI"
+                                                                        checked={selectedStep.step_config?.analysis_mode === 'OPENAI'}
+                                                                        onChange={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, analysis_mode: 'OPENAI' } })}
+                                                                        className="mt-1"
+                                                                    />
+                                                                    <div>
+                                                                        <div className="text-sm font-bold text-slate-200">Smart AI (OpenAI)</div>
+                                                                        <div className="text-[10px] text-slate-400">Uses GPT to understand meaning. Requires API Key. Extremely accurate.</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Connection Selector (visible only when checked) */}
+                                                                {selectedStep.step_config?.analysis_mode === 'OPENAI' && (
+                                                                    <div className="ml-7 mt-1">
+                                                                        {openaiConnections.length > 0 ? (
+                                                                            <select
+                                                                                className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none"
+                                                                                value={selectedStep.step_config?.connection_id || ''}
+                                                                                onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, connection_id: e.target.value } })}
+                                                                            >
+                                                                                <option value="">Use System Default / Any Available</option>
+                                                                                {openaiConnections.map(conn => (
+                                                                                    <option key={conn.id} value={conn.id}>
+                                                                                        {conn.name} ({conn.maskedKey})
+                                                                                    </option>
+                                                                                ))}
+                                                                            </select>
+                                                                        ) : (
+                                                                            <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                                                                                No OpenAI keys found. <a href="/settings" target="_blank" className="underline font-bold">Add one in Settings</a> or Keyword Mode will be used.
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </label>
+
+                                                            <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'KEYWORD'
+                                                                ? 'bg-blue-500/10 border-blue-500/50'
+                                                                : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                                                                }`}>
+                                                                <input
+                                                                    type="radio"
+                                                                    name="analysis_mode"
+                                                                    value="KEYWORD"
+                                                                    checked={(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'KEYWORD'}
+                                                                    onChange={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, analysis_mode: 'KEYWORD' } })}
+                                                                    className="mt-1"
+                                                                />
+                                                                <div>
+                                                                    <div className="text-sm font-bold text-slate-200">Keyword Match (Free)</div>
+                                                                    <div className="text-[10px] text-slate-400">Checks for words like "yes", "stop", "later". Fast & Free but less smart.</div>
+                                                                </div>
+                                                            </label>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-4">Intent Routing</label>
+
+                                                        {['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'].map(intent => (
+                                                            <div key={intent} className="mb-4 last:mb-0">
+                                                                <div className="flex items-center justify-between mb-1">
+                                                                    <span className="text-xs font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded border border-slate-600 font-mono">{intent}</span>
+                                                                    <span className="text-[10px] text-slate-500">Move to Stage</span>
+                                                                </div>
+                                                                <select
+                                                                    value={selectedStep.step_config?.stage_mappings?.[intent] || ''}
+                                                                    onChange={(e) => {
+                                                                        const existingMappings = selectedStep.step_config?.stage_mappings || {};
+                                                                        handleUpdateStep(selectedStep.id, {
+                                                                            step_config: {
+                                                                                ...selectedStep.step_config,
+                                                                                stage_mappings: { ...existingMappings, [intent]: e.target.value }
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:border-brand-500 outline-none"
+                                                                >
+                                                                    <option value="">Do Nothing (Tag Only)</option>
+                                                                    {availableStages.map(s => (
+                                                                        <option key={s.id} value={s.id}>{s.pipelineName} - {s.name}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                        ))}
+
+                                                        <p className="text-[10px] text-slate-500 mt-4 italic border-t border-slate-700 pt-2">
+                                                            Note: The contact will always be tagged with "AI_{'{INTENT}'}" regardless of stage change.
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -712,11 +976,12 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                     </div>
                                 )}
                             </div>
+
                         </div>
                     </>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -167,20 +167,29 @@ class CampaignWorker {
 
         try {
             // 2. Get Standard Definition from Meta API (Components)
-            const tmplRes = await axios.get(
-                `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${campaign.template_name}`,
-                { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
-            );
+            if (!config.whatsapp_business_account_id) {
+                console.warn('[Worker] Missing WABA ID in config. Skipping Meta Template Fetch.');
+            } else {
+                const tmplRes = await axios.get(
+                    `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
+                    { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
+                );
 
-            if (tmplRes.data && tmplRes.data.data) {
-                const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
-                if (metaDef) {
-                    templateDef = { ...metaDef };
-                    console.log(`[Worker] Meta API Def Found: YES. Components: ${metaDef.components?.length}`);
+                if (tmplRes.data && tmplRes.data.data) {
+                    const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
+                    if (metaDef) {
+                        templateDef = { ...metaDef };
+                        console.log(`[Worker] Meta API Def Found: YES. Components: ${metaDef.components?.length}`);
+                    }
                 }
             }
         } catch (e) {
-            console.warn(`[Worker] Meta API Fetch Warning:`, e.message);
+            const errorContext = `User: ${campaign.user_id} | Phone: ${config.phone_number} | WABA: ${config.whatsapp_business_account_id}`;
+            console.warn(`[Worker] Meta API Fetch Warning: ${e.message} [${errorContext}]`);
+
+            if (e.response?.data) {
+                console.warn(`[Worker] Meta API Error Details:`, JSON.stringify(e.response.data));
+            }
         }
 
         // 3. Merge Strategies

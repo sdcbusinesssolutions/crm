@@ -3,7 +3,7 @@ import { AppConfig } from '../AppConfig';
 
 // Helper to determine API URL
 // Logic copied from settingsService to ensure Ngrok compatibility
-let API_URL = AppConfig.VITE_API_URL || '/api';
+let API_URL = AppConfig.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const apiIsLocal = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
@@ -540,6 +540,18 @@ export const integrationsService = {
         return await res.json();
     },
 
+    async getOpenAIConnections() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return [];
+
+        const res = await fetch(`${API_URL}/integrations/openai/list`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (!res.ok) return [];
+        return await res.json();
+    },
+
     async saveOpenAIConfig(apiKey: string, apiName?: string) {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('No session');
@@ -553,7 +565,10 @@ export const integrationsService = {
             body: JSON.stringify({ apiKey, apiName })
         });
 
-        if (!res.ok) throw new Error('Failed to save config');
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to save config');
+        }
         return await res.json();
     },
 

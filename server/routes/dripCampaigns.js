@@ -68,6 +68,7 @@ router.post('/', async (req, res) => {
                 name,
                 description,
                 trigger_type: trigger_type || 'MANUAL',
+                trigger_value: req.body.trigger_value,
                 trigger_config,
                 stop_on_reply: stop_on_reply !== undefined ? stop_on_reply : true,
                 allow_reentry: allow_reentry || false,
@@ -95,6 +96,7 @@ router.put('/:id', async (req, res) => {
         if (description !== undefined) updates.description = description;
         if (trigger_type !== undefined) updates.trigger_type = trigger_type;
         if (trigger_config !== undefined) updates.trigger_config = trigger_config;
+        if (req.body.trigger_value !== undefined) updates.trigger_value = req.body.trigger_value;
         if (status !== undefined) updates.status = status;
         if (stop_on_reply !== undefined) updates.stop_on_reply = stop_on_reply;
         if (allow_reentry !== undefined) updates.allow_reentry = allow_reentry;
@@ -159,7 +161,7 @@ router.post('/:id/steps', async (req, res) => {
                 step_order: step_order || 1,
                 delay_value: delay_value || 0,
                 delay_unit: delay_unit || 'DAYS',
-                step_type: step_type || 'WHATSAPP_MESSAGE', // Use correct DB column
+                step_type: step_type || 'WHATSAPP_MESSAGE', // 'WHATSAPP_MESSAGE' | 'EMAIL' | 'WAIT' | 'AI_INTENT'
                 step_config: step_config || { template_id, content }, // Consolidate config
                 // REMOVED: channel, action_type (Use step_type instead)
                 parent_step_id
@@ -274,8 +276,23 @@ router.post('/:id/enroll', async (req, res) => {
 
         if (!firstStep) return res.status(400).json({ error: 'Campaign has no steps' });
 
+        // Check for existing active enrollments to prevent duplicates
+        const { data: existing } = await supabase
+            .from('drip_enrollments')
+            .select('contact_id')
+            .eq('drip_campaign_id', campaign.id)
+            .in('contact_id', contact_ids)
+            .in('status', ['ACTIVE', 'PAUSED', 'PROCESSING']);
+
+        const existingContactIds = new Set((existing || []).map(e => e.contact_id));
+        const newContacts = contact_ids.filter(id => !existingContactIds.has(id));
+
+        if (newContacts.length === 0) {
+            return res.json({ success: true, count: 0, message: 'All contacts are already enrolled.' });
+        }
+
         // Create enrollment records with stop_at
-        const enrollments = contact_ids.map(contactId => ({
+        const enrollments = newContacts.map(contactId => ({
             drip_campaign_id: campaign.id,
             contact_id: contactId,
             current_step_id: firstStep.id,
@@ -292,7 +309,7 @@ router.post('/:id/enroll', async (req, res) => {
             .insert(enrollments);
 
         if (error) throw error;
-        res.json({ success: true, count: contact_ids.length });
+        res.json({ success: true, count: newContacts.length, skipped: existingContactIds.size });
     } catch (err) {
         console.error('Error enrolling contacts:', err);
         res.status(500).json({ error: err.message });

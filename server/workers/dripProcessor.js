@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const GmailService = require('../services/GmailService');
 const SmtpService = require('../services/SmtpService');
 const WhatsAppService = require('../services/whatsappService');
+const AIService = require('../services/AIService');
 
 // Environment check
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -74,6 +75,24 @@ function isWithinWindow(campaign, now = new Date()) {
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 }
 
+
+function replaceVariables(text, enrollment) {
+    if (!text) return '';
+    let result = text.toString();
+    if (enrollment.contact) {
+        const name = enrollment.contact.name || '';
+        const phone = enrollment.contact.phone || '';
+        const email = enrollment.contact.email || '';
+        const firstName = name.split(' ')[0] || '';
+
+        result = result.replace(/{{contact.name}}/g, name);
+        result = result.replace(/{{contact.first_name}}/g, firstName);
+        result = result.replace(/{{contact.phone}}/g, phone);
+        result = result.replace(/{{contact.email}}/g, email);
+    }
+    return result;
+}
+
 /**
  * Main Processor Function
  */
@@ -115,6 +134,28 @@ async function processDrips() {
 
         for (const enrollment of enrollments) {
 
+            // RACECONDITION GUARD: Check for duplicate active enrollments
+            // If another enrollment exists for same contact/campaign that is OLDER (created earlier),
+            // then current enrollment is a duplicate and should be cancelled.
+            const { data: olderEnrollment } = await supabase
+                .from('drip_enrollments')
+                .select('id')
+                .eq('drip_campaign_id', enrollment.drip_campaign_id)
+                .eq('contact_id', enrollment.contact_id)
+                .in('status', ['ACTIVE', 'PROCESSING'])
+                .lt('created_at', enrollment.created_at) // Strictly older
+                .limit(1)
+                .maybeSingle();
+
+            if (olderEnrollment) {
+                console.log(`[DripEngine] DUPLICATE DETECTED: Enrollment ${enrollment.id} is redundant (found older ${olderEnrollment.id}). Cancelling.`);
+                await supabase
+                    .from('drip_enrollments')
+                    .update({ status: 'DUPLICATE_CANCELLED', completed_at: new Date() })
+                    .eq('id', enrollment.id);
+                continue;
+            }
+
             // A. Check Stop At Constraint (The "Until Date" Logic)
             // A. Check Stop At Constraint (The "Until Date" Logic)
             if (enrollment.stop_at) {
@@ -148,9 +189,26 @@ async function processDrips() {
                             }, idempotencyKey);
 
                             if (!skipped) {
-                                // Simulate sending notification
-                                newSentAlerts.push(ruleId);
-                                alertsModified = true;
+                                // SEND ACTUAL OWNER NOTIFICATION via WhatsApp
+                                try {
+                                    const notificationMessage = `⏰ *Follow-up Reminder*\n\nContact: ${enrollment.contact.name || 'Unknown'}\nPhone: ${enrollment.contact.phone || 'N/A'}\nCampaign: ${enrollment.drip_campaign?.name || 'Unknown'}\n\nDue in approximately *${rule.value} ${rule.unit}*`;
+
+                                    await WhatsAppService.sendMessage(
+                                        enrollment.drip_campaign.user_id,
+                                        rule.phone,
+                                        'text',
+                                        { body: notificationMessage }
+                                    );
+
+                                    console.log(`[DripEngine] ✅ Owner notification sent to ${rule.phone}`);
+                                    newSentAlerts.push(ruleId);
+                                    alertsModified = true;
+                                } catch (notifyError) {
+                                    console.error(`[DripEngine] ❌ Failed to send owner notification to ${rule.phone}:`, notifyError.message);
+                                    // Still mark as sent to avoid retry spam
+                                    newSentAlerts.push(ruleId);
+                                    alertsModified = true;
+                                }
                             }
                         }
                     }
@@ -222,21 +280,78 @@ async function processDrips() {
                             // REAL SENDING LOGIC
                             try {
                                 const templateName = step.step_config.template_name;
-                                // Simple text for now, or template if we had full config
-                                // The UI seems to select a template. 
-                                // We need to form the correct content object for WhatsAppService.
-                                // Assumption: step_config.template_name implies a template message.
+                                const params = step.step_config.parameters || {};
 
-                                // Construct basic template object
+                                // Resolve Language: Config > DB Lookup > Default 'en'
+                                let langCode = step.step_config.template_language?.code || step.step_config.template_language;
+
+                                if (!langCode) {
+                                    // Fallback: Try to find language from DB using template_id
+                                    if (step.step_config.template_id) {
+                                        const { data: dbTpl } = await supabase
+                                            .from('whatsapp_templates')
+                                            .select('language')
+                                            .eq('id', step.step_config.template_id)
+                                            .maybeSingle();
+
+                                        if (dbTpl) langCode = dbTpl.language;
+                                    }
+
+                                    // If still no langCode and no ID (or ID not found), try name + user_id as last resort
+                                    if (!langCode) {
+                                        const { data: dbTplByName } = await supabase
+                                            .from('whatsapp_templates')
+                                            .select('language')
+                                            .eq('name', templateName)
+                                            .eq('user_id', enrollment.drip_campaign.user_id)
+                                            .limit(1)
+                                            .maybeSingle();
+                                        if (dbTplByName) langCode = dbTplByName.language;
+                                    }
+                                }
+
+                                langCode = langCode || 'en';
+
+                                // Construct Components
+                                const components = [];
+
+                                // 1. HEADER
+                                if (params.header) {
+                                    if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(params.header.type) && params.header.url) {
+                                        components.push({
+                                            type: 'header',
+                                            parameters: [{
+                                                type: params.header.type.toLowerCase(),
+                                                [params.header.type.toLowerCase()]: { link: params.header.url }
+                                            }]
+                                        });
+                                    } else if (params.header.type === 'TEXT' && params.header.text) {
+                                        components.push({
+                                            type: 'header',
+                                            parameters: [{
+                                                type: 'text',
+                                                text: replaceVariables(params.header.text, enrollment)
+                                            }]
+                                        });
+                                    }
+                                }
+
+                                // 2. BODY
+                                if (params.body && Array.isArray(params.body) && params.body.length > 0) {
+                                    const bodyParams = Array.from(params.body).map(val => ({
+                                        type: 'text',
+                                        text: replaceVariables(val || '', enrollment)
+                                    }));
+                                    components.push({
+                                        type: 'body',
+                                        parameters: bodyParams
+                                    });
+                                }
+
                                 const content = {
                                     name: templateName,
-                                    language: { code: 'en' }, // Defaulting to 'en', should come from config
-                                    components: [
-                                        {
-                                            type: 'body',
-                                            parameters: [] // Parameters would need to be mapped if dynamic
-                                        }
-                                    ]
+                                    language: { code: langCode },
+                                    components: components
                                 };
 
                                 await WhatsAppService.sendMessage(
@@ -324,6 +439,111 @@ async function processDrips() {
                 } else if (step.step_type === 'WAIT') {
                     // Just a pass-through node
                     success = true;
+                } else if (step.step_type === 'AI_INTENT') {
+                    // --- AI INTENT ANALYSIS STEP ---
+                    // 1. Fetch last inbound message for this contact
+                    const { data: lastMsg } = await supabase
+                        .from('messages')
+                        .select('content')
+                        .eq('contact_id', enrollment.contact_id)
+                        .eq('type', 'inbound')
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .single();
+
+                    if (!lastMsg || !lastMsg.content) {
+                        console.log(`[DripEngine] AI Step Skipped: No inbound message found for ${enrollment.contact.name}`);
+                        // If no message, we might want to skip or treat as "NO_REPLY"
+                        await logAction(enrollment, 'SKIPPED', { reason: 'No Inbound Message' });
+                        success = true;
+                    } else {
+                        // 2. Call AI Service
+                        // Default intents: INTERESTED, NOT_INTERESTED, LATER, QUESTION
+                        const config = step.step_config || {};
+                        const definedIntents = config.intents || ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'];
+                        const mode = config.analysis_mode || 'KEYWORD'; // Default to KEYWORD if not set
+                        const connectionId = config.openai_connection_id || config.connection_id;
+
+                        // Pass user_id and optional connectionId to allow custom API key usage
+                        const intent = await AIService.analyzeIntent(lastMsg.content, definedIntents, mode, enrollment.drip_campaign.user_id, connectionId);
+
+                        console.log(`[DripEngine] AI Analyzed Intent: ${intent} for user ${enrollment.contact.name}`);
+                        await logAction(enrollment, 'AI_ANALYSIS', { input: lastMsg.content, result: intent });
+
+                        // 3. EXECUTE ACTION BASED ON INTENT (Simple MVP: Tagging)
+                        // In future, this could determine next_step_id. 
+                        // For now, we just tag the user so the NEXT Condition Step can route them.
+                        const tagName = `AI_${intent}`;
+
+                        // Check if tag exists, if not create (or just log for now)
+                        // Ideally we use a pre-defined tag ID from config, but for MVP we'll try to add a text tag.
+
+                        // Call internal API or direct DB insert to add tag
+                        try {
+                            // Find tag ID by name
+                            const { data: tagData } = await supabase.from('tags').select('id').eq('name', tagName).eq('user_id', enrollment.drip_campaign.user_id).single();
+
+                            if (tagData) {
+                                await supabase.from('contact_tags').insert({
+                                    contact_id: enrollment.contact_id,
+                                    tag_id: tagData.id
+                                });
+                                console.log(`[DripEngine] Auto-tagged contact with ${tagName}`);
+                            } else {
+                                console.warn(`[DripEngine] Tag '${tagName}' not found. Create it in settings to enable auto-tagging.`);
+                            }
+                            // 4. AUTOMATIC ROUTING: Move Contact to Stage
+                            // Check for dynamic mapping first
+                            const stageMappings = config.stage_mappings || {};
+                            const targetStageId = stageMappings[intent];
+
+                            if (targetStageId) {
+                                // Move using specific ID from config
+                                const { error: moveErr } = await supabase
+                                    .from('contacts')
+                                    .update({ stage_id: targetStageId })
+                                    .eq('id', enrollment.contact_id);
+
+                                if (!moveErr) {
+                                    console.log(`[DripEngine] AI successfully moved contact to stage ID: ${targetStageId}`);
+                                    await logAction(enrollment, 'STAGE_CHANGE', { from: 'AI_INTENT', to_stage_id: targetStageId });
+                                } else {
+                                    console.error(`[DripEngine] Failed to move contact to stage ID ${targetStageId}`, moveErr);
+                                }
+                            } else {
+                                // Fallback: Legacy / Hardcoded Logic (Optional, can be removed if we enforce config)
+                                let targetStageName = null;
+                                if (intent === 'INTERESTED') targetStageName = 'Hot Leads';
+                                if (intent === 'NOT_INTERESTED') targetStageName = 'Lost';
+                                if (intent === 'LATER') targetStageName = 'Cold Leads';
+                                if (intent === 'QUESTION') targetStageName = 'Need Response';
+
+                                if (targetStageName) {
+                                    // Find stage ID
+                                    const { data: stageData } = await supabase
+                                        .from('pipeline_stages')
+                                        .select('id')
+                                        .ilike('name', targetStageName)
+                                        .eq('user_id', enrollment.drip_campaign.user_id)
+                                        .limit(1)
+                                        .single();
+
+                                    if (stageData) {
+                                        const { error: moveErr } = await supabase.from('contacts').update({ stage_id: stageData.id }).eq('id', enrollment.contact_id);
+                                        if (!moveErr) {
+                                            console.log(`[DripEngine] AI moved (fallback) contact to stage: ${targetStageName}`);
+                                            await logAction(enrollment, 'STAGE_CHANGE', { from: 'AI_INTENT_FALLBACK', to_stage: targetStageName });
+                                        }
+                                    }
+                                }
+                            }
+
+                        } catch (tagErr) {
+                            // Ignore duplicate key errors if already tagged
+                        }
+
+                        success = true;
+                    }
                 }
 
             } catch (execError) {

@@ -25,7 +25,7 @@ export interface DripStep {
     id: string;
     campaign_id: string;
     step_order: number;
-    step_type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'WAIT' | 'CONDITION';
+    step_type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'WAIT' | 'CONDITION' | 'AI_INTENT';
     step_config: any;
 
     // Legacy support (optional now)

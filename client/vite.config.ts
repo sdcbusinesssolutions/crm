@@ -10,35 +10,31 @@ export default defineConfig({
   css: {
     postcss: {
       plugins: [
-        tailwindcss(),
-        autoprefixer(),
+        tailwindcss,
+        autoprefixer,
       ],
     },
   },
   server: {
+    host: true,
     port: 3000,
+    watch: {
+      usePolling: true,
+    },
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
       },
       '/uploads': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
-      }
-    },
-    host: '0.0.0.0', // Allow network access
-    allowedHosts: true, // Allow ngrok/tunnel domains
-    hmr: {
-      // clientPort: 443, // Disabled for local dev (Enable only for Ngrok/HTTPS tunneling)
-    },
-    watch: {
-      usePolling: true, // Docker/Windows sometimes needs this for file changes
+      },
     },
   },
   build: {
-    chunkSizeWarningLimit: 1000
-  }
+    chunkSizeWarningLimit: 1000,
+  },
 })

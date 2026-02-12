@@ -294,7 +294,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                             <tr>
                                                 <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Name</th>
                                                 <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Trigger</th>
-                                                <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Steps</th>
+
                                                 <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
                                                 <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Created</th>
                                                 <th className="px-6 py-5 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
@@ -332,9 +332,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                                 {campaign.trigger_type}
                                                             </span>
                                                         </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="text-sm font-bold text-slate-700">{campaign.steps?.length || 0}</span>
-                                                        </td>
+
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <StatusBadge status={campaign.status} />
                                                         </td>
@@ -400,7 +398,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
 
                                                     <div className="flex items-center gap-2 mb-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                                                         <span className="bg-slate-100 px-2 py-1 rounded border border-slate-200">{campaign.trigger_type}</span>
-                                                        <span className="bg-slate-100 px-2 py-1 rounded border border-slate-200">{campaign.steps?.length || 0} Steps</span>
+
                                                     </div>
 
                                                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto" onClick={(e) => e.stopPropagation()}>

@@ -28,7 +28,7 @@
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
-    "openai": "^6.16.0",
+    "openai": "^6.21.0",
     "pg": "^8.16.3",
     "qrcode": "^1.5.4",
     "serverless-http": "^3.2.0",
