@@ -11,12 +11,13 @@ interface FollowUpFormProps {
 }
 
 const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCancel }) => {
-    // Helper to format date for datetime-local input
+    // Helper to format date for datetime-local input (Local Time)
     const formatDateForInput = (dateStr?: string) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return '';
 
+        // Get local components
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -33,6 +34,9 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         recurrence_rule: null,
         contact_id: '',
         ...initialData,
+        // Ensure uppercase for dropdown matching
+        type: (initialData?.type?.toUpperCase() as any) || 'CALL',
+        priority: (initialData?.priority?.toUpperCase() as any) || 'MEDIUM',
         title: initialData?.title || '',
         description: initialData?.description || '',
         scheduled_at: formatDateForInput(initialData?.scheduled_at)
@@ -64,7 +68,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     // Drip Selection
     const [activeCampaigns, setActiveCampaigns] = useState<DripCampaign[]>([]);
     const [selectedCampaignId, setSelectedCampaignId] = useState('');
-    const [isLooping, setIsLooping] = useState(false); // New state
+    const [isLooping, setIsLooping] = useState(false);
     const [notificationRules, setNotificationRules] = useState<any[]>([
         { phone: '', value: 24, unit: 'HOURS' }
     ]);
@@ -75,6 +79,8 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             setFormData(prev => ({
                 ...prev,
                 ...initialData,
+                type: (initialData.type?.toUpperCase() as any) || 'CALL',
+                priority: (initialData.priority?.toUpperCase() as any) || 'MEDIUM',
                 scheduled_at: formatDateForInput(initialData.scheduled_at)
             }));
         }
@@ -102,16 +108,16 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         }
 
         // Pre-fill drip campaign if active
-        // Note: We need to cast contacts to any because FollowUp interface might not fully reflect the deep nested structure we fetched
         const contactData = initialData?.contacts as any;
         if (contactData?.drip_enrollments && Array.isArray(contactData.drip_enrollments)) {
             const active = contactData.drip_enrollments.find((e: any) => e.status === 'ACTIVE');
             if (active && active.drip_campaign_id) {
                 setSelectedCampaignId(active.drip_campaign_id);
-                // If we could store is_looping in DB we would restore it here, but unrelated to bug.
-
-                // Also restore stop_at if it matches scheduled_at? 
-                // The form uses scheduled_at as stop_at for the drip, so this is implicit.
+                // Restore settings
+                setIsLooping(!!active.is_looping);
+                if (active.notification_rules && Array.isArray(active.notification_rules)) {
+                    setNotificationRules(active.notification_rules);
+                }
             }
         }
     }, [initialData]);
@@ -147,7 +153,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                 setContacts([]);
                 setShowDropdown(false);
             }
-        }, 300); // 300ms debounce
+        }, 300);
 
         return () => clearTimeout(timeoutId);
     }, [contactSearch]);
@@ -155,7 +161,6 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     const loadCampaigns = async () => {
         try {
             const all = await dripCampaignService.getCampaigns();
-            // Filter to only MANUAL trigger campaigns or those suitable for manual enrollment
             const manual = all.filter(c => c.status === 'ACTIVE' || c.status === 'DRAFT');
             setActiveCampaigns(manual);
         } catch (e) {
@@ -200,8 +205,18 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             return;
         }
 
+        // Convert local time back to ISO UTC string for backend
+        let isoScheduledAt = formData.scheduled_at;
+        if (formData.scheduled_at) {
+            const dateObj = new Date(formData.scheduled_at); // Treats as local
+            if (!isNaN(dateObj.getTime())) {
+                isoScheduledAt = dateObj.toISOString();
+            }
+        }
+
         const dataToSave = {
             ...formData,
+            scheduled_at: isoScheduledAt, // Send ISO string
             recurrence_rule: recurrence.enabled ? {
                 frequency: recurrence.frequency,
                 interval: recurrence.interval,
@@ -209,6 +224,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             } : null
         };
         await onSave(dataToSave);
+        // ... (rest of submit)
 
         // Auto-Enroll logic
         if (selectedCampaignId && formData.contact_id) {

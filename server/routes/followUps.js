@@ -15,14 +15,16 @@ router.get('/', async (req, res) => {
                 contacts (
                     name,
                     phone,
-                    drip_enrollments (
-                        id,
-                        drip_campaign_id,
-                        status,
-                        stop_at,
-                        started_at,
-                        drip_campaigns (name)
-                    )
+                        drip_enrollments (
+                            id,
+                            drip_campaign_id,
+                            status,
+                            stop_at,
+                            started_at,
+                            is_looping,
+                            notification_rules,
+                            drip_campaigns (name)
+                        )
                 )
             `)
             .eq('user_id', req.user.id)
