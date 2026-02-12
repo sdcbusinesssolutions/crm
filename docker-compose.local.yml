@@ -4,6 +4,7 @@ services:
   whatsapp-app-test:
     build: .
     container_name: whatsapp_local_test
+    restart: always
     # This exposes the app directly to your PC's port 5000
     ports:
       - "5000:5000"
