@@ -15,6 +15,36 @@ const path = require('path');
 const axios = require('axios');
 const flowEngine = require('../services/flowEngine');
 
+// --- CONCURRENCY CONTROL ---
+const FLOW_CONCURRENCY_LIMIT = 20; // Max concurrent flow executions
+const activeFlows = new Set();
+const flowQueue = [];
+
+const processFlowConcurrently = async (fn) => {
+    if (activeFlows.size >= FLOW_CONCURRENCY_LIMIT) {
+        return new Promise((resolve, reject) => {
+            flowQueue.push({ fn, resolve, reject });
+        });
+    }
+    return runFlow(fn);
+};
+
+const runFlow = async (fn) => {
+    const promise = fn();
+    activeFlows.add(promise);
+
+    try {
+        const result = await promise;
+        return result;
+    } finally {
+        activeFlows.delete(promise);
+        if (flowQueue.length > 0) {
+            const next = flowQueue.shift();
+            runFlow(next.fn).then(next.resolve).catch(next.reject);
+        }
+    }
+};
+
 // Deduplication Cache (Simple In-Memory)
 const processedMessageIds = new Set();
 // Clear cache every 10 minutes
@@ -585,11 +615,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 const extracted = extractMessageContent(message);
 
-                // --- LOG TO FILE (INBOX LOGGER) ---
-                // --- LOG TO FILE (INBOX LOGGER) ---
+                // --- INBOX LOG ---
                 try {
                     const metadata = value?.metadata;
-                    // Use display_phone_number if available, otherwise phone_number_id, fallback to userId
                     const recipientPhone = metadata?.display_phone_number || metadata?.phone_number_id || userId;
                     const logPhoneNumberId = metadata?.phone_number_id || 'Unknown';
                     const logWhatsappNumber = metadata?.display_phone_number || 'Unknown';
@@ -600,50 +628,25 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         type: extracted.type,
                         phoneNumberId: logPhoneNumberId,
                         whatsappNumber: logWhatsappNumber,
-                        // Timestamp injected by logger, but we can keep original too
                         messageTimestamp: extracted.timestamp,
-                        content: extracted.text || extracted.caption || (extracted.type === 'interactive' ? extracted.interactive : extracted.type)
+                        content: extracted.text || extracted.caption || (extracted.type === 'interactive' ? (extracted.interactive ? JSON.stringify(extracted.interactive) : 'Interactive') : extracted.type)
                     });
                 } catch (logErr) { console.error('Inbox Log Error:', logErr); }
 
-                // Handle Media Download
-                let mediaUrl = null;
-                let filename = null;
-                let mimeType = null;
-
-                if (['image', 'video', 'audio', 'document', 'sticker'].includes(extracted.type) && extracted.mediaId) {
-                    if (accessToken) {
-                        console.log(`Downloading media for message ${extracted.id}...`);
-                        const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
-                        if (mediaData) {
-                            mediaUrl = mediaData.url;
-                            mimeType = mediaData.mime_type;
-                            filename = extracted.filename || mediaData.filename;
-                            console.log(`Media downloaded: ${mediaUrl}`);
-                        } else {
-                            console.warn(`Failed to download media for message ${extracted.id}`);
-                        }
-                    } else {
-                        console.error(`Cannot download media: No access token for user ${userId}`);
-                    }
-                }
-
-                // Find or Create Conversation AND Insert Message using RPC (Bypasses RLS)
-                // Sanitise Phone Numbers: Remove non-digits
+                // --- EARLY PREPARATION ---
                 const contactPhone = extracted.from.replace(/\D/g, '');
                 let contactName = value.contacts?.find(c => c.wa_id === extracted.from)?.profile?.name || contactPhone;
                 if (contactName && contactName.startsWith('+')) contactName = contactName.replace('+', '');
 
-                // Determine DB Text Content - specific handling for Interactive messages to save full JSON
+                // Determine DB Text Content
                 let dbMessageText = extracted.text || extracted.caption;
                 if (!dbMessageText && extracted.type === 'interactive' && extracted.raw?.interactive) {
                     dbMessageText = JSON.stringify(extracted.raw.interactive);
                 } else if (!dbMessageText && extracted.type === 'button' && extracted.button?.text) {
-                    // Legacy buttons - store text directly as it's the primary content
                     dbMessageText = extracted.button.text;
                 }
 
-                // Determine Preview Text for Inbox (Human Readable)
+                // Determine Preview Text
                 let lastMessagePreview = extracted.text || extracted.caption;
                 if (extracted.type === 'interactive') {
                     lastMessagePreview = extracted.interactive?.title ? `↩️ ${extracted.interactive.title}` : 'Interactive Message';
@@ -651,104 +654,148 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     lastMessagePreview = `[${extracted.type}]`;
                 }
 
-                // --- MANUAL DB OPERATIONS (Bypass RPC to ensure Media Fields are saved) ---
+                // Prepare Flow Input Payload
+                const allowedTriggerTypes = ['text', 'interactive', 'button', 'image', 'video', 'audio', 'document'];
+                let inputPayload = null;
+                let interactionId = null;
 
+                if (allowedTriggerTypes.includes(extracted.type)) {
+                    let textContent = extracted.text || '';
+                    if (['image', 'video', 'audio', 'document'].includes(extracted.type)) {
+                        textContent = extracted.caption || `[${extracted.type}]`;
+                        // Media payload will be finalized after download if needed
+                        inputPayload = {
+                            type: extracted.type,
+                            url: null,
+                            mime_type: null,
+                            filename: extracted.filename || null,
+                            caption: extracted.caption
+                        };
+                    } else if (extracted.type === 'interactive') {
+                        if (extracted.interactive?.subtype === 'button_reply') {
+                            textContent = extracted.interactive.title;
+                            interactionId = extracted.interactive.id;
+                            inputPayload = { title: textContent, id: interactionId, selectedId: interactionId };
+                        } else if (extracted.interactive?.subtype === 'list_reply') {
+                            textContent = extracted.interactive.title;
+                            interactionId = extracted.interactive.id;
+                            inputPayload = { title: textContent, id: interactionId, description: extracted.interactive.description };
+                        } else if (extracted.interactive?.subtype === 'nfm_reply') {
+                            const responseJson = extracted.interactive.response_json;
+                            inputPayload = responseJson;
+                            interactionId = responseJson.flow_token;
+                            textContent = JSON.stringify(responseJson);
+
+                            // Save Flow Submission (Async/Fire-and-forget for speed)
+                            (async () => {
+                                try {
+                                    let rawToken = interactionId || 'unknown_flow';
+                                    let flowId = rawToken;
+                                    if (rawToken.includes('__')) flowId = rawToken.split('__').pop();
+                                    if (flowId === 'unused_token') flowId = 'unknown_flow';
+
+                                    let flowName = (flowId === 'unknown_flow') ? 'Unknown Form' : 'Flow ' + flowId;
+                                    if (flowId !== 'unknown_flow') {
+                                        const { data: flowData } = await supabaseAdmin.from('whatsapp_flows').select('name').eq('id', flowId).maybeSingle();
+                                        if (flowData) flowName = flowData.name;
+                                    }
+
+                                    await supabaseAdmin.from('whatsapp_flow_submissions').insert({
+                                        user_id: userId,
+                                        flow_id: flowId,
+                                        flow_name: flowName,
+                                        contact_phone: extracted.from,
+                                        contact_name: contactName,
+                                        submission_data: responseJson,
+                                        submitted_at: new Date().toISOString()
+                                    });
+                                } catch (e) { console.error('Flow Sub Error:', e); }
+                            })();
+                        }
+                    } else if (extracted.type === 'button') {
+                        textContent = extracted.button.text;
+                        interactionId = extracted.button.payload;
+                        inputPayload = { title: textContent, id: interactionId, payload: interactionId };
+                    } else {
+                        inputPayload = textContent;
+                    }
+                }
+
+                // --- CONCURRENT FLOW EXECUTION (OPTIMIZATION) ---
+                let flowPromise = null;
+                const isMedia = ['image', 'video', 'audio', 'document', 'sticker'].includes(extracted.type);
+
+                // If NOT media, we can trigger flow concurrently with DB writes
+                if (!isMedia && inputPayload) {
+                    // Normalize payload
+                    if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
+                    if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
+
+                    console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
+                    flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
+                        .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
+                }
+
+                // --- MEDIA DOWNLOAD ---
+                let mediaUrl = null;
+                let filename = null;
+                let mimeType = null;
+
+                if (isMedia && extracted.mediaId) {
+                    if (accessToken) {
+                        try {
+                            const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
+                            if (mediaData) {
+                                mediaUrl = mediaData.url;
+                                mimeType = mediaData.mime_type;
+                                filename = extracted.filename || mediaData.filename;
+                                console.log(`Media downloaded: ${mediaUrl}`);
+                            }
+                        } catch (mediaErr) { console.error('Media Download Error:', mediaErr); }
+                    }
+                }
+
+                // --- MANUAL DB OPERATIONS (Sequential) ---
                 // 1. Upsert Contact
                 let contactId = null;
-                const { data: contactData } = await supabaseAdmin
-                    .from('contacts')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .eq('phone', contactPhone)
-                    .maybeSingle();
-
+                const { data: contactData } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
                 if (contactData) {
                     contactId = contactData.id;
-                    await supabaseAdmin
-                        .from('contacts')
-                        .update({
-                            name: contactName !== '~' ? contactName : undefined,
-                            last_active: new Date(extracted.timestamp * 1000).toISOString(),
-                            status: 'active'
-                        })
-                        .eq('id', contactId);
+                    await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).eq('id', contactId);
                 } else {
-                    const { data: newContact, error: createContactError } = await supabaseAdmin
-                        .from('contacts')
-                        .insert({
-                            user_id: userId,
-                            phone: contactPhone,
-                            name: contactName,
-                            last_active: new Date(extracted.timestamp * 1000).toISOString(),
-                            status: 'active'
-                        })
-                        .select()
-                        .single();
-                    if (createContactError) console.error('Error creating contact:', createContactError);
+                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ user_id: userId, phone: contactPhone, name: contactName, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).select().single();
                     contactId = newContact?.id;
                 }
 
                 // 2. Upsert Conversation
                 let conversationId = null;
-                const { data: convData } = await supabaseAdmin
-                    .from('conversations')
-                    .select('id, unread_count')
-                    .eq('user_id', userId)
-                    .eq('contact_phone', contactPhone)
-                    .maybeSingle();
-
+                const { data: convData } = await supabaseAdmin.from('conversations').select('id, unread_count').eq('user_id', userId).eq('contact_phone', contactPhone).maybeSingle();
                 if (convData) {
                     conversationId = convData.id;
-                    await supabaseAdmin
-                        .from('conversations')
-                        .update({
-                            last_message: lastMessagePreview,
-                            unread_count: (convData.unread_count || 0) + 1,
-                            updated_at: new Date(extracted.timestamp * 1000).toISOString(),
-                            contact_name: contactName !== '~' ? contactName : undefined
-                        })
-                        .eq('id', conversationId);
+                    await supabaseAdmin.from('conversations').update({ last_message: lastMessagePreview, unread_count: (convData.unread_count || 0) + 1, updated_at: new Date(extracted.timestamp * 1000).toISOString(), contact_name: contactName !== '~' ? contactName : undefined }).eq('id', conversationId);
                 } else {
-                    const { data: newConv, error: createConvError } = await supabaseAdmin
-                        .from('conversations')
-                        .insert({
-                            user_id: userId,
-                            contact_phone: contactPhone,
-                            contact_name: contactName,
-                            last_message: lastMessagePreview,
-                            unread_count: 1,
-                            updated_at: new Date(extracted.timestamp * 1000).toISOString(),
-                        })
-                        .select()
-                        .single();
-                    if (createConvError) console.error('Error creating conversation:', createConvError);
+                    const { data: newConv } = await supabaseAdmin.from('conversations').insert({ user_id: userId, contact_phone: contactPhone, contact_name: contactName, last_message: lastMessagePreview, unread_count: 1, updated_at: new Date(extracted.timestamp * 1000).toISOString() }).select().single();
                     conversationId = newConv?.id;
                 }
 
                 // 3. Insert Message
-                // Explicitly including media fields
-                const { data: result, error: rpcError } = await supabaseAdmin
-                    .from('messages')
-                    .insert({
-                        conversation_id: conversationId,
-                        direction: 'in',
-                        type: extracted.type,
-                        text: dbMessageText,
-                        media_url: mediaUrl || null,
-                        filename: filename || null,
-                        mime_type: mimeType || null,
-                        whatsapp_message_id: extracted.id,
-                        status: 'delivered',
-                        created_at: new Date(extracted.timestamp * 1000).toISOString(),
-                        latitude: extracted.location?.latitude || null,
-                        longitude: extracted.location?.longitude || null
-                    })
-                    .select()
-                    .single();
+                const insertPayload = {
+                    conversation_id: conversationId,
+                    direction: 'in',
+                    type: extracted.type,
+                    text: dbMessageText,
+                    media_url: mediaUrl || null,
+                    filename: filename || null,
+                    mime_type: mimeType || null,
+                    whatsapp_message_id: extracted.id,
+                    status: 'delivered',
+                    created_at: new Date(extracted.timestamp * 1000).toISOString(),
+                    latitude: extracted.location?.latitude || null,
+                    longitude: extracted.location?.longitude || null
+                };
 
-                if (rpcError) throw rpcError;
+                const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
 
-                // Update log with details
                 if (logId) {
                     await supabase.rpc('update_webhook_log', {
                         p_log_id: logId,
@@ -758,153 +805,21 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         p_extracted_content: extracted
                     });
                 }
-
                 console.log(`Processed ${extracted.type} message from ${extracted.from}`);
 
-                // --- FLOW ENGINE INTEGRATION ---
-                // Trigger flow logic after saving the message
-                // --- FLOW ENGINE INTEGRATION ---
-                // Trigger flow logic after saving the message
-                const allowedTriggerTypes = ['text', 'interactive', 'button', 'image', 'video', 'audio', 'document'];
+                // --- FLOW ENGINE EXECUTION (For Media OR Sync Wait) ---
+                if (isMedia && inputPayload) {
+                    // For media, we skipped concurrent trigger because we needed the URL. Trigger now.
+                    inputPayload.url = mediaUrl;
+                    inputPayload.mime_type = mimeType;
+                    inputPayload.filename = filename;
+                    if (typeof inputPayload === 'object') inputPayload.name = contactName;
 
-                if (allowedTriggerTypes.includes(extracted.type)) {
-                    let textContent = extracted.text || '';
-                    let interactionId = null;
-                    let inputPayload = null; // New: Structure to pass to Flow Engine
-
-                    if (['image', 'video', 'audio', 'document'].includes(extracted.type)) {
-                        // Handle Media Messages
-                        textContent = extracted.caption || `[${extracted.type}]`;
-                        inputPayload = {
-                            type: extracted.type,
-                            url: mediaUrl,
-                            mime_type: mimeType,
-                            filename: filename,
-                            caption: extracted.caption
-                        };
-                    }
-                    else if (extracted.type === 'interactive') {
-                        if (extracted.interactive?.subtype === 'button_reply') {
-                            textContent = extracted.interactive.title;
-                            interactionId = extracted.interactive.id;
-                            // WE WANT BOTH TITLE AND ID available
-                            inputPayload = {
-                                title: textContent,
-                                id: interactionId,
-                                selectedId: interactionId // alias for easier access
-                            };
-                        } else if (extracted.interactive?.subtype === 'list_reply') {
-                            textContent = extracted.interactive.title;
-                            interactionId = extracted.interactive.id;
-                            inputPayload = {
-                                title: textContent,
-                                id: interactionId,
-                                description: extracted.interactive.description
-                            };
-                        } else if (extracted.interactive?.subtype === 'nfm_reply') {
-                            // Flow response
-                            const responseJson = extracted.interactive.response_json;
-                            inputPayload = responseJson; // Already an object
-
-                            interactionId = responseJson.flow_token;
-
-                            if (typeof responseJson === 'object') {
-                                textContent = JSON.stringify(responseJson);
-
-                                // Save Submission to DB
-                                try {
-                                    // Determining Flow ID and Name
-                                    // 1. Try to get Flow ID from token (Format: flow_sessionId_nodeId__flowId)
-                                    let rawToken = interactionId || 'unknown_flow';
-                                    let flowId = rawToken;
-
-                                    if (rawToken.includes('__')) {
-                                        const parts = rawToken.split('__');
-                                        flowId = parts[parts.length - 1]; // Last part is the Flow ID
-                                    }
-
-                                    if (flowId === 'unused_token') flowId = 'unknown_flow';
-
-                                    // 2. Default Name
-                                    let flowName = (flowId === 'unknown_flow') ? 'Unknown Form' : 'Flow ' + flowId;
-
-                                    // 3. Improve Name Lookup: Check if flow_token matches a known flow in DB
-                                    if (flowId !== 'unknown_flow') {
-                                        const { data: flowData } = await supabaseAdmin
-                                            .from('whatsapp_flows')
-                                            .select('name')
-                                            .eq('id', flowId)
-                                            .maybeSingle();
-
-                                        if (flowData) {
-                                            flowName = flowData.name;
-                                        }
-                                    }
-
-                                    const { error: subError } = await supabaseAdmin
-                                        .from('whatsapp_flow_submissions')
-                                        .insert({
-                                            user_id: userId,
-                                            flow_id: flowId,
-                                            flow_name: flowName,
-                                            contact_phone: extracted.from,
-                                            contact_name: contactName,
-                                            submission_data: responseJson,
-                                            submitted_at: new Date().toISOString()
-                                        });
-
-                                    if (subError) {
-                                        console.error('Failed to save flow submission:', subError);
-                                    } else {
-                                        console.log(`[Webhook] Saved Flow Submission for ${extracted.from} (Flow: ${flowName})`);
-                                    }
-                                } catch (err) {
-                                    console.error('Exception saving flow submission:', err);
-                                }
-
-                            } else {
-                                textContent = String(responseJson);
-                            }
-                        }
-                    } else if (extracted.type === 'button') {
-                        // Template Quick Reply Button
-                        textContent = extracted.button.text;
-                        interactionId = extracted.button.payload;
-                        inputPayload = {
-                            title: textContent,
-                            id: interactionId,
-                            payload: interactionId
-                        };
-                    } else {
-                        // Regular text
-                        inputPayload = textContent;
-                    }
-
-                    if (textContent || inputPayload) {
-                        console.log(`[Webhook] Triggering Flow Engine: Type='${extracted.type}', Content='${textContent}'`);
-
-                        // Normalize inputPayload to object to inject metadata
-                        if (typeof inputPayload === 'string') {
-                            inputPayload = { text: inputPayload };
-                        }
-
-                        // Inject Sender Name if available
-                        if (inputPayload && typeof inputPayload === 'object') {
-                            inputPayload.name = contactName;
-                        }
-
-                        // Run in background so we don't block the webhook response too long? 
-                        // Actually, better to await to ensure sequence, but catch errors so we don't fail the webhook.
-                        try {
-                            // PASS inputPayload as the 3rd argument (messageText/Input)
-                            // The FlowEngine needs to be smart enough to handle objects vs strings
-                            await flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId);
-                        } catch (flowErr) {
-                            console.error('[Webhook] Flow Engine Error:', flowErr);
-                        }
-                    } else {
-                        console.log('[Webhook] No content extracted, skipping Flow Engine.');
-                    }
+                    await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
+                } else if (flowPromise) {
+                    // For non-media, we triggered earlier. Await it now to ensure it finishes before we exit the loop iteration 
+                    // (Optional, but good for sequential log consistency)
+                    await flowPromise;
                 }
 
             } catch (err) {

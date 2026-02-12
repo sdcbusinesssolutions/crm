@@ -13,20 +13,34 @@ services:
     restart: always
     user: root
     
-    # 🔄 SCALABILITY CONFIGURATION
+    # 🔄 SCALABILITY CONFIGURATION (Docker Swarm Compatible)
+    # 🔄 HIGH PERFORMANCE SCALING (For 32GB RAM / 8 Cores)
+    # 🔄 SCALABILITY CONFIGURATION (Dynamic for Bulk Deployment)
     deploy:
       mode: replicated
-      replicas: 1  # ⚡ CHANGE THIS TO 2, 3, etc. TO SCALE UP!
+      replicas: ${APP_REPLICAS:-1} # Default to 1. Set APP_REPLICAS=6 in .env for high-traffic single domains.
+      endpoint_mode: vip
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G     # Increased for performance
+          cpus: '1.0'    # Hard limit per container
+          memory: 1G     # Hard limit per container
         reservations:
-          cpus: '0.2'
+          cpus: '0.1'    # minimal reservation to allow high density
           memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+    # NOTE: Native Docker Compose cannot Auto-Scale based on CPU %.
+    # You must use Docker Swarm with a service like 'orbiter' or Kubernetes HPA.
     
     # Set container name to domain for easy identification
-    container_name: ${DOMAIN} 
+    # container_name: ${DOMAIN} # DISABLED: Must be removed when using replicas > 1 
 
     # env_file:
     #   - ./server/.env

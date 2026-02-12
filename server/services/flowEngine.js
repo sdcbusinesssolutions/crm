@@ -584,8 +584,8 @@ class FlowEngine {
             p_contact_phone: contactPhone
         });
 
-        // Small safeguard delay to ensure DB transaction commits
-        await new Promise(r => setTimeout(r, 100));
+        // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
+        await new Promise(r => setTimeout(r, 5));
 
         const { data: session, error } = await rpcClient.rpc('create_flow_session', {
             p_user_id: userId,

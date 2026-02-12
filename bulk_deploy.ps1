@@ -29,10 +29,18 @@ foreach ($entry in $domains) {
     $sbUrl = $entry.SupabaseUrl
     $sbKey = $entry.SupabaseKey
     $sbServiceKey = $entry.SupabaseServiceKey
+    
+    # Optional: Replicas column (Default to 1 if missing/empty)
+    $replicas = if ($entry.PSObject.Properties.Match('Replicas').Count -and -not [string]::IsNullOrWhiteSpace($entry.Replicas)) { 
+        $entry.Replicas 
+    }
+    else { 
+        1 
+    }
 
     if ([string]::IsNullOrWhiteSpace($domain)) { continue }
 
-    Write-Host "🚀 Deploying: $domain" -ForegroundColor Cyan
+    Write-Host "🚀 Deploying: $domain (Replicas: $replicas)" -ForegroundColor Cyan
     
     # Generate Unique Identifiers
     $safeName = $domain -replace '\.', '_' # e.g. abc_com
@@ -54,6 +62,7 @@ APP_URL=$appUrl
 SUPABASE_URL=$sbUrl
 SUPABASE_KEY=$sbKey
 SUPABASE_SERVICE_KEY=$sbServiceKey
+APP_REPLICAS=$replicas
 "@
     
     $envContent | Out-File -FilePath $envFileName -Encoding utf8 -Force
