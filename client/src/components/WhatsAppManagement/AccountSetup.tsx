@@ -419,7 +419,7 @@ const AccountSetup: React.FC = () => {
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Meta Access Token</label>
                                 <input
-                                    type="text"
+                                    type="password"
                                     name="meta_access_token"
                                     value={formData.meta_access_token}
                                     onChange={handleChange}

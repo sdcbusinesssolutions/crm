@@ -10,6 +10,7 @@ services:
         - VITE_MASTER_URL=${VITE_MASTER_URL}
         - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
     image: whatsapp-app:${IMAGE_TAG}
+    restart: always
     user: root
     
     # 🔄 SCALABILITY CONFIGURATION
