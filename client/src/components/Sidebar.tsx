@@ -186,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             // Active: Brand Color Background, White Text.
             // Inactive: White Text, Brand Color on Hover.
 
-            const collapsedIconClass = `transition-transform duration-300 w-6 h-6 mb-1`;
+            const collapsedIconClass = `transition-transform duration-300 w-5 h-5 mb-[1px]`;
 
             const styledCollapsedIcon = React.isValidElement(finalIcon)
                 ? React.cloneElement(finalIcon as React.ReactElement, {
@@ -201,21 +201,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 <div
                     key={item}
                     onClick={() => handleItemClick(item, hasSubmenu)}
-                    className={`group flex flex-col items-center justify-center py-2 mx-1 rounded-xl cursor-pointer transition-all duration-200 mb-1 relative
+                    className={`group flex flex-col items-center justify-center py-1 mx-1 rounded-lg cursor-pointer transition-all duration-200 mb-0.5 relative
              ${isActive
-                            ? 'bg-brand-600 text-white shadow-lg'
-                            : 'text-white hover:text-brand-300 hover:bg-white/10'}`}
+                            ? 'bg-brand-600 text-white shadow-md'
+                            : 'text-white hover:text-brand-300 hover:bg-white/5'}`}
                     title={displayLabel}
                 >
                     <div className="relative">
                         {isBeta && (
-                            <span className="absolute -top-3 -right-3 bg-amber-400 text-slate-900 text-[7px] font-bold px-1 py-0 rounded-sm rotate-12 shadow-sm z-10 border border-slate-900/10 pointer-events-none">
+                            <span className="absolute -top-2 -right-2 bg-amber-400 text-slate-900 text-[6px] font-bold px-0.5 rounded-sm shadow-sm z-10 border border-slate-900/10 pointer-events-none">
                                 Beta
                             </span>
                         )}
                         {styledCollapsedIcon}
                     </div>
-                    <span className="text-[9px] font-medium text-center leading-3 tracking-wide">{displayLabel}</span>
+                    <span className="text-[8px] font-medium text-center leading-tight tracking-wide opacity-90">{displayLabel}</span>
                 </div>
             );
         }
@@ -244,14 +244,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     onClick={() => {
                         onNavigate(item);
                     }}
-                    className={`group flex items-center pl-11 pr-3 py-2.5 mx-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out relative overflow-hidden ${isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    className={`group flex items-center pl-11 pr-3 py-[5px] mx-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out relative overflow-hidden ${isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:text-white hover:bg-white/5'
                         }`}
                 >
-                    {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand-500 rounded-r-md"></div>}
+                    {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-brand-500 rounded-r-md"></div>}
                     <span className="mr-3 transition-colors duration-200">
                         {styledMainIcon}
                     </span>
-                    <span className="relative z-10 truncate text-[14px] leading-5 font-medium">{displayLabel}</span>
+                    <span className="relative z-10 truncate text-[13px] leading-tight font-medium opacity-95">{displayLabel}</span>
                 </div>
             );
         }
@@ -269,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     }
                 }}
                 title={showCollapsed ? displayLabel : ''}
-                className={`group flex items-center justify-between px-4 py-3 mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-100 hover:bg-white/10 hover:text-white'
+                className={`group flex items-center justify-between px-4 py-[6px] mx-3 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-[2px] relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-100 hover:bg-white/10 hover:text-white'
                     }`}
             >
                 <div className={`flex items-center space-x-3 relative z-10`}>
@@ -281,7 +281,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             </span>
                         )}
                     </div>
-                    <span className={`text-[14px] leading-5 font-medium ${showActiveStyle ? 'text-white' : 'text-slate-100 group-hover:text-white'}`}>{displayLabel}</span>
+                    <span className={`text-[13px] leading-tight font-medium ${showActiveStyle ? 'text-white' : 'text-slate-100 group-hover:text-white'}`}>{displayLabel}</span>
                 </div>
                 {hasSubmenu && (
                     <div
@@ -317,12 +317,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 className={`fixed inset-y-0 left-0 z-[300] flex flex-col shadow-2xl lg:shadow-none transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) 
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:h-full 
         w-64 bg-[#00684a] border-r border-slate-700 
-        ${isCollapsed ? 'lg:w-24 lg:bg-[#00684a] lg:border-none' : ''}`}
+        ${isCollapsed ? 'lg:w-20 lg:bg-[#00684a] lg:border-none' : ''}`}
             >
-                <div className={`px-4 py-5 flex items-center ${showCollapsed ? 'lg:flex-col lg:justify-center lg:gap-4 justify-between' : 'justify-between'} border-b ${showCollapsed ? 'lg:border-white/10 border-white/10' : 'border-white/10'}`}>
+                <div className={`px-2 py-3 flex items-center ${showCollapsed ? 'lg:flex-col lg:justify-center lg:gap-2 justify-between' : 'justify-between'} border-b ${showCollapsed ? 'lg:border-white/10 border-white/10' : 'border-white/10'}`}>
                     <div className={`flex items-center ${showCollapsed ? 'lg:justify-center' : 'space-x-2.5'} overflow-hidden`}>
                         {showLogo && (
-                            <div className={`relative flex items-center justify-center shadow-md text-white overflow-hidden shrink-0 ${showCollapsed ? 'lg:w-10 lg:h-10 lg:bg-white/10' : ''} w-9 h-9 bg-brand-500 rounded-xl`}>
+                            <div className={`relative flex items-center justify-center shadow-md text-white overflow-hidden shrink-0 ${showCollapsed ? 'lg:w-8 lg:h-8 lg:bg-white/10' : ''} w-9 h-9 bg-brand-500 rounded-xl`}>
                                 {!isThemeLoaded ? (
                                     <div className="animate-pulse bg-white/20 w-full h-full" />
                                 ) : logoUrl ? (
@@ -350,41 +350,45 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     </button>
                 </div>
 
-                <div className="flex-1 py-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
-                    <div className="px-2 mb-2">{renderItem('Dashboard', <HomeIcon className="w-5 h-5" />)}</div>
-                    <div className="space-y-1">
-                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-300/60 uppercase tracking-widest mb-3 mt-6">Communication</p>}
+                <div className="flex-1 py-1 overflow-y-auto no-scrollbar overflow-x-hidden">
+                    <div className={`px-2 ${showCollapsed ? 'mb-1' : 'mb-2'}`}>{renderItem('Dashboard', <HomeIcon className="w-5 h-5" />)}</div>
+                    <div className={showCollapsed ? 'space-y-[2px]' : 'space-y-[2px]'}>
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-1 mt-3 truncate">Communication</p>}
                         {renderItem('Inbox', <MessageIcon className="w-5 h-5" />)}
 
                         {renderItem('Contacts', <UsersIcon className="w-5 h-5" />, true)}
                         {/* Only show submenus when physically expanded to avoid icon clutter */}
-                        {!showCollapsed && isContactsOpen && <div className="space-y-1 mt-1 mb-2">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isContactsOpen && <div className="space-y-[1px] mt-0.5 mb-1">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
 
                         {renderItem('Campaigns', <MegaphoneIcon className="w-5 h-5" />)}
 
-                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-300/60 uppercase tracking-widest mb-3 mt-6">Automation</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-1 mt-3 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
 
                         {renderItem('G Automation', <ListIcon className="w-5 h-5" />)}
                         {renderItem('Manage', <BriefcaseIcon className="w-5 h-5" />, true)}
-                        {!showCollapsed && isManageOpen && <div className="space-y-1 mt-1 mb-2">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isManageOpen && <div className="space-y-[1px] mt-0.5 mb-1">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                         {renderItem('Integrations', <LinkIcon className="w-5 h-5" />, false, false, false)}
 
-                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-300/60 uppercase tracking-widest mb-3 mt-6">AI & Tools</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-1 mt-3 truncate">AI & Tools</p>}
                         {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
 
                         {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
 
-                        {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-300/60 uppercase tracking-widest mb-3 mt-6">Workspace</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-1 mt-3 truncate">Workspace</p>}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
-                        {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-1 mb-2">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
+                        {!showCollapsed && isSettingsOpen && <div className="space-y-[1px] mt-0.5 mb-1">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                     </div>
                 </div>
 
-                <div className={`p-4 relative ${showCollapsed ? 'flex justify-center border-t border-white/10' : 'border-t border-white/10'}`}>
+                <div className={`py-3 relative ${showCollapsed ? 'flex flex-col items-center justify-center gap-2 border-t border-white/10' : 'border-t border-white/10'}`}>
                     {/* Sign Out Popover */}
                     {isUserMenuOpen && (
-                        <div className="absolute bottom-full left-4 right-4 mb-2 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 overflow-hidden animate-fade-in-up z-50">
+                        <div className={`absolute bg-white rounded-2xl shadow-xl border border-slate-100 p-2 overflow-hidden animate-fade-in-up z-50 transition-all duration-200
+                            ${showCollapsed
+                                ? 'left-full bottom-2 ml-2 w-40 origin-bottom-left'
+                                : 'bottom-full left-4 right-4 mb-2 origin-bottom'}`}
+                        >
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleSignOut(); }}
                                 className="w-full flex items-center gap-2 p-2 hover:bg-slate-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors text-sm font-bold"
@@ -397,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                     <div
                         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                        className={`flex items-center gap-3 cursor-pointer p-2 rounded-xl transition-colors
+                        className={`flex items-center gap-3 cursor-pointer p-2 mx-3 rounded-xl transition-colors
               ${isUserMenuOpen ? 'bg-white/20' : 'hover:bg-white/10'}
               ${showCollapsed ? 'justify-center' : ''}`}
                     >
