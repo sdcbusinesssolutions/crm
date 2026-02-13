@@ -94,8 +94,8 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
 
     return (
-        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-4 md:p-10 bg-[var(--color-bg)] transition-colors duration-300 container-mobile-fix">
-            <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
+        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-6 bg-[var(--color-bg)] transition-colors duration-300 container-mobile-fix">
+            <div className="max-w-[1800px] mx-auto space-y-6 md:space-y-8">
                 {/* Header Section */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in pt-safe">
                     <div className="flex items-center gap-3">

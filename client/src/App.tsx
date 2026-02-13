@@ -742,14 +742,7 @@ const MainApp: React.FC = () => {
                         </div>
                     )}
                 {/* Logout Button (Temporary placement or accessible via Settings in real app) */}
-                <div className="absolute top-3 right-4 z-50 hidden lg:block">
-                    <button
-                        onClick={handleLogout}
-                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-50 shadow-sm transition-colors"
-                    >
-                        Sign Out
-                    </button>
-                </div>
+                {/* Logout Button removed - moved to Sidebar User Menu */}
 
                 {renderContent()}
             </div>

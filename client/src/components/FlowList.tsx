@@ -249,7 +249,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
         <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden container-mobile-fix">
             {/* Header - Fixed to Top */}
             <div className="bg-canvas-surface/80 backdrop-blur-md border-b border-slate-200 shrink-0 z-30 sticky top-0">
-                <div className="px-4 sm:px-8 py-6 max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="px-4 sm:px-8 py-6 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
                             {onToggleSidebar && (
@@ -292,7 +292,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
 
             {/* Scrollable Content Area - Flex Grow */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 pb-24">
-                <div className="max-w-7xl mx-auto">
+                <div className="max-w-[1800px] mx-auto">
                     {/* Statistics Overview */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                         {(() => {
