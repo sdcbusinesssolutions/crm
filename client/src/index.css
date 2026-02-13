@@ -13,8 +13,8 @@ html {
 /* Standard Desktops (Full HD 1080p) - Distinct Zoom Out */
 @media (max-width: 1950px) {
   html {
-    font-size: 14px;
-    /* ~87.5% Scale - Noticeable spacing improvement */
+    font-size: 15px;
+    /* ~94% Scale - Slight zoom out for better spacing */
   }
 }
 

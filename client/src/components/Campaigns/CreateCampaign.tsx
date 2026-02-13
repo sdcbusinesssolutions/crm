@@ -510,7 +510,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     return (
         <div className="flex flex-col h-full overflow-hidden bg-[var(--color-bg)] transition-colors duration-300">
             {/* Header */}
-            <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-6 py-4 flex items-center gap-4 shrink-0 shadow-sm z-10">
+            <div className="bg-[var(--color-surface)] border-b border-[var(--color-border)] px-4 py-3 flex items-center gap-4 shrink-0 shadow-sm z-10">
                 <button onClick={onBack} className="p-2 hover:bg-[var(--color-bg)] rounded-full text-[var(--color-text)] opacity-60 hover:opacity-100 transition-colors">
                     <ChevronLeftIcon className="w-5 h-5" />
                 </button>
@@ -536,7 +536,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
             <div className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
                 {/* Left Panel: Form */}
                 <div className={`
-                    w-full md:w-1/2 lg:w-3/5 h-full overflow-y-auto custom-scrollbar p-6 md:p-10 space-y-8 bg-[var(--color-bg)] transition-transform duration-300 absolute md:relative z-20
+                    w-full md:w-3/5 lg:w-2/3 h-full overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6 bg-[var(--color-bg)] transition-transform duration-300 absolute md:relative z-20
                     ${activeTab === 'form' ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 `}>
 
@@ -955,7 +955,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
 
                 {/* Right Panel: Preview */}
                 <div className={`
-                    w-full md:w-1/2 lg:w-2/5 bg-[var(--color-surface)] border-l border-[var(--color-border)] p-6 md:flex flex-col items-center justify-center absolute md:relative h-full z-20 transition-transform duration-300
+                    w-full md:w-2/5 lg:w-1/3 bg-[var(--color-surface)] border-l border-[var(--color-border)] p-4 md:flex flex-col items-center justify-center absolute md:relative h-full z-20 transition-transform duration-300
                     ${activeTab === 'preview' ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
                 `}>
                     <div className="mb-6 text-center">
