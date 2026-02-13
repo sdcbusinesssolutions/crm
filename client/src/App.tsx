@@ -650,21 +650,17 @@ const MainApp: React.FC = () => {
                 );
             }
             return (
-                <div className="p-4 md:p-8 h-full overflow-y-auto bg-slate-50 container-mobile-fix">
-                    <div className="max-w-6xl mx-auto">
-                        <SheetAutomationList
-                            onCreate={() => {
-                                setEditingSheetAutomationId(null);
-                                setIsCreatingSheetAutomation(true);
-                            }}
-                            onEdit={(id) => {
-                                setEditingSheetAutomationId(id);
-                                setIsCreatingSheetAutomation(true);
-                            }}
-                            onToggleSidebar={() => setSidebarOpen(true)}
-                        />
-                    </div>
-                </div>
+                <SheetAutomationList
+                    onCreate={() => {
+                        setEditingSheetAutomationId(null);
+                        setIsCreatingSheetAutomation(true);
+                    }}
+                    onEdit={(id) => {
+                        setEditingSheetAutomationId(id);
+                        setIsCreatingSheetAutomation(true);
+                    }}
+                    onToggleSidebar={() => setSidebarOpen(true)}
+                />
             );
         }
 

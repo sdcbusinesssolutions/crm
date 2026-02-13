@@ -94,10 +94,10 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
     const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
 
     return (
-        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-6 bg-[var(--color-bg)] transition-colors duration-300 container-mobile-fix">
-            <div className="max-w-[1800px] mx-auto space-y-6 md:space-y-8">
+        <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-4 sm:p-8 bg-[var(--color-bg)] transition-colors duration-300 container-mobile-fix">
+            <div className="max-w-[1800px] mx-auto space-y-4 md:space-y-6">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 animate-fade-in pt-safe">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 animate-fade-in pt-safe">
                     <div className="flex items-center gap-3">
                         {onToggleSidebar && (
                             <button
@@ -108,8 +108,8 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                             </button>
                         )}
                         <div>
-                            <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--color-text)] tracking-tight">Campaigns</h1>
-                            <p className="text-[var(--color-text)] opacity-60 mt-2 text-base md:text-lg font-medium hidden md:block">Manage and monitor your WhatsApp marketing campaigns.</p>
+                            <h1 className="text-2xl font-extrabold text-[var(--color-text)] tracking-tight">Campaigns</h1>
+                            <p className="text-[var(--color-text)] opacity-60 mt-1 text-sm font-medium hidden md:block">Manage and monitor your WhatsApp marketing campaigns.</p>
                         </div>
                     </div>
                     <button

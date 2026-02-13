@@ -249,7 +249,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
         <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden container-mobile-fix">
             {/* Header - Fixed to Top */}
             <div className="bg-canvas-surface/80 backdrop-blur-md border-b border-slate-200 shrink-0 z-30 sticky top-0">
-                <div className="px-4 sm:px-8 py-6 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="px-4 sm:px-8 py-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
                             {onToggleSidebar && (

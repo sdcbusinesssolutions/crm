@@ -193,8 +193,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
     return (
         <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative container-mobile-fix">
             <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 z-20 sticky top-0 shadow-sm">
-                <div className="px-6 pt-6 pb-0 max-w-[1800px] mx-auto">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
+                <div className="px-4 sm:px-8 pt-3 pb-0 max-w-[1800px] mx-auto">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-2">
                         <div className="flex items-center gap-3">
                             {onToggleSidebar && (
                                 <button
@@ -211,7 +211,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 pb-4">
+                    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-2 pb-2">
                         {tabs.map(tab => (
                             <button
                                 key={tab.id}

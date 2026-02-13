@@ -229,7 +229,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     }
 
     return (
-        <div className="px-6 py-6 md:py-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800">
+        <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800">
             {/* Hero Section */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white p-5 md:p-6">
                 {/* Abstract Background Shapes */}
