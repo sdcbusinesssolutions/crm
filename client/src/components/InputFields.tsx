@@ -47,66 +47,82 @@ const InputFields: React.FC = () => {
     const inputTypeOptions = [{ label: 'Text', value: 'text' }, { label: 'Number', value: 'number' }, { label: 'Email', value: 'email' }, { label: 'URL', value: 'url' }, { label: 'Date', value: 'date' }];
 
     return (
-        <div className="p-4 sm:p-8 space-y-6 h-full flex flex-col animate-fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="relative group w-full sm:w-72">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-brand-600 group-focus-within:text-brand-600 transition-colors"><SearchIcon /></div>
-                    <input type="text" placeholder="Search fields..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2.5 w-full bg-white border border-brand-600 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" />
+        <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 animate-fade-in relative overflow-hidden container-mobile-fix">
+            {/* Sticky Header */}
+            <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 z-30 sticky top-0">
+                <div className="px-4 sm:px-8 py-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Custom Fields</h1>
+                        <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage custom data fields for your contacts.</p>
+                    </div>
+                    <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto">
+                        <PlusIcon /><span>Add Field</span>
+                    </button>
                 </div>
-
-                <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto"><PlusIcon /><span>Add Field</span></button>
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-                <div className="hidden md:block overflow-x-auto flex-1">
-                    <table className="min-w-full divide-y divide-slate-100">
-                        <thead className="bg-brand-600 text-white shadow-md">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Field Name</th>
-                                <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Data Type</th>
-                                <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {isLoading ? (
-                                <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-400"><div className="inline-block w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-2"></div>Loading...</td></tr>
-                            ) : filteredInputs.length === 0 ? (
-                                <tr><td colSpan={3} className="px-6 py-16 text-center text-slate-500">No input fields found.</td></tr>
-                            ) : (
-                                currentEntries.map((input) => (
-                                    <tr key={input.id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="px-6 py-4 text-sm font-bold text-slate-900">{input.name}</td>
-                                        <td className="px-6 py-4 text-sm text-slate-500"><span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                <button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200 transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 pb-24">
+                <div className="max-w-[1800px] mx-auto space-y-6">
+                    <div className="flex justify-end">
+                        <div className="relative group w-full sm:w-72">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-brand-600 group-focus-within:text-brand-600 transition-colors"><SearchIcon /></div>
+                            <input type="text" placeholder="Search fields..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2.5 w-full bg-white border border-brand-600 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" />
+                        </div>
+                    </div>
 
-                {/* Mobile */}
-                <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">
-                    {currentEntries.map((input) => (
-                        <div key={input.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                            <div className="flex justify-between items-start mb-2">
-                                <div><h3 className="font-bold text-slate-900 text-lg">{input.name}</h3><span className="inline-block mt-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></div>
-                                <div className="flex gap-2"><button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div>
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                        <div className="hidden md:block overflow-x-auto flex-1">
+                            <table className="min-w-full divide-y divide-slate-100">
+                                <thead className="bg-brand-600 text-white shadow-md">
+                                    <tr>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Field Name</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Data Type</th>
+                                        <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white">
+                                    {isLoading ? (
+                                        <tr><td colSpan={3} className="px-6 py-12 text-center text-slate-400"><div className="inline-block w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mr-2"></div>Loading...</td></tr>
+                                    ) : filteredInputs.length === 0 ? (
+                                        <tr><td colSpan={3} className="px-6 py-16 text-center text-slate-500">No input fields found.</td></tr>
+                                    ) : (
+                                        currentEntries.map((input) => (
+                                            <tr key={input.id} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-900">{input.name}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-500"><span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></td>
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                        <button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile */}
+                        <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">
+                            {currentEntries.map((input) => (
+                                <div key={input.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div><h3 className="font-bold text-slate-900 text-lg">{input.name}</h3><span className="inline-block mt-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></div>
+                                        <div className="flex gap-2"><button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center gap-4">
+                            <div className="flex gap-2">
+                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Prev</button>
+                                <div className="px-4 py-2 bg-brand-600 text-white rounded-btn text-sm font-bold shadow-sm shadow-brand-200">{currentPage}</div>
+                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Next</button>
                             </div>
                         </div>
-                    ))}
-                </div>
-
-                <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center gap-4">
-                    <div className="flex gap-2">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Prev</button>
-                        <div className="px-4 py-2 bg-brand-600 text-white rounded-btn text-sm font-bold shadow-sm shadow-brand-200">{currentPage}</div>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Next</button>
                     </div>
                 </div>
             </div>
