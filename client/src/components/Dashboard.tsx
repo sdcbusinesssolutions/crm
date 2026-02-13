@@ -725,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             `}</style>
 
             {/* Top Navigation Bar */}
-            <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 md:px-8 flex items-center justify-between sticky top-0">
+            <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-8 flex items-center justify-between sticky top-0">
                 <div className="flex items-center gap-3">
                     {onToggleSidebar && (
                         <button
@@ -742,8 +742,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 {/* Right side actions removed as per request (moved to sidebar) */}
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-8">
-                <div className="max-w-[1600px] mx-auto space-y-6 md:space-y-8 pb-20">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
+                <div className="max-w-[1800px] mx-auto space-y-6 md:space-y-8 pb-20">
 
                     {/* 1. Hero Grid: Scanner + Key Stats + Quick Actions */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">

@@ -687,15 +687,15 @@ const WhatsAppApiSettings: React.FC = () => {
     return (
         <div className="flex-1 h-full bg-slate-50/30 overflow-hidden flex flex-col">
             {/* Ultra Compact Header */}
-            <div className="flex-none px-3 py-2 border-b border-slate-200 bg-white shadow-sm z-20">
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex-none px-4 py-3 border-b border-slate-200 bg-white shadow-sm z-20 sticky top-0">
+                <div className="max-w-[1800px] mx-auto flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 bg-brand-50 rounded-lg flex items-center justify-center border border-brand-100/50">
-                            <span className="text-sm">✨</span>
+                        <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center border border-brand-100/50">
+                            <span className="text-base">✨</span>
                         </div>
                         <div className="hidden sm:block">
-                            <h1 className="text-xs font-black text-slate-800 uppercase tracking-wide leading-none">WhatsApp Playground</h1>
-                            <p className="text-[9px] font-medium text-slate-400 mt-0.5">Build & Generate Payloads</p>
+                            <h1 className="text-sm font-black text-slate-800 uppercase tracking-wide leading-none">WhatsApp Playground</h1>
+                            <p className="text-[10px] font-medium text-slate-400 mt-0.5">Build & Generate Payloads</p>
                         </div>
                     </div>
 
@@ -704,13 +704,13 @@ const WhatsAppApiSettings: React.FC = () => {
                         <div className="bg-slate-100 p-0.5 rounded flex border border-slate-200">
                             <button
                                 onClick={() => { setMode('transactional'); setResponse(null); }}
-                                className={`px-2.5 py-1 text-[9px] font-bold uppercase rounded-[3px] transition-all ${mode === 'transactional' ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-[3px] transition-all ${mode === 'transactional' ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 Transactional
                             </button>
                             <button
                                 onClick={() => { setMode('campaign'); setResponse(null); }}
-                                className={`px-2.5 py-1 text-[9px] font-bold uppercase rounded-[3px] transition-all ${mode === 'campaign' ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
+                                className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-[3px] transition-all ${mode === 'campaign' ? 'bg-white text-brand-600 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
                             >
                                 Campaigns
                             </button>
@@ -719,7 +719,7 @@ const WhatsAppApiSettings: React.FC = () => {
                 </div>
 
                 {/* Mobile Tab Switcher (Builder / Code) */}
-                <div className="mt-2 flex lg:hidden bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <div className="mt-2 flex lg:hidden bg-slate-100 p-0.5 rounded-lg border border-slate-200 max-w-[1800px] mx-auto">
                     <button
                         onClick={() => setMobileTab('builder')}
                         className={`flex-1 py-1 text-[10px] font-bold uppercase rounded-md transition-all flex items-center justify-center gap-1.5 ${mobileTab === 'builder' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}
@@ -735,8 +735,8 @@ const WhatsAppApiSettings: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 lg:p-4">
-                <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-12 lg:gap-4 lg:items-start h-full">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 pb-24">
+                <div className="max-w-[1800px] mx-auto lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start h-full">
 
                     {/* LEFT COLUMN: BUILDER */}
                     <div className={`lg:col-span-7 space-y-3 ${mobileTab === 'builder' ? 'block' : 'hidden lg:block'}`}>
