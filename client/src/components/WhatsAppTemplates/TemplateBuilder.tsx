@@ -684,7 +684,7 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
             <div className="flex flex-1 overflow-hidden relative">
                 {/* Left Panel: Builder Form */}
                 <div className={`
-                    w-full md:w-1/2 lg:w-[45%] h-full overflow-y-auto custom-scrollbar p-0 border-r border-slate-200 bg-white shadow-xl z-20 absolute md:relative transition-transform duration-300
+                    w-full md:w-3/5 lg:w-2/3 h-full overflow-y-auto custom-scrollbar p-0 border-r border-slate-200 bg-white shadow-xl z-20 absolute md:relative transition-transform duration-300
                     ${activeTab === 'editor' ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 `}>
                     <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-slate-100 px-5 py-4 mb-4 flex items-center justify-between">
@@ -1173,7 +1173,7 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
 
                 {/* Right Panel: Preview */}
                 <div className={`
-                    w-full md:w-1/2 lg:w-[55%] h-full bg-slate-100/50 p-4 md:p-8 flex items-center justify-center relative overflow-hidden transition-transform duration-300 absolute md:relative
+                    w-full md:w-2/5 lg:w-1/3 h-full bg-slate-100/50 p-3 md:p-4 flex items-center justify-center relative overflow-hidden transition-transform duration-300 absolute md:relative
                     ${activeTab === 'preview' ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
                 `}>
                     {/* Background Pattern */}
