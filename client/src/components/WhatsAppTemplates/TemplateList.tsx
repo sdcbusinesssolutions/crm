@@ -129,13 +129,13 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
     const totalPages = Math.ceil(filteredTemplates.length / itemsPerPage);
 
     return (
-        <div className="flex-1 h-full overflow-y-auto custom-scrollbar bg-slate-50/50 p-6 md:p-10">
-            <div className="max-w-7xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 animate-fade-in relative overflow-hidden container-mobile-fix">
+            {/* Header - Fixed to Top */}
+            <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 shrink-0 z-30 sticky top-0">
+                <div className="px-4 sm:px-8 py-3 max-w-[1800px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WhatsApp Templates</h1>
-                        <p className="text-slate-500 mt-2 text-lg font-medium">Manage your message templates.</p>
+                        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">WhatsApp Templates</h1>
+                        <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage your message templates.</p>
                     </div>
                     <button
                         onClick={() => onNavigateToBuilder(null)}
@@ -145,229 +145,237 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         Create New Template
                     </button>
                 </div>
+            </div>
 
-                {/* Statistics Overview */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    {(() => {
-                        const stats = {
-                            total: templates.length,
-                            approved: templates.filter(t => t.status === 'APPROVED').length,
-                            pending: templates.filter(t => t.status === 'PENDING').length,
-                            rejected: templates.filter(t => t.status === 'REJECTED').length,
-                            marketing: templates.filter(t => t.category === 'MARKETING').length,
-                            utility: templates.filter(t => t.category === 'UTILITY').length
-                        };
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 pb-24">
+                <div className="max-w-[1800px] mx-auto space-y-6">
 
-                        return (
-                            <>
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total</div>
-                                    <div className="text-2xl font-black text-slate-900">{stats.total}</div>
-                                </div>
-                                <div className="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Approved</div>
-                                    <div className="text-2xl font-black text-green-700">{stats.approved}</div>
-                                </div>
-                                <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">Pending</div>
-                                    <div className="text-2xl font-black text-yellow-700">{stats.pending}</div>
-                                </div>
-                                <div className="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Rejected</div>
-                                    <div className="text-2xl font-black text-red-700">{stats.rejected}</div>
-                                </div>
-                                <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Marketing</div>
-                                    <div className="text-2xl font-black text-blue-700">{stats.marketing}</div>
-                                </div>
-                                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Utility</div>
-                                    <div className="text-2xl font-black text-purple-700">{stats.utility}</div>
-                                </div>
-                            </>
-                        );
-                    })()}
-                </div>
+                    {/* Statistics Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {(() => {
+                            const stats = {
+                                total: templates.length,
+                                approved: templates.filter(t => t.status === 'APPROVED').length,
+                                pending: templates.filter(t => t.status === 'PENDING').length,
+                                rejected: templates.filter(t => t.status === 'REJECTED').length,
+                                marketing: templates.filter(t => t.category === 'MARKETING').length,
+                                utility: templates.filter(t => t.category === 'UTILITY').length
+                            };
 
-                {/* Filters & Search */}
-                <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-500">Category:</span>
-                            <select
-                                value={filterCategory}
-                                onChange={(e) => setFilterCategory(e.target.value)}
-                                className="px-3 py-2 bg-white border border-brand-600 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                            >
-                                <option value="All">All</option>
-                                <option value="MARKETING">Marketing</option>
-                                <option value="UTILITY">Utility</option>
-                                <option value="AUTHENTICATION">Authentication</option>
-                            </select>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-slate-500">Status:</span>
-                            <select
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                                className="px-3 py-2 bg-white border border-brand-600 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                            >
-                                <option value="All">All</option>
-                                <option value="APPROVED">Approved</option>
-                                <option value="PENDING">Pending</option>
-                                <option value="REJECTED">Rejected</option>
-                                <option value="PAUSED">Paused</option>
-                            </select>
-                        </div>
+                            return (
+                                <>
+                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total</div>
+                                        <div className="text-2xl font-black text-slate-900">{stats.total}</div>
+                                    </div>
+                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Approved</div>
+                                        <div className="text-2xl font-black text-green-700">{stats.approved}</div>
+                                    </div>
+                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">Pending</div>
+                                        <div className="text-2xl font-black text-yellow-700">{stats.pending}</div>
+                                    </div>
+                                    <div className="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Rejected</div>
+                                        <div className="text-2xl font-black text-red-700">{stats.rejected}</div>
+                                    </div>
+                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Marketing</div>
+                                        <div className="text-2xl font-black text-blue-700">{stats.marketing}</div>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Utility</div>
+                                        <div className="text-2xl font-black text-purple-700">{stats.utility}</div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
-                    <div className="relative w-full md:w-80">
-                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-600" />
-                        <input
-                            type="text"
-                            placeholder="Search Templates..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-white border border-brand-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all shadow-sm"
-                        />
-                    </div>
-                </div>
 
-                {/* Table */}
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-brand-600 text-white shadow-md">
-                                <tr className="bg-brand-600 border-none">
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Name</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Language</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Category</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Quality</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Updated On</th>
-                                    <th className="px-6 py-4 text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {isLoading ? (
-                                    <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">Loading...</td></tr>
-                                ) : currentTemplates.length === 0 ? (
-                                    <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500">No templates found.</td></tr>
-                                ) : (
-                                    currentTemplates.map((template) => (
-                                        <tr key={template.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-900">{template.name}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">{template.language}</td>
-                                            <td className="px-6 py-4 text-sm text-slate-600">
-                                                <span className="inline-block bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">
-                                                    {template.category}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${template.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
-                                                    template.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
-                                                        'bg-yellow-100 text-yellow-800'
-                                                    }`}>
-                                                    {template.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span
-                                                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold cursor-help ${(typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'GREEN' ? 'bg-green-100 text-green-800' :
-                                                        (typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'YELLOW' ? 'bg-yellow-100 text-yellow-800' :
-                                                            (typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'RED' ? 'bg-red-100 text-red-800' :
-                                                                'bg-slate-100 text-slate-500'
-                                                        }`}
-                                                    title={typeof template.quality_score === 'object' && template.quality_score?.date
-                                                        ? `Last updated: ${new Date(template.quality_score.date * 1000).toLocaleString()}`
-                                                        : 'Quality score not available'
-                                                    }
-                                                >
-                                                    {(() => {
-                                                        const rawScore = typeof template.quality_score === 'object' && template.quality_score?.score
-                                                            ? template.quality_score.score
-                                                            : (typeof template.quality_score === 'string' ? template.quality_score : 'N/A');
-
-                                                        // Map specific values to user-friendly terms
-                                                        if (rawScore === 'UNKNOWN') return 'Not Rated';
-                                                        if (rawScore === 'N/A') return 'N/A';
-
-                                                        // Convert others to Title Case (GREEN -> Green)
-                                                        return rawScore.charAt(0).toUpperCase() + rawScore.slice(1).toLowerCase();
-                                                    })()}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-slate-500">
-                                                {new Date(template.updated_at).toLocaleDateString()}
-                                            </td>
-                                            <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => setSelectedTemplate(template)}
-                                                    className="text-slate-400 hover:text-brand-600 transition-colors p-1"
-                                                    title="Preview"
-                                                >
-                                                    <EyeIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => onNavigateToBuilder(template.id)}
-                                                    className="text-slate-400 hover:text-brand-600 transition-colors p-1"
-                                                    title="Edit"
-                                                >
-                                                    <EditIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(template.id, template.name)}
-                                                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
-                                                    title="Delete"
-                                                >
-                                                    <TrashIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDuplicate(template)}
-                                                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                                    title="Duplicate"
-                                                >
-                                                    <CopyIcon className="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-                            <div className="text-sm text-slate-500">
-                                Showing <span className="font-bold">{indexOfFirstItem + 1}</span> to <span className="font-bold">{Math.min(indexOfLastItem, filteredTemplates.length)}</span> of <span className="font-bold">{filteredTemplates.length}</span> results
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className="px-3 py-1 text-sm border border-slate-200 rounded-md hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    {/* Filters & Search */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div className="flex flex-wrap gap-4 items-center w-full md:w-auto">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-500">Category:</span>
+                                <select
+                                    value={filterCategory}
+                                    onChange={(e) => setFilterCategory(e.target.value)}
+                                    className="px-3 py-2 bg-white border border-brand-600 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
                                 >
-                                    Previous
-                                </button>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                                    <option value="All">All</option>
+                                    <option value="MARKETING">Marketing</option>
+                                    <option value="UTILITY">Utility</option>
+                                    <option value="AUTHENTICATION">Authentication</option>
+                                </select>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-500">Status:</span>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="px-3 py-2 bg-white border border-brand-600 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                >
+                                    <option value="All">All</option>
+                                    <option value="APPROVED">Approved</option>
+                                    <option value="PENDING">Pending</option>
+                                    <option value="REJECTED">Rejected</option>
+                                    <option value="PAUSED">Paused</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="relative w-full md:w-80">
+                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-600" />
+                            <input
+                                type="text"
+                                placeholder="Search Templates..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-brand-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all shadow-sm"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Table */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-separate border-spacing-0">
+                                <thead>
+                                    <tr className="bg-brand-600 text-white shadow-md">
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Name</th>
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Language</th>
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Category</th>
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Status</th>
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Quality</th>
+                                        <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Updated On</th>
+                                        <th className="px-6 py-5 text-right font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {isLoading ? (
+                                        <tr><td colSpan={7} className="px-6 py-16 text-center text-slate-500">Loading...</td></tr>
+                                    ) : currentTemplates.length === 0 ? (
+                                        <tr><td colSpan={7} className="px-6 py-16 text-center text-slate-500">No templates found.</td></tr>
+                                    ) : (
+                                        currentTemplates.map((template) => (
+                                            <tr key={template.id} className="hover:bg-slate-50 transition-colors group border-b border-slate-100">
+                                                <td className="px-6 py-4 text-sm font-bold text-slate-900 border-b border-slate-100">{template.name}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100">{template.language}</td>
+                                                <td className="px-6 py-4 text-sm text-slate-600 border-b border-slate-100">
+                                                    <span className="inline-block bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-medium">
+                                                        {template.category}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 border-b border-slate-100">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${template.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                                                        template.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                                                            'bg-yellow-100 text-yellow-800'
+                                                        }`}>
+                                                        {template.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 border-b border-slate-100">
+                                                    <span
+                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold cursor-help ${(typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'GREEN' ? 'bg-green-100 text-green-800' :
+                                                            (typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'YELLOW' ? 'bg-yellow-100 text-yellow-800' :
+                                                                (typeof template.quality_score === 'string' ? template.quality_score : template.quality_score?.score) === 'RED' ? 'bg-red-100 text-red-800' :
+                                                                    'bg-slate-100 text-slate-500'
+                                                            }`}
+                                                        title={typeof template.quality_score === 'object' && template.quality_score?.date
+                                                            ? `Last updated: ${new Date(template.quality_score.date * 1000).toLocaleString()}`
+                                                            : 'Quality score not available'
+                                                        }
+                                                    >
+                                                        {(() => {
+                                                            const rawScore = typeof template.quality_score === 'object' && template.quality_score?.score
+                                                                ? template.quality_score.score
+                                                                : (typeof template.quality_score === 'string' ? template.quality_score : 'N/A');
+
+                                                            // Map specific values to user-friendly terms
+                                                            if (rawScore === 'UNKNOWN') return 'Not Rated';
+                                                            if (rawScore === 'N/A') return 'N/A';
+
+                                                            // Convert others to Title Case (GREEN -> Green)
+                                                            return rawScore.charAt(0).toUpperCase() + rawScore.slice(1).toLowerCase();
+                                                        })()}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-sm text-slate-500 border-b border-slate-100">
+                                                    {new Date(template.updated_at).toLocaleDateString()}
+                                                </td>
+                                                <td className="px-6 py-4 text-right border-b border-slate-100">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => setSelectedTemplate(template)}
+                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1"
+                                                            title="Preview"
+                                                        >
+                                                            <EyeIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onNavigateToBuilder(template.id)}
+                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1"
+                                                            title="Edit"
+                                                        >
+                                                            <EditIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(template.id, template.name)}
+                                                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                                            title="Delete"
+                                                        >
+                                                            <TrashIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDuplicate(template)}
+                                                            className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                                                            title="Duplicate"
+                                                        >
+                                                            <CopyIcon className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+                                <div className="text-sm text-slate-500">
+                                    Showing <span className="font-bold">{indexOfFirstItem + 1}</span> to <span className="font-bold">{Math.min(indexOfLastItem, filteredTemplates.length)}</span> of <span className="font-bold">{filteredTemplates.length}</span> results
+                                </div>
+                                <div className="flex gap-2">
                                     <button
-                                        key={number}
-                                        onClick={() => setCurrentPage(number)}
-                                        className={`px-3 py-1 text-sm border rounded-md ${currentPage === number ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 hover:bg-white'}`}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-sm border border-slate-200 rounded-md hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {number}
+                                        Previous
                                     </button>
-                                ))}
-                                <button
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    className="px-3 py-1 text-sm border border-slate-200 rounded-md hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Next
-                                </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                                        <button
+                                            key={number}
+                                            onClick={() => setCurrentPage(number)}
+                                            className={`px-3 py-1 text-sm border rounded-md ${currentPage === number ? 'bg-brand-600 text-white border-brand-600' : 'border-slate-200 hover:bg-white'}`}
+                                        >
+                                            {number}
+                                        </button>
+                                    ))}
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-sm border border-slate-200 rounded-md hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
 
