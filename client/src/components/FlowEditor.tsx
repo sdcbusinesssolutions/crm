@@ -359,8 +359,8 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   return (
     <div className="h-full w-full flex flex-col font-sans bg-slate-950 text-white relative overflow-hidden">
       {/* Header */}
-      <div className="z-30 px-4 py-3 shrink-0">
-        <div className="max-w-6xl mx-auto bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto shadow-2xl ring-1 ring-white/5">
+      <div className="z-30 px-2 py-2 shrink-0">
+        <div className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto shadow-2xl ring-1 ring-white/5">
           <div className="flex items-center w-full sm:w-auto relative z-40 gap-4">
             <button onClick={onBack} className="group flex items-center gap-2 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 shadow-sm" title="Back to Dashboard">
               <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
@@ -422,12 +422,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       )}
 
       <div className="flex flex-1 overflow-hidden relative">
-        <div className={`absolute inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out bg-slate-900 shadow-2xl border-r border-slate-800 h-full ${isNodesPanelOpen ? 'translate-x-0' : '-translate-x-full'} md:relative ${isNodesPanelOpen ? 'md:w-72 md:translate-x-0' : 'md:w-0 md:border-none md:overflow-hidden'}`}>
-          <div className="w-72 h-full">
-            <NodesPanel onAddNode={(type) => addNode(type)} onClose={() => setIsNodesPanelOpen(false)} />
-          </div>
-        </div>
-
         {isNodesPanelOpen && <div className="absolute inset-0 bg-black/60 z-20 md:hidden backdrop-blur-sm" onClick={() => setIsNodesPanelOpen(false)} />}
 
         <div ref={canvasWrapperRef} className={`flex-1 relative h-full overflow-hidden flex flex-col transition-colors duration-200 bg-slate-950`} onWheel={handleWheel}>
@@ -437,8 +431,14 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
           </div>
         </div>
 
+        <div className={`absolute inset-y-0 right-0 z-30 transform transition-all duration-300 ease-in-out bg-slate-900 shadow-2xl border-l border-slate-800 h-full ${isNodesPanelOpen ? 'translate-x-0' : 'translate-x-full'} md:relative ${isNodesPanelOpen ? 'md:w-72 md:translate-x-0' : 'md:w-0 md:border-none md:overflow-hidden'}`}>
+          <div className="w-72 h-full">
+            <NodesPanel onAddNode={(type) => addNode(type)} onClose={() => setIsNodesPanelOpen(false)} />
+          </div>
+        </div>
+
         {!isNodesPanelOpen && (
-          <button onClick={() => setIsNodesPanelOpen(true)} className="absolute bottom-24 left-6 w-14 h-14 bg-brand-600 text-white rounded-full shadow-2xl shadow-brand-900/50 flex items-center justify-center z-50 hover:bg-brand-500 active:scale-90 transition-all border-2 border-white/10" title="Open Components">
+          <button onClick={() => setIsNodesPanelOpen(true)} className="absolute bottom-24 right-6 w-14 h-14 bg-brand-600 text-white rounded-full shadow-2xl shadow-brand-900/50 flex items-center justify-center z-50 hover:bg-brand-500 active:scale-90 transition-all border-2 border-white/10" title="Open Components">
             <PlusIcon className="w-8 h-8" />
           </button>
         )}

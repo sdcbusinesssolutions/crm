@@ -75,7 +75,7 @@ const NodeItem: React.FC<{ type: NodeType; label: string; icon: React.ReactNode;
 
 const NodesPanel: React.FC<NodesPanelProps> = ({ onAddNode, onClose }) => {
   return (
-    <aside className="w-72 h-full bg-slate-900 border-r border-slate-800 flex flex-col overflow-hidden z-20 shadow-2xl">
+    <aside className="w-72 h-full bg-slate-900 border-l border-slate-800 flex flex-col overflow-hidden z-20 shadow-2xl">
       <div className="p-4 border-b border-white/5 flex justify-between items-center shrink-0 bg-slate-900">
         <div><h2 className="text-sm font-bold text-white">Components</h2><p className="text-xs text-slate-500 mt-0.5">Drag & drop to canvas</p></div>
         {onClose && <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors" title="Close Panel"><CloseIcon className="w-5 h-5" /></button>}
