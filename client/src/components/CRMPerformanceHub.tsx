@@ -264,7 +264,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     {/* Header */}
                     <div className="absolute top-4 w-full flex items-center justify-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
-                        <h3 className="font-bold text-slate-800 text-[11px]">Lead CRM</h3>
+                        <h3 className="font-bold text-slate-800 text-[11px]">Lead CRM Pipeline</h3>
                     </div>
 
                     {/* Funnel Container - Centered */}
