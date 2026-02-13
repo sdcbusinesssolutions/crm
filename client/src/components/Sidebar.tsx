@@ -364,7 +364,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                         {!showCollapsed && <p className="px-6 text-[10px] font-extrabold text-slate-300/60 uppercase tracking-widest mb-3 mt-6">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
-                        {renderItem('Drip Campaigns', <TriggerIcon className="w-5 h-5" />)}
+
                         {renderItem('Sheet Automation', <ListIcon className="w-5 h-5" />)}
                         {renderItem('Manage', <BriefcaseIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isManageOpen && <div className="space-y-1 mt-1 mb-2">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}

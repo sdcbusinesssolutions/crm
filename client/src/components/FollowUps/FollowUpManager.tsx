@@ -3,6 +3,11 @@ import { followUpService, FollowUp } from '../../services/followUpService';
 import { getTasks, updateTask, deleteTask } from '../../services/lead-management-api';
 import FollowUpForm from './FollowUpForm';
 import { format, isToday, isPast, isFuture, parseISO, isSameDay } from 'date-fns';
+import { TriggerIcon } from '../icons';
+
+interface FollowUpManagerProps {
+    onNavigate?: (item: any) => void;
+}
 
 // Extended interface to support both FollowUps and CRM Tasks
 interface UnifiedTask extends FollowUp {
@@ -11,7 +16,7 @@ interface UnifiedTask extends FollowUp {
     pipeline_name?: string;
 }
 
-const FollowUpManager: React.FC = () => {
+const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
     const [followUps, setFollowUps] = useState<UnifiedTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');
@@ -226,6 +231,13 @@ const FollowUpManager: React.FC = () => {
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         Export
+                    </button>
+                    <button
+                        onClick={() => onNavigate && onNavigate('Drip Campaigns')}
+                        className="px-4 py-2 bg-white border border-purple-500 text-purple-600 rounded-lg hover:bg-purple-50 font-bold flex items-center gap-2 shadow-sm transition"
+                    >
+                        <TriggerIcon className="w-4 h-4" />
+                        Drip Campaigns
                     </button>
                     <button
                         onClick={() => { setEditingFollowUp(null); setIsModalOpen(true); }}

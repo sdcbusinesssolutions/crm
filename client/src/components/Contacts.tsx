@@ -118,7 +118,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             case 'groups': return <ContactGroups onGroupClick={handleGroupClick} onGroupCountUpdate={handleGroupCountUpdate} />;
             case 'inputs': return <InputFields />;
             case 'pipelines': return <PipelineView initialPipelineId={initialPipelineId} />;
-            case 'follow-up': return <FollowUpManager />;
+            case 'follow-up': return <FollowUpManager onNavigate={onNavigate} />;
             case 'forms': return <FormBuilder />;
             default: return (
                 <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-200 shadow-sm m-4 animate-fade-in">
