@@ -293,18 +293,30 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
     };
 
-    const handleScroll = () => {
-        if (!chatContainerRef.current) return;
-        const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-        isAtBottomRef.current = distanceToBottom < 150;
+    const handleScroll = useMemo(() => {
+        // Debounce scroll handler to prevent excessive calls (performance optimization)
+        let scrollTimeout: NodeJS.Timeout | null = null;
 
-        // Infinite scroll: Load more when user scrolls near the top
-        const distanceToTop = scrollTop;
-        if (distanceToTop < 200 && !isLoadingMore && hasMoreMessages) {
-            loadMoreMessages();
-        }
-    };
+        return () => {
+            if (!chatContainerRef.current) return;
+
+            const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+            const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+            isAtBottomRef.current = distanceToBottom < 150;
+
+            // Debounce infinite scroll trigger to prevent rapid API calls
+            if (scrollTimeout) clearTimeout(scrollTimeout);
+
+            scrollTimeout = setTimeout(() => {
+                // Infinite scroll: Load more when user scrolls near the top
+                const distanceToTop = scrollTop;
+                if (distanceToTop < 200 && !isLoadingMore && hasMoreMessages) {
+                    loadMoreMessages();
+                }
+            }, 100); // 100ms debounce - smooth but responsive
+        };
+    }, [isLoadingMore, hasMoreMessages]); // Only recreate if these change
+
 
 
     // Scroll to bottom when chat changes
@@ -313,21 +325,33 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         isAtBottomRef.current = true;
     }, [activeChatId]);
 
-    // Smart scroll on new messages
+    // Smart scroll on new messages - INSTANT for initial load, smooth for new messages
     useEffect(() => {
         if (messages.length === 0) return;
 
-        // If we just switched chats, FORCE scroll to bottom
+        // If we just switched chats, INSTANT scroll to bottom (no animation)
         if (shouldForceScrollRef.current) {
-            scrollToBottom(true);
-            setTimeout(() => scrollToBottom(true), 100);
-            setTimeout(() => scrollToBottom(true), 500);
+            // Use direct DOM manipulation for instant, invisible scroll
+            const scrollToBottomInstant = () => {
+                if (chatContainerRef.current) {
+                    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+                }
+            };
+
+            // Immediate scroll
+            scrollToBottomInstant();
+
+            // Retry after DOM updates (for images/media loading)
+            setTimeout(scrollToBottomInstant, 0);
+            setTimeout(scrollToBottomInstant, 50);
+            setTimeout(scrollToBottomInstant, 200);
             setTimeout(() => {
-                scrollToBottom(true);
-                shouldForceScrollRef.current = false; // Reset flag after ensuring bottom
-            }, 2000); // Extended to 2s to catch slow images
+                scrollToBottomInstant();
+                shouldForceScrollRef.current = false; // Reset flag
+            }, 500);
         } else {
-            // Normal behavior for new incoming messages
+            // Normal behavior for new incoming messages (smooth scroll)
+
             const lastMessage = messages[messages.length - 1];
             const isMyMessage = lastMessage?.direction === 'out';
 
@@ -1841,7 +1865,19 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </header>
 
                         {/* Messages Area */}
-                        <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative z-10">
+                        <div
+                            ref={chatContainerRef}
+                            onScroll={handleScroll}
+                            className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative z-10"
+                            style={{
+                                opacity: isLoadingMessages ? 0 : 1,
+                                transition: 'opacity 0.15s ease-in',
+                                willChange: 'scroll-position',
+                                transform: 'translateZ(0)',
+                                backfaceVisibility: 'hidden' as const,
+                                WebkitOverflowScrolling: 'touch' as const
+                            }}
+                        >
                             {/* Loading More Indicator at Top */}
                             {isLoadingMore && (
                                 <div className="flex justify-center items-center py-3">
