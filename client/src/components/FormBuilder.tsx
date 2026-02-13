@@ -738,7 +738,7 @@ const FormBuilder: React.FC = () => {
 
     // List View
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 w-full animate-fade-in">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-[var(--color-text)]">Form Builder</h1>

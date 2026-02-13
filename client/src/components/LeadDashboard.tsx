@@ -229,39 +229,39 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     }
 
     return (
-        <div className="p-6 space-y-8 animate-fade-in text-slate-800">
+        <div className="px-6 py-6 md:py-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800">
             {/* Hero Section */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white p-4">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white p-5 md:p-6">
                 {/* Abstract Background Shapes */}
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl"></div>
 
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h2 className="text-lg font-extrabold mb-0.5 tracking-tight">Lead Overview</h2>
-                        <p className="text-slate-300 max-w-xl text-xs">
+                        <h2 className="text-xl md:text-2xl font-extrabold mb-1 tracking-tight">Lead Overview</h2>
+                        <p className="text-slate-300 max-w-xl text-sm leading-relaxed">
                             Here's what's happening with your <strong>{pipelines.find(p => p.id === activePipelineId)?.name || 'Pipeline'}</strong> today.
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                         <div className="relative group">
                             <select
                                 value={activePipelineId || ''}
                                 onChange={(e) => setActivePipelineId(e.target.value)}
-                                className="appearance-none w-full md:w-52 pl-3 pr-8 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg text-white text-sm font-bold backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all cursor-pointer"
+                                className="appearance-none w-full md:w-60 pl-4 pr-10 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white text-sm font-bold backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all cursor-pointer shadow-sm"
                             >
                                 {pipelines.map(p => (
                                     <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
                                 ))}
                             </select>
-                            <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/60">
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             </div>
                         </div>
                         <button
                             onClick={() => onNavigate('pipelines')}
-                            className="px-4 py-2 bg-brand-500 hover:bg-brand-400 text-white rounded-lg text-sm font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
+                            className="px-5 py-2.5 bg-brand-500 hover:bg-brand-400 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center gap-2"
                         >
                             <span>Go to Board</span>
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
@@ -271,11 +271,11 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             </div>
 
             {/* Statistics Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                 {/* 1. LEAD CRM (Contacts) - Green */}
                 <div
                     onClick={() => onNavigate('contacts')}
-                    className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-200 p-6 text-emerald-900 shadow-sm hover:shadow-emerald-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between mt-2"
+                    className="relative overflow-hidden rounded-3xl bg-emerald-50 border border-emerald-200 p-5 md:p-6 text-emerald-900 shadow-sm hover:shadow-emerald-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between mt-0"
                 >
                     <div className="absolute top-4 left-4 p-2 rounded-xl bg-white shadow-sm border border-emerald-100">
                         <UsersIcon className="w-5 h-5 text-emerald-600" />
@@ -285,8 +285,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     <div className="mt-4 mb-2 flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-2 border-emerald-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                            <div className="text-3xl font-black tracking-tight text-emerald-700 drop-shadow-sm">{stats.totalLeads}</div>
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center border-2 border-emerald-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                            <div className="text-2xl md:text-3xl font-black tracking-tight text-emerald-700 drop-shadow-sm">{stats.totalLeads}</div>
                         </div>
                     </div>
 
@@ -303,7 +303,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 2. FORMS - Blue */}
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-3xl bg-blue-50 border border-blue-200 p-6 text-blue-900 shadow-sm hover:shadow-blue-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
+                    className="relative overflow-hidden rounded-3xl bg-blue-50 border border-blue-200 p-5 md:p-6 text-blue-900 shadow-sm hover:shadow-blue-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
                 >
                     <div className="absolute top-4 left-4 p-2 rounded-xl bg-white shadow-sm border border-blue-100">
                         <CatalogueIcon className="w-5 h-5 text-blue-600" />
@@ -313,8 +313,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     <div className="mt-4 mb-2 flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-2 border-blue-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                            <div className="text-3xl font-black tracking-tight text-blue-700 drop-shadow-sm">{stats.formCount}</div>
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center border-2 border-blue-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                            <div className="text-2xl md:text-3xl font-black tracking-tight text-blue-700 drop-shadow-sm">{stats.formCount}</div>
                         </div>
                     </div>
 
@@ -329,7 +329,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 3. PIPELINES - Purple */}
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-3xl bg-violet-50 border border-violet-200 p-6 text-violet-900 shadow-sm hover:shadow-violet-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
+                    className="relative overflow-hidden rounded-3xl bg-violet-50 border border-violet-200 p-5 md:p-6 text-violet-900 shadow-sm hover:shadow-violet-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
                 >
                     <div className="absolute top-4 left-4 p-2 rounded-xl bg-white shadow-sm border border-violet-100">
                         <KanbanIcon className="w-5 h-5 text-violet-600" />
@@ -339,8 +339,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     <div className="mt-4 mb-2 flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-2 border-violet-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                            <div className="text-3xl font-black tracking-tight text-violet-700 drop-shadow-sm">{stats.pipelineCount}</div>
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center border-2 border-violet-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                            <div className="text-2xl md:text-3xl font-black tracking-tight text-violet-700 drop-shadow-sm">{stats.pipelineCount}</div>
                         </div>
                     </div>
 
@@ -355,7 +355,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 4. FOLLOW UP - Orange */}
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-3xl bg-orange-50 border border-orange-200 p-6 text-orange-900 shadow-sm hover:shadow-orange-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
+                    className="relative overflow-hidden rounded-3xl bg-orange-50 border border-orange-200 p-5 md:p-6 text-orange-900 shadow-sm hover:shadow-orange-200 hover:scale-[1.02] transition-all cursor-pointer group flex flex-col items-center justify-between"
                 >
                     <div className="absolute top-4 left-4 p-2 rounded-xl bg-white shadow-sm border border-orange-100">
                         <ClockIcon className="w-5 h-5 text-orange-600" />
@@ -365,8 +365,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     <div className="mt-4 mb-2 flex items-center justify-center">
-                        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center border-2 border-orange-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
-                            <div className="text-3xl font-black tracking-tight text-orange-700 drop-shadow-sm">{stats.followUpCount}</div>
+                        <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white flex items-center justify-center border-2 border-orange-100 shadow-sm group-hover:scale-110 transition-transform duration-300">
+                            <div className="text-2xl md:text-3xl font-black tracking-tight text-orange-700 drop-shadow-sm">{stats.followUpCount}</div>
                         </div>
                     </div>
 
@@ -380,14 +380,14 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             </div>
 
             {/* Split View: Funnel & Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Funnel / Distribution */}
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col">
-                    <div className="p-6 border-b border-slate-50 flex justify-between items-center">
+                <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col">
+                    <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center">
                         <h3 className="text-lg font-bold text-slate-800">Pipeline Performance</h3>
                         <div className="text-sm font-medium text-slate-400">by Stage Volume</div>
                     </div>
-                    <div className="p-6 flex-1 flex flex-col justify-center gap-6">
+                    <div className="p-5 md:p-6 flex-1 flex flex-col justify-center gap-6">
                         {stats.leadsByStage.length > 0 ? stats.leadsByStage.map((stage, idx) => {
                             const max = Math.max(...stats.leadsByStage.map(s => s.count), 1);
                             const percent = (stage.count / max) * 100;
@@ -431,7 +431,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 {/* Quick Actions Card */}
                 <div className="bg-slate-900 rounded-3xl p-1 shadow-xl text-white flex flex-col h-fit">
-                    <div className="bg-slate-800/50 rounded-[20px] p-6 flex flex-col relative overflow-hidden">
+                    <div className="bg-slate-800/50 rounded-[20px] p-5 md:p-6 flex flex-col relative overflow-hidden">
                         {/* Decoration */}
                         <div className="absolute top-0 right-0 w-40 h-40 bg-brand-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
 
@@ -472,9 +472,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Lead Volume Trend Chart */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
+                <div className="xl:col-span-2 bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-slate-800">New Leads Activity</h3>
@@ -510,7 +510,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
 
                 {/* Lead Sources Donut Chart */}
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col">
+                <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col">
                     <h3 className="text-lg font-bold text-slate-800 mb-6">Lead Sources</h3>
 
                     <div className="flex flex-col sm:flex-row items-center gap-8 h-full">
@@ -584,10 +584,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             </div>
 
             {/* Recent Leads & Top Tags Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Recent Leads */}
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
-                    <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
+                <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
+                    <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
                         <h3 className="text-lg font-bold text-slate-800">Recent Leads</h3>
                         <button onClick={() => onNavigate('contacts')} className="text-xs font-bold text-brand-600 hover:text-brand-700">View All</button>
                     </div>
@@ -621,11 +621,11 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 {/* Top Tags */}
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col">
-                    <div className="p-6 border-b border-slate-50">
+                    <div className="p-5 md:p-6 border-b border-slate-50">
                         <h3 className="text-lg font-bold text-slate-800">Top Tags</h3>
                         <p className="text-xs text-slate-400 font-medium">Most frequently used tags</p>
                     </div>
-                    <div className="p-6 flex-1 flex flex-col gap-4">
+                    <div className="p-5 md:p-6 flex-1 flex flex-col gap-4">
                         {stats.leadsByTag.length > 0 ? stats.leadsByTag.map((tag, idx) => (
                             <div key={idx} className="flex items-center justify-between group">
                                 <div className="flex items-center gap-3">

@@ -193,7 +193,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
     return (
         <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative container-mobile-fix">
             <div className="bg-white/80 backdrop-blur-md border-b border-slate-200 z-20 sticky top-0 shadow-sm">
-                <div className="px-6 pt-6 pb-0 max-w-7xl mx-auto">
+                <div className="px-6 pt-6 pb-0 max-w-[1800px] mx-auto">
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-2">
                         <div className="flex items-center gap-3">
                             {onToggleSidebar && (
@@ -217,7 +217,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                                 key={tab.id}
                                 onClick={() => handleTabClick(tab.id)}
                                 className={`
-                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[110px] md:min-w-[140px] shadow-sm transform hover:scale-[1.02] shrink-0
+                                    px-4 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap flex items-center justify-center gap-2 min-w-[7rem] md:min-w-[9rem] shadow-sm transform hover:scale-[1.02] shrink-0
                                     ${activeTab === tab.id ? tab.activeClass : tab.inactiveClass}
                                 `}
                             >
@@ -237,7 +237,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                 </div>
             </div>
             <div className="flex-1 overflow-y-auto bg-slate-50 custom-scrollbar">
-                <div className="max-w-7xl mx-auto w-full min-h-full pb-10">{renderContent()}</div>
+                <div className="max-w-[1800px] mx-auto w-full min-h-full pb-10">{renderContent()}</div>
             </div>
         </div>
     );

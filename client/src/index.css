@@ -4,6 +4,44 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- Responsive Scaling System (Zoom Out Effect) --- */
+html {
+  font-size: 16px;
+  /* Base scale for Large / High-Res Monitors (2k/4k) */
+}
+
+/* Standard Desktops (Full HD 1080p) - Distinct Zoom Out */
+@media (max-width: 1950px) {
+  html {
+    font-size: 14px;
+    /* ~87.5% Scale - Noticeable spacing improvement */
+  }
+}
+
+/* Standard Laptops (14" - 16" / Scaled 1080p) */
+@media (max-width: 1600px) {
+  html {
+    font-size: 14px;
+    /* ~87.5% Scale */
+  }
+}
+
+/* Smaller Laptops & Tablets (13" / High DPI) */
+@media (max-width: 1366px) {
+  html {
+    font-size: 13px;
+    /* ~81.25% Scale */
+  }
+}
+
+/* Height-based constraints for short screens (prevent scrolling) */
+@media (max-height: 850px) and (min-width: 1024px) {
+  html {
+    font-size: 13px;
+    /* Compact vertically */
+  }
+}
+
 :root {
   --color-primary: #3b82f6;
   --color-bg: #ffffff;
