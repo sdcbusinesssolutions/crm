@@ -103,12 +103,23 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             setIsLoadingMessages(true);
             // Clear previous messages to avoid confusion
             setMessages([]);
+            // Reset pagination state for new conversation
+            setHasMoreMessages(true);
+            setMessageOffset(0);
+
             try {
-                const data = await inboxService.getMessages(activeChatId);
+                // Load initial batch of messages (most recent)
+                const data = await inboxService.getMessages(activeChatId, MESSAGE_BATCH_SIZE, 0);
                 console.log('Loaded messages:', data.map(m => ({ id: m.id, status: m.status })));
                 // Deduplicate messages on load
                 const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
                 setMessages(uniqueMessages);
+
+                // If we got fewer messages than batch size, there are no more
+                if (data.length < MESSAGE_BATCH_SIZE) {
+                    setHasMoreMessages(false);
+                }
+
                 // Mark as read only on initial load/switch
                 await inboxService.markAsRead(activeChatId);
             } catch (error) {
@@ -119,10 +130,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
         loadMessages();
 
-        // Poll for new messages every 3s
+        // Poll for new messages every 3s - Only fetch recent messages for efficiency
         const interval = setInterval(async () => {
             try {
-                const data = await inboxService.getMessages(activeChatId);
+                // Only fetch the most recent 20 messages for polling (not all messages)
+                const data = await inboxService.getMessages(activeChatId, 20, 0);
 
                 // Deduplicate fetched data
                 const uniqueServerData = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
@@ -218,8 +230,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         });
     }, [conversations, searchTerm, quickFilter, filterTag]);
 
+
     // Track if we are in the middle of switching chats to force scroll
     const shouldForceScrollRef = useRef(false);
+
+    // Pagination state
+    const [hasMoreMessages, setHasMoreMessages] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [messageOffset, setMessageOffset] = useState(0);
+    const MESSAGE_BATCH_SIZE = 50; // Load 50 messages at a time for smooth scrolling
 
     const scrollToBottom = (instant = false) => {
         if (messagesEndRef.current) {
@@ -230,12 +249,63 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
     };
 
+    const loadMoreMessages = async () => {
+        if (!activeChatId || isLoadingMore || !hasMoreMessages) return;
+
+        setIsLoadingMore(true);
+        try {
+            // Calculate next offset
+            const nextOffset = messages.length;
+
+            // Save current scroll position to restore after loading
+            const container = chatContainerRef.current;
+            const previousScrollHeight = container?.scrollHeight || 0;
+
+            // Fetch older messages
+            const olderMessages = await inboxService.getMessages(activeChatId, MESSAGE_BATCH_SIZE, nextOffset);
+
+            if (olderMessages.length === 0) {
+                setHasMoreMessages(false);
+                return;
+            }
+
+            // Prepend older messages (they come in chronological order)
+            setMessages(prev => {
+                const combined = [...olderMessages, ...prev];
+                // Deduplicate
+                const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                return unique;
+            });
+
+            // Restore scroll position after new messages are added
+            setTimeout(() => {
+                if (container) {
+                    const newScrollHeight = container.scrollHeight;
+                    const scrollDiff = newScrollHeight - previousScrollHeight;
+                    container.scrollTop = scrollDiff;
+                }
+            }, 0);
+
+        } catch (error) {
+            console.error('Failed to load more messages:', error);
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
+
     const handleScroll = () => {
         if (!chatContainerRef.current) return;
         const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
         const distanceToBottom = scrollHeight - scrollTop - clientHeight;
         isAtBottomRef.current = distanceToBottom < 150;
+
+        // Infinite scroll: Load more when user scrolls near the top
+        const distanceToTop = scrollTop;
+        if (distanceToTop < 200 && !isLoadingMore && hasMoreMessages) {
+            loadMoreMessages();
+        }
     };
+
 
     // Scroll to bottom when chat changes
     useEffect(() => {
@@ -1772,6 +1842,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                         {/* Messages Area */}
                         <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative z-10">
+                            {/* Loading More Indicator at Top */}
+                            {isLoadingMore && (
+                                <div className="flex justify-center items-center py-3">
+                                    <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-slate-200">
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-600"></div>
+                                        <span className="text-xs font-medium text-slate-600">Loading older messages...</span>
+                                    </div>
+                                </div>
+                            )}
+
                             {isLoadingMessages ? (
                                 <div className="flex justify-center items-center h-full">
                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>

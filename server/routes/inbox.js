@@ -44,18 +44,26 @@ router.get('/messages/:conversationId', async (req, res) => {
         const supabase = supabaseAdmin;
         const { conversationId } = req.params;
 
-        // CONFIGURATION
-        const DEFAULT_LIMIT = 50; // Default number of messages to fetch
+        // CONFIGURATION - Increased limit for better UX
+        const DEFAULT_LIMIT = 100; // Fetch more messages by default
         const limitInfo = req.query.limit ? parseInt(req.query.limit) : DEFAULT_LIMIT;
+        const offset = req.query.offset ? parseInt(req.query.offset) : 0;
 
-        // Fetch most recent messages (Newest First)
-        // We order by 'created_at' DESC to get the latest messages (e.g., the last 50).
-        const { data, error } = await supabase
+        // Fetch most recent messages (Newest First) with pagination support
+        // We order by 'created_at' DESC to get the latest messages.
+        let query = supabase
             .from('messages')
             .select('*')
             .eq('conversation_id', conversationId)
             .order('created_at', { ascending: false })
             .limit(limitInfo);
+
+        // Add offset for pagination if provided
+        if (offset > 0) {
+            query = query.range(offset, offset + limitInfo - 1);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -63,18 +71,15 @@ router.get('/messages/:conversationId', async (req, res) => {
         // Standard chat interfaces render Top (Old) -> Bottom (New).
         if (data && data.length > 0) {
             data.reverse();
-            // DEBUG: Log status of newest messages
-            console.log(`[Inbox GET] Returning ${data.length} messages. Last 3 statuses:`,
-                data.slice(-3).map(m => ({ id: m.id, wa_id: m.whatsapp_message_id, status: m.status }))
-            );
+            // DEBUG: Log status of newest messages (only if verbose logging needed)
+            if (process.env.VERBOSE_LOGGING === 'true') {
+                console.log(`[Inbox GET] Returning ${data.length} messages. Last 3 statuses:`,
+                    data.slice(-3).map(m => ({ id: m.id, wa_id: m.whatsapp_message_id, status: m.status }))
+                );
+            }
         }
 
-        console.log(`[Inbox] Fetched ${data.length} recent messages for ${conversationId} (Limit: ${limitInfo})`);
-
-        if (data.length > 0) {
-            const newest = data[data.length - 1]; // Because we reversed, Newest is at the end
-            console.log(`[Inbox] Newest Message: ${newest.id} | ${newest.text?.substring(0, 20)} | Type: ${newest.type} | URL: ${newest.media_url}`);
-        }
+        console.log(`[Inbox] Fetched ${data.length} messages for ${conversationId} (Limit: ${limitInfo}, Offset: ${offset})`);
 
         res.json(data);
     } catch (error) {

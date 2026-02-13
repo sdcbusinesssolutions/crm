@@ -25,10 +25,17 @@ export const inboxService = {
         }
     },
 
-    getMessages: async (conversationId: string): Promise<Message[]> => {
+    getMessages: async (conversationId: string, limit?: number, offset?: number): Promise<Message[]> => {
         try {
             const headers = getAuthHeaders();
-            const response = await fetch(`${API_BASE}/messages/${conversationId}`, { headers });
+            // Build URL with pagination parameters
+            let url = `${API_BASE}/messages/${conversationId}`;
+            const params = new URLSearchParams();
+            if (limit !== undefined) params.append('limit', limit.toString());
+            if (offset !== undefined) params.append('offset', offset.toString());
+            if (params.toString()) url += `?${params.toString()}`;
+
+            const response = await fetch(url, { headers });
             if (!response.ok) throw new Error('Failed to fetch messages');
             return await response.json();
         } catch (e) {
