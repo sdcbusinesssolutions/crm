@@ -1423,7 +1423,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     return (
         <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
             {/* Left Sidebar: Conversation List */}
-            <div className={`w-full md:w-80 lg:w-96 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+            <div className={`w-full md:w-72 lg:w-80 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
                 <div className="p-4 bg-white z-20">
                     <div className="flex justify-between items-center mb-4">
