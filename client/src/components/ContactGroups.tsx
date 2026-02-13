@@ -167,7 +167,7 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     const currentEntries = filteredGroups.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
 
     return (
-        <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
+        <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-1.5">
                 <div className="flex items-center p-1 bg-slate-50 rounded-xl">
                     {['Active', 'Archive'].map((tab) => (

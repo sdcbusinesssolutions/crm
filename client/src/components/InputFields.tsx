@@ -47,7 +47,7 @@ const InputFields: React.FC = () => {
     const inputTypeOptions = [{ label: 'Text', value: 'text' }, { label: 'Number', value: 'number' }, { label: 'Email', value: 'email' }, { label: 'URL', value: 'url' }, { label: 'Date', value: 'date' }];
 
     return (
-        <div className="p-4 sm:p-6 space-y-6 h-full flex flex-col animate-fade-in">
+        <div className="p-4 sm:p-8 space-y-6 h-full flex flex-col animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div className="relative group w-full sm:w-72">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-brand-600 group-focus-within:text-brand-600 transition-colors"><SearchIcon /></div>

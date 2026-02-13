@@ -705,7 +705,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     };
 
     return (
-        <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
+        <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 lg:max-w-2xl">
                     <div className="relative group flex-1">
