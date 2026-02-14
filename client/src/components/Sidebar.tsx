@@ -385,7 +385,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 <div className={`py-3 relative ${showCollapsed ? 'flex flex-col items-center justify-center gap-2 border-t border-white/10' : 'border-t border-white/10'}`}>
                     {/* Sign Out Popover */}
                     {isUserMenuOpen && (
-                        <div className={`absolute bg-white rounded-2xl shadow-xl border border-slate-100 p-1.5 overflow-hidden animate-fade-in-up z-50 transition-all duration-200
+                        <div className={`absolute bg-white rounded-2xl shadow-xl border border-slate-100 p-1.5 overflow-hidden animate-fade-in-up z-[100] transition-all duration-200
                             ${showCollapsed
                                 ? 'left-full bottom-2 ml-2 w-36 origin-bottom-left'
                                 : 'bottom-full left-4 right-4 mb-2 origin-bottom'}`}
