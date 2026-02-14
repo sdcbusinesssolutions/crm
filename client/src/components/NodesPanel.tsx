@@ -19,33 +19,43 @@ const triggers = [
   { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
   { type: NodeType.SheetTrigger, label: 'New Google Sheet Row', icon: <GsheetIcon /> },
 ];
-const nodeTypes = [
-  { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
-  { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
-  { type: NodeType.Calendar, label: 'Google Calendar', icon: <CalendarIcon /> },
-  { type: NodeType.TemplateMessage, label: 'Template', icon: <MessageIcon /> },
+const messageNodes = [
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
   { type: NodeType.MediaMessage, label: 'Media', icon: <ImageFileIcon /> },
-  { type: NodeType.AskAnything, label: 'Ask Question', icon: <MessageIcon /> },
-  { type: NodeType.AskInput, label: 'Ask Input', icon: <MessageIcon /> },
-  { type: NodeType.CheckCondition, label: 'Condition', icon: <ConditionIcon /> },
+  { type: NodeType.TemplateMessage, label: 'Template', icon: <MessageIcon /> },
   { type: NodeType.ListMessage, label: 'List', icon: <ListIcon /> },
   { type: NodeType.QuickReplyMessage, label: 'Quick Reply', icon: <QuickReplyIcon /> },
   { type: NodeType.CTAMessage, label: 'CTA Button', icon: <CtaIcon /> },
   { type: NodeType.CarouselMessage, label: 'Carousel', icon: <CarouselIcon /> },
+];
+
+const captureNodes = [
+  { type: NodeType.AskAnything, label: 'Ask Question', icon: <MessageIcon /> },
+  { type: NodeType.AskInput, label: 'Ask Input', icon: <MessageIcon /> },
+  { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
+];
+
+const logicNodes = [
+  { type: NodeType.CheckCondition, label: 'Condition', icon: <ConditionIcon /> },
+  { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
   { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon /> },
   { type: NodeType.CallApi, label: 'Call API', icon: <CallApiIcon /> },
+  { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
+  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon />, isBeta: true },
+];
+
+const crmNodes = [
   { type: NodeType.ManageTags, label: 'Manage Tags', icon: <TagIcon /> },
   { type: NodeType.ManageGroups, label: 'Manage Groups', icon: <UsersIcon /> },
-  { type: NodeType.ContactPipeline, label: 'Pipeline Stage', icon: <BookmarkIcon /> },
-  { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
   { type: NodeType.WriteAttribute, label: 'Attribute', icon: <BookmarkIcon /> },
+  { type: NodeType.ContactPipeline, label: 'Pipeline Stage', icon: <BookmarkIcon /> },
+];
 
-  { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
-  { type: NodeType.AskLocation, label: 'Location', icon: <AskLocationIcon /> },
+const integrationNodes = [
+  { type: 'gmail' as NodeType, label: 'Gmail', icon: <GmailIcon /> },
+  { type: NodeType.Smtp, label: 'SMTP Email', icon: <GmailIcon /> },
+  { type: NodeType.Calendar, label: 'Google Calendar', icon: <CalendarIcon /> },
   { type: NodeType.Gsheet, label: 'Google Sheets', icon: <GsheetIcon /> },
-
-  { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon />, isBeta: true },
 ];
 
 const CollapsibleSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => {
@@ -82,7 +92,11 @@ const NodesPanel: React.FC<NodesPanelProps> = ({ onAddNode, onClose }) => {
       </div>
       <div className="flex-grow overflow-y-auto custom-scrollbar pt-4 pb-10">
         <CollapsibleSection title="Triggers">{triggers.map(t => <NodeItem key={t.type} {...t} colorClass="text-pink-500" onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
-        <CollapsibleSection title="Logic & Messages">{nodeTypes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
+        <CollapsibleSection title="Messages">{messageNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
+        <CollapsibleSection title="Capture Data">{captureNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
+        <CollapsibleSection title="Logic & Tools">{logicNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
+        <CollapsibleSection title="CRM Actions">{crmNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
+        <CollapsibleSection title="Integrations">{integrationNodes.map(t => <NodeItem key={t.type} {...t} onDragStart={() => { }} onAddNode={onAddNode} />)}</CollapsibleSection>
       </div>
     </aside>
   );
