@@ -636,43 +636,55 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 try {
                     const parsed = JSON.parse(cached);
                     setStats(parsed);
-                    if (parsed.revenueStats) {
-                        setRevenueStats(parsed.revenueStats);
-                    }
-                    // Show cached text immediately
+                    if (parsed.revenueStats) setRevenueStats(parsed.revenueStats);
                     setLoading(false);
                 } catch (e) {
-                    console.error('Cache parse error', e);
                     localStorage.removeItem('dashboard_stats_cache');
                 }
             }
 
-            // --- 2. BACKGROUND FETCH: Get Fresh Data ---
             const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token || '';
 
+            // --- 2. FAST FETCH: Main Stats (DB Only) ---
             const res = await fetch('/api/dashboard/stats', {
-                headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (res.ok) {
                 const data = await res.json();
                 if (data) {
                     setStats(data);
-                    if (data.revenueStats) {
-                        setRevenueStats(data.revenueStats);
-                    }
-
-                    // Update Loading State (if it was still true)
+                    if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
-
-                    // Update Cache
                     localStorage.setItem('dashboard_stats_cache', JSON.stringify(data));
                 }
             } else {
-                console.error('API Error: Failed to fetch fresh stats');
-                // Only turn off loading if we didn't have a cache hit
                 if (!cached) setLoading(false);
             }
+
+            // --- 3. LAZY FETCH: Connections (External APIs) ---
+            // Don't block UI. Fetch connection health in background.
+            fetch('/api/dashboard/connections', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+                .then(r => r.ok ? r.json() : null)
+                .then(connData => {
+                    if (connData && connData.connection) {
+                        setStats(prev => {
+                            if (!prev) return prev;
+                            const newData = {
+                                ...prev,
+                                connection: { ...prev.connection, ...connData.connection },
+                                integrationStats: { ...prev.integrationStats, ...connData.integrationStats }
+                            };
+                            // Update cache with full data
+                            localStorage.setItem('dashboard_stats_cache', JSON.stringify(newData));
+                            return newData;
+                        });
+                    }
+                })
+                .catch(err => console.error('Background fetch connections error', err));
 
         } catch (error) {
             console.error('Failed to load dashboard stats', error);
