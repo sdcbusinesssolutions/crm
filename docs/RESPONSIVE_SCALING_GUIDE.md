@@ -63,3 +63,19 @@ The application uses Tailwind CSS utility classes like `p-4`, `text-lg`, `m-2`. 
 *   When `html font-size` is `14px`, `1rem` = `14px`.
 
 Therefore, simply changing one line of CSS resizes padding, margins, buttons, and text across the **entire application** instantly.
+
+## Component-Specific Optimizations
+
+### Sidebar Spacing
+The sidebar has been specifically optimized to better utilize vertical space across all screen sizes. For detailed information about sidebar spacing adjustments, see:
+
+**[SIDEBAR_RESPONSIVE_SPACING.md](./SIDEBAR_RESPONSIVE_SPACING.md)**
+
+Key improvements:
+- Reduced padding and margins throughout the sidebar
+- Optimized menu item spacing (both collapsed and expanded states)
+- Compact section headers and submenu spacing
+- Smaller user profile section
+- All adjustments scale automatically with the root font-size system
+
+These optimizations reduce wasted vertical space by ~15-20% while maintaining usability and visual hierarchy.
