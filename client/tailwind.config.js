@@ -7,7 +7,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+                sans: ['Inter', 'Outfit', 'sans-serif'],
             },
             colors: {
                 brand: {

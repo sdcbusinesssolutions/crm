@@ -215,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         )}
                         {styledCollapsedIcon}
                     </div>
-                    <span className="text-[10.5px] font-bold text-center leading-tight tracking-tight relative z-10" style={{ textShadow: '0 0 1.2px rgba(255,255,255,0.9)' }}>{displayLabel}</span>
+                    <span className="text-[9px] font-medium text-center leading-tight tracking-wide relative z-10">{displayLabel}</span>
                 </div>
             );
         }
@@ -251,7 +251,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     <span className="mr-2.5 transition-colors duration-200">
                         {styledMainIcon}
                     </span>
-                    <span className="relative z-10 truncate text-[15.5px] leading-snug tracking-tight font-bold" style={{ textShadow: '0 0 1.2px rgba(255,255,255,0.9)' }}>{displayLabel}</span>
+                    <span className="relative z-10 truncate text-[14.5px] leading-snug tracking-wide font-medium">{displayLabel}</span>
                 </div>
             );
         }
@@ -281,7 +281,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             </span>
                         )}
                     </div>
-                    <span className={`text-[15.5px] leading-snug tracking-tight font-bold ${showActiveStyle ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 0 1.2px rgba(255,255,255,0.9)' }}>{displayLabel}</span>
+                    <span className={`text-[14.5px] leading-snug tracking-wide font-medium ${showActiveStyle ? 'text-white' : 'text-white'}`}>{displayLabel}</span>
                 </div>
                 {hasSubmenu && (
                     <div
@@ -411,7 +411,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         </div>
                         {!showCollapsed && (
                             <div className="flex-1 min-w-0">
-                                <p className="text-[15.5px] font-bold tracking-tight text-white truncate" style={{ textShadow: '0 0 1.2px rgba(255,255,255,0.9)' }}>{userEmail || 'User'}</p>
+                                <p className="text-[14.5px] font-medium tracking-wide text-white truncate">{userEmail || 'User'}</p>
                                 <p className="text-[10.5px] text-white font-medium truncate">My Workspace</p>
                             </div>
                         )}
