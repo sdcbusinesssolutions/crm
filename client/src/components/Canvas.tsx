@@ -55,6 +55,50 @@ const Canvas: React.FC<CanvasProps> = ({
   const TARGET_HANDLE_OFFSET = 32; // Matches top-8 (2rem = 32px) in Node.tsx
   const DEFAULT_SOURCE_OFFSET = 60; // Fallback approximation
 
+  // Color Mapping for Connection Lines
+  const getNodeColor = (type: NodeType) => {
+    switch (type) {
+      case NodeType.OnMessage: return { stroke: '#db2777', animate: '#f9a8d4', name: 'pink' }; // Pink 600/300
+      case NodeType.MediaMessage: return { stroke: '#9333ea', animate: '#d8b4fe', name: 'purple' }; // Purple 600/300
+      case NodeType.TextMessage:
+      case NodeType.ManageGroups:
+      case NodeType.ContactPipeline: return { stroke: '#2563eb', animate: '#93c5fd', name: 'blue' }; // Blue 600/300
+      case NodeType.Webhook: return { stroke: '#d97706', animate: '#fcd34d', name: 'amber' }; // Amber 600/300
+      case NodeType.AskLocation:
+      case NodeType.WriteAttribute:
+      case NodeType.ManageTags:
+      case NodeType.NewLead: return { stroke: '#0d9488', animate: '#5eead4', name: 'teal' }; // Teal 600/300
+      case NodeType.Gsheet:
+      case NodeType.QuickReplyMessage: return { stroke: '#059669', animate: '#6ee7b7', name: 'emerald' }; // Emerald 600/300
+      case NodeType.AIAgent:
+      case NodeType.ListMessage: return { stroke: '#7c3aed', animate: '#c4b5fd', name: 'violet' }; // Violet 600/300
+      case NodeType.SendFlow:
+      case NodeType.CheckCondition:
+      case NodeType.Gmail: return { stroke: '#e11d48', animate: '#fda4af', name: 'rose' }; // Rose 600/300
+      case NodeType.SetWebhook:
+      case NodeType.CTAMessage:
+      case NodeType.CallApi: return { stroke: '#0891b2', animate: '#67e8f9', name: 'cyan' }; // Cyan 600/300
+      case NodeType.AskAnything:
+      case NodeType.Switch:
+      case NodeType.AskInput: return { stroke: '#ea580c', animate: '#fdba74', name: 'orange' }; // Orange 600/300
+      case NodeType.Code:
+      case NodeType.TemplateMessage: return { stroke: '#4f46e5', animate: '#a5b4fc', name: 'indigo' }; // Indigo 600/300
+      case NodeType.Timing:
+      case NodeType.Smtp: return { stroke: '#475569', animate: '#cbd5e1', name: 'slate' }; // Slate 600/300
+      default: return { stroke: '#475569', animate: '#cbd5e1', name: 'slate' };
+    }
+  };
+
+
+  // Optimize: Create a map for O(1) lookups to avoid O(N*E) during render
+  const nodeLookup = React.useMemo(() => {
+    const map: Record<string, Node> = {};
+    for (const node of nodes) {
+      map[node.id] = node;
+    }
+    return map;
+  }, [nodes]);
+
   // Helper to find positions. Note: Positions are in "World Space"
   const findSourcePosition = useCallback((edge: Edge): { x: number; y: number; found: boolean } => {
     const { source, sourceHandle } = edge;
@@ -63,7 +107,7 @@ const Canvas: React.FC<CanvasProps> = ({
     // Try to find the specific handle element in the DOM
     const handleEl = document.getElementById(`h-${source}-${handleId}`);
     const nodeEl = document.getElementById(source);
-    const node = nodes.find(n => n.id === source);
+    const node = nodeLookup[source];
 
     if (handleEl && nodeEl && node) {
       const handleRect = handleEl.getBoundingClientRect();
@@ -80,16 +124,16 @@ const Canvas: React.FC<CanvasProps> = ({
       };
     }
 
-    // Fallback for nodes if DOM lookup fails (e.g. strictly during initial render before mount)
+    // Fallback for nodes if DOM lookup fails
     if (!node) return { x: 0, y: 0, found: false };
     return { x: node.position.x + NODE_WIDTH, y: node.position.y + DEFAULT_SOURCE_OFFSET, found: true };
-  }, [nodes, viewport.zoom]);
+  }, [nodeLookup, viewport.zoom]);
 
   const findNodeTargetPosition = useCallback((nodeId: string): { x: number; y: number; found: boolean } => {
     // Try to find the target handle element in the DOM
     const handleEl = document.getElementById(`h-${nodeId}-target`);
     const nodeEl = document.getElementById(nodeId);
-    const node = nodes.find(n => n.id === nodeId);
+    const node = nodeLookup[nodeId];
 
     if (handleEl && nodeEl && node) {
       const handleRect = handleEl.getBoundingClientRect();
@@ -107,7 +151,7 @@ const Canvas: React.FC<CanvasProps> = ({
     // Fallback
     if (!node) return { x: 0, y: 0, found: false };
     return { x: node.position.x, y: node.position.y + TARGET_HANDLE_OFFSET, found: true };
-  }, [nodes, viewport.zoom]);
+  }, [nodeLookup, viewport.zoom]);
 
   return (
     <main
@@ -134,22 +178,22 @@ const Canvas: React.FC<CanvasProps> = ({
         {/* Edges Layer */}
         <svg className="absolute overflow-visible top-0 left-0 w-full h-full pointer-events-none">
           <defs>
-            <marker
-              id="arrowhead"
-              viewBox="0 0 10 10"
-              refX="9"
-              refY="5"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto-start-reverse"
-            >
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="#06b6d4" />
-            </marker>
+            {['pink', 'purple', 'blue', 'amber', 'teal', 'emerald', 'violet', 'rose', 'cyan', 'orange', 'indigo', 'slate'].map(color => {
+              const hex = color === 'pink' ? '#db2777' : color === 'purple' ? '#9333ea' : color === 'blue' ? '#2563eb' : color === 'amber' ? '#d97706' : color === 'teal' ? '#0d9488' : color === 'emerald' ? '#059669' : color === 'violet' ? '#7c3aed' : color === 'rose' ? '#e11d48' : color === 'cyan' ? '#0891b2' : color === 'orange' ? '#ea580c' : color === 'indigo' ? '#4f46e5' : '#475569';
+              return (
+                <marker key={color} id={`arrowhead-${color}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={hex} />
+                </marker>
+              );
+            })}
           </defs>
 
           {edges.map((edge) => {
             const sourcePos = findSourcePosition(edge);
             const targetPos = findNodeTargetPosition(edge.target);
+            const sourceNode = nodeLookup[edge.source];
+            const { stroke: strokeColor, animate: animateColor, name: colorName } = getNodeColor(sourceNode?.type || NodeType.Timing);
+
             if (!sourcePos.found || !targetPos.found) return null;
 
             const midX = (sourcePos.x + targetPos.x) / 2;
@@ -160,11 +204,20 @@ const Canvas: React.FC<CanvasProps> = ({
               <g key={edge.id} className="pointer-events-auto" onMouseEnter={() => setHoveredEdgeId(edge.id)} onMouseLeave={() => setHoveredEdgeId(null)}>
                 <path
                   d={`M ${sourcePos.x} ${sourcePos.y} C ${sourcePos.x + 100} ${sourcePos.y} ${targetPos.x - 100} ${targetPos.y} ${targetPos.x} ${targetPos.y}`}
-                  stroke={isHovered ? "#22d3ee" : "#06b6d4"}
+                  stroke={isHovered ? animateColor : strokeColor}
                   strokeWidth={isHovered ? "4" : "2"}
                   fill="none"
-                  markerEnd="url(#arrowhead)"
+                  markerEnd={`url(#arrowhead-${colorName})`}
                   className="transition-all duration-200"
+                />
+                {/* Animated Flow Dots */}
+                <path
+                  d={`M ${sourcePos.x} ${sourcePos.y} C ${sourcePos.x + 100} ${sourcePos.y} ${targetPos.x - 100} ${targetPos.y} ${targetPos.x} ${targetPos.y}`}
+                  stroke={animateColor}
+                  strokeWidth="2"
+                  fill="none"
+                  className="animate-flow-line pointer-events-none opacity-80"
+                  style={{ strokeDasharray: '5, 8' }} // Custom dash for dots
                 />
                 {/* Invisible wider path for easier hovering */}
                 <path
@@ -172,7 +225,7 @@ const Canvas: React.FC<CanvasProps> = ({
                   stroke="transparent"
                   strokeWidth="20"
                   fill="none"
-                  onClick={() => onDeleteEdge(edge.id)} // Allow click on line to delete? Or just show button
+                  onClick={() => onDeleteEdge(edge.id)}
                   style={{ cursor: 'pointer' }}
                 />
                 {/* Delete Button on Hover */}

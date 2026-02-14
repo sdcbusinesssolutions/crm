@@ -193,3 +193,15 @@ body {
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
   background-color: #64748b;
 }
+
+/* Flow Builder Connection Line Animation */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-flow-line {
+  stroke-dasharray: 6, 6;
+  animation: dash-flow 1s linear infinite;
+}
