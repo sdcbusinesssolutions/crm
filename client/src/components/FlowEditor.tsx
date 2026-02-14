@@ -359,15 +359,15 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   return (
     <div className="h-full w-full flex flex-col font-sans bg-slate-950 text-white relative overflow-hidden">
       {/* Header */}
-      <div className="z-30 px-2 py-2 shrink-0">
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl px-3 py-2 flex flex-col sm:flex-row items-center justify-between gap-4 pointer-events-auto shadow-2xl ring-1 ring-white/5">
+      <div className="z-30 shrink-0 bg-slate-900 border-b border-[#84CC16] shadow-sm">
+        <div className="px-4 py-0.5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center w-full sm:w-auto relative z-40 gap-4">
-            <button onClick={onBack} className="group flex items-center gap-2 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 shadow-sm" title="Back to Dashboard">
+            <button onClick={onBack} className="group flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-white border border-slate-700 hover:border-slate-600 shadow-sm" title="Back to Dashboard">
               <ArrowLeftIcon className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
               <span className="font-bold text-sm hidden sm:inline">Back</span>
             </button>
 
-            <div className="h-10 w-px bg-slate-800 hidden sm:block"></div>
+            <div className="h-8 w-px bg-slate-800 hidden sm:block"></div>
 
             <div className="flex-1 sm:flex-none relative min-w-[200px]">
               <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-1 ml-1">Flow Name</label>
@@ -406,7 +406,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
 
             <div className="h-8 w-px bg-slate-700/50 hidden sm:block"></div>
 
-            <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-b-2 border-brand-800 hover:border-brand-700 active:border-t-2 active:border-b-0`}>
+            <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-6 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-b-2 border-brand-800 hover:border-brand-700 active:border-t-2 active:border-b-0`}>
               {saving ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>Saving...</span></>) : (<span>Save & Exit</span>)}
             </button>
           </div>
