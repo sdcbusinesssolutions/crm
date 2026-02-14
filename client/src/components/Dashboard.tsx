@@ -624,42 +624,43 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const [statsRes, leads] = await Promise.all([
-                fetch('/api/dashboard/stats', {
-                    headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
-                }),
-                getLeads()
-            ]);
+            // Show UI immediately with skeleton
+            setLoading(false);
 
-            if (statsRes.ok) {
-                const data = await statsRes.json();
+            const { data: { session } } = await supabase.auth.getSession();
+
+            // Load stats first (faster API call)
+            const statsPromise = fetch('/api/dashboard/stats', {
+                headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+            }).then(res => res.ok ? res.json() : null);
+
+            // Load stats immediately
+            const data = await statsPromise;
+            if (data) {
                 setStats(data);
             }
 
-            // Calculate Revenue Stats
-            let totalVal = 0;
-            let wonVal = 0;
-            if (leads) {
-                totalVal = leads.reduce((acc: number, lead: any) => acc + (Number(lead.value) || 0), 0);
-                // Simple heuristic for "Won" - check status or stage name
-                wonVal = leads
-                    .filter((l: any) => l.status === 'won' || (l.stage_id && l.stage_id.includes('won'))) // robust check needed?
-                    // If we don't have stage names easily, we might rely on status if it exists. 
-                    // The Lead type has 'status'.
+            // Load leads in background (slower, for revenue calculation only)
+            getLeads().then(leads => {
+                if (!leads) return;
+
+                // Calculate Revenue Stats
+                const totalVal = leads.reduce((acc: number, lead: any) => acc + (Number(lead.value) || 0), 0);
+                const wonVal = leads
+                    .filter((l: any) => l.status === 'won' || (l.stage_id && l.stage_id.includes('won')))
                     .reduce((acc: number, lead: any) => acc + (Number(lead.value) || 0), 0);
-            }
 
-            // Calculate conversion rate
-            const totalLeads = leads?.length || 1;
-            const wonLeads = leads?.filter((l: any) => l.status === 'won')?.length || 0;
-            const rate = Math.round((wonLeads / totalLeads) * 100) + '%';
+                const totalLeads = leads.length || 1;
+                const wonLeads = leads.filter((l: any) => l.status === 'won').length || 0;
+                const rate = Math.round((wonLeads / totalLeads) * 100) + '%';
 
-            setRevenueStats({ totalValue: totalVal, wonValue: wonVal, conversionRate: rate });
+                setRevenueStats({ totalValue: totalVal, wonValue: wonVal, conversionRate: rate });
+            }).catch(err => {
+                console.error('Failed to load leads for revenue stats', err);
+            });
 
         } catch (error) {
             console.error('Failed to load dashboard stats', error);
-        } finally {
             setLoading(false);
         }
     };
@@ -670,13 +671,60 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
         }
     };
 
-    if (loading) return (
-        <div className="flex justify-center items-center h-screen bg-slate-50">
-            <div className="flex flex-col items-center gap-4">
-                <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+    // Skeleton Loading Component
+    const SkeletonCard = ({ className = "", height = "h-64" }: { className?: string; height?: string }) => (
+        <div className={`bg-white border border-slate-200/60 rounded-3xl p-6 ${height} ${className} animate-pulse`}>
+            <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-slate-100 rounded w-1/2 mb-6"></div>
+            <div className="space-y-3">
+                <div className="h-4 bg-slate-100 rounded"></div>
+                <div className="h-4 bg-slate-100 rounded w-5/6"></div>
+                <div className="h-4 bg-slate-100 rounded w-4/6"></div>
             </div>
         </div>
     );
+
+    // Show skeleton UI while loading initial data
+    if (!stats) {
+        return (
+            <div className="flex flex-col h-full bg-slate-50 w-full relative overflow-hidden">
+                {/* Top Navigation Bar */}
+                <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-8 flex items-center justify-between sticky top-0">
+                    <div className="flex items-center gap-3">
+                        {onToggleSidebar && (
+                            <button
+                                onClick={onToggleSidebar}
+                                className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <Icons.Menu className="w-6 h-6" />
+                            </button>
+                        )}
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Dashboard</h1>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Skeleton Content */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+                    <div className="max-w-[1800px] mx-auto space-y-6 md:space-y-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
+                            <SkeletonCard height="h-96" />
+                            <div className="md:col-span-2 lg:col-span-3">
+                                <SkeletonCard height="h-96" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <SkeletonCard height="h-[400px]" />
+                            <SkeletonCard height="h-[400px]" />
+                            <SkeletonCard height="h-[400px]" />
+                            <SkeletonCard height="h-[400px]" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const tStats = stats?.templateStats || { approved: 0, pending: 0, rejected: 0 };
     const tTotal = tStats.approved + tStats.pending + tStats.rejected || 0;
