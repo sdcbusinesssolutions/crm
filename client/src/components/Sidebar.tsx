@@ -215,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         )}
                         {styledCollapsedIcon}
                     </div>
-                    <span className="text-[7.5px] font-medium text-center leading-tight tracking-wide opacity-90">{displayLabel}</span>
+                    <span className="text-[9px] font-bold text-center leading-tight tracking-tight relative z-10" style={{ textShadow: '0 0 1px rgba(255,255,255,0.7)' }}>{displayLabel}</span>
                 </div>
             );
         }
@@ -230,7 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
         // --- EXPANDED STATE STYLING ---
         // Update: Hovering now triggers brand-600 color for icons and brand-50 bg
-        const mainIconClass = `transition-transform duration-300 w-5 h-5 ${showActiveStyle ? 'text-white' : 'text-slate-200 group-hover:text-white'}`;
+        const mainIconClass = `transition-transform duration-300 w-5 h-5 ${showActiveStyle ? 'text-white' : 'text-white'}`;
         const styledMainIcon = React.isValidElement(finalIcon)
             ? React.cloneElement(finalIcon as React.ReactElement, {
                 className: `${(finalIcon.props as any).className || ''} ${mainIconClass}`.replace(/w-5 h-5/g, '')
@@ -244,14 +244,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     onClick={() => {
                         onNavigate(item);
                     }}
-                    className={`group flex items-center pl-11 pr-3 py-2 mx-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out relative overflow-hidden ${isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    className={`group flex items-center pl-11 pr-3 py-2 mx-2 rounded-lg cursor-pointer transition-all duration-200 ease-in-out relative overflow-hidden ${isActive ? 'bg-white/10 text-white' : 'text-white hover:bg-white/5'
                         }`}
                 >
                     {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 bg-brand-500 rounded-r-md"></div>}
                     <span className="mr-2.5 transition-colors duration-200">
                         {styledMainIcon}
                     </span>
-                    <span className="relative z-10 truncate text-[12.5px] leading-tight font-medium opacity-95">{displayLabel}</span>
+                    <span className="relative z-10 truncate text-[14.5px] leading-snug tracking-tight font-bold" style={{ textShadow: '0 0 1px rgba(255,255,255,0.7)' }}>{displayLabel}</span>
                 </div>
             );
         }
@@ -269,7 +269,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     }
                 }}
                 title={showCollapsed ? displayLabel : ''}
-                className={`group flex items-center justify-between px-3.5 py-2 mx-2.5 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-slate-100 hover:bg-white/10 hover:text-white'
+                className={`group flex items-center justify-between px-3.5 py-2 mx-2.5 rounded-lg cursor-pointer transition-all duration-200 ease-out mb-1 relative overflow-visible ${showActiveStyle ? 'bg-brand-600 text-white shadow-md shadow-brand-200' : 'text-white hover:bg-white/10'
                     }`}
             >
                 <div className={`flex items-center space-x-2.5 relative z-10`}>
@@ -281,7 +281,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             </span>
                         )}
                     </div>
-                    <span className={`text-[12.5px] leading-tight font-medium ${showActiveStyle ? 'text-white' : 'text-slate-100 group-hover:text-white'}`}>{displayLabel}</span>
+                    <span className={`text-[14.5px] leading-snug tracking-tight font-bold ${showActiveStyle ? 'text-white' : 'text-white'}`} style={{ textShadow: '0 0 1px rgba(255,255,255,0.7)' }}>{displayLabel}</span>
                 </div>
                 {hasSubmenu && (
                     <div
@@ -294,7 +294,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         }}
                         className="p-0.5 -mr-1.5 rounded-md hover:bg-white/10 transition-colors"
                     >
-                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${isActive ? 'text-white/80' : 'text-slate-200 group-hover:text-white'} ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform duration-300 ${isActive ? 'text-white' : 'text-white'} ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
                 )}
             </div>
@@ -344,8 +344,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                             )
                         )}
                     </div>
-                    <button onClick={onClose} className="lg:hidden p-1.5 text-white/70 hover:text-white rounded-lg transition-colors"><CloseIcon className="w-4 h-4" /></button>
-                    <button onClick={toggleSidebar} className={`hidden lg:flex items-center justify-center p-1 rounded-lg transition-colors ${isCollapsed ? 'text-white/70 hover:bg-white/20 hover:text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
+                    <button onClick={onClose} className="lg:hidden p-1.5 text-white hover:text-white rounded-lg transition-colors"><CloseIcon className="w-4 h-4" /></button>
+                    <button onClick={toggleSidebar} className={`hidden lg:flex items-center justify-center p-1 rounded-lg transition-colors ${isCollapsed ? 'text-white hover:bg-white/20 hover:text-white' : 'text-white hover:text-white hover:bg-white/10'}`}>
                         {isCollapsed ? <ChevronRightIcon className="w-3.5 h-3.5" /> : <ChevronLeftIcon className="w-3.5 h-3.5" />}
                     </button>
                 </div>
@@ -353,7 +353,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                 <div className="flex-1 py-1 overflow-y-auto no-scrollbar overflow-x-hidden">
                     <div className={`px-2 ${showCollapsed ? 'mb-3' : 'mb-3'}`}>{renderItem('Dashboard', <HomeIcon className="w-5 h-5" />)}</div>
                     <div className={showCollapsed ? 'space-y-1' : 'space-y-1'}>
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-2 mt-4 truncate">Communication</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4 truncate">Communication</p>}
                         {renderItem('Inbox', <MessageIcon className="w-5 h-5" />)}
 
                         {renderItem('Contacts', <UsersIcon className="w-5 h-5" />, true)}
@@ -362,7 +362,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                         {renderItem('Campaigns', <MegaphoneIcon className="w-5 h-5" />)}
 
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
                         {renderItem('Drip Campaigns', <ClockIcon className="w-5 h-5" />)}
 
@@ -371,12 +371,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && isManageOpen && <div className="space-y-1 mt-2 mb-2.5">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                         {renderItem('Integrations', <LinkIcon className="w-5 h-5" />, false, false, false)}
 
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-2 mt-4.5 truncate">AI & Tools</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">AI & Tools</p>}
                         {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
 
                         {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
 
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-slate-300/50 uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-2 mb-2.5">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                     </div>
@@ -411,11 +411,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         </div>
                         {!showCollapsed && (
                             <div className="flex-1 min-w-0">
-                                <p className="text-[12.5px] font-bold text-white truncate">{userEmail || 'User'}</p>
-                                <p className="text-[10.5px] text-slate-300 font-medium truncate">My Workspace</p>
+                                <p className="text-[14.5px] font-bold tracking-tight text-white truncate" style={{ textShadow: '0 0 1px rgba(255,255,255,0.7)' }}>{userEmail || 'User'}</p>
+                                <p className="text-[10.5px] text-white font-medium truncate">My Workspace</p>
                             </div>
                         )}
-                        {!showCollapsed && <ChevronDownIcon className="w-3.5 h-3.5 text-slate-300" />}
+                        {!showCollapsed && <ChevronDownIcon className="w-3.5 h-3.5 text-white" />}
                     </div>
                 </div>
             </div>
