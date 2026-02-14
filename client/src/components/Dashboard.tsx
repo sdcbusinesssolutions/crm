@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MenuItem } from './Sidebar';
-import { getLeads } from '../services/lead-management-api';
 import EngagementCard from './EngagementCard';
 import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -46,6 +45,11 @@ export interface DashboardStats {
         status?: string;
         name_status?: string;
         display_phone_number?: string | null;
+    };
+    revenueStats?: {
+        totalValue: number;
+        wonValue: number;
+        conversionRate: string;
     };
 }
 
@@ -626,45 +630,53 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-
-            // Load stats first (faster API call)
-            const statsPromise = fetch('/api/dashboard/stats', {
-                headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
-            }).then(res => res.ok ? res.json() : null);
-
-            // Load stats and set them
-            const data = await statsPromise;
-            if (data) {
-                setStats(data);
-                setLoading(false); // Only hide loading after data is received
-            } else {
-                console.error('No data received from API');
-                setLoading(false);
+            // --- 1. INSTANT LOAD: Check LocalStorage ---
+            const cached = localStorage.getItem('dashboard_stats_cache');
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    setStats(parsed);
+                    if (parsed.revenueStats) {
+                        setRevenueStats(parsed.revenueStats);
+                    }
+                    // Show cached text immediately
+                    setLoading(false);
+                } catch (e) {
+                    console.error('Cache parse error', e);
+                    localStorage.removeItem('dashboard_stats_cache');
+                }
             }
 
-            // Load leads in background (slower, for revenue calculation only)
-            getLeads().then(leads => {
-                if (!leads) return;
+            // --- 2. BACKGROUND FETCH: Get Fresh Data ---
+            const { data: { session } } = await supabase.auth.getSession();
 
-                // Calculate Revenue Stats
-                const totalVal = leads.reduce((acc: number, lead: any) => acc + (Number(lead.value) || 0), 0);
-                const wonVal = leads
-                    .filter((l: any) => l.status === 'won' || (l.stage_id && l.stage_id.includes('won')))
-                    .reduce((acc: number, lead: any) => acc + (Number(lead.value) || 0), 0);
-
-                const totalLeads = leads.length || 1;
-                const wonLeads = leads.filter((l: any) => l.status === 'won').length || 0;
-                const rate = Math.round((wonLeads / totalLeads) * 100) + '%';
-
-                setRevenueStats({ totalValue: totalVal, wonValue: wonVal, conversionRate: rate });
-            }).catch(err => {
-                console.error('Failed to load leads for revenue stats', err);
+            const res = await fetch('/api/dashboard/stats', {
+                headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
             });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data) {
+                    setStats(data);
+                    if (data.revenueStats) {
+                        setRevenueStats(data.revenueStats);
+                    }
+
+                    // Update Loading State (if it was still true)
+                    setLoading(false);
+
+                    // Update Cache
+                    localStorage.setItem('dashboard_stats_cache', JSON.stringify(data));
+                }
+            } else {
+                console.error('API Error: Failed to fetch fresh stats');
+                // Only turn off loading if we didn't have a cache hit
+                if (!cached) setLoading(false);
+            }
 
         } catch (error) {
             console.error('Failed to load dashboard stats', error);
-            setLoading(false);
+            if (!localStorage.getItem('dashboard_stats_cache')) setLoading(false);
         }
     };
 
@@ -675,28 +687,80 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
     };
 
     // Skeleton Loading Component
-    const SkeletonCard = ({ className = "", height = "h-64" }: { className?: string; height?: string }) => (
-        <div className={`bg-white border border-slate-200/60 rounded-3xl p-6 ${height} ${className} animate-pulse`}>
-            <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-            <div className="h-4 bg-slate-100 rounded w-1/2 mb-6"></div>
-            <div className="space-y-3">
-                <div className="h-4 bg-slate-100 rounded"></div>
-                <div className="h-4 bg-slate-100 rounded w-5/6"></div>
-                <div className="h-4 bg-slate-100 rounded w-4/6"></div>
+    const SkeletonDashboard = () => (
+        <div className="flex flex-col h-full bg-slate-50 relative overflow-hidden">
+            {/* Header Skeleton */}
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 h-16">
+                <div className="w-48 h-6 bg-slate-200 rounded animate-pulse"></div>
+                <div className="w-8 h-8 bg-slate-200 rounded-full animate-pulse"></div>
+            </div>
+
+            <div className="flex-1 overflow-hidden p-4 md:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+                    {/* Engagement Card Skeleton */}
+                    <div className="md:col-span-4 lg:col-span-3 h-[400px]">
+                        <div className="h-full bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                            <div className="h-4 bg-slate-200 rounded w-1/3 mb-8 mx-auto"></div>
+                            <div className="h-32 bg-slate-200 rounded-full w-32 mx-auto mb-8"></div>
+                            <div className="space-y-4 mt-8">
+                                <div className="h-12 bg-slate-100 rounded-xl"></div>
+                                <div className="h-12 bg-slate-100 rounded-xl"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* CRM Hub Skeleton */}
+                    <div className="md:col-span-8 lg:col-span-9 h-[400px]">
+                        <div className="h-full bg-white border border-slate-200/60 rounded-[24px] p-4 grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 animate-pulse">
+                            <div className="col-span-1 bg-slate-100/50 rounded-xl flex flex-col gap-4 p-2">
+                                <div className="flex-1 bg-slate-200 rounded-lg"></div>
+                                <div className="flex-1 bg-slate-200 rounded-lg"></div>
+                            </div>
+                            <div className="col-span-1 bg-slate-100/50 rounded-xl relative">
+                                <div className="absolute inset-x-4 top-8 h-32 bg-slate-200 rounded-lg"></div>
+                                <div className="absolute inset-x-8 bottom-8 h-32 bg-slate-200/50 rounded-b-full"></div>
+                            </div>
+                            <div className="col-span-1 bg-slate-100/50 rounded-xl p-2 flex flex-col gap-2">
+                                <div className="h-[180px] flex gap-2">
+                                    <div className="w-[45%] bg-slate-200 rounded-lg"></div>
+                                    <div className="w-[55%] bg-slate-200 rounded-lg"></div>
+                                </div>
+                                <div className="flex-1 flex gap-2">
+                                    <div className="w-[45%] grid grid-cols-2 gap-2">
+                                        <div className="bg-slate-200 rounded-lg"></div>
+                                        <div className="bg-slate-200 rounded-lg"></div>
+                                        <div className="bg-slate-200 rounded-lg"></div>
+                                        <div className="bg-slate-200 rounded-lg"></div>
+                                    </div>
+                                    <div className="w-[55%] bg-slate-200 rounded-lg"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom Charts Skeleton */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                        <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
+                        <div className="h-full bg-slate-50/50 rounded-xl"></div>
+                    </div>
+                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                        <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
+                        <div className="h-full bg-slate-50/50 rounded-xl"></div>
+                    </div>
+                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                        <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
+                        <div className="h-full bg-slate-50/50 rounded-xl"></div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 
-    // Show loading spinner while fetching data
+    // Show loading skeleton while fetching data
     if (loading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <p className="text-slate-600 font-medium">Loading Dashboard...</p>
-                </div>
-            </div>
-        );
+        return <SkeletonDashboard />;
     }
 
     // Show error if no data after loading
