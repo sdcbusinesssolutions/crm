@@ -4,7 +4,7 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/client
 COPY client/package*.json ./
-RUN npm ci --quiet
+RUN npm install --legacy-peer-deps --quiet
 COPY client/ ./
 
 # NOTE: We DO NOT bake env vars here anymore.
