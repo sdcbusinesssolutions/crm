@@ -5,6 +5,7 @@ import { Pipeline, KanbanBoard } from '../types/lead-management';
 import { contactGroupService } from '../services/contactGroupService';
 import { tagService, Tag } from '../services/tagService';
 import { formService } from '../services/formService';
+import { supabase } from '../lib/supabase';
 import { UsersIcon, KanbanIcon, TagIcon, ClockIcon, CatalogueIcon, ChevronRightIcon } from './icons';
 
 // Temporary icon fallbacks if not in icons.tsx
@@ -61,170 +62,99 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         }
     }, [totalContactsCount]);
 
-    useEffect(() => {
-        loadInitialData();
-    }, []);
+    // Unified Load Function
+    const loadStats = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token || '';
+
+            // --- 1. INSTANT LOAD: Check LocalStorage ---
+            const cached = localStorage.getItem('lead_dashboard_cache');
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    processStatsData(parsed);
+                    setLoading(false);
+                } catch (e) {
+                    localStorage.removeItem('lead_dashboard_cache');
+                }
+            }
+
+            // --- 2. FAST FETCH: Optimized API ---
+            const res = await fetch('/api/lead-dashboard/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                processStatsData(data);
+                localStorage.setItem('lead_dashboard_cache', JSON.stringify(data));
+                setLoading(false);
+            }
+
+        } catch (e) {
+            console.error('Lead Dashboard Load Failed', e);
+            setLoading(false);
+        }
+    };
+
+    const processStatsData = (data: any) => {
+        if (!data) return;
+
+        // update pipelines list
+        setPipelines(data.pipelines || []);
+
+        // determine active pipeline (if not set)
+        if (!activePipelineId && data.pipelines?.length > 0) {
+            const defaultPipe = data.pipelines.find((p: any) => p.is_default) || data.pipelines[0];
+            setActivePipelineId(defaultPipe.id);
+        }
+
+        // current pipeline stats
+        const currentPipeId = activePipelineId || (data.pipelines?.[0]?.id);
+        const pipeStats = data.pipelineStatsMap?.[currentPipeId] || { stages: [], totalLeads: 0, totalValue: 0 };
+
+        // Calculate Conversion (Won / Total)
+        const wonStage = pipeStats.stages.find((s: any) => s.name.toLowerCase().includes('won'));
+        const total = pipeStats.totalLeads || 0;
+        const conversion = wonStage && total > 0 ? Math.round((wonStage.count / total) * 100) : 0;
+
+        setStats({
+            totalLeads: data.totalLeads || 0,
+            totalValue: pipeStats.totalValue || 0,
+            conversionRate: `${conversion}%`,
+            leadsByStage: pipeStats.stages || [],
+            recentLeads: data.recentLeads || [], // Already sorted from API
+            leadsBySource: data.leadsBySource || [],
+            leadsOverTime: data.leadsOverTime || [],
+            leadsByTag: data.leadsByTag || [],
+            groupCount: data.groupCount || 0,
+            pipelineCount: data.pipelineCount || 0,
+            formCount: data.formCount || 0,
+            followUpCount: data.followUpCount || 0
+        });
+    };
 
     useEffect(() => {
+        loadStats();
+    }, []);
+
+    // Re-process stats if pipeline changes (instant switch from data we already have)
+    useEffect(() => {
         if (activePipelineId) {
-            loadBoardStats(activePipelineId);
+            const cached = localStorage.getItem('lead_dashboard_cache');
+            if (cached) {
+                const data = JSON.parse(cached);
+                processStatsData(data);
+            }
         }
     }, [activePipelineId]);
 
-    const loadInitialData = async () => {
-        try {
-            const [pipes, groups, tags, forms, tasks] = await Promise.all([
-                getPipelines(),
-                contactGroupService.getGroups(),
-                tagService.getTags(),
-                formService.getForms(),
-                getTasks()
-            ]);
+    // If loading but we have cache (processed in stats), don't show spinner
+    // Only show spinner if we have NO stats and are loading
+    const hasData = stats.pipelineCount > 0 || stats.totalLeads > 0;
 
-            setPipelines(pipes);
-            setTagDefinitions(tags);
-            // Calculate active tasks for follow up count
-            const activeTasks = tasks.filter((t: any) => !t.is_completed).length;
-            setStats(prev => ({
-                ...prev,
-                pipelineCount: pipes.length,
-                groupCount: groups.length,
-                formCount: forms.length,
-                followUpCount: activeTasks
-            }));
-
-            if (pipes.length > 0) {
-                // Prefer default, else first
-                const defaultPipe = pipes.find(p => p.is_default) || pipes[0];
-                setActivePipelineId(defaultPipe.id);
-            } else {
-                setLoading(false);
-            }
-        } catch (e) {
-            console.error(e);
-            setLoading(false);
-        }
-    };
-
-    const loadBoardStats = async (pipelineId: string) => {
-        setLoading(true);
-        try {
-            // Fetch board and leads securely
-            let board, globalLeads = [];
-
-            try {
-                board = await getKanbanBoard(pipelineId);
-                setBoardData(board);
-            } catch (err) {
-                console.error("Board fetch failed", err);
-                return; // Critical failure
-            }
-
-            try {
-                // Fetch up to 1000 recent leads for stats sampling
-                globalLeads = await getLeads(undefined, undefined, 1, 1000);
-            } catch (err) {
-                console.warn("Global leads fetch failed, falling back to board leads", err);
-                globalLeads = board.columns.flatMap(col => col.leads);
-            }
-
-            // 1. Recent Leads (Global)
-            const recentLeads = [...globalLeads]
-                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                .slice(0, 5);
-
-            // 2. Leads by Source (Global)
-            const sourceCounts: Record<string, number> = {};
-            globalLeads.forEach(lead => {
-                const src = lead.source || 'manual';
-                sourceCounts[src] = (sourceCounts[src] || 0) + 1;
-            });
-            const leadsBySource = Object.entries(sourceCounts)
-                .map(([name, count]) => ({ name, count, value: count })) // format for list
-                .sort((a, b) => b.count - a.count);
-
-            // 3. Leads Over Time (Last 7 Days) (Global)
-            const last7Days: { date: string; count: number; dayName: string }[] = [];
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
-                const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
-                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-
-                const count = globalLeads.filter(l => l.created_at.startsWith(dateStr)).length;
-                last7Days.push({ date: dateStr, count, dayName });
-            }
-
-            // 4. Leads by Tag (Global)
-            const tagCounts: Record<string, number> = {};
-            globalLeads.forEach(lead => {
-                let tags = lead.tags;
-                // Handle potential string format "{tag1,tag2}" from raw SQL or Supabase quirks
-                if (typeof tags === 'string') {
-                    tags = (tags as string).replace(/^{|}$/g, '').split(',').filter((t: string) => t.length > 0);
-                }
-
-                if (tags && Array.isArray(tags)) {
-                    tags.forEach((tag: string) => {
-                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-                    });
-                }
-            });
-            const leadsByTag = Object.entries(tagCounts)
-                .map(([name, count]) => {
-                    const tagDef = tagDefinitions.find(t => t.name === name);
-                    return {
-                        name,
-                        count,
-                        color: tagDef?.color || '#cbd5e1'
-                    };
-                })
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5); // Top 5 tags
-
-            // Calculate Stats
-
-            // Calculate Stats
-            let total = 0;
-            let val = 0;
-            const stageStats = board.columns.map(col => {
-                const count = col.total_count || col.leads.length; // Use total_count from backend
-                const colVal = col.value || col.leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0); // Backend might not send value sum yet, so this is partial.
-                // Note: Value sum will be incorrect with pagination. Ideally backend sends stage total value.
-                total += count;
-                val += colVal;
-                return {
-                    name: col.stage.name,
-                    count,
-                    color: col.stage.color,
-                    value: colVal
-                };
-            });
-
-            // Mock Conversion Rate (Leads in 'Won' / Total Leads)
-            const wonStage = stageStats.find(s => s.name.toLowerCase().includes('won') || s.name.toLowerCase().includes('closed'));
-            const conversion = wonStage && total > 0 ? Math.round((wonStage.count / total) * 100) : 0;
-
-            setStats(prev => ({
-                ...prev,
-                totalLeads: typeof totalContactsCountRef.current === 'number' ? totalContactsCountRef.current : globalLeads.length,
-                totalValue: val,
-                conversionRate: `${conversion}%`,
-                leadsByStage: stageStats,
-                recentLeads,
-                leadsBySource,
-                leadsOverTime: last7Days,
-                leadsByTag
-            }));
-
-        } catch (e) {
-            console.error(e);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (loading && !boardData) {
+    if (loading && !hasData) {
         return <div className="p-8 text-center text-slate-400 font-medium animate-pulse">Loading Lead Overview...</div>;
     }
 

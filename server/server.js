@@ -165,6 +165,7 @@ const uploadRoutes = require('./routes/upload');
 const whatsappTemplatesRoutes = require('./routes/whatsapp_templates');
 const campaignsRoutes = require('./routes/campaigns');
 const dashboardRoutes = require('./routes/dashboard');
+const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized route
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 
@@ -188,6 +189,7 @@ router.use('/client-logs', clientLogRoutes); // Public Client Logging
 
 // Protected Routes
 router.use('/dashboard', requireAuth, dashboardRoutes);
+router.use('/lead-dashboard', requireAuth, leadDashboardRoutes);
 router.use('/contacts', requireAuth, contactsRoutes);
 router.use('/groups', requireAuth, groupsRoutes);
 router.use('/tags', requireAuth, require('./routes/tags'));
