@@ -18,6 +18,7 @@ const triggers = [
   { type: NodeType.PipelineTrigger, label: 'Added to Pipeline', icon: <BookmarkIcon /> },
   { type: NodeType.TaskReminder, label: 'Task Due', icon: <TimingIcon /> },
   { type: NodeType.SheetTrigger, label: 'New Google Sheet Row', icon: <GsheetIcon /> },
+  { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
 ];
 const messageNodes = [
   { type: NodeType.TextMessage, label: 'Text', icon: <MessageIcon /> },
@@ -40,7 +41,6 @@ const logicNodes = [
   { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
   { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon /> },
   { type: NodeType.CallApi, label: 'Call API', icon: <CallApiIcon /> },
-  { type: NodeType.SetWebhook, label: 'Set Webhook', icon: <SetWebhookIcon /> },
   { type: NodeType.AIAgent, label: 'AI Agent', icon: <RobotIcon />, isBeta: true },
 ];
 
