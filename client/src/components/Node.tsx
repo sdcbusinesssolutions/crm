@@ -27,14 +27,14 @@ const getColorStyles = (color: NodeColor) => {
 
 const NodeContainer: React.FC<{ children: ReactNode, className?: string, selected?: boolean, color: NodeColor }> = ({ children, className, selected, color }) => {
   const styles = getColorStyles(color);
-  return <div className={`relative bg-slate-900 text-slate-200 w-[320px] rounded-xl shadow-lg transition-all duration-300 border-l-[3px] border-y border-r border-y-slate-800 border-r-slate-800 ${styles.border} ${styles.shadow} ${selected ? 'ring-2 ring-white/20 scale-[1.01] shadow-2xl' : 'hover:shadow-xl hover:translate-y-[-2px]'} ${className} touch-none overflow-hidden flex flex-col`}>{children}</div>;
+  return <div className={`relative bg-slate-900 text-slate-200 w-[250px] rounded-xl shadow-lg transition-all duration-300 border-l-[3px] border-y border-r border-y-slate-800 border-r-slate-800 ${styles.border} ${styles.shadow} ${selected ? 'ring-2 ring-white/20 scale-[1.01] shadow-2xl' : 'hover:shadow-xl hover:translate-y-[-2px]'} ${className} touch-none overflow-hidden flex flex-col`}>{children}</div>;
 };
 
 const NodeHeader: React.FC<{ title: string; onTitleSave: (newTitle: string) => void; onDelete: () => void; onDuplicate: () => void; onSettingsClick: () => void; icon?: React.ReactNode; color: NodeColor; }> = ({ title, onTitleSave, onDelete, onDuplicate, onSettingsClick, icon, color }) => {
   const [isEditing, setIsEditing] = useState(false); const [currentTitle, setCurrentTitle] = useState(title); const styles = getColorStyles(color);
   const handleSave = () => { if (currentTitle.trim()) onTitleSave(currentTitle.trim()); else setCurrentTitle(title); setIsEditing(false); };
   return (
-    <div className={`flex justify-between items-center px-4 py-3 ${styles.headerBg} select-none`}>
+    <div className={`flex justify-between items-center px-3 py-1.5 ${styles.headerBg} select-none`}>
       {isEditing ? (
         <input type="text" value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} onBlur={handleSave} onKeyDown={(e) => e.key === 'Enter' && handleSave()} autoFocus className="font-semibold text-sm bg-white/20 border border-white/30 rounded px-2 py-1 text-white focus:outline-none focus:ring-2 focus:ring-white/40 w-full shadow-inner" onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()} />
       ) : (
@@ -51,10 +51,10 @@ const NodeHeader: React.FC<{ title: string; onTitleSave: (newTitle: string) => v
   );
 };
 
-const FieldWrapper: React.FC<{ label: string, children: ReactNode }> = ({ label, children }) => (<div className="mb-3 last:mb-0"><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{label}</label>{children}</div>);
-const TextInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string }> = ({ value, onChange, placeholder }) => (<input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} />);
-const TextareaInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, rows?: number }> = ({ value, onChange, placeholder, rows = 3 }) => (<textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none resize-none leading-relaxed" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} />);
-const SelectInput: React.FC<{ value: string, onChange: (val: string) => void, options: string[] }> = ({ value, onChange, options }) => (<div className="relative"><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none appearance-none cursor-pointer" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>{options.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div></div>);
+const FieldWrapper: React.FC<{ label: string, children: ReactNode }> = ({ label, children }) => (<div className="mb-2 last:mb-0"><label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{label}</label>{children}</div>);
+const TextInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string }> = ({ value, onChange, placeholder }) => (<input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} />);
+const TextareaInput: React.FC<{ value: string, onChange: (val: string) => void, placeholder?: string, rows?: number }> = ({ value, onChange, placeholder, rows = 3 }) => (<textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-600 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none resize-none leading-relaxed" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} />);
+const SelectInput: React.FC<{ value: string, onChange: (val: string) => void, options: string[] }> = ({ value, onChange, options }) => (<div className="relative"><select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none appearance-none cursor-pointer" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>{options.map(opt => <option key={opt} value={opt}>{opt}</option>)}</select><div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500"><svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg></div></div>);
 
 const OnMessageNodeUI: React.FC<NodeUIProps<OnMessageData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick }) => {
   const [keywordInput, setKeywordInput] = useState(''); const data = node.data;
@@ -65,7 +65,7 @@ const OnMessageNodeUI: React.FC<NodeUIProps<OnMessageData>> = ({ node, onUpdateN
   return (
     <NodeContainer color="pink" className="group">
       <NodeHeader color="pink" icon={<TriggerIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-4 bg-slate-900/95 flex-1">
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
         <FieldWrapper label="Message Type"><SelectInput value={data.messageType} onChange={val => handleDataChange('messageType', val)} options={['Text', 'Image', 'Audio', 'Video', 'Document']} /></FieldWrapper>
         <FieldWrapper label="Keywords"><div onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()} className="w-full p-2 border border-slate-800 bg-slate-950 rounded-lg flex flex-wrap items-center gap-2 min-h-[42px]">{data.keywords.map((k, i) => (<div key={i} className="bg-pink-500/20 text-pink-300 border border-pink-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">{k}<button onClick={() => removeKeyword(i)} className="hover:text-white">×</button></div>))}<input type="text" value={keywordInput} onChange={e => setKeywordInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Add..." className="flex-grow bg-transparent focus:outline-none text-slate-400 text-sm min-w-[60px]" /></div></FieldWrapper>
       </div>
@@ -78,7 +78,7 @@ const MediaMessageNodeUI: React.FC<NodeUIProps<MediaMessageData>> = ({ node, onU
   return (
     <NodeContainer color="purple" className="group">
       <NodeHeader color="purple" icon={<ImageFileIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-4 bg-slate-900/95 flex-1"><FieldWrapper label="Media Type"><SelectInput value={data.mediaType} onChange={val => handleDataChange('mediaType', val as MediaType)} options={Object.values(MediaType)} /></FieldWrapper><FieldWrapper label="URL"><TextInput value={data.url} onChange={val => handleDataChange('url', val)} placeholder="https://..." /></FieldWrapper></div>
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1"><FieldWrapper label="Media Type"><SelectInput value={data.mediaType} onChange={val => handleDataChange('mediaType', val as MediaType)} options={Object.values(MediaType)} /></FieldWrapper><FieldWrapper label="URL"><TextInput value={data.url} onChange={val => handleDataChange('url', val)} placeholder="https://..." /></FieldWrapper></div>
     </NodeContainer>
   );
 }
@@ -93,7 +93,7 @@ const GenericNodeUI: React.FC<NodeUIProps<AnyNodeData>> = ({ node, onUpdateNode,
   return (
     <NodeContainer color={color} className="group">
       <NodeHeader color={color} icon={icon} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-4 bg-slate-900/95 flex-1">{renderFields()}</div>
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">{renderFields()}</div>
     </NodeContainer>
   );
 }
@@ -106,8 +106,8 @@ const SetWebhookNodeUI: React.FC<NodeUIProps<SetWebhookData>> = ({ node, onUpdat
   return (
     <NodeContainer color="cyan" className="group">
       <NodeHeader color="cyan" title={data.label || 'Incoming Webhook'} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<SetWebhookIcon />} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
-        <div className="flex items-center space-x-2 bg-slate-950 p-3 rounded-lg border border-slate-800">
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
+        <div className="flex items-center space-x-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
           <span className="font-mono font-bold text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30">POST</span>
           <p className="text-slate-400 truncate text-xs font-mono flex-1 opacity-90" title="Incoming Webhook URL">
             {displayUrl}
@@ -126,7 +126,7 @@ const WriteAttributeNodeUI: React.FC<NodeUIProps<WriteAttributeData>> = ({ node,
   return (
     <NodeContainer color="teal" className="group">
       <NodeHeader color="teal" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<BookmarkIcon />} />
-      <div className="p-4 bg-slate-900/95 flex-1"><div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-3 text-center"><p className="text-xs text-teal-300 font-medium">Updates Contact Attributes</p></div></div>
+      <div className="p-2.5 bg-slate-900/95 flex-1"><div className="bg-teal-500/10 border border-teal-500/20 rounded-lg p-2.5 text-center"><p className="text-xs text-teal-300 font-medium">Updates Contact Attributes</p></div></div>
     </NodeContainer>
   );
 };
@@ -136,11 +136,11 @@ const AskAnythingNodeUI: React.FC<InteractiveNodeUIProps<AskAnythingData>> = ({ 
   return (
     <NodeContainer color="orange" className="group">
       <NodeHeader color="orange" icon={<MessageIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 bg-slate-900/95 flex-1">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 mb-4"><p className="text-slate-300 whitespace-pre-wrap text-sm italic opacity-90 leading-relaxed">"{data.text || 'Ask a question...'}"</p></div>
-        <div className="space-y-3">
-          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-orange-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Answer</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
+      <div className="p-2.5 bg-slate-900/95 flex-1">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 mb-2"><p className="text-slate-300 whitespace-pre-wrap text-sm italic opacity-90 leading-relaxed">"{data.text || 'Ask a question...'}"</p></div>
+        <div className="space-y-2">
+          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-orange-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Answer</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
         </div>
       </div>
     </NodeContainer>
@@ -152,11 +152,11 @@ const ListMessageNodeUI: React.FC<InteractiveNodeUIProps<ListMessageData>> = ({ 
   return (
     <NodeContainer color="violet" className="group">
       <NodeHeader color="violet" icon={<ListIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Body</p><p className="text-slate-300 text-xs leading-relaxed line-clamp-3">{data.body || "..."}</p></div>
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Body</p><p className="text-slate-300 text-xs leading-relaxed line-clamp-3">{data.body || "..."}</p></div>
         <div className="w-full py-2 bg-violet-500/10 rounded-lg border border-dashed border-violet-500/30 text-center text-xs text-violet-300 font-bold">{data.buttonText || "Menu Button"}</div>
-        <div className="space-y-2 pt-1">{data.sections?.map((section) => (<div key={section.id} className="space-y-2"><p className="text-[10px] font-bold text-slate-500 uppercase pl-1">{section.title}</p>{section.items.map((item) => (<div key={item.id} className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-700 hover:border-violet-500/40 transition-colors group/item"><span className="text-xs font-medium text-slate-300">{item.title}</span><div id={`h-${node.id}-${item.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, item.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, item.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-violet-400 rounded-full cursor-pointer hover:scale-125 transition-transform shadow-sm absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" /></div>))}</div>))}</div>
-        {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle mt-2"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-violet-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
+        <div className="space-y-2 pt-1">{data.sections?.map((section) => (<div key={section.id} className="space-y-2"><p className="text-[10px] font-bold text-slate-500 uppercase pl-1">{section.title}</p>{section.items.map((item) => (<div key={item.id} className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700 hover:border-violet-500/40 transition-colors group/item"><span className="text-xs font-medium text-slate-300">{item.title}</span><div id={`h-${node.id}-${item.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, item.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, item.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-violet-400 rounded-full cursor-pointer hover:scale-125 transition-transform shadow-sm absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" /></div>))}</div>))}</div>
+        {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle mt-2"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-violet-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
       </div>
     </NodeContainer>
   );
@@ -167,9 +167,9 @@ const CheckConditionNodeUI: React.FC<InteractiveNodeUIProps<CheckConditionData>>
   return (
     <NodeContainer color="rose" className="group">
       <NodeHeader color="rose" icon={<ConditionIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
-        {data.conditions.map((condition, index) => (<div key={condition.id} className="relative flex items-center justify-between bg-rose-500/10 border border-rose-500/20 px-3 py-2.5 rounded-lg"><span className="text-xs font-bold text-rose-200 truncate pr-4">{condition.name || `Condition ${index + 1}`}</span><div id={`h-${node.id}-${condition.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, condition.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, condition.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none shadow-[0_0_5px_rgba(244,63,94,0.5)]" /></div>))}
-        <div className="relative flex items-center justify-between bg-slate-800/50 border border-slate-700 px-3 py-2.5 rounded-lg mt-4"><span className="text-xs font-bold text-slate-500">False / Fallback</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" /></div>
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
+        {data.conditions.map((condition, index) => (<div key={condition.id} className="relative flex items-center justify-between bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 rounded-lg"><span className="text-xs font-bold text-rose-200 truncate pr-4">{condition.name || `Condition ${index + 1}`}</span><div id={`h-${node.id}-${condition.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, condition.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, condition.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none shadow-[0_0_5px_rgba(244,63,94,0.5)]" /></div>))}
+        <div className="relative flex items-center justify-between bg-slate-800/50 border border-slate-700 px-3 py-1.5 rounded-lg mt-3"><span className="text-xs font-bold text-slate-500">False / Fallback</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" /></div>
       </div>
     </NodeContainer>
   );
@@ -180,9 +180,9 @@ const CTAMessageNodeUI: React.FC<NodeUIProps<CTAMessageData>> = ({ node, onUpdat
   return (
     <NodeContainer color="cyan" className="group">
       <NodeHeader color="cyan" icon={<CtaIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
         {data.headerType !== 'None' && (<div className="bg-slate-950 h-10 rounded-lg flex items-center justify-center border border-slate-800 text-slate-500"><span className="text-[10px] font-bold uppercase">{data.headerType} Header</span></div>)}
-        <p className="text-sm text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800 leading-relaxed">{data.body || "Message Body"}</p>
+        <p className="text-sm text-slate-300 bg-slate-950 p-2.5 rounded-lg border border-slate-800 leading-relaxed">{data.body || "Message Body"}</p>
         <div className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-center py-2.5 rounded-lg font-bold text-sm cursor-pointer hover:bg-cyan-500/20 transition-colors">{data.displayText || 'Call To Action'}</div>
       </div>
     </NodeContainer>
@@ -194,10 +194,10 @@ const QuickReplyMessageNodeUI: React.FC<InteractiveNodeUIProps<QuickReplyMessage
   return (
     <NodeContainer color="emerald" className="group">
       <NodeHeader color="emerald" icon={<QuickReplyIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800"><p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{data.body || "Quick reply question..."}</p></div>
-        <div className="space-y-2">{data.buttons.map((button) => (<div key={button.id} className="relative flex items-center justify-center px-4 py-2.5 bg-emerald-500/10 text-emerald-400 font-semibold rounded-lg border border-emerald-500/20 text-xs hover:bg-emerald-500/20 transition-colors">{button.title}<div id={`h-${node.id}-${button.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, button.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, button.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 shadow-sm touch-none" /></div>))}</div>
-        {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle mt-2"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-emerald-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800"><p className="text-slate-300 text-sm whitespace-pre-wrap leading-relaxed">{data.body || "Quick reply question..."}</p></div>
+        <div className="space-y-2">{data.buttons.map((button) => (<div key={button.id} className="relative flex items-center justify-center px-3 py-1.5 bg-emerald-500/10 text-emerald-400 font-semibold rounded-lg border border-emerald-500/20 text-xs hover:bg-emerald-500/20 transition-colors">{button.title}<div id={`h-${node.id}-${button.id}`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, button.id)} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, button.id)} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 shadow-sm touch-none" /></div>))}</div>
+        {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle mt-2"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-emerald-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
       </div>
     </NodeContainer>
   );
@@ -208,18 +208,18 @@ const SendFlowNodeUI: React.FC<InteractiveNodeUIProps<AnyNodeData>> = ({ node, o
   return (
     <NodeContainer color="rose" className="group">
       <NodeHeader color="rose" icon={<FlowIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 bg-slate-900/95 flex-1">
+      <div className="p-2.5 bg-slate-900/95 flex-1">
         {data.flowName ? (
-          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
             <p className="text-xs font-bold text-slate-300">{data.flowName}</p>
             <p className="text-[10px] text-slate-500">Flow ID: {data.flowId}</p>
           </div>
         ) : (
           <p className="text-slate-500 text-xs italic p-2 text-center">Select a flow in settings</p>
         )}
-        <div className="space-y-3 mt-3">
-          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-rose-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Complete</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
+        <div className="space-y-2 mt-3">
+          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-rose-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Complete</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
         </div>
       </div>
     </NodeContainer>
@@ -231,9 +231,9 @@ const SwitchNodeUI: React.FC<InteractiveNodeUIProps<SwitchData>> = ({ node, onUp
   return (
     <NodeContainer color="orange" className="group">
       <NodeHeader color="orange" icon={<ConditionIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 space-y-3 bg-slate-900/95 flex-1">
+      <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
         {data.cases.map((conditionCase, index) => (
-          <div key={conditionCase.id} className="relative flex items-center justify-between bg-orange-500/10 border border-orange-500/20 px-3 py-2.5 rounded-lg">
+          <div key={conditionCase.id} className="relative flex items-center justify-between bg-orange-500/10 border border-orange-500/20 px-3 py-1.5 rounded-lg">
             <span className="text-xs font-bold text-orange-200 truncate pr-4">{conditionCase.label || `Case ${index + 1}`}</span>
             <div
               id={`h-${node.id}-${conditionCase.id}`}
@@ -244,7 +244,7 @@ const SwitchNodeUI: React.FC<InteractiveNodeUIProps<SwitchData>> = ({ node, onUp
             />
           </div>
         ))}
-        <div className="relative flex items-center justify-between bg-slate-800/50 border border-slate-700 px-3 py-2.5 rounded-lg mt-4">
+        <div className="relative flex items-center justify-between bg-slate-800/50 border border-slate-700 px-3 py-1.5 rounded-lg mt-3">
           <span className="text-xs font-bold text-slate-500">Default</span>
           <div
             id={`h-${node.id}-default`}
@@ -265,19 +265,19 @@ const AskInputNodeUI: React.FC<InteractiveNodeUIProps<AskInputData>> = ({ node, 
   return (
     <NodeContainer color="orange" className="group">
       <NodeHeader color="orange" icon={<MessageIcon />} title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} />
-      <div className="p-4 bg-slate-900/95 flex-1">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 mb-4">
+      <div className="p-2.5 bg-slate-900/95 flex-1">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 mb-2">
           <p className="text-slate-300 whitespace-pre-wrap text-sm italic opacity-90 leading-relaxed">"{data.text || 'Ask input...'}"</p>
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-2">
           <span className="text-[10px] bg-orange-500/20 text-orange-200 border border-orange-500/30 px-2 py-0.5 rounded uppercase font-bold">{data.inputType || 'Text'}</span>
           {data.inputType === 'Text' && <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded">{data.textInputType || 'Text'}</span>}
           {data.inputType === 'Media' && data.mediaInputTypes?.map((m: string) => <span key={m} className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded">{m}</span>)}
         </div>
-        <div className="space-y-3">
-          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-orange-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Invalid Input</span><div id={`h-${node.id}-invalid`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'invalid')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'invalid')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-red-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(239,68,68,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Valid Input</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
+        <div className="space-y-2">
+          {data.ifUnresponsive && (<div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span><div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-orange-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>)}
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Invalid Input</span><div id={`h-${node.id}-invalid`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'invalid')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'invalid')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-red-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(239,68,68,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle"><span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Valid Input</span><div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" /></div>
         </div>
       </div>
     </NodeContainer>
@@ -292,7 +292,7 @@ const CallApiNodeUI: React.FC<NodeUIProps<CallApiData>> = ({ node, onUpdateNode,
   return (
     <NodeContainer color="cyan" className="group">
       <NodeHeader color="cyan" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<CallApiIcon />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
         <div className="flex items-center space-x-2 bg-slate-950 p-2 rounded border border-slate-800">
           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${data.method === 'GET' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : data.method === 'POST' ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-slate-700 text-slate-300 border-slate-600'}`}>{data.method || 'GET'}</span>
           <p className="text-xs text-slate-400 truncate flex-1 font-mono">{data.url || 'https://api.example.com'}</p>
@@ -308,9 +308,9 @@ const TemplateMessageNodeUI: React.FC<InteractiveNodeUIProps<TemplateMessageData
   return (
     <NodeContainer color="indigo" className="group">
       <NodeHeader color="indigo" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<MessageIcon />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
         {data.templateName ? (
-          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+          <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
             <p className="text-xs font-bold text-slate-300">{data.templateName}</p>
             <p className="text-[10px] text-slate-500 font-mono">{data.language}</p>
           </div>
@@ -318,15 +318,15 @@ const TemplateMessageNodeUI: React.FC<InteractiveNodeUIProps<TemplateMessageData
           <div className="text-slate-500 text-xs italic text-center py-2">Select a template...</div>
         )}
 
-        <div className="space-y-3 pt-1">
+        <div className="space-y-2 pt-1">
           {data.ifUnresponsive && (
-            <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+            <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
               <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">On Timeout</span>
               <div id={`h-${node.id}-unresponsive`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'unresponsive')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'unresponsive')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-600 rounded-full cursor-pointer hover:bg-orange-400 hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
             </div>
           )}
 
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
             <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">Next Step</span>
             <div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-indigo-500 rounded-full cursor-pointer hover:bg-white hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
@@ -342,8 +342,8 @@ const ManageTagsNodeUI: React.FC<NodeUIProps<ManageTagsData>> = ({ node, onUpdat
   return (
     <NodeContainer color="teal" className="group">
       <NodeHeader color="teal" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<TagIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
           <p className="text-xs font-bold text-teal-300 uppercase">{data.action === 'remove' ? 'Remove Tags' : 'Add Tags'}</p>
           <div className="flex flex-wrap gap-1">
             {data.tags && data.tags.length > 0 ? (
@@ -366,8 +366,8 @@ const ManageGroupsNodeUI: React.FC<NodeUIProps<ManageGroupsData>> = ({ node, onU
   return (
     <NodeContainer color="blue" className="group">
       <NodeHeader color="blue" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<UsersIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
           <p className="text-xs font-bold text-blue-300 uppercase">{data.action === 'remove' ? 'Remove from Groups' : 'Add to Groups'}</p>
           <div className="flex flex-wrap gap-1">
             {data.groups && data.groups.length > 0 ? (
@@ -388,15 +388,15 @@ const NewLeadNodeUI: React.FC<InteractiveNodeUIProps<NewLeadData>> = ({ node, on
   return (
     <NodeContainer color="teal" className="group">
       <NodeHeader color="teal" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<UsersIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-1">
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-1">
           <p className="text-xs text-slate-400 italic">Checks if phone number exists in DB.</p>
         </div>
-        <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+        <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
           <span className="text-emerald-400 text-[10px] font-bold uppercase tracking-wide">New Lead</span>
           <div id={`h-${node.id}-new`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'new')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'new')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
         </div>
-        <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+        <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
           <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">Existing Contact</span>
           <div id={`h-${node.id}-existing`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'existing')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'existing')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-500 rounded-full cursor-pointer hover:scale-125 transition-all touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
         </div>
@@ -407,7 +407,7 @@ const NewLeadNodeUI: React.FC<InteractiveNodeUIProps<NewLeadData>> = ({ node, on
 
 const SelectKVInput: React.FC<{ value: string, onChange: (val: string) => void, options: { label: string, value: string }[] }> = ({ value, onChange, options }) => (
   <div className="relative">
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none appearance-none cursor-pointer" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500 transition-all outline-none appearance-none cursor-pointer" onMouseDown={e => e.stopPropagation()} onTouchStart={e => e.stopPropagation()}>
       <option value="" disabled>Select...</option>
       {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
     </select>
@@ -486,7 +486,7 @@ const ContactPipelineNodeUI: React.FC<NodeUIProps<ContactPipelineData>> = ({ nod
   return (
     <NodeContainer color="blue" className="group">
       <NodeHeader color="blue" title={data.label} onTitleSave={(t) => onUpdateNode(node.id, { ...data, label: t })} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<BookmarkIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3 cursor-pointer" onClick={onSettingsClick}>
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2 cursor-pointer" onClick={onSettingsClick}>
         <div className="space-y-1">
           <span className="font-bold text-slate-500 uppercase block text-[10px]">Pipeline</span>
           <div className="text-xs text-slate-300 truncate font-medium">{pipelineName || <span className="text-slate-500 italic">Not Selected</span>}</div>
@@ -521,8 +521,8 @@ const GmailNodeUI: React.FC<InteractiveNodeUIProps<GmailData>> = ({ node, onUpda
   return (
     <NodeContainer color="rose" className="group">
       <NodeHeader color="rose" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<GmailIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
           <div className="space-y-1">
             <span className="font-bold text-slate-500 uppercase block text-[10px]">To</span>
             <div className="text-xs text-slate-300 truncate font-mono">{data.to || <span className="text-slate-600 italic">Configure recipient</span>}</div>
@@ -539,13 +539,13 @@ const GmailNodeUI: React.FC<InteractiveNodeUIProps<GmailData>> = ({ node, onUpda
           )}
         </div>
 
-        <div className="space-y-3 pt-2">
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+        <div className="space-y-2 pt-2">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
             <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wide">On Sent</span>
             <div id={`h-${node.id}-true`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'true')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'true')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
 
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
             <span className="text-rose-500 text-[10px] font-bold uppercase tracking-wide">On Failure</span>
             <div id={`h-${node.id}-false`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'false')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'false')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
@@ -562,8 +562,8 @@ const SmtpNodeUI: React.FC<InteractiveNodeUIProps<SmtpData>> = ({ node, onUpdate
   return (
     <NodeContainer color="slate" className="group">
       <NodeHeader color="slate" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<MessageIcon className="w-4 h-4" />} />
-      <div className="p-4 bg-slate-900/95 flex-1 space-y-3">
-        <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
           <div className="space-y-1">
             <span className="font-bold text-slate-500 uppercase block text-[10px]">To</span>
             <div className="text-xs text-slate-300 truncate font-mono">{data.to || <span className="text-slate-600 italic">Configure recipient</span>}</div>
@@ -580,13 +580,13 @@ const SmtpNodeUI: React.FC<InteractiveNodeUIProps<SmtpData>> = ({ node, onUpdate
           )}
         </div>
 
-        <div className="space-y-3 pt-2">
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+        <div className="space-y-2 pt-2">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
             <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wide">On Sent</span>
             <div id={`h-${node.id}-true`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'true')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'true')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
 
-          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-2.5 rounded-lg border border-slate-800 group/handle">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
             <span className="text-rose-500 text-[10px] font-bold uppercase tracking-wide">On Failure</span>
             <div id={`h-${node.id}-false`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'false')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'false')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
