@@ -5,6 +5,8 @@ import { getLeads } from '../services/lead-management-api';
 import EngagementCard from './EngagementCard';
 import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useDashboardStats, useRevenueStats } from '../hooks/useDashboard';
+import { monitorApiCall } from '../utils/apiOptimization';
 
 // --- Types ---
 export interface DashboardStats {
@@ -624,9 +626,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
-            // Show UI immediately with skeleton
-            setLoading(false);
-
             const { data: { session } } = await supabase.auth.getSession();
 
             // Load stats first (faster API call)
@@ -634,10 +633,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
             }).then(res => res.ok ? res.json() : null);
 
-            // Load stats immediately
+            // Load stats and set them
             const data = await statsPromise;
             if (data) {
                 setStats(data);
+                setLoading(false); // Only hide loading after data is received
+            } else {
+                console.error('No data received from API');
+                setLoading(false);
             }
 
             // Load leads in background (slower, for revenue calculation only)
@@ -684,43 +687,36 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
         </div>
     );
 
-    // Show skeleton UI while loading initial data
+    // Show loading spinner while fetching data
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+                    <p className="text-slate-600 font-medium">Loading Dashboard...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show error if no data after loading
     if (!stats) {
         return (
-            <div className="flex flex-col h-full bg-slate-50 w-full relative overflow-hidden">
-                {/* Top Navigation Bar */}
-                <div className="shrink-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200 px-4 py-3 sm:px-8 flex items-center justify-between sticky top-0">
-                    <div className="flex items-center gap-3">
-                        {onToggleSidebar && (
-                            <button
-                                onClick={onToggleSidebar}
-                                className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                <Icons.Menu className="w-6 h-6" />
-                            </button>
-                        )}
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Dashboard</h1>
-                        </div>
+            <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+                <div className="flex flex-col items-center gap-4 max-w-md text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                     </div>
-                </div>
-
-                {/* Skeleton Content */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-8">
-                    <div className="max-w-[1800px] mx-auto space-y-6 md:space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-8">
-                            <SkeletonCard height="h-96" />
-                            <div className="md:col-span-2 lg:col-span-3">
-                                <SkeletonCard height="h-96" />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <SkeletonCard height="h-[400px]" />
-                            <SkeletonCard height="h-[400px]" />
-                            <SkeletonCard height="h-[400px]" />
-                            <SkeletonCard height="h-[400px]" />
-                        </div>
-                    </div>
+                    <h2 className="text-xl font-bold text-slate-900">Failed to Load Dashboard</h2>
+                    <p className="text-slate-600">Unable to fetch dashboard data. Please check your connection and try again.</p>
+                    <button
+                        onClick={() => { setLoading(true); loadStats(); }}
+                        className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                        Retry
+                    </button>
                 </div>
             </div>
         );
