@@ -273,13 +273,17 @@ router.post('/webhook', async (req, res) => {
         // Refactoring the logic into a shared function `processWebhookEvent(userId, phoneId, body)` would be best.
         // For now, let's just duplicate the essential call or modify the architecture slightly.
 
-        // BETTER: Attach params and call the processing function? 
-        // Let's call the logic directly.
-        await processWebhookLogic(req, res, userId, phoneNumberId);
+        // REPLY IMMEDIATELY to prevent Meta timeouts/retries
+        res.sendStatus(200);
+
+        // Process in Background
+        processWebhookLogic(req, null, userId, phoneNumberId).catch(err =>
+            console.error('[Global Webhook] Background Processing Error:', err)
+        );
 
     } catch (err) {
         console.error('[Global Webhook] Error:', err);
-        res.sendStatus(500);
+        if (!res.headersSent) res.sendStatus(500);
     }
 });
 
@@ -291,7 +295,14 @@ const processWebhookLogic = async (req, res, userId, phoneNumberId) => {
 // Legacy Parameterized POST (Keeping for backward compatibility)
 router.post('/:userId/:phoneNumberId/webhook', async (req, res) => {
     const { userId, phoneNumberId } = req.params;
-    await handleWebhookEvent(req, res, userId, phoneNumberId);
+
+    // REPLY IMMEDIATELY
+    res.sendStatus(200);
+
+    // Process in Background
+    handleWebhookEvent(req, null, userId, phoneNumberId).catch(err =>
+        console.error('[Webhook POST] Background Processing Error:', err)
+    );
 });
 
 // SHARED Webhook Event Handler
@@ -488,7 +499,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 }
             }
             console.log('[Webhook] History Sync Processed.');
-            return res.status(200).json({ status: 'success' });
+            return { status: 'success', type: 'history_sync' };
         }
 
         // --- HANDLE STATUS UPDATES (Sent, Delivered, Read) ---
@@ -585,7 +596,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     p_processed_status: 'ignored_no_messages'
                 });
             }
-            return res.status(200).json({ status: 'success' });
+            return { status: 'success', type: 'ignored_no_messages' };
         }
 
         // 3. Get Access Token for Media Download
@@ -834,11 +845,11 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
             }
         }
 
-        res.status(200).json({ status: 'success' });
+        return { status: 'success', type: 'messages_processed' };
 
     } catch (error) {
         console.error('Webhook handler error:', error);
-        res.status(200).json({ status: 'error', message: error.message });
+        return { status: 'error', message: error.message };
     }
 }
 

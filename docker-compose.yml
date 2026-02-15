@@ -57,9 +57,11 @@ services:
       - VITE_CLIENT_URL=${CLIENT_URL}
       - DOMAIN=${DOMAIN}
       - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
-      - VITE_MASTER_URL=${VITE_MASTER_URL}
+      - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       # Drip Campaign Workers Configuration
-      - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1} 
+      - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
+      # MEMORY OPTIMIZATION: Prevent OOM Kills by forcing GC before container limit (1GB)
+      - NODE_OPTIONS=--max-old-space-size=460 
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs

@@ -111,32 +111,82 @@ function getKolkataTimestamp() {
     }
 }
 
+// --- BUFFERED LOGGING SYSTEM ---
+const LOG_FLUSH_INTERVAL = 5000; // Flush to disk every 5 seconds
+const MAX_BUFFER_SIZE = 100; // Flush if buffer exceeds 100 entries
+
+const logBuffer = {
+    // key: unique file path, value: array of strings to write
+};
+
+function flushLogs() {
+    if (!canWriteToFile) return;
+
+    // Iterate over buffered files
+    Object.keys(logBuffer).forEach(filePath => {
+        const entries = logBuffer[filePath];
+        if (entries && entries.length > 0) {
+            // Join all buffered lines into one large string
+            const chunk = entries.join('');
+
+            // Clear buffer immediately for this file to handle new incoming logs
+            logBuffer[filePath] = [];
+
+            // Async write to avoid blocking event loop
+            try {
+                fs.appendFile(filePath, chunk, (err) => {
+                    if (err) console.error(`[Logger] Async Write Failed for ${path.basename(filePath)}:`, err.message);
+                });
+            } catch (e) { console.error('Logger Flush Error:', e); }
+        }
+    });
+}
+
+// Start Flush Interval
+if (canWriteToFile) {
+    setInterval(flushLogs, LOG_FLUSH_INTERVAL).unref(); // unref so it doesn't keep process alive if idle
+}
+
 function _logToFile(prefix, type, data, maxSize) {
     const timestamp = getKolkataTimestamp();
 
-    // Always console log in production for observability (optional, maybe noisy for inbox)
-    if (!canWriteToFile) {
-        // console.log(`[${timestamp}] [${type.toUpperCase()}]`, JSON.stringify(data));
-        return;
-    }
+    // Always console log in production for observability (optional)
+    if (!canWriteToFile) return;
 
     // Inject timestamp into data if it's an object
     let logData = data;
     if (typeof data === 'object' && data !== null) {
-        // Clone to avoid mutating original reference if needed, though usually safe here
-        // We use 'timestamp' field as requested by user
         logData = { ...data, timestamp: timestamp };
     }
 
     try {
+        // Determine file path (Sync check is okay here as it's cached mostly)
+        // Optimization: We could cache the current file path per prefix to avoid fs.statSync every time
         const file = getCurrentLogFile(prefix, maxSize);
+
         if (file) {
-            // Include readable timestamp in header
             const logEntry = `[${timestamp}] [${type.toUpperCase()}]\n${JSON.stringify(logData, null, 2)}\n----------------------------------------\n`;
-            fs.appendFileSync(file, logEntry);
+
+            // Add to Buffer
+            // Add to Buffer
+            if (!logBuffer[file]) logBuffer[file] = [];
+
+            // Safety measure: Prevent memory leak if buffer grows indefinitely without flush (rare but possible)
+            if (logBuffer[file].length < MAX_BUFFER_SIZE * 5) {
+                logBuffer[file].push(logEntry);
+            } else {
+                console.warn(`[Logger] Buffer overflow for ${path.basename(file)}. Dropping log.`);
+            }
+
+            // Force flush if buffer gets too big
+            if (logBuffer[file].length >= MAX_BUFFER_SIZE) {
+                flushLogs();
+            }
+
+
         }
     } catch (err) {
-        console.error(`Failed to write to log file (${prefix}):`, err);
+        console.error(`Failed to buffer log (${prefix}):`, err);
     }
 }
 
