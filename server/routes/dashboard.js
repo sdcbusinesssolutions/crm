@@ -223,7 +223,7 @@ router.get('/stats', requireAuth, async (req, res) => {
                 id: config?.phone_number_id || null,
                 quality_rating: 'LOADING', // Frontend will fetch real status
                 messaging_limit: 'CHECKING',
-                status: 'UNKNOWN',
+                status: 'LOADING',
                 name_status: 'UNKNOWN',
                 display_phone_number: null
             }
@@ -272,15 +272,13 @@ router.get('/connections', requireAuth, async (req, res) => {
                     headers: { 'Authorization': `Bearer ${accessToken}` },
                     timeout: 2500
                 });
-                if (metaRes) {
-                    phoneHealth = {
-                        quality_rating: metaRes.quality_rating || 'UNKNOWN',
-                        messaging_limit_tier: metaRes.messaging_limit_tier || 'TIER_50',
-                        status: metaRes.status || 'UNKNOWN',
-                        name_status: metaRes.name_status || 'UNKNOWN',
-                        display_phone_number: metaRes.display_phone_number || null
-                    };
-                }
+                if (metaRes) phoneHealth = {
+                    quality_rating: (metaRes.quality_rating || 'UNKNOWN').toUpperCase(),
+                    messaging_limit: (metaRes.messaging_limit_tier || 'TIER_50').toUpperCase(),
+                    status: (metaRes.status || 'UNKNOWN').toUpperCase(),
+                    name_status: (metaRes.name_status || 'UNKNOWN').toUpperCase(),
+                    display_phone_number: metaRes.display_phone_number || null
+                };
             } catch (e) {
                 // console.error('Meta Check Failed', e.message);
             }

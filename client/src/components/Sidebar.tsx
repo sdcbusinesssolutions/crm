@@ -302,8 +302,24 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     };
 
     const handleSignOut = async () => {
-        const { error } = await import('../lib/supabase').then(m => m.supabase.auth.signOut());
-        if (!error) window.location.reload();
+        try {
+            await import('../lib/supabase').then(m => m.supabase.auth.signOut());
+        } catch (error) {
+            console.error("Sign out error:", error);
+        }
+
+        // AGGRESSIVE CLEANUP: Remove all Supabase tokens from Local Storage
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        // Also remove legacy or admin tokens if present
+        localStorage.removeItem('adminToken');
+
+        // Reload to force App.tsx to re-evaluate session state
+        window.location.reload();
     };
 
     // Rendering Helpers

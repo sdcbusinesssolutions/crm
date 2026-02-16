@@ -563,7 +563,7 @@ const WhatsAppScannerCard: React.FC<{
                 </div>
                 <h3 className="font-bold text-lg tracking-tight mb-1">WhatsApp Business</h3>
                 <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${metaStatus === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' : (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')}`}>
-                    {metaStatus === 'CONNECTED' ? '● Connected' : (phone ? '● Check Connection' : '○ Disconnected')}
+                    {metaStatus === 'CONNECTED' ? '● Connected' : (metaStatus === 'LOADING' ? '● Verifying...' : (phone ? '● Check Connection' : '○ Disconnected'))}
                 </p>
                 <p className="mt-4 font-mono text-xl tracking-wider text-slate-200">{phone ? formattedPhone : 'No Number Linked'}</p>
 
@@ -573,14 +573,16 @@ const WhatsAppScannerCard: React.FC<{
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Quality</span>
                             <div className="flex items-center gap-1.5 justify-center mt-0.5">
-                                <span className={`w-2 h-2 rounded-full ${qColor} shadow-[0_0_5px_currentColor]`}></span>
-                                <span className="text-xs font-bold text-slate-200">{quality || 'Unknown'}</span>
+                                <span className={`w-2 h-2 rounded-full ${(metaStatus === 'LOADING' && !quality) ? 'bg-yellow-500 animate-pulse' : qColor} shadow-[0_0_5px_currentColor]`}></span>
+                                <span className="text-xs font-bold text-slate-200">{(metaStatus === 'LOADING' && !quality) ? 'Loading...' : (quality || 'Unknown')}</span>
                             </div>
                         </div>
                         <div className="w-px h-6 bg-white/10"></div>
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Limit</span>
-                            <span className="block text-xs font-bold text-slate-200 mt-0.5">{formatLimit(limit || '')}</span>
+                            <span className="block text-xs font-bold text-slate-200 mt-0.5 whitespace-nowrap">
+                                {(metaStatus === 'LOADING' && !limit) ? 'Loading...' : formatLimit(limit || '')}
+                            </span>
                         </div>
                     </div>
                 )}
@@ -654,10 +656,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (res.ok) {
                 const data = await res.json();
                 if (data) {
+                    // PRESERVE CONNECTION STATE:
+                    // If we have cached connection data that looks valid (not LOADING),
+                    // use it instead of the fresh 'LOADING' status from the fast fetch.
+                    const cachedStats = cached ? JSON.parse(cached) : null;
+                    if (cachedStats?.connection?.status &&
+                        cachedStats.connection.status !== 'LOADING' &&
+                        data.connection?.status === 'LOADING') {
+                        data.connection = { ...cachedStats.connection };
+                    }
+
                     setStats(data);
                     if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
-                    localStorage.setItem('dashboard_stats_cache', JSON.stringify(data));
+
+                    // Only update cache if we have a real status, or if we didn't have one before
+                    if (data.connection?.status !== 'LOADING') {
+                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(data));
+                    }
                 }
             } else {
                 if (!cached) setLoading(false);
@@ -684,7 +700,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         });
                     }
                 })
-                .catch(err => console.error('Background fetch connections error', err));
+                .catch(err => {
+                    console.error('Background fetch connections error', err);
+                    // On error, fallback to UNKNOWN so it doesn't get stuck on "Checking..."
+                    setStats(prev => {
+                        if (!prev) return prev;
+                        return {
+                            ...prev,
+                            connection: { ...prev.connection, status: 'UNKNOWN', quality_rating: 'UNKNOWN' }
+                        };
+                    });
+                });
 
         } catch (error) {
             console.error('Failed to load dashboard stats', error);
