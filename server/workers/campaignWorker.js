@@ -10,8 +10,66 @@ const MAX_CONCURRENCY = 10; // Max parallel requests
 const MAX_RETRIES = 3; // Max retry attempts for transient errors
 const RATE_LIMIT_DELAY_MS = 1000 / 20; // ~20 requests per second (Conservative)
 
+// --- Template Cache (prevents repeated Meta API calls for same template) ---
+// Key: `${wabaId}:${templateName}`, Value: { def, expiresAt }
+const TEMPLATE_CACHE = new Map();
+const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// --- Rate Limit State (per Meta docs: error code 80008 = WhatsApp Business Management API) ---
+// Meta docs: https://developers.facebook.com/docs/graph-api/overview/rate-limiting
+// Limit: 200 req/hr (default) or 5000 req/hr (active WABA with registered phone)
+// IMPORTANT: Continuing to call after limit INCREASES penalty time!
+let rateLimitedUntil = 0; // Timestamp (ms) until which we must pause ALL Meta API calls
+const RATE_LIMIT_DEFAULT_PAUSE_MS = 60 * 1000; // 60s fallback if header not available
+
+// Helper: Parse X-Business-Use-Case-Usage header to get exact wait time from Meta
+function parseMetaRateLimitHeader(headers) {
+    try {
+        const headerVal = headers?.['x-business-use-case-usage'];
+        if (!headerVal) return null;
+        const parsed = typeof headerVal === 'string' ? JSON.parse(headerVal) : headerVal;
+        // Header contains object keyed by business-object-id
+        for (const key of Object.keys(parsed)) {
+            const entries = parsed[key];
+            if (Array.isArray(entries)) {
+                for (const entry of entries) {
+                    if (entry.estimated_time_to_regain_access > 0) {
+                        return {
+                            waitMinutes: entry.estimated_time_to_regain_access,
+                            callCount: entry.call_count,
+                            totalTime: entry.total_time
+                        };
+                    }
+                    // Proactive: warn if approaching limit (>= 80%)
+                    if (entry.call_count >= 80) {
+                        console.warn(`[Worker] ⚠️ Meta API usage at ${entry.call_count}% of limit. Slowing down...`);
+                    }
+                }
+            }
+        }
+    } catch (e) { /* ignore parse errors */ }
+    return null;
+}
+
 // Helper: Sleep
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper: Get cached template or null
+function getCachedTemplate(wabaId, templateName) {
+    const key = `${wabaId}:${templateName}`;
+    const cached = TEMPLATE_CACHE.get(key);
+    if (cached && Date.now() < cached.expiresAt) {
+        return cached.def;
+    }
+    TEMPLATE_CACHE.delete(key); // Expired
+    return null;
+}
+
+// Helper: Store template in cache
+function setCachedTemplate(wabaId, templateName, def) {
+    const key = `${wabaId}:${templateName}`;
+    TEMPLATE_CACHE.set(key, { def, expiresAt: Date.now() + TEMPLATE_CACHE_TTL_MS });
+}
 
 class CampaignWorker {
     constructor(supabaseUrl, supabaseServiceKey) {
@@ -37,6 +95,14 @@ class CampaignWorker {
     async loop() {
         while (this.isRunning) {
             try {
+                // Check if we are in a rate-limit pause
+                if (Date.now() < rateLimitedUntil) {
+                    const waitSec = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+                    console.warn(`[Worker] ⏸️ Rate-limited by Meta. Pausing for ${waitSec}s...`);
+                    await sleep(Math.min(rateLimitedUntil - Date.now(), 5000)); // Check every 5s
+                    continue;
+                }
+
                 // Prevent overlapping loops if processing takes longer than sleep
                 if (!this.isProcessing) {
                     this.isProcessing = true;
@@ -167,19 +233,45 @@ class CampaignWorker {
 
         try {
             // 2. Get Standard Definition from Meta API (Components)
+            // OPTIMIZATION: Use cache to avoid hammering Meta API every 2 seconds
             if (!config.whatsapp_business_account_id) {
                 console.warn('[Worker] Missing WABA ID in config. Skipping Meta Template Fetch.');
+            } else if (Date.now() < rateLimitedUntil) {
+                // Rate-limited: skip Meta fetch, rely on local template
+                console.warn('[Worker] ⏸️ Skipping Meta API fetch (rate-limited). Using local template only.');
             } else {
-                const tmplRes = await axios.get(
-                    `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
-                    { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
-                );
+                // Check cache first
+                const cached = getCachedTemplate(config.whatsapp_business_account_id, campaign.template_name);
+                if (cached) {
+                    templateDef = cached;
+                    console.log(`[Worker] ✅ Template '${campaign.template_name}' loaded from cache.`);
+                } else {
+                    // Fetch from Meta API (only if not cached)
+                    const tmplRes = await axios.get(
+                        `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
+                        { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
+                    );
 
-                if (tmplRes.data && tmplRes.data.data) {
-                    const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
-                    if (metaDef) {
-                        templateDef = { ...metaDef };
-                        console.log(`[Worker] Meta API Def Found: YES. Components: ${metaDef.components?.length}`);
+                    // ✅ Proactive: Check usage from response headers BEFORE we hit the limit
+                    const usageInfo = parseMetaRateLimitHeader(tmplRes.headers);
+                    if (usageInfo && usageInfo.callCount >= 80) {
+                        // Approaching limit — extend cache TTL aggressively to reduce calls
+                        console.warn(`[Worker] ⚠️ Meta API at ${usageInfo.callCount}% usage. Extending cache TTL to 15min.`);
+                    }
+
+                    if (tmplRes.data && tmplRes.data.data) {
+                        const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
+                        if (metaDef) {
+                            templateDef = { ...metaDef };
+                            // Store in cache to avoid repeated API calls
+                            // Use longer TTL if approaching rate limit
+                            const ttl = (usageInfo && usageInfo.callCount >= 80)
+                                ? 15 * 60 * 1000  // 15 min if near limit
+                                : TEMPLATE_CACHE_TTL_MS; // 5 min normally
+                            const cacheKey = `${config.whatsapp_business_account_id}:${campaign.template_name}`;
+                            TEMPLATE_CACHE.set(cacheKey, { def: templateDef, expiresAt: Date.now() + ttl });
+                            console.log(`[Worker] Meta API Def Found: YES. Components: ${metaDef.components?.length} (cached ${ttl / 60000}min)`);
+                        }
                     }
                 }
             }
@@ -189,6 +281,27 @@ class CampaignWorker {
 
             if (e.response?.data) {
                 console.warn(`[Worker] Meta API Error Details:`, JSON.stringify(e.response.data));
+
+                // Detect rate-limit error (code 80008) — WhatsApp Business Management API limit
+                // Per Meta docs: STOP making calls immediately — more calls = longer penalty!
+                const errCode = e.response?.data?.error?.code;
+                if (errCode === 80008) {
+                    // Try to get exact wait time from Meta's response header
+                    const rateLimitInfo = parseMetaRateLimitHeader(e.response?.headers);
+                    let pauseMs = RATE_LIMIT_DEFAULT_PAUSE_MS;
+
+                    if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
+                        // Use Meta's exact estimated_time_to_regain_access (in minutes)
+                        pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
+                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! Meta says wait ${rateLimitInfo.waitMinutes} minutes. Pausing until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                    } else {
+                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! No header info. Pausing ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                    }
+
+                    rateLimitedUntil = Date.now() + pauseMs;
+                    // Invalidate template cache so fresh fetch happens after pause
+                    TEMPLATE_CACHE.clear();
+                }
             }
         }
 
@@ -653,6 +766,20 @@ class CampaignWorker {
                 });
             } catch (ignore) { }
 
+            // Guard: Don't send if we are currently rate-limited by Meta
+            if (Date.now() < rateLimitedUntil) {
+                const waitSec = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+                console.warn(`[Worker] ⏸️ Skipping send to ${item.phone_number} — rate-limited for ${waitSec}s more. Will retry.`);
+                // Put item back to RETRYING so it gets picked up after the pause
+                await this.supabase.from('campaign_queue').update({
+                    status: 'RETRYING',
+                    retry_count: (item.retry_count || 0),
+                    next_retry_at: new Date(rateLimitedUntil).toISOString(),
+                    error_message: 'Paused: Meta API rate limit (80008). Will retry automatically.'
+                }).eq('id', item.id);
+                return;
+            }
+
             const response = await axios.post(
                 `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
                 payload,
@@ -930,13 +1057,27 @@ class CampaignWorker {
             let isRateLimit = false;
 
             if (errorCode === 131047) {
+                // WhatsApp Cloud API messaging rate limit
                 isRateLimit = true;
+            } else if (errorCode === 80008) {
+                // WhatsApp Business Management API rate limit — pause ALL calls
+                isRateLimit = true;
+                const rateLimitInfo = parseMetaRateLimitHeader(error.response?.headers);
+                let pauseMs = RATE_LIMIT_DEFAULT_PAUSE_MS;
+                if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
+                    pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
+                    console.error(`[Worker] 🚨 80008 on SEND! Meta says wait ${rateLimitInfo.waitMinutes} min. Global pause until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                } else {
+                    console.error(`[Worker] 🚨 80008 on SEND! Pausing ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s.`);
+                }
+                rateLimitedUntil = Date.now() + pauseMs;
+                TEMPLATE_CACHE.clear();
             } else if (errorCode >= 500 || errorCode === 131006 || !error.response) {
                 shouldRetry = true;
             }
 
             if (isRateLimit) {
-                console.warn(`⚠️ Rate limit hit for campaign ${campaign.id}. Pausing.`);
+                console.warn(`⚠️ Rate limit hit for campaign ${campaign.id}. Pausing campaign.`);
                 await this.supabase.from('campaigns').update({ status: 'PAUSED' }).eq('id', campaign.id);
                 // Also mark this item to retry later
                 shouldRetry = true;
