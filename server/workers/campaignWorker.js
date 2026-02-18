@@ -15,12 +15,37 @@ const RATE_LIMIT_DELAY_MS = 1000 / 20; // ~20 requests per second (Conservative)
 const TEMPLATE_CACHE = new Map();
 const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-// --- Rate Limit State (per Meta docs: error code 80008 = WhatsApp Business Management API) ---
+// --- Rate Limit State (per-WABA — each WhatsApp Business Account is tracked independently) ---
 // Meta docs: https://developers.facebook.com/docs/graph-api/overview/rate-limiting
 // Limit: 200 req/hr (default) or 5000 req/hr (active WABA with registered phone)
 // IMPORTANT: Continuing to call after limit INCREASES penalty time!
-let rateLimitedUntil = 0; // Timestamp (ms) until which we must pause ALL Meta API calls
+// Key: wabaId (string), Value: timestamp (ms) until which that WABA is paused
+const RATE_LIMIT_MAP = new Map(); // Per-WABA rate limit tracking
 const RATE_LIMIT_DEFAULT_PAUSE_MS = 60 * 1000; // 60s fallback if header not available
+
+// Helper: Check if a specific WABA is currently rate-limited
+function isWabaRateLimited(wabaId) {
+    const until = RATE_LIMIT_MAP.get(wabaId) || 0;
+    return Date.now() < until;
+}
+
+// Helper: Get remaining wait seconds for a WABA
+function getWabaRateLimitWaitSec(wabaId) {
+    const until = RATE_LIMIT_MAP.get(wabaId) || 0;
+    return Math.max(0, Math.ceil((until - Date.now()) / 1000));
+}
+
+// Helper: Set rate limit for a specific WABA
+function setWabaRateLimit(wabaId, pauseMs) {
+    const until = Date.now() + pauseMs;
+    RATE_LIMIT_MAP.set(wabaId, until);
+    // Auto-clean after expiry to avoid memory leak
+    setTimeout(() => {
+        if ((RATE_LIMIT_MAP.get(wabaId) || 0) <= Date.now()) {
+            RATE_LIMIT_MAP.delete(wabaId);
+        }
+    }, pauseMs + 1000);
+}
 
 // Helper: Parse X-Business-Use-Case-Usage header to get exact wait time from Meta
 function parseMetaRateLimitHeader(headers) {
@@ -95,13 +120,10 @@ class CampaignWorker {
     async loop() {
         while (this.isRunning) {
             try {
-                // Check if we are in a rate-limit pause
-                if (Date.now() < rateLimitedUntil) {
-                    const waitSec = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
-                    console.warn(`[Worker] ⏸️ Rate-limited by Meta. Pausing for ${waitSec}s...`);
-                    await sleep(Math.min(rateLimitedUntil - Date.now(), 5000)); // Check every 5s
-                    continue;
-                }
+                // NOTE: Rate limits are now per-WABA, not global.
+                // We no longer pause the entire loop here — instead each campaign
+                // checks its own WABA's rate limit inside processCampaignBatch().
+                // This allows other users' campaigns to continue while one WABA is paused.
 
                 // Prevent overlapping loops if processing takes longer than sleep
                 if (!this.isProcessing) {
@@ -236,9 +258,9 @@ class CampaignWorker {
             // OPTIMIZATION: Use cache to avoid hammering Meta API every 2 seconds
             if (!config.whatsapp_business_account_id) {
                 console.warn('[Worker] Missing WABA ID in config. Skipping Meta Template Fetch.');
-            } else if (Date.now() < rateLimitedUntil) {
+            } else if (isWabaRateLimited(config.whatsapp_business_account_id)) {
                 // Rate-limited: skip Meta fetch, rely on local template
-                console.warn('[Worker] ⏸️ Skipping Meta API fetch (rate-limited). Using local template only.');
+                console.warn(`[Worker] ⏸️ Skipping Meta API fetch (rate-limited for WABA ${config.whatsapp_business_account_id}). Using local template only.`);
             } else {
                 // Check cache first
                 const cached = getCachedTemplate(config.whatsapp_business_account_id, campaign.template_name);
@@ -293,12 +315,12 @@ class CampaignWorker {
                     if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
                         // Use Meta's exact estimated_time_to_regain_access (in minutes)
                         pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
-                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! Meta says wait ${rateLimitInfo.waitMinutes} minutes. Pausing until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! Meta says wait ${rateLimitInfo.waitMinutes} minutes. Pausing WABA ${config.whatsapp_business_account_id} until ${new Date(Date.now() + pauseMs).toISOString()}`);
                     } else {
-                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! No header info. Pausing ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! No header info. Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s until ${new Date(Date.now() + pauseMs).toISOString()}`);
                     }
 
-                    rateLimitedUntil = Date.now() + pauseMs;
+                    setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
                     // Invalidate template cache so fresh fetch happens after pause
                     TEMPLATE_CACHE.clear();
                 }
@@ -767,14 +789,14 @@ class CampaignWorker {
             } catch (ignore) { }
 
             // Guard: Don't send if we are currently rate-limited by Meta
-            if (Date.now() < rateLimitedUntil) {
-                const waitSec = Math.ceil((rateLimitedUntil - Date.now()) / 1000);
+            if (isWabaRateLimited(config.whatsapp_business_account_id)) {
+                const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
                 console.warn(`[Worker] ⏸️ Skipping send to ${item.phone_number} — rate-limited for ${waitSec}s more. Will retry.`);
                 // Put item back to RETRYING so it gets picked up after the pause
                 await this.supabase.from('campaign_queue').update({
                     status: 'RETRYING',
                     retry_count: (item.retry_count || 0),
-                    next_retry_at: new Date(rateLimitedUntil).toISOString(),
+                    next_retry_at: new Date(Date.now() + (waitSec * 1000)).toISOString(),
                     error_message: 'Paused: Meta API rate limit (80008). Will retry automatically.'
                 }).eq('id', item.id);
                 return;
@@ -1066,11 +1088,11 @@ class CampaignWorker {
                 let pauseMs = RATE_LIMIT_DEFAULT_PAUSE_MS;
                 if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
                     pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
-                    console.error(`[Worker] 🚨 80008 on SEND! Meta says wait ${rateLimitInfo.waitMinutes} min. Global pause until ${new Date(Date.now() + pauseMs).toISOString()}`);
+                    console.error(`[Worker] 🚨 80008 on SEND! Meta says wait ${rateLimitInfo.waitMinutes} min. Pausing WABA ${config.whatsapp_business_account_id} until ${new Date(Date.now() + pauseMs).toISOString()}`);
                 } else {
-                    console.error(`[Worker] 🚨 80008 on SEND! Pausing ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s.`);
+                    console.error(`[Worker] 🚨 80008 on SEND! Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s.`);
                 }
-                rateLimitedUntil = Date.now() + pauseMs;
+                setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
                 TEMPLATE_CACHE.clear();
             } else if (errorCode >= 500 || errorCode === 131006 || !error.response) {
                 shouldRetry = true;

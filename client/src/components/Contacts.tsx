@@ -48,8 +48,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         const fetchCounts = async () => {
             try {
                 // Fetch counts safely
+                // NOTE: Use getContactsPaginated(1,1) to get the real total count from the server
+                // instead of getContacts() which only returns the first page (~5 items)
                 const results = await Promise.allSettled([
-                    contactService.getContacts(),
+                    contactService.getContactsPaginated(1, 1), // returns { data, total }
                     contactGroupService.getGroups(),
                     getPipelines(),
                     getForms(),
@@ -57,16 +59,22 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                     getTasks()
                 ]);
 
+                // For contacts, use the real total from the paginated response
+                const contactsResult = results[0];
+                const contactsTotal = contactsResult.status === 'fulfilled'
+                    ? (contactsResult.value as { data: any[], total: number }).total
+                    : 0;
+
                 const getValue = (result: any) => result.status === 'fulfilled' && Array.isArray(result.value) ? result.value.length : 0;
 
                 setCounts({
-                    contacts: getValue(results[0]),
+                    contacts: contactsTotal,
                     groups: getValue(results[1]),
                     pipelines: getValue(results[2]),
                     forms: getValue(results[3]),
                     inputs: getValue(results[4]),
                     followUps: getValue(results[5])
-                }); // Update counts with 0 for failed requests instead of crashing entire setCounts
+                });
             } catch (error) {
                 console.error("Failed to fetch tab counts", error);
             }

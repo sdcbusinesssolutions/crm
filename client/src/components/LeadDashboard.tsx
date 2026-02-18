@@ -31,8 +31,23 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
     const [boardData, setBoardData] = useState<KanbanBoard | null>(null);
+    // Initialize totalLeads from localStorage cache immediately (prevents flash)
+    const getInitialTotalLeads = () => {
+        try {
+            const cached = localStorage.getItem('lead_dashboard_cache');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (typeof parsed.totalLeads === 'number' && parsed.totalLeads > 0) {
+                    return parsed.totalLeads;
+                }
+            }
+        } catch (e) { /* ignore */ }
+        // Fall back to prop only if no cache exists yet
+        return typeof totalContactsCount === 'number' ? totalContactsCount : 0;
+    };
+
     const [stats, setStats] = useState({
-        totalLeads: 0,
+        totalLeads: getInitialTotalLeads(),
         totalValue: 0,
         conversionRate: '0%',
         leadsByStage: [] as { name: string; count: number; color: string; value: number }[],
@@ -55,12 +70,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         totalContactsCountRef.current = totalContactsCount;
     }, [totalContactsCount]);
 
-    // Sync total contacts count from props if provided
-    useEffect(() => {
-        if (typeof totalContactsCount === 'number') {
-            setStats(prev => ({ ...prev, totalLeads: totalContactsCount }));
-        }
-    }, [totalContactsCount]);
+    // NOTE: We intentionally do NOT sync totalContactsCount prop into stats here.
+    // The prop comes from contactService.getContacts() which is paginated (returns ~5 items).
+    // The correct total comes from /api/lead-dashboard/stats and is already in localStorage cache.
+    // Syncing the prop would cause the 5 → 2260 flash.
 
     // Unified Load Function
     const loadStats = async () => {

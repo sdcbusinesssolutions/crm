@@ -54,7 +54,7 @@ router.get('/stats', requireAuth, async (req, res) => {
             supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('forms').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),
-            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', userId), // Total leads count
+            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId), // Total Audience (Contacts) count
 
             // Recent Leads (Limit 5)
             supabase.from('leads').select('id, name, company, email, phone, status, created_at, source').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
