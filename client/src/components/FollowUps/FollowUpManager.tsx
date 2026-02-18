@@ -17,11 +17,11 @@ interface UnifiedTask extends FollowUp {
 }
 
 const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
+    const [view, setView] = useState<'list' | 'form'>('list');
     const [followUps, setFollowUps] = useState<UnifiedTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');
     const [searchTerm, setSearchTerm] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingFollowUp, setEditingFollowUp] = useState<UnifiedTask | null>(null);
 
     // Pagination
@@ -103,7 +103,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
                 // Create New (Always create as standard FollowUp for now via this UI)
                 await followUpService.createFollowUp(data);
             }
-            setIsModalOpen(false);
+            setView('list');
             loadFollowUps();
         } catch (error) {
             console.error('Failed to save task', error);
@@ -216,6 +216,43 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
         return name ? name.substring(0, 2).toUpperCase() : '??';
     };
 
+    // --- RENDER FORM VIEW ---
+    if (view === 'form') {
+        return (
+            <div className="h-full flex flex-col bg-slate-50 p-6 overflow-hidden font-sans">
+                {/* Header */}
+                <div className="flex items-center gap-4 mb-6">
+                    <button
+                        onClick={() => setView('list')}
+                        className="bg-white p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300 transition-all shadow-sm group"
+                    >
+                        <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-800">
+                            {editingFollowUp ? 'Edit Follow-Up' : 'Create New Follow-Up'}
+                        </h1>
+                        <p className="text-slate-500 text-sm">Fill in the details below to schedule your task.</p>
+                    </div>
+                </div>
+
+                {/* Form Container */}
+                <div className="flex-1 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+                        <FollowUpForm
+                            initialData={editingFollowUp || {}}
+                            onSave={handleSave}
+                            onCancel={() => setView('list')}
+                        />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // --- RENDER LIST VIEW ---
     return (
         <div className="h-full flex flex-col bg-slate-50 p-6 overflow-hidden font-sans">
             {/* Header */}
@@ -240,7 +277,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
                         Drip Campaigns
                     </button>
                     <button
-                        onClick={() => { setEditingFollowUp(null); setIsModalOpen(true); }}
+                        onClick={() => { setEditingFollowUp(null); setView('form'); }}
                         className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 shadow-md transition font-bold flex items-center gap-2"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -404,7 +441,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
                                                         Mark Done
                                                     </button>
                                                 )}
-                                                <button onClick={() => { setEditingFollowUp(item); setIsModalOpen(true); }} className="text-slate-400 hover:text-blue-600">
+                                                <button onClick={() => { setEditingFollowUp(item); setView('form'); }} className="text-slate-400 hover:text-blue-600">
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                 </button>
                                                 <button onClick={() => handleDelete(item.id, item.source)} className="text-slate-400 hover:text-red-500">
@@ -449,34 +486,6 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
                     </div>
                 </div>
             </div>
-
-            {/* Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
-                        <div className="px-6 py-4 border-b border-brand-500/30 flex justify-between items-center bg-brand-600 shadow-lg shadow-brand-900/10">
-                            <h3 className="font-bold text-lg text-white flex items-center gap-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {editingFollowUp ? 'Edit Follow-Up' : 'Create New Follow-Up'}
-                            </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-white/80 hover:text-white transition-colors p-1 hover:bg-white/10 rounded-lg">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
-                        </div>
-                        <div className="p-6 max-h-[80vh] overflow-y-auto">
-                            <FollowUpForm
-                                initialData={editingFollowUp || {}}
-                                onSave={handleSave}
-                                onCancel={() => setIsModalOpen(false)}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
