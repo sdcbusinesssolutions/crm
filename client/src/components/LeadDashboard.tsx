@@ -27,22 +27,15 @@ interface LeadDashboardProps {
 }
 
 const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContactsCount }) => {
+    const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [activePipelineId, setActivePipelineId] = useState<string | null>(null);
     const [boardData, setBoardData] = useState<KanbanBoard | null>(null);
     // Initialize totalLeads from localStorage cache immediately (prevents flash)
     const getInitialTotalLeads = () => {
-        try {
-            const cached = localStorage.getItem('lead_dashboard_cache');
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (typeof parsed.totalLeads === 'number' && parsed.totalLeads > 0) {
-                    return parsed.totalLeads;
-                }
-            }
-        } catch (e) { /* ignore */ }
-        // Fall back to prop only if no cache exists yet
+        // SECURITY: Disabled pre-load from cache to prevent cross-user data leakage.
+        // The loadStats effect will hydrate the data shortly.
         return typeof totalContactsCount === 'number' ? totalContactsCount : 0;
     };
 
@@ -80,14 +73,24 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         try {
             const { data: { session } } = await supabase.auth.getSession();
             const token = session?.access_token || '';
+            const userId = session?.user?.id;
+
+            if (!userId) return;
+            setUserId(userId);
 
             // --- 1. INSTANT LOAD: Check LocalStorage ---
             const cached = localStorage.getItem('lead_dashboard_cache');
             if (cached) {
                 try {
                     const parsed = JSON.parse(cached);
-                    processStatsData(parsed);
-                    setLoading(false);
+                    // SECURITY: Only use cache if it belongs to the current user
+                    if (parsed.userId === userId) {
+                        processStatsData(parsed);
+                        setLoading(false);
+                    } else {
+                        // clear invalid cache
+                        localStorage.removeItem('lead_dashboard_cache');
+                    }
                 } catch (e) {
                     localStorage.removeItem('lead_dashboard_cache');
                 }
@@ -101,7 +104,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             if (res.ok) {
                 const data = await res.json();
                 processStatsData(data);
-                localStorage.setItem('lead_dashboard_cache', JSON.stringify(data));
+
+                // Store with User ID for safety
+                const cacheData = { ...data, userId };
+                localStorage.setItem('lead_dashboard_cache', JSON.stringify(cacheData));
                 setLoading(false);
             }
 
@@ -154,14 +160,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
     // Re-process stats if pipeline changes (instant switch from data we already have)
     useEffect(() => {
-        if (activePipelineId) {
+        if (activePipelineId && userId) {
             const cached = localStorage.getItem('lead_dashboard_cache');
             if (cached) {
-                const data = JSON.parse(cached);
-                processStatsData(data);
+                const parsed = JSON.parse(cached);
+                // SECURITY: Verify user ownership again before using cached pipeline data
+                if (parsed.userId === userId) {
+                    processStatsData(parsed);
+                }
             }
         }
-    }, [activePipelineId]);
+    }, [activePipelineId, userId]);
 
     // If loading but we have cache (processed in stats), don't show spinner
     // Only show spinner if we have NO stats and are loading

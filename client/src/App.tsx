@@ -451,6 +451,11 @@ const MainApp: React.FC = () => {
         setSession(null);
         tokenService.clearAccessToken();
         themeService.resetTheme();
+
+        // Clear Dashboard Caches to prevent data leakage between sessions
+        localStorage.removeItem('dashboard_stats_cache');
+        localStorage.removeItem('lead_dashboard_cache');
+        localStorage.removeItem('connection_cache'); // If exists
     }, []);
 
     const handleNavigateToWhatsAppBuilder = useCallback((flowId: string | null) => {

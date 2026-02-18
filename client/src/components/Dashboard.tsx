@@ -632,21 +632,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token || '';
+            const userId = session?.user?.id;
+
             // --- 1. INSTANT LOAD: Check LocalStorage ---
             const cached = localStorage.getItem('dashboard_stats_cache');
-            if (cached) {
+            if (cached && userId) { // Only use cache if we have a user context
                 try {
                     const parsed = JSON.parse(cached);
-                    setStats(parsed);
-                    if (parsed.revenueStats) setRevenueStats(parsed.revenueStats);
-                    setLoading(false);
+                    // SECURITY: Ensure cache belongs to current user
+                    if (parsed.userId === userId) {
+                        setStats(parsed);
+                        if (parsed.revenueStats) setRevenueStats(parsed.revenueStats);
+                        setLoading(false);
+                    } else {
+                        localStorage.removeItem('dashboard_stats_cache');
+                    }
                 } catch (e) {
                     localStorage.removeItem('dashboard_stats_cache');
                 }
             }
-
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token || '';
 
             // --- 2. FAST FETCH: Main Stats (DB Only) ---
             const res = await fetch('/api/dashboard/stats', {
@@ -672,7 +678,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
                     // Only update cache if we have a real status, or if we didn't have one before
                     if (data.connection?.status !== 'LOADING') {
-                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(data));
+                        // Store with User ID
+                        const cacheData = { ...data, userId };
+                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(cacheData));
                     }
                 }
             } else {
@@ -694,8 +702,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                                 connection: { ...prev.connection, ...connData.connection },
                                 integrationStats: { ...prev.integrationStats, ...connData.integrationStats }
                             };
-                            // Update cache with full data
-                            localStorage.setItem('dashboard_stats_cache', JSON.stringify(newData));
+                            // Update cache with full data and User ID
+                            const finalCache = { ...newData, userId };
+                            localStorage.setItem('dashboard_stats_cache', JSON.stringify(finalCache));
                             return newData;
                         });
                     }
