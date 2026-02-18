@@ -44,6 +44,20 @@ router.get('/messages/:conversationId', async (req, res) => {
         const supabase = supabaseAdmin;
         const { conversationId } = req.params;
 
+        // VERIFY OWNERSHIP: Ensure this conversation belongs to the requesting user
+        // Since we use supabaseAdmin later, we must manually check this authorization.
+        const { data: ownedConv, error: ownError } = await supabaseAdmin
+            .from('conversations')
+            .select('id')
+            .eq('id', conversationId)
+            .eq('user_id', userId)
+            .single();
+
+        if (ownError || !ownedConv) {
+            console.warn(`[Inbox] Unauthorized access attempt by ${userId} to conversation ${conversationId}`);
+            return res.status(403).json({ error: 'Unauthorized or Conversation not found' });
+        }
+
         // CONFIGURATION - Increased limit for better UX
         const DEFAULT_LIMIT = 100; // Fetch more messages by default
         const limitInfo = req.query.limit ? parseInt(req.query.limit) : DEFAULT_LIMIT;
@@ -54,7 +68,7 @@ router.get('/messages/:conversationId', async (req, res) => {
         let query = supabase
             .from('messages')
             .select('*')
-            .eq('conversation_id', conversationId)
+            .eq('conversation_id', ownedConv.id) // Use the verified ID
             .order('created_at', { ascending: false })
             .limit(limitInfo);
 

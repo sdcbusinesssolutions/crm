@@ -307,15 +307,42 @@ router.post('/:userId/:phoneNumberId/webhook', async (req, res) => {
 
 // SHARED Webhook Event Handler
 async function handleWebhookEvent(req, res, userId, phoneNumberId) {
-    // const { userId, phoneNumberId } = req.params; // Handling via args
     const rawBody = req.body;
 
+    // --- SECURITY FIX: TRUST PAYLOAD METADATA OVER URL PARAMS ---
+    const entry = rawBody.entry?.[0];
+    const changes = entry?.changes?.[0];
+    const value = changes?.value;
+    const metadata = value?.metadata;
+
+    const payloadPhoneId = metadata?.phone_number_id;
+
+    if (payloadPhoneId && payloadPhoneId !== phoneNumberId) {
+        console.warn(`[Webhook Security] Mismatch detected! URL PhoneID: ${phoneNumberId} vs Payload PhoneID: ${payloadPhoneId}`);
+        console.log(`[Webhook Security] Rerouting execution to actual owner of ${payloadPhoneId}...`);
+
+        // Re-resolve User ID based on the Payload's Phone ID
+        const { data: config, error } = await supabaseAdmin
+            .from('whatsapp_config')
+            .select('user_id')
+            .eq('phone_number_id', payloadPhoneId)
+            .maybeSingle();
+
+        if (config && config.user_id) {
+            console.log(`[Webhook Security] Switched context to User: ${config.user_id}`);
+            userId = config.user_id;
+            phoneNumberId = payloadPhoneId;
+        } else {
+            console.error(`[Webhook Security] No user found for Payload PhoneID: ${payloadPhoneId}. Dropping event to prevent pollution.`);
+            return { status: 'ignored', reason: 'payload_phone_id_not_registered' };
+        }
+    }
+
     console.log(`[Webhook POST] Event received for User: ${userId}, Phone: ${phoneNumberId}`);
-    console.log('Payload:', JSON.stringify(rawBody, null, 2));
+    // console.log('Payload Snippet:', JSON.stringify(rawBody).substring(0, 500)); // Log less to save bytes
 
     try {
-        // 1. Log the raw event
-        // 1. Log the raw event
+        // 1. Log the raw event (Now logging against the CORRECT user)
         const { data: logId, error: logError } = await supabase.rpc('log_webhook_event', {
             p_user_id: userId,
             p_phone_number_id: phoneNumberId,
