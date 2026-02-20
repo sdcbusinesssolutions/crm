@@ -99,9 +99,13 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         let attempts = 0;
         const maxAttempts = 3;
 
-        // Use a clean agent to avoid connection recycling issues which can cause ECONNRESET
+        // CRITICAL FIX: Force IPv4 (family: 4) and disable Keep-Alive.
+        // Docker/VPS environments often fail IPv6 connections to Meta's CDN causing ECONNRESET.
         const https = require('https');
-        const agent = new https.Agent({ keepAlive: false });
+        const agent = new https.Agent({
+            keepAlive: false,
+            family: 4
+        });
 
         while (attempts < maxAttempts) {
             attempts++;
@@ -126,15 +130,23 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 break; // Success!
             } catch (binErr) {
                 console.error(`downloadMedia: Attempt ${attempts} failed: ${binErr.message}`);
+
+                // Safely log response details if available protecting against circular structs
                 if (binErr.response) {
                     console.error(`downloadMedia: Error Status: ${binErr.response.status}`);
+                    try {
+                        let peek = binErr.response.data;
+                        if (Buffer.isBuffer(peek)) peek = peek.toString('utf8').substring(0, 100);
+                        console.error(`downloadMedia: Error Data: ${peek}`);
+                    } catch (e) { }
                 }
+
                 if (attempts >= maxAttempts) {
                     console.error(`downloadMedia: All ${maxAttempts} attempts exhausted for ${mediaId}.`);
                     return null;
                 }
                 // Wait before retrying (exponential backoff)
-                await new Promise(resolve => setTimeout(resolve, 1500 * attempts));
+                await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
             }
         }
 
