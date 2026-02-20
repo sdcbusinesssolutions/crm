@@ -92,41 +92,49 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
         // 2. Download Media Binary (With Retry for Robustness)
-        // Added 1s grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Added 500ms grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         let buffer;
         let attempts = 0;
         const maxAttempts = 3;
+
+        // Use a clean agent to avoid connection recycling issues which can cause ECONNRESET
+        const https = require('https');
+        const agent = new https.Agent({ keepAlive: false });
+
         while (attempts < maxAttempts) {
             attempts++;
             try {
                 console.log(`downloadMedia: Downloading binary from Meta (Attempt ${attempts}/${maxAttempts})...`);
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
-                        // NOTE: We do NOT send the Authorization header here. 
-                        // urlData.url already contains a temporary signature/token in the query params.
-                        // Sending the Bearer token to lookaside.fbsbx.com can cause ECONNRESET.
+                        'Authorization': `Bearer ${accessToken}`,
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                         'Accept': '*/*'
+                        // NOTE: Accept-Encoding is omitted to avoid decompression-related ECONNRESET
                     },
                     responseType: 'arraybuffer',
-                    timeout: 60000,
+                    timeout: 45000, // 45s
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity,
-                    proxy: false // FORCE DIRECT CONNECTION
+                    proxy: false,
+                    httpsAgent: agent
                 });
                 buffer = Buffer.from(mediaResponse.data);
                 console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
                 break; // Success!
             } catch (binErr) {
                 console.error(`downloadMedia: Attempt ${attempts} failed: ${binErr.message}`);
+                if (binErr.response) {
+                    console.error(`downloadMedia: Error Status: ${binErr.response.status}`);
+                }
                 if (attempts >= maxAttempts) {
                     console.error(`downloadMedia: All ${maxAttempts} attempts exhausted for ${mediaId}.`);
                     return null;
                 }
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                // Wait before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1500 * attempts));
             }
         }
 
