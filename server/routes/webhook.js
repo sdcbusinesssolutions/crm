@@ -92,6 +92,9 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
         // 2. Download Media Binary (With Retry for Robustness)
+        // Added 1s grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         let buffer;
         let attempts = 0;
         const maxAttempts = 3;
@@ -101,15 +104,17 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 console.log(`downloadMedia: Downloading binary from Meta (Attempt ${attempts}/${maxAttempts})...`);
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`,
+                        // NOTE: We do NOT send the Authorization header here. 
+                        // urlData.url already contains a temporary signature/token in the query params.
+                        // Sending the Bearer token to lookaside.fbsbx.com can cause ECONNRESET.
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                        'Accept': '*/*',
-                        'Accept-Encoding': 'gzip, deflate, br'
+                        'Accept': '*/*'
                     },
                     responseType: 'arraybuffer',
                     timeout: 60000,
                     maxContentLength: Infinity,
-                    maxBodyLength: Infinity
+                    maxBodyLength: Infinity,
+                    proxy: false // FORCE DIRECT CONNECTION
                 });
                 buffer = Buffer.from(mediaResponse.data);
                 console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
@@ -118,13 +123,10 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 console.error(`downloadMedia: Attempt ${attempts} failed: ${binErr.message}`);
                 if (attempts >= maxAttempts) {
                     console.error(`downloadMedia: All ${maxAttempts} attempts exhausted for ${mediaId}.`);
-                    if (binErr.response) {
-                        console.error(`downloadMedia: Meta response error: ${binErr.response.status} ${binErr.response.statusText}`);
-                    }
                     return null;
                 }
-                // Wait 1 second before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
 
