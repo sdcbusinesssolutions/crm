@@ -51,6 +51,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [selectedStep, setSelectedStep] = useState<DripStep | null>(null);
     const [showCampaignSettings, setShowCampaignSettings] = useState(false);
     const [showAddMenu, setShowAddMenu] = useState(false);
+    const [showSaveFirstToast, setShowSaveFirstToast] = useState(false);
 
     // --- State: Canvas ---
     const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
@@ -131,37 +132,35 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     };
 
     // --- Actions ---
-    const handleSaveCampaign = async (exitAfterSave = true): Promise<string | null> => {
+    const handleSaveCampaign = async (exitAfterSave = true) => {
         setLoading(true);
         try {
             if (campaignId) {
                 await dripCampaignService.updateCampaign(campaignId, campaign);
                 if (exitAfterSave) onBack();
-                return campaignId;
             } else {
-                const created = await dripCampaignService.createCampaign(campaign);
+                await dripCampaignService.createCampaign(campaign);
                 if (exitAfterSave) onBack();
-                return (created as any)?.id || null;
             }
         } catch (e) {
             console.error(e);
             alert('Failed to save');
-            return null;
         } finally {
             setLoading(false);
         }
     };
 
     const handleAddStep = async (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
-        // If campaign not yet saved, auto-save silently first (no popup)
-        let activeCampaignId = campaignId;
-        if (!activeCampaignId) {
-            activeCampaignId = await handleSaveCampaign(false);
-            if (!activeCampaignId) return; // save failed
+        // If campaign not yet saved, show inline toast — don't auto-save
+        if (!campaignId) {
+            setShowSaveFirstToast(true);
+            setTimeout(() => setShowSaveFirstToast(false), 3000);
+            setShowAddMenu(false);
+            return;
         }
 
         const newStep: Partial<DripStep> = {
-            campaign_id: activeCampaignId,
+            campaign_id: campaignId,
             step_order: (campaign.steps?.length || 0) + 1,
             step_type: type,
             step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
@@ -169,8 +168,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
             delay_unit: 'DAYS'
         };
         try {
-            await dripCampaignService.createStep(activeCampaignId, newStep);
-            loadCampaign(activeCampaignId);
+            await dripCampaignService.createStep(campaignId, newStep);
+            loadCampaign(campaignId);
         } catch (e) { console.error(e); }
     };
 
@@ -283,6 +282,18 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                     {loading ? 'Saving...' : 'Save & Exit'}
                 </button>
             </div>
+
+            {/* Save-First Toast — shows when user tries to add step before saving */}
+            {showSaveFirstToast && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
+                    <div className="flex items-center gap-3 bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Please click <span className="bg-white/20 px-2 py-0.5 rounded-lg mx-1">Save &amp; Exit</span> first to save your campaign
+                    </div>
+                </div>
+            )}
 
             {/* Main Workspace */}
             <div className="flex-1 relative overflow-hidden flex">
