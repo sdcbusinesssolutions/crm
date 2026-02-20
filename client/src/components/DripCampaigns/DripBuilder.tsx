@@ -131,31 +131,37 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     };
 
     // --- Actions ---
-    const handleSaveCampaign = async (exitAfterSave = true) => {
+    const handleSaveCampaign = async (exitAfterSave = true): Promise<string | null> => {
         setLoading(true);
         try {
             if (campaignId) {
                 await dripCampaignService.updateCampaign(campaignId, campaign);
                 if (exitAfterSave) onBack();
+                return campaignId;
             } else {
-                await dripCampaignService.createCampaign(campaign);
+                const created = await dripCampaignService.createCampaign(campaign);
                 if (exitAfterSave) onBack();
+                return (created as any)?.id || null;
             }
         } catch (e) {
             console.error(e);
             alert('Failed to save');
+            return null;
         } finally {
             setLoading(false);
         }
     };
 
     const handleAddStep = async (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
-        if (!campaignId) {
-            if (window.confirm("Please save first.")) handleSaveCampaign(true);
-            return;
+        // If campaign not yet saved, auto-save silently first (no popup)
+        let activeCampaignId = campaignId;
+        if (!activeCampaignId) {
+            activeCampaignId = await handleSaveCampaign(false);
+            if (!activeCampaignId) return; // save failed
         }
+
         const newStep: Partial<DripStep> = {
-            campaign_id: campaignId,
+            campaign_id: activeCampaignId,
             step_order: (campaign.steps?.length || 0) + 1,
             step_type: type,
             step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
@@ -163,8 +169,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
             delay_unit: 'DAYS'
         };
         try {
-            await dripCampaignService.createStep(campaignId, newStep);
-            loadCampaign(campaignId);
+            await dripCampaignService.createStep(activeCampaignId, newStep);
+            loadCampaign(activeCampaignId);
         } catch (e) { console.error(e); }
     };
 
