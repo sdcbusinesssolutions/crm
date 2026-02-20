@@ -1,4 +1,14 @@
 const axios = require('axios');
+const https = require('https');
+
+// --- Global HTTPS Agent with Keep-Alive for high performance ---
+const httpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 100, // Handle up to 100 concurrent connections
+    maxFreeSockets: 10,
+    timeout: 30000 // 30s timeout
+});
+
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 const FormData = require('form-data'); // Ensure FormData is available for Node.js
 const { logInboxMessage } = require('../utils/logger');
@@ -97,7 +107,8 @@ class WhatsAppService {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                httpsAgent: httpsAgent
             });
 
             console.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
@@ -332,7 +343,8 @@ class WhatsAppService {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                     ...formData.getHeaders()
-                }
+                },
+                httpsAgent: httpsAgent
             });
 
             console.log('Media Upload Success. ID:', response.data.id);
@@ -365,7 +377,8 @@ class WhatsAppService {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                httpsAgent: httpsAgent
             });
 
             console.log(`Message ${messageId} marked as read.`);

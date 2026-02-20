@@ -1,5 +1,15 @@
 const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
+const https = require('https');
+
+// --- Global HTTPS Agent with Keep-Alive for high performance ---
+const httpsAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 100, // Handle up to 100 concurrent connections
+    maxFreeSockets: 10,
+    timeout: 30000 // 30s timeout
+});
+
 const { logCampaignRequest } = require('../utils/logger');
 const whatsappService = require('../services/whatsappService');
 
@@ -271,7 +281,10 @@ class CampaignWorker {
                     // Fetch from Meta API (only if not cached)
                     const tmplRes = await axios.get(
                         `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
-                        { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
+                        {
+                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                            httpsAgent: httpsAgent
+                        }
                     );
 
                     // ✅ Proactive: Check usage from response headers BEFORE we hit the limit
@@ -805,7 +818,10 @@ class CampaignWorker {
             const response = await axios.post(
                 `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
                 payload,
-                { headers: { 'Authorization': `Bearer ${config.meta_access_token}` } }
+                {
+                    headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                    httpsAgent: httpsAgent
+                }
             );
 
             // LOG SUCCESS RESPONSE
