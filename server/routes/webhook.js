@@ -398,7 +398,8 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     }
                 }
             }
-            return res.status(200).json({ status: 'success' });
+            if (res) return res.status(200).json({ status: 'success' });
+            return { status: 'success' };
         }
 
         // --- HANDLE COEXISTENCE ECHOES (SMB_MESSAGE_ECHOES) ---
@@ -458,7 +459,8 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 });
                 console.log(`[Webhook] Saved Echo Message for ${contactPhone}`);
             }
-            return res.status(200).json({ status: 'success' });
+            if (res) return res.status(200).json({ status: 'success' });
+            return { status: 'success' };
         }
 
         // --- HANDLE HISTORY SYNC ---
@@ -612,7 +614,8 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     }
                 }
             }
-            return res.status(200).json({ status: 'success' });
+            if (res) return res.status(200).json({ status: 'success' });
+            return { status: 'success' };
         }
 
         if (!messages || !Array.isArray(messages)) {
