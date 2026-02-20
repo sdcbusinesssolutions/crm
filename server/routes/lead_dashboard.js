@@ -50,7 +50,7 @@ router.get('/stats', requireAuth, async (req, res) => {
             stagesRes,              // 10
             tagsListRes             // 11
         ] = await Promise.all([
-            supabase.from('pipelines').select('*').eq('user_id', userId).order('created_at'),
+            supabase.from('pipelines').select('id, name, is_default').eq('user_id', userId).order('created_at'),
             supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('forms').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),

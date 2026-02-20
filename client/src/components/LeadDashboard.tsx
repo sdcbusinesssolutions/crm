@@ -83,12 +83,15 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             if (cached) {
                 try {
                     const parsed = JSON.parse(cached);
-                    // SECURITY: Only use cache if it belongs to the current user
-                    if (parsed.userId === userId) {
-                        processStatsData(parsed);
+                    // SECURITY: Verify user and check staleness (1 hour max)
+                    const isStale = !parsed.timestamp || (Date.now() - parsed.timestamp > 3600000);
+                    if (parsed.userId === userId && !isStale) {
+                        processStatsData(parsed.data);
                         setLoading(false);
+                    } else if (isStale && parsed.userId === userId) {
+                        // Use stale data temporarily but stay in loading state
+                        processStatsData(parsed.data);
                     } else {
-                        // clear invalid cache
                         localStorage.removeItem('lead_dashboard_cache');
                     }
                 } catch (e) {
@@ -105,9 +108,23 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 const data = await res.json();
                 processStatsData(data);
 
-                // Store with User ID for safety
-                const cacheData = { ...data, userId };
-                localStorage.setItem('lead_dashboard_cache', JSON.stringify(cacheData));
+                // OPTIMIZATION: Prune data for storage (Remove bulky DB fields)
+                const prunedData = {
+                    ...data,
+                    pipelines: (data.pipelines || []).map((p: any) => ({
+                        id: p.id,
+                        name: p.name,
+                        is_default: p.is_default
+                    }))
+                };
+
+                // Store with User ID and Timestamp
+                const cacheWrapper = {
+                    data: prunedData,
+                    userId,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('lead_dashboard_cache', JSON.stringify(cacheWrapper));
                 setLoading(false);
             }
 
@@ -166,7 +183,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 const parsed = JSON.parse(cached);
                 // SECURITY: Verify user ownership again before using cached pipeline data
                 if (parsed.userId === userId) {
-                    processStatsData(parsed);
+                    processStatsData(parsed.data);
                 }
             }
         }

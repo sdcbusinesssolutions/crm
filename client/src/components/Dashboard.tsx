@@ -563,8 +563,8 @@ const WhatsAppScannerCard: React.FC<{
                 </div>
                 <h3 className="font-bold text-lg tracking-tight mb-1">WhatsApp Business</h3>
                 <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${metaStatus === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' :
-                        metaStatus === 'LOADING' ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse' :
-                            (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')
+                    metaStatus === 'LOADING' ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse' :
+                        (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')
                     }`}>
                     {metaStatus === 'CONNECTED' ? '● Connected' : (metaStatus === 'LOADING' ? '● Verifying...' : (phone ? '● Check Connection' : '○ Disconnected'))}
                 </p>
@@ -641,14 +641,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
             // --- 1. INSTANT LOAD: Check LocalStorage ---
             const cached = localStorage.getItem('dashboard_stats_cache');
-            if (cached && userId) { // Only use cache if we have a user context
+            if (cached && userId) {
                 try {
                     const parsed = JSON.parse(cached);
-                    // SECURITY: Ensure cache belongs to current user
-                    if (parsed.userId === userId) {
-                        setStats(parsed);
-                        if (parsed.revenueStats) setRevenueStats(parsed.revenueStats);
+                    // SECURITY: Verify user and check staleness (1 hour max)
+                    const isStale = !parsed.timestamp || (Date.now() - parsed.timestamp > 3600000);
+                    if (parsed.userId === userId && !isStale) {
+                        setStats(parsed.data);
+                        if (parsed.data.revenueStats) setRevenueStats(parsed.data.revenueStats);
                         setLoading(false);
+                    } else if (isStale && parsed.userId === userId) {
+                        // Use stale data temporarily but stay in loading state
+                        setStats(parsed.data);
+                        if (parsed.data.revenueStats) setRevenueStats(parsed.data.revenueStats);
                     } else {
                         localStorage.removeItem('dashboard_stats_cache');
                     }
@@ -665,25 +670,27 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (res.ok) {
                 const data = await res.json();
                 if (data) {
-                    // PRESERVE CONNECTION STATE:
-                    // If we have cached connection data that looks valid (not LOADING),
-                    // use it instead of the fresh 'LOADING' status from the fast fetch.
-                    const cachedStats = cached ? JSON.parse(cached) : null;
-                    if (cachedStats?.connection?.status &&
-                        cachedStats.connection.status !== 'LOADING' &&
+                    // PRESERVE CONNECTION STATE from stale cache if valid
+                    const cachedWrapper = cached ? JSON.parse(cached) : null;
+                    const cachedData = cachedWrapper?.data;
+                    if (cachedData?.connection?.status &&
+                        cachedData.connection.status !== 'LOADING' &&
                         data.connection?.status === 'LOADING') {
-                        data.connection = { ...cachedStats.connection };
+                        data.connection = { ...cachedData.connection };
                     }
 
                     setStats(data);
                     if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
 
-                    // Only update cache if we have a real status, or if we didn't have one before
+                    // Only update cache if we have a real status
                     if (data.connection?.status !== 'LOADING') {
-                        // Store with User ID
-                        const cacheData = { ...data, userId };
-                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(cacheData));
+                        const cacheWrapper = {
+                            data,
+                            userId,
+                            timestamp: Date.now()
+                        };
+                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(cacheWrapper));
                     }
                 }
             } else {
@@ -691,7 +698,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             }
 
             // --- 3. LAZY FETCH: Connections (External APIs) ---
-            // Don't block UI. Fetch connection health in background.
             fetch('/api/dashboard/connections', {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
@@ -705,8 +711,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                                 connection: { ...prev.connection, ...connData.connection },
                                 integrationStats: { ...prev.integrationStats, ...connData.integrationStats }
                             };
-                            // Update cache with full data and User ID
-                            const finalCache = { ...newData, userId };
+                            // Update cache wrapper
+                            const finalCache = {
+                                data: newData,
+                                userId,
+                                timestamp: Date.now()
+                            };
                             localStorage.setItem('dashboard_stats_cache', JSON.stringify(finalCache));
                             return newData;
                         });
