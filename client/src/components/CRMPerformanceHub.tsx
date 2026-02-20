@@ -53,9 +53,9 @@ const Icons = {
 
 
 const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (item: MenuItem) => void }> = ({ stats, onNavigate }) => {
-    // --- Data - Use Realistic Mocks for "Demo" visual if empty, or real data ---
-    const totalLeads = stats?.summary.totalContacts || 2971; // Mock defaults matched to reference for "Dynamic" look 
-    const activeLeads = stats?.summary.activeLeads || 1034;
+    // --- Data - Use real stats from props. Fallback to 0 (no mocks) ---
+    const totalLeads = stats?.summary.totalContacts || 0;
+    const activeLeads = stats?.summary.activeLeads || 0;
     const inactiveLeads = totalLeads - activeLeads; // ~1900
 
     const [isGaugeHovered, setIsGaugeHovered] = useState(false);
@@ -150,7 +150,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
         { label: 'Tags', val: 0, icon: <Icons.Tag className="w-4 h-4 text-purple-500" />, target: 'Tags' }, // Placeholder for now
         { label: 'Form Builder', val: stats?.summary.totalFlows || 0, icon: <Icons.Flow className="w-4 h-4 text-orange-500" />, target: 'Form Builder' },
         { label: 'WhatsForm', val: stats?.integrationStats?.breakdown?.['whatsform'] || 0, icon: <Icons.Globe className="w-4 h-4 text-green-500" />, target: 'Whatsapp Forms' },
-        { label: 'Sheet Automation', val: stats?.integrationStats?.breakdown?.['google'] || 0, icon: <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7.5-4h15M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" /></svg>, target: 'Sheet Automation' }
+        { label: 'Sheet Automation', val: stats?.integrationStats?.breakdown?.['google'] || 0, icon: <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7.5-4h15M3 6a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6z" /></svg>, target: 'G Automation' }
     ];
 
     return (

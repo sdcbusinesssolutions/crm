@@ -19,6 +19,8 @@ const getStartDate = (period) => {
 
 // 1. MAIN STATS (DB Only - Fast <300ms)
 router.get('/stats', requireAuth, async (req, res) => {
+    // SECURITY: Disable all browser-level caching for API to prevent cross-user leakage on shared machines.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     try {
         const userId = req.user.id;
 
@@ -267,10 +269,15 @@ router.get('/connections', requireAuth, async (req, res) => {
         // Real-time Meta Check (The slow part)
         if (whatsAppId && accessToken) {
             try {
+                // Use HTTPS Agent for better performance/reused connections
+                const https = require('https');
+                const agent = new https.Agent({ keepAlive: true });
+
                 const metaUrl = `https://graph.facebook.com/v21.0/${whatsAppId}?fields=quality_rating,messaging_limit_tier,status,name_status,display_phone_number`;
                 const { data: metaRes } = await require('axios').get(metaUrl, {
                     headers: { 'Authorization': `Bearer ${accessToken}` },
-                    timeout: 2500
+                    timeout: 5000, // Increased to 5s
+                    httpsAgent: agent
                 });
                 if (metaRes) phoneHealth = {
                     quality_rating: (metaRes.quality_rating || 'UNKNOWN').toUpperCase(),

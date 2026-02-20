@@ -308,7 +308,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             console.error("Sign out error:", error);
         }
 
-        // AGGRESSIVE CLEANUP: Remove all Supabase tokens from Local Storage
+        // AGGRESSIVE CLEANUP: Remove all Supabase tokens and dashboard caches from Local Storage
+        localStorage.removeItem('dashboard_stats_cache');
+        localStorage.removeItem('lead_dashboard_cache');
+        localStorage.removeItem('connection_cache');
+        localStorage.removeItem('theme_cache'); // Also clear theme to avoid flashing old brand colors
+
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
                 localStorage.removeItem(key);

@@ -33,6 +33,19 @@ const ImpersonationBanner = () => {
         try {
             await supabase.auth.signOut();
             sessionStorage.removeItem('is_impersonating');
+
+            // AGGRESSIVE CLEANUP: Remove dashboard caches
+            localStorage.removeItem('dashboard_stats_cache');
+            localStorage.removeItem('lead_dashboard_cache');
+            localStorage.removeItem('connection_cache');
+            localStorage.removeItem('theme_cache');
+
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                    localStorage.removeItem(key);
+                }
+            });
+
             // Redirect to Admin Panel
             // Assuming Admin Panel is on the same domain under /admin
             window.location.href = '/admin/auth/login';

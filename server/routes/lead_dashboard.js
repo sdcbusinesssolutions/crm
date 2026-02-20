@@ -17,6 +17,8 @@ const getStartDate = (period) => {
 
 // GET /api/lead-dashboard/stats
 router.get('/stats', requireAuth, async (req, res) => {
+    // SECURITY: Disable all browser-level caching for API to prevent cross-user leakage on shared machines.
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     try {
         const userId = req.user.id;
 
@@ -27,8 +29,6 @@ router.get('/stats', requireAuth, async (req, res) => {
         const cacheTTL = 60 * 1000;
 
         if (cached && (Date.now() - cached.timestamp < cacheTTL) && !req.query.force) {
-            // Add Browser Cache Header
-            res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=59');
             return res.json(cached.data);
         }
 
@@ -165,8 +165,6 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         // Add Cache-Control Header for Browser Caching (30s stale allow, 10s fresh)
         // This ensures subsequent navigations (within 10s) are INSTANT (disk cache).
-        res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=59');
-
         res.json(responseData);
 
     } catch (error) {

@@ -562,7 +562,10 @@ const WhatsAppScannerCard: React.FC<{
                     </div>
                 </div>
                 <h3 className="font-bold text-lg tracking-tight mb-1">WhatsApp Business</h3>
-                <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${metaStatus === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' : (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')}`}>
+                <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${metaStatus === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' :
+                        metaStatus === 'LOADING' ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse' :
+                            (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')
+                    }`}>
                     {metaStatus === 'CONNECTED' ? '● Connected' : (metaStatus === 'LOADING' ? '● Verifying...' : (phone ? '● Check Connection' : '○ Disconnected'))}
                 </p>
                 <p className="mt-4 font-mono text-xl tracking-wider text-slate-200">{phone ? formattedPhone : 'No Number Linked'}</p>

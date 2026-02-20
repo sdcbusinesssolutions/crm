@@ -316,6 +316,12 @@ const MainApp: React.FC = () => {
             // 3. Perform Tenancy Check Asynchronously (Background)
             // We don't want to block the initial UI render or causing race conditions with AuthPage
             if (event === 'SIGNED_IN' && session) {
+                // FAIL-SAFE: Clear all dashboard caches on new sign-in
+                // ensures we never show remnants of a previous user session.
+                localStorage.removeItem('dashboard_stats_cache');
+                localStorage.removeItem('lead_dashboard_cache');
+                localStorage.removeItem('connection_cache');
+
                 // Small delay to allow local storage propogation if needed
                 await new Promise(resolve => setTimeout(resolve, 100));
 
