@@ -138,6 +138,7 @@ class SheetAutomationService {
         );
 
         oauth2Client.setCredentials(creds);
+        oauth2Client._connectionId = connectionId; // Store for retry logic
 
         // PROACTIVE REFRESH: Check if token is expired or expiring soon (within 5 mins)
         // expiry_date is in milliseconds
@@ -472,24 +473,52 @@ class SheetAutomationService {
             let isRecurring = false; // Moved to top scope to prevent ReferenceError
             // 2. Setup Auth (Get Token)
             const authClient = await this.getAuthClient(auto.user_id, auto.connection_id);
-            const accessToken = authClient.credentials.access_token;
+            const creds = authClient.credentials;
 
-            if (!accessToken) throw new Error('Failed to retrieve Access Token');
-
-            // 3. Fetch Data (Using Axios directly to bypass Gaxios/Proxy issues)
+            // 3. Fetch Data (Using a helper to handle Refresh on 401)
             const spreadsheetId = auto.spreadsheet_id;
             const range = encodeURIComponent(auto.sheet_name);
             const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
 
-            console.log(`[SheetAutomation] Fetching sheet data via Axios: ${url}`);
+            console.log(`[SheetAutomation] Fetching sheet data: ${url}`);
 
-            const response = await axios.get(url, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                },
-                proxy: false // FORCE NO PROXY
-            });
+            let response;
+            try {
+                response = await axios.get(url, {
+                    headers: {
+                        'Authorization': `Bearer ${creds.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    proxy: false
+                });
+            } catch (firstErr) {
+                if (firstErr.response && firstErr.response.status === 401 && creds.refresh_token) {
+                    console.log('[SheetAuto] Access Token expired (401). Refreshing...');
+                    try {
+                        const { credentials } = await authClient.refreshAccessToken();
+                        console.log('[SheetAuto] Token refreshed. Retrying request...');
+
+                        // Update DB with new tokens
+                        await supabaseAdmin
+                            .from('user_integrations')
+                            .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
+                            .eq('id', auto.connection_id);
+
+                        response = await axios.get(url, {
+                            headers: {
+                                'Authorization': `Bearer ${credentials.access_token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            proxy: false
+                        });
+                    } catch (refreshErr) {
+                        console.error('[SheetAuto] Token refresh failed:', refreshErr.message);
+                        throw firstErr;
+                    }
+                } else {
+                    throw firstErr;
+                }
+            }
 
             const rows = response.data.values;
             if (!rows || rows.length < 2) {
@@ -1351,28 +1380,50 @@ class SheetAutomationService {
     }
 
     async writeStatus(authClient, spreadsheetId, sheetName, rowIndex, colIndex, status) {
+        const creds = authClient.credentials;
+        const colLetter = this.getColLetter(colIndex);
+        const range = `${sheetName}!${colLetter}${rowIndex}`;
+        const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
+
         try {
-            // Use AXIOS directly to avoid Gaxios Proxy issues
-            const accessToken = authClient.credentials.access_token;
-            if (!accessToken) throw new Error('No access token for write status');
-
-            const colLetter = this.getColLetter(colIndex);
-            const range = `${sheetName}!${colLetter}${rowIndex}`;
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`;
-
             await axios.put(url, {
                 values: [[status]]
             }, {
                 headers: {
-                    'Authorization': `Bearer ${accessToken}`,
+                    'Authorization': `Bearer ${creds.access_token}`,
                     'Content-Type': 'application/json'
                 },
                 proxy: false
             });
-
             console.log(`[SheetAuto] Updated status to '${status}' at ${range}`);
         } catch (err) {
-            console.error('[SheetAuto] Failed to write status:', err.message);
+            if (err.response && err.response.status === 401 && creds.refresh_token) {
+                console.log('[SheetAuto] Write Status: Token expired (401). Refreshing...');
+                try {
+                    const { credentials } = await authClient.refreshAccessToken();
+
+                    // Update DB
+                    await supabaseAdmin
+                        .from('user_integrations')
+                        .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
+                        .eq('id', authClient._connectionId || ''); // Note: we might need to store connectionId on authClient
+
+                    await axios.put(url, {
+                        values: [[status]]
+                    }, {
+                        headers: {
+                            'Authorization': `Bearer ${credentials.access_token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        proxy: false
+                    });
+                    console.log(`[SheetAuto] Updated status (after refresh) to '${status}' at ${range}`);
+                } catch (refreshErr) {
+                    console.error('[SheetAuto] Write status refresh failed:', refreshErr.message);
+                }
+            } else {
+                console.error('[SheetAuto] Failed to write status:', err.message);
+            }
         }
     }
 

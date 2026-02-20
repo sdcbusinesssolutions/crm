@@ -64,28 +64,69 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             return null;
         }
 
-        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId}`);
+        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId} using v21.0`);
 
-        // 1. Get Media URL from Meta
-        const urlResponse = await axios.get(`https://graph.facebook.com/v18.0/${mediaId}`, {
-            headers: { Authorization: `Bearer ${accessToken}` }
-        });
-
-        const urlData = urlResponse.data;
-        if (!urlData || !urlData.url) {
-            console.error('downloadMedia: No URL in response', urlData);
-            return null;
+        // 1. Get Media URL from Meta (Upgraded to v21.0 with Retry)
+        let urlData;
+        let metaAttempts = 0;
+        const maxMetaAttempts = 2;
+        while (metaAttempts < maxMetaAttempts) {
+            metaAttempts++;
+            try {
+                const urlResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    timeout: 15000
+                });
+                urlData = urlResponse.data;
+                if (urlData && urlData.url) break;
+            } catch (urlErr) {
+                console.error(`downloadMedia: Meta metadata fetch attempt ${metaAttempts} failed: ${urlErr.message}`);
+                if (metaAttempts >= maxMetaAttempts) {
+                    console.error(`downloadMedia: Failed to fetch media metadata for ${mediaId} after ${maxMetaAttempts} tries.`);
+                    return null;
+                }
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
 
-        console.log(`downloadMedia: Downloading binary from ${urlData.url}`);
+        console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
-        // 2. Download Media Binary
-        const mediaResponse = await axios.get(urlData.url, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            responseType: 'arraybuffer'
-        });
-
-        const buffer = Buffer.from(mediaResponse.data);
+        // 2. Download Media Binary (With Retry for Robustness)
+        let buffer;
+        let attempts = 0;
+        const maxAttempts = 3;
+        while (attempts < maxAttempts) {
+            attempts++;
+            try {
+                console.log(`downloadMedia: Downloading binary from Meta (Attempt ${attempts}/${maxAttempts})...`);
+                const mediaResponse = await axios.get(urlData.url, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                        'Accept': '*/*',
+                        'Accept-Encoding': 'gzip, deflate, br'
+                    },
+                    responseType: 'arraybuffer',
+                    timeout: 60000,
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity
+                });
+                buffer = Buffer.from(mediaResponse.data);
+                console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
+                break; // Success!
+            } catch (binErr) {
+                console.error(`downloadMedia: Attempt ${attempts} failed: ${binErr.message}`);
+                if (attempts >= maxAttempts) {
+                    console.error(`downloadMedia: All ${maxAttempts} attempts exhausted for ${mediaId}.`);
+                    if (binErr.response) {
+                        console.error(`downloadMedia: Meta response error: ${binErr.response.status} ${binErr.response.statusText}`);
+                    }
+                    return null;
+                }
+                // Wait 1 second before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
 
         // 3. Upload to Supabase Storage Directly (No Local Save)
         const mimeType = urlData.mime_type || 'application/octet-stream';
@@ -94,20 +135,23 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         let finalPublicUrl = null;
 
         try {
-            const bucketName = 'campaign-media'; // Use the EXISTING bucket
+            const bucketName = 'campaign-media';
             const dateStr = new Date().toISOString().split('T')[0];
             const storagePath = `${userId}/inbound/${dateStr}/${filename}`;
+
+            console.log(`downloadMedia: Uploading to Supabase bucket ${bucketName} path ${storagePath} (${buffer.length} bytes)`);
 
             // Upload
             const { error: uploadError } = await supabaseAdmin.storage
                 .from(bucketName)
                 .upload(storagePath, buffer, {
                     contentType: mimeType,
+                    cacheControl: '3600',
                     upsert: false
                 });
 
             if (uploadError) {
-                console.error('Supabase Storage Upload Failed:', uploadError.message);
+                console.error(`downloadMedia: Supabase Storage Upload Failed for ${mediaId}:`, uploadError.message);
                 return null;
             }
 
@@ -118,10 +162,12 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
 
             if (publicUrlData && publicUrlData.publicUrl) {
                 finalPublicUrl = publicUrlData.publicUrl;
-                console.log(`Media uploaded to Supabase: ${finalPublicUrl}`);
+                console.log(`downloadMedia: Success. Public URL: ${finalPublicUrl}`);
+            } else {
+                console.error(`downloadMedia: Failed to get public URL for ${storagePath}`);
             }
         } catch (storageErr) {
-            console.error('Supabase Storage Exception:', storageErr);
+            console.error(`downloadMedia: Supabase Storage Exception for ${mediaId}:`, storageErr.message);
             return null;
         }
 
@@ -132,10 +178,7 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             type: mimeType.split('/')[0] // 'image', 'video' etc.
         };
     } catch (error) {
-        console.error('Media download exception:', error.message);
-        if (error.response) {
-            console.error('Error Response:', error.response.status, error.response.data);
-        }
+        console.error('Media download overall exception:', error.message);
         return null;
     }
 };
@@ -785,14 +828,21 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 if (isMedia && extracted.mediaId) {
                     if (accessToken) {
                         try {
+                            console.log(`[Webhook] Processing Media message from ${extracted.from} (ID: ${extracted.mediaId})`);
                             const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
-                            if (mediaData) {
+                            if (mediaData && mediaData.url) {
                                 mediaUrl = mediaData.url;
                                 mimeType = mediaData.mime_type;
                                 filename = extracted.filename || mediaData.filename;
-                                console.log(`Media downloaded: ${mediaUrl}`);
+                                console.log(`[Webhook] Media success for ${extracted.from}: ${mediaUrl}`);
+                            } else {
+                                console.error(`[Webhook] Media download returned NULL for ${extracted.mediaId} from ${extracted.from}`);
                             }
-                        } catch (mediaErr) { console.error('Media Download Error:', mediaErr); }
+                        } catch (err) {
+                            console.error(`[Webhook] Exception in media processing for ${extracted.from}:`, err.message);
+                        }
+                    } else {
+                        console.warn(`[Webhook] Skipping media download for ${extracted.from} - No access token found.`);
                     }
                 }
 
