@@ -842,33 +842,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
                 }
 
-                // --- MEDIA DOWNLOAD ---
-                let mediaUrl = null;
-                let filename = null;
-                let mimeType = null;
-
-                if (isMedia && extracted.mediaId) {
-                    if (accessToken) {
-                        try {
-                            console.log(`[Webhook] Processing Media message from ${extracted.from} (ID: ${extracted.mediaId})`);
-                            const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
-                            if (mediaData && mediaData.url) {
-                                mediaUrl = mediaData.url;
-                                mimeType = mediaData.mime_type;
-                                filename = extracted.filename || mediaData.filename;
-                                console.log(`[Webhook] Media success for ${extracted.from}: ${mediaUrl}`);
-                            } else {
-                                console.error(`[Webhook] Media download returned NULL for ${extracted.mediaId} from ${extracted.from}`);
-                            }
-                        } catch (err) {
-                            console.error(`[Webhook] Exception in media processing for ${extracted.from}:`, err.message);
-                        }
-                    } else {
-                        console.warn(`[Webhook] Skipping media download for ${extracted.from} - No access token found.`);
-                    }
-                }
-
-                // --- MANUAL DB OPERATIONS (Sequential) ---
+                // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact
                 let contactId = null;
                 const { data: contactData } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
@@ -891,15 +865,17 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     conversationId = newConv?.id;
                 }
 
-                // 3. Insert Message
+                // 3. Insert Message IMMEDIATELY (with media_url = null for now if media)
+                //    The message appears in inbox RIGHT AWAY. Media is fetched in background.
+                // isMedia already declared above at line 832
                 const insertPayload = {
                     conversation_id: conversationId,
                     direction: 'in',
                     type: extracted.type,
                     text: dbMessageText,
-                    media_url: mediaUrl || null,
-                    filename: filename || null,
-                    mime_type: mimeType || null,
+                    media_url: null, // Will be updated in background if media
+                    filename: extracted.filename || null,
+                    mime_type: extracted.mimeType || null,
                     whatsapp_message_id: extracted.id,
                     status: 'delivered',
                     created_at: new Date(extracted.timestamp * 1000).toISOString(),
@@ -908,6 +884,44 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 };
 
                 const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
+                const savedMessageId = result?.id;
+
+                // --- FIRE-AND-FORGET: Download media in the background, then update the DB row ---
+                if (isMedia && extracted.mediaId && accessToken && savedMessageId) {
+                    (async () => {
+                        try {
+                            console.log(`[Webhook] BG: Downloading media for msg ${savedMessageId} (ID: ${extracted.mediaId})`);
+                            const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
+                            if (mediaData && mediaData.url) {
+                                // Update the message row with the real media URL
+                                const { error: updateErr } = await supabaseAdmin
+                                    .from('messages')
+                                    .update({
+                                        media_url: mediaData.url,
+                                        mime_type: mediaData.mime_type || null,
+                                        filename: extracted.filename || mediaData.filename || null
+                                    })
+                                    .eq('id', savedMessageId);
+
+                                if (updateErr) {
+                                    console.error(`[Webhook] BG: Failed to update media_url for msg ${savedMessageId}:`, updateErr.message);
+                                } else {
+                                    console.log(`[Webhook] BG: Media URL saved for msg ${savedMessageId}: ${mediaData.url}`);
+                                }
+                            } else {
+                                console.warn(`[Webhook] BG: Media download failed for msg ${savedMessageId} (mediaId: ${extracted.mediaId})`);
+                            }
+                        } catch (bgErr) {
+                            console.error(`[Webhook] BG: Exception downloading media for msg ${savedMessageId}:`, bgErr.message);
+                        }
+                    })(); // Fire and forget - do not await
+                }
+
+                // Media vars for Flow Engine
+                // Since we now download in background, flow engine gets null url initially
+                const mediaUrl = null;
+                const mimeType = extracted.mimeType || null;
+                const filename = extracted.filename || null;
 
                 if (logId) {
                     await supabase.rpc('update_webhook_log', {
