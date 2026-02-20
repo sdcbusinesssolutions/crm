@@ -8,9 +8,10 @@ interface FollowUpFormProps {
     initialData?: Partial<FollowUp>;
     onSave: (data: Partial<FollowUp>) => Promise<void>;
     onCancel: () => void;
+    onNavigate?: (item: string) => void;
 }
 
-const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCancel }) => {
+const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCancel, onNavigate }) => {
     // Helper to format date for datetime-local input (Local Time)
     const formatDateForInput = (dateStr?: string) => {
         if (!dateStr) return '';
@@ -70,6 +71,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     const [notificationRules, setNotificationRules] = useState<any[]>([
         { phone: '', value: 24, unit: 'HOURS' }
     ]);
+    const [savedWithDrip, setSavedWithDrip] = useState(false);
 
     useEffect(() => {
         // Sync formData with initialData when it changes
@@ -180,6 +182,10 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             const all = await dripCampaignService.getCampaigns();
             const manual = all.filter(c => c.status === 'ACTIVE' || c.status === 'DRAFT');
             setActiveCampaigns(manual);
+            // Auto-select first campaign if none currently selected and not editing
+            if (manual.length > 0 && !selectedCampaignId && !initialData?.id) {
+                setSelectedCampaignId(manual[0].id);
+            }
         } catch (e) {
             console.error('Failed to load campaigns', e);
         }
@@ -242,6 +248,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         };
 
         // 1. Handle Drip Enrollment FIRST to avoid race condition with onSave refresh
+        let dripEnrolled = false;
         if (selectedCampaignId && formData.contact_id) {
             try {
                 // Pass scheduled_at as the "Stop At" date for the drip
@@ -252,16 +259,67 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                     notificationRules.filter(r => r.phone && r.value),
                     isLooping
                 );
+                dripEnrolled = true;
             } catch (e) {
                 console.error('Failed to auto-enroll in drip', e);
-                // We alert but proceed to save the task so user doesn't lose task data
                 alert('Warning: Failed to update Drip Sequence settings. Task will still be saved.');
             }
         }
 
         // 2. Save the Follow-Up Task (Triggers parent refresh)
         await onSave(dataToSave);
+
+        // 3. Show success banner with redirect if drip was enrolled
+        if (dripEnrolled) {
+            setSavedWithDrip(true);
+        }
     };
+
+    // ✅ Success banner after save with drip enrolled
+    if (savedWithDrip) {
+        const enrolledCampaign = activeCampaigns.find(c => c.id === selectedCampaignId);
+        return (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-6">
+                {/* Success Icon */}
+                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center shadow-lg">
+                    <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Follow-Up Saved! 🎉</h2>
+                    <p className="text-slate-500 text-sm">
+                        Your follow-up has been created and the contact has been enrolled in
+                    </p>
+                    <p className="text-purple-700 font-bold text-lg mt-1">
+                        📣 {enrolledCampaign?.name || 'Nurture Sequence'}
+                    </p>
+                    <p className="text-slate-400 text-xs mt-2">The sequence started running immediately.</p>
+                </div>
+
+                <div className="flex gap-3 flex-wrap justify-center">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm"
+                    >
+                        ← Back to Follow-Ups
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onNavigate && onNavigate('Drip Campaigns')}
+                        className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-bold hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-200 hover:shadow-purple-300 transform active:scale-[0.98] transition-all flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                        View Drip Campaigns →
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6 px-1">
@@ -408,18 +466,38 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                 </label>
 
                 <div className="space-y-4">
-                    <select
-                        value={selectedCampaignId}
-                        onChange={(e) => setSelectedCampaignId(e.target.value)}
-                        className="block w-full rounded-xl border-purple-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm py-3 px-3 bg-white text-purple-900 font-medium"
-                    >
-                        <option value="">-- Do Not Start Sequence --</option>
-                        {activeCampaigns.map(c => (
-                            <option key={c.id} value={c.id}>
-                                {c.name} ({c.trigger_type}) {c.status === 'DRAFT' ? '[DRAFT]' : ''}
-                            </option>
-                        ))}
-                    </select>
+                    {/* Dropdown + Create Button Row */}
+                    <div className="flex gap-2 items-center">
+                        <select
+                            value={selectedCampaignId}
+                            onChange={(e) => setSelectedCampaignId(e.target.value)}
+                            className="flex-1 block w-full rounded-xl border-purple-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm py-3 px-3 bg-white text-purple-900 font-medium"
+                        >
+                            <option value="">-- No Sequence --</option>
+                            {activeCampaigns.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name} {c.status === 'DRAFT' ? '[DRAFT]' : '✓'}
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            title="Create a new Drip Campaign"
+                            onClick={() => onNavigate && onNavigate('Drip Campaigns')}
+                            className="shrink-0 flex items-center gap-1.5 px-4 py-3 bg-purple-600 text-white rounded-xl font-bold text-sm hover:bg-purple-700 shadow-md shadow-purple-200 hover:shadow-purple-300 active:scale-95 transition-all whitespace-nowrap"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create Drip
+                        </button>
+                    </div>
+                    {activeCampaigns.length === 0 && (
+                        <p className="text-xs text-amber-600 font-medium bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-2">
+                            <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            No campaigns yet. Click <strong className="underline cursor-pointer" onClick={() => onNavigate && onNavigate('Drip Campaigns')}>Create Drip</strong> to make one first.
+                        </p>
+                    )}
 
                     <div className="flex items-start gap-3 p-3 bg-white/60 rounded-xl border border-purple-100">
                         <input

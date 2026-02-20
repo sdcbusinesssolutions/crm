@@ -245,6 +245,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
                             initialData={editingFollowUp || {}}
                             onSave={handleSave}
                             onCancel={() => setView('list')}
+                            onNavigate={onNavigate}
                         />
                     </div>
                 </div>
