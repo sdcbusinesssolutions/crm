@@ -80,57 +80,60 @@ setInterval(() => {
 // ─────────────────────────────────────────────────────────────────────────────
 function downloadBinaryWithCurl(url, token, forceIPv4 = true) {
     return new Promise((resolve, reject) => {
-        const writeOutFormat = '---CURL_RES---\\nREMOTE_IP:%{remote_ip}\\nHTTP_CODE:%{http_code}\\nSIZE:%{size_download}';
+        const debugMarker = ':::DEBUG:::';
+        const writeOutFormat = `${debugMarker}REMOTE_IP:%{remote_ip}|HTTP_CODE:%{http_code}|SIZE:%{size_download}`;
+
         const args = [
             '--silent',
             '--fail-with-body',
             '--location',
             '--max-time', '60',
             '--max-filesize', '52428800',
-            '--write-out', writeOutFormat,
             '-H', `Authorization: Bearer ${token}`,
             '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '-H', 'Accept: */*',
-            url
+            url,
+            '--write-out', writeOutFormat
         ];
+
         if (forceIPv4) args.push('-4');
+        else args.push('-6');
 
         execFile('curl', args,
             { encoding: null, maxBuffer: 55 * 1024 * 1024, timeout: 70000 },
             (error, stdout, stderr) => {
-                let output = stdout ? stdout.toString('utf8') : '';
-                let debugInfo = {};
+                let debugInfo = { REMOTE_IP: 'unknown', HTTP_CODE: '000' };
+                let binaryData = stdout;
 
-                if (output.includes('---CURL_RES---')) {
-                    const parts = output.split('---CURL_RES---');
-                    const debugPart = parts[1];
-                    const lines = debugPart.split('\\n');
-                    lines.forEach(l => {
-                        if (l.includes(':')) {
-                            const [k, v] = l.split(':');
-                            debugInfo[k] = v;
-                        }
-                    });
-                    // Remove debug info from actual buffer
-                    stdout = stdout.slice(0, stdout.indexOf(Buffer.from('---CURL_RES---')));
-                }
-
-                if (error) {
-                    let detailedMsg = `curl error: ${error.message}`;
-                    if (debugInfo.REMOTE_IP) detailedMsg += ` [IP: ${debugInfo.REMOTE_IP}]`;
-                    if (debugInfo.HTTP_CODE) detailedMsg += ` [Status: ${debugInfo.HTTP_CODE}]`;
-                    if (stdout && stdout.length < 500) {
-                        detailedMsg += ` | Body: ${stdout.toString()}`;
+                if (stdout && stdout.length > 0) {
+                    const outputStr = stdout.toString('utf8');
+                    const markerIndex = outputStr.lastIndexOf(debugMarker);
+                    if (markerIndex !== -1) {
+                        const debugPart = outputStr.substring(markerIndex + debugMarker.length);
+                        debugPart.split('|').forEach(pair => {
+                            const [k, v] = pair.split(':');
+                            if (k && v) debugInfo[k] = v.trim();
+                        });
+                        binaryData = stdout.slice(0, markerIndex);
                     }
-                    return reject(new Error(detailedMsg));
                 }
 
-                if (!stdout || stdout.length === 0) {
-                    return reject(new Error(`curl: empty response [IP: ${debugInfo.REMOTE_IP || 'unknown'}]`));
+                const ipVer = forceIPv4 ? 'IPv4' : 'IPv6';
+                if (error) {
+                    let bodySnippet = '';
+                    if (binaryData && binaryData.length > 0) {
+                        bodySnippet = ` | Body: ${binaryData.slice(0, 250).toString().replace(/\s+/g, ' ')}`;
+                    }
+                    const msg = `curl [${ipVer}] error: ${error.message} (IP: ${debugInfo.REMOTE_IP}, Status: ${debugInfo.HTTP_CODE})${bodySnippet}`;
+                    return reject(new Error(msg));
                 }
 
-                console.log(`curl: Success via ${forceIPv4 ? 'IPv4' : 'IPv6'} [IP: ${debugInfo.REMOTE_IP || 'unknown'}] (Size: ${stdout.length} bytes)`);
-                resolve(stdout);
+                if (!binaryData || binaryData.length === 0) {
+                    return reject(new Error(`curl [${ipVer}] empty response (IP: ${debugInfo.REMOTE_IP})`));
+                }
+
+                console.log(`curl [${ipVer}] Success: ${binaryData.length} bytes from ${debugInfo.REMOTE_IP}`);
+                resolve(binaryData);
             }
         );
     });
@@ -287,14 +290,18 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         while (attempts < 3) {
             attempts++;
             try {
-                // Try 1 and 2 with -4, attempt 3 without -4 as fallback
+                // Attempt 1: Force IPv4 (Strict consistency)
+                // Attempt 2: Force IPv4 (Retry)
+                // Attempt 3: Force IPv6 (Proven to work on this VPS when IPv4 fails)
                 const useIPv4 = attempts < 3;
+                console.log(`downloadMedia: Attempt ${attempts}/3 - Target: ${useIPv4 ? 'IPv4' : 'IPv6'}`);
+
                 buffer = await downloadBinaryWithCurl(urlData.url, accessToken, useIPv4);
                 if (buffer && buffer.length > 0) break;
             } catch (curlErr) {
-                console.error(`downloadMedia: Attempt ${attempts}/3 failed: ${curlErr.message}`);
+                console.error(`downloadMedia: Attempt ${attempts} failed: ${curlErr.message}`);
                 if (attempts >= 3) return null;
-                await new Promise(r => setTimeout(r, 1500 * attempts));
+                await new Promise(r => setTimeout(r, 1000 * attempts));
             }
         }
 
