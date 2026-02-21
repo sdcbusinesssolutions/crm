@@ -81,13 +81,14 @@ setInterval(() => {
 function downloadBinaryWithCurl(url, token) {
     return new Promise((resolve, reject) => {
         const args = [
-            '--silent',               // No progress meter output
-            '--fail',                 // Exit non-zero on HTTP errors (4xx/5xx)
-            '--location',             // Follow redirects
-            '--max-time', '60',       // 60 second total timeout
-            '--max-filesize', '52428800', // Block files >50MB
+            '--silent',
+            '--fail-with-body', // Capture body on error
+            '--location',
+            '-4',               // Force IPv4 (important for VPS/Docker)
+            '--max-time', '60',
+            '--max-filesize', '52428800',
             '-H', `Authorization: Bearer ${token}`,
-            '-H', 'User-Agent: WhatsApp/2.21.11.17 A', // Real client User-Agent
+            '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '-H', 'Accept: */*',
             url
         ];
@@ -95,13 +96,16 @@ function downloadBinaryWithCurl(url, token) {
             { encoding: null, maxBuffer: 55 * 1024 * 1024, timeout: 70000 },
             (error, stdout, stderr) => {
                 if (error) {
-                    const msg = `curl: ${error.message}${stderr ? ' | ' + stderr.toString().substring(0, 150) : ''}`;
-                    return reject(new Error(msg));
+                    let detailedMsg = `curl error: ${error.message}`;
+                    if (stdout && stdout.length < 500) {
+                        detailedMsg += ` | Response: ${stdout.toString()}`;
+                    }
+                    return reject(new Error(detailedMsg));
                 }
                 if (!stdout || stdout.length === 0) {
                     return reject(new Error('curl: empty response'));
                 }
-                resolve(stdout); // stdout is a Buffer when encoding: null
+                resolve(stdout);
             }
         );
     });
@@ -229,30 +233,28 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
     try {
         if (!mediaId || !accessToken) return null;
 
-        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId} (v21.0)`);
-
-        // 1. Get CDN URL from Meta
+        console.log(`downloadMedia: Fetching metadata for ${mediaId}`);
         let urlData;
         try {
             const metaResp = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
                 headers: { Authorization: `Bearer ${accessToken}` },
-                timeout: 15000
+                timeout: 10000
             });
             urlData = metaResp.data;
         } catch (err) {
-            console.error(`downloadMedia: Meta metadata fetch failed: ${err.message}`);
+            console.error(`downloadMedia: Meta URL fetch failed: ${err.message}`);
             return null;
         }
 
         if (!urlData || !urlData.url) {
-            console.error(`downloadMedia: No CDN URL returned for ${mediaId}`);
+            console.error(`downloadMedia: No CDN URL for ${mediaId}`);
             return null;
         }
 
         const mimeType = urlData.mime_type || 'application/octet-stream';
-        console.log(`downloadMedia: Got URL. Attempting binary download via curl...`);
+        console.log(`downloadMedia: Meta metadata success. Downloading binary...`);
 
-        // 2. Download via curl (THE FIX for ECONNRESET)
+        // 2. Download via curl (THE FIX)
         let buffer = null;
         let attempts = 0;
         while (attempts < 3) {
@@ -261,22 +263,19 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 buffer = await downloadBinaryWithCurl(urlData.url, accessToken);
                 if (buffer && buffer.length > 0) break;
             } catch (curlErr) {
-                console.error(`downloadMedia: curl attempt ${attempts} failed: ${curlErr.message}`);
+                console.error(`downloadMedia: download attempt ${attempts} failed: ${curlErr.message}`);
                 if (attempts >= 3) return null;
-                await new Promise(r => setTimeout(r, 2000 * attempts));
+                await new Promise(r => setTimeout(r, 1000 * attempts));
             }
         }
 
         if (!buffer || buffer.length === 0) return null;
 
-        console.log(`downloadMedia: Binary downloaded (${buffer.length} bytes). Uploading to Supabase...`);
-
-        // 3. Upload to Supabase Storage
+        // 3. Upload to Supabase
         const ext = mimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
         const filename = `${mediaId}-${Date.now()}.${ext}`;
         const bucketName = 'campaign-media';
-        const dateStr = new Date().toISOString().split('T')[0];
-        const storagePath = `${userId}/inbound/${dateStr}/${filename}`;
+        const storagePath = `${userId}/inbound/${new Date().toISOString().split('T')[0]}/${filename}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from(bucketName)
@@ -288,16 +287,14 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         }
 
         const { data: publicUrlData } = supabaseAdmin.storage.from(bucketName).getPublicUrl(storagePath);
-        console.log(`downloadMedia: Success. Public URL: ${publicUrlData.publicUrl}`);
-
         return {
             url: publicUrlData.publicUrl,
             mime_type: mimeType,
             filename,
             type: mimeType.split('/')[0]
         };
-    } catch (error) {
-        console.error('downloadMedia: Unhandled exception:', error.message);
+    } catch (err) {
+        console.error('downloadMedia: Unhandled exception:', err.message);
         return null;
     }
 };
@@ -983,45 +980,42 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
                 const savedMessageId = result?.id;
 
-                // --- FIRE-AND-FORGET: Download media in the background, then update the DB row ---
+                // --- FIRE-AND-FORGET: Download media in the background, then update results ---
                 if (isMedia && extracted.mediaId && accessToken && savedMessageId) {
                     (async () => {
                         try {
-                            console.log(`[Webhook] BG: Downloading media for msg ${savedMessageId} (ID: ${extracted.mediaId})`);
+                            console.log(`[Webhook] BG: Downloading media for msg ${savedMessageId}`);
                             const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
 
-                            if (mediaData && mediaData.url === '__TOKEN_EXPIRED__') {
-                                // Token is expired. Mark the message so UI shows proper error.
-                                await supabaseAdmin.from('messages')
-                                    .update({ media_url: null, text: '[Media unavailable — Meta access token expired. Please refresh token in Settings > WhatsApp Config.]' })
-                                    .eq('id', savedMessageId);
-                                console.error(`[Webhook] BG: ❌ TOKEN EXPIRED for msg ${savedMessageId}. Message marked. User must refresh token.`);
-                                return;
-                            }
-
                             if (mediaData && mediaData.url) {
-                                // Update the message row with the real media URL
-                                const { error: updateErr } = await supabaseAdmin
-                                    .from('messages')
-                                    .update({
-                                        media_url: mediaData.url,
-                                        mime_type: mediaData.mime_type || null,
-                                        filename: extracted.filename || mediaData.filename || null
-                                    })
-                                    .eq('id', savedMessageId);
+                                // 1. Update Message Record
+                                await supabaseAdmin.from('messages').update({
+                                    media_url: mediaData.url,
+                                    mime_type: mediaData.mime_type || null,
+                                    filename: extracted.filename || mediaData.filename || null
+                                }).eq('id', savedMessageId);
 
-                                if (updateErr) {
-                                    console.error(`[Webhook] BG: Failed to update media_url for msg ${savedMessageId}:`, updateErr.message);
-                                } else {
-                                    console.log(`[Webhook] BG: ✅ Media URL saved for msg ${savedMessageId}: ${mediaData.url}`);
+                                // 2. Trigger Flow Engine (NOW WITH URL)
+                                if (inputPayload) {
+                                    inputPayload.url = mediaData.url;
+                                    inputPayload.mime_type = mediaData.mime_type || null;
+                                    inputPayload.filename = extracted.filename || mediaData.filename || null;
+                                    if (typeof inputPayload === 'object') inputPayload.name = contactName;
+
+                                    console.log(`[Webhook] BG: Triggering Flow Engine for ${savedMessageId} post-download`);
+                                    await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
                             } else {
-                                console.warn(`[Webhook] BG: Media download failed for msg ${savedMessageId} (mediaId: ${extracted.mediaId})`);
+                                console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
+                                // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
+                                if (inputPayload) {
+                                    await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
+                                }
                             }
                         } catch (bgErr) {
-                            console.error(`[Webhook] BG: Exception downloading media for msg ${savedMessageId}:`, bgErr.message);
+                            console.error(`[Webhook] BG Error:`, bgErr.message);
                         }
-                    })(); // Fire and forget
+                    })();
                 }
 
                 // Media vars for Flow Engine
@@ -1041,18 +1035,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 }
                 console.log(`Processed ${extracted.type} message from ${extracted.from}`);
 
-                // --- FLOW ENGINE EXECUTION (For Media OR Sync Wait) ---
-                if (isMedia && inputPayload) {
-                    // For media, we skipped concurrent trigger because we needed the URL. Trigger now.
-                    inputPayload.url = mediaUrl;
-                    inputPayload.mime_type = mimeType;
-                    inputPayload.filename = filename;
-                    if (typeof inputPayload === 'object') inputPayload.name = contactName;
-
-                    await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
-                } else if (flowPromise) {
-                    // For non-media, we triggered earlier. Await it now to ensure it finishes before we exit the loop iteration 
-                    // (Optional, but good for sequential log consistency)
+                // NOTE: For media, flow is triggered in BG after download.
+                // For non-media, flow was already triggered concurrently.
+                if (!isMedia && flowPromise) {
                     await flowPromise;
                 }
 
