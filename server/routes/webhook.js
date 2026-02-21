@@ -22,12 +22,11 @@ const activeFlows = new Set();
 const flowQueue = [];
 
 // Dedicated agent for binary downloads (lookaside.fbsbx.com)
-// Force IPv4 (family: 4) to avoid Docker IPv6 routing issues.
+// Removed family: 4 to allow OS to optimize routing for binary streams.
 const mediaDownloadAgent = new https.Agent({
     keepAlive: true,
-    maxSockets: 30,
-    family: 4,
-    timeout: 60000,
+    maxSockets: 50,          // Scale up for many images
+    timeout: 90000,          // 90s for large files
     scheduling: 'lifo'
 });
 
@@ -103,8 +102,8 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
         // 2. Download Media Binary (With Retry for Robustness)
-        // Added 1500ms grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Added 2000ms grace period: Ensures Meta's CDN is ready across all global nodes
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         let buffer;
         let attempts = 0;
@@ -114,18 +113,20 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             attempts++;
             try {
                 console.log(`downloadMedia: Downloading binary from Meta (Attempt ${attempts}/${maxAttempts})...`);
+                // CRITICAL: Do NOT send the Authorization header to the lookaside URL.
+                // Meta's CDN URL is already authorized via query params.
+                // Sending a header token here causes intermittent connection drops.
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
-                        'Authorization': `Bearer ${accessToken}`,
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                         'Accept': '*/*',
-                        'Accept-Encoding': 'identity', // ✅ Force identity to prevent stream abortion
+                        'Accept-Encoding': 'identity',
                         'Cache-Control': 'no-cache',
                         'Connection': 'keep-alive'
                     },
                     responseType: 'arraybuffer',
                     decompress: false,
-                    timeout: 60000,
+                    timeout: 90000,
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity,
                     maxRedirects: 10,

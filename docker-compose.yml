@@ -66,6 +66,17 @@ services:
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
       - ./server_uploads/${DOMAIN}:/app/uploads
+      # tmpfs: RAM-backed temp storage for faster processing
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 134217728   # 128MB
+    
+    # CRITICAL: Prevent "Too many open files" errors causing ECONNRESET
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
       
     labels:
       - "traefik.enable=true"
