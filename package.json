@@ -10,5 +10,8 @@
     "workspaces": [
         "client",
         "server"
-    ]
+    ],
+    "dependencies": {
+        "google-auth-library": "^10.5.0"
+    }
 }
