@@ -13,6 +13,7 @@ const { logInboxMessage } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
+const https = require('https'); // ✅ Added missing core module
 const flowEngine = require('../services/flowEngine');
 
 // --- CONCURRENCY CONTROL ---
