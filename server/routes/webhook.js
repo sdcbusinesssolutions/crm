@@ -129,7 +129,7 @@ function downloadBinaryWithCurl(url, token, forceIPv4 = true) {
                     return reject(new Error(`curl: empty response [IP: ${debugInfo.REMOTE_IP || 'unknown'}]`));
                 }
 
-                console.log(`curl: Success from IP ${debugInfo.REMOTE_IP || 'unknown'} (Size: ${stdout.length} bytes)`);
+                console.log(`curl: Success via ${forceIPv4 ? 'IPv4' : 'IPv6'} [IP: ${debugInfo.REMOTE_IP || 'unknown'}] (Size: ${stdout.length} bytes)`);
                 resolve(stdout);
             }
         );
@@ -263,6 +263,7 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         try {
             const metaResp = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
                 headers: { Authorization: `Bearer ${accessToken}` },
+                httpsAgent: mediaDownloadAgent, // Force IPv4 for consistency
                 timeout: 10000
             });
             urlData = metaResp.data;
