@@ -78,33 +78,58 @@ setInterval(() => {
 // PROVEN: curl succeeds 100% from VPS where Node.js HTTPS gets ECONNRESET.
 // Meta's CDN (lookaside.fbsbx.com) blocks Node.js's TLS fingerprint but not curl's.
 // ─────────────────────────────────────────────────────────────────────────────
-function downloadBinaryWithCurl(url, token) {
+function downloadBinaryWithCurl(url, token, forceIPv4 = true) {
     return new Promise((resolve, reject) => {
+        const writeOutFormat = '---CURL_RES---\\nREMOTE_IP:%{remote_ip}\\nHTTP_CODE:%{http_code}\\nSIZE:%{size_download}';
         const args = [
             '--silent',
-            '--fail-with-body', // Capture body on error
+            '--fail-with-body',
             '--location',
-            '-4',               // Force IPv4 (important for VPS/Docker)
             '--max-time', '60',
             '--max-filesize', '52428800',
+            '--write-out', writeOutFormat,
             '-H', `Authorization: Bearer ${token}`,
             '-H', 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
             '-H', 'Accept: */*',
             url
         ];
+        if (forceIPv4) args.push('-4');
+
         execFile('curl', args,
             { encoding: null, maxBuffer: 55 * 1024 * 1024, timeout: 70000 },
             (error, stdout, stderr) => {
+                let output = stdout ? stdout.toString('utf8') : '';
+                let debugInfo = {};
+
+                if (output.includes('---CURL_RES---')) {
+                    const parts = output.split('---CURL_RES---');
+                    const debugPart = parts[1];
+                    const lines = debugPart.split('\\n');
+                    lines.forEach(l => {
+                        if (l.includes(':')) {
+                            const [k, v] = l.split(':');
+                            debugInfo[k] = v;
+                        }
+                    });
+                    // Remove debug info from actual buffer
+                    stdout = stdout.slice(0, stdout.indexOf(Buffer.from('---CURL_RES---')));
+                }
+
                 if (error) {
                     let detailedMsg = `curl error: ${error.message}`;
+                    if (debugInfo.REMOTE_IP) detailedMsg += ` [IP: ${debugInfo.REMOTE_IP}]`;
+                    if (debugInfo.HTTP_CODE) detailedMsg += ` [Status: ${debugInfo.HTTP_CODE}]`;
                     if (stdout && stdout.length < 500) {
-                        detailedMsg += ` | Response: ${stdout.toString()}`;
+                        detailedMsg += ` | Body: ${stdout.toString()}`;
                     }
                     return reject(new Error(detailedMsg));
                 }
+
                 if (!stdout || stdout.length === 0) {
-                    return reject(new Error('curl: empty response'));
+                    return reject(new Error(`curl: empty response [IP: ${debugInfo.REMOTE_IP || 'unknown'}]`));
                 }
+
+                console.log(`curl: Success from IP ${debugInfo.REMOTE_IP || 'unknown'} (Size: ${stdout.length} bytes)`);
                 resolve(stdout);
             }
         );
@@ -242,7 +267,7 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             });
             urlData = metaResp.data;
         } catch (err) {
-            console.error(`downloadMedia: Meta URL fetch failed: ${err.message}`);
+            console.error(`downloadMedia: Meta metadata fetch failed for ${mediaId}: ${err.message}`);
             return null;
         }
 
@@ -252,7 +277,8 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         }
 
         const mimeType = urlData.mime_type || 'application/octet-stream';
-        console.log(`downloadMedia: Meta metadata success. Downloading binary...`);
+        const expectedSize = urlData.file_size || 'unknown';
+        console.log(`downloadMedia: Meta success. Expected size: ${expectedSize} bytes. Downloading binary...`);
 
         // 2. Download via curl (THE FIX)
         let buffer = null;
@@ -260,16 +286,20 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         while (attempts < 3) {
             attempts++;
             try {
-                buffer = await downloadBinaryWithCurl(urlData.url, accessToken);
+                // Try 1 and 2 with -4, attempt 3 without -4 as fallback
+                const useIPv4 = attempts < 3;
+                buffer = await downloadBinaryWithCurl(urlData.url, accessToken, useIPv4);
                 if (buffer && buffer.length > 0) break;
             } catch (curlErr) {
-                console.error(`downloadMedia: download attempt ${attempts} failed: ${curlErr.message}`);
+                console.error(`downloadMedia: Attempt ${attempts}/3 failed: ${curlErr.message}`);
                 if (attempts >= 3) return null;
-                await new Promise(r => setTimeout(r, 1000 * attempts));
+                await new Promise(r => setTimeout(r, 1500 * attempts));
             }
         }
 
         if (!buffer || buffer.length === 0) return null;
+
+        console.log(`downloadMedia: Download complete (${buffer.length} bytes). Uploading to Supabase...`);
 
         // 3. Upload to Supabase
         const ext = mimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
@@ -282,7 +312,7 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
 
         if (uploadError) {
-            console.error(`downloadMedia: Supabase upload failed: ${uploadError.message}`);
+            console.error(`downloadMedia: Supabase upload failed for ${mediaId}: ${uploadError.message}`);
             return null;
         }
 
@@ -294,7 +324,7 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
             type: mimeType.split('/')[0]
         };
     } catch (err) {
-        console.error('downloadMedia: Unhandled exception:', err.message);
+        console.error('downloadMedia: Exception:', err.message);
         return null;
     }
 };
