@@ -16,10 +16,20 @@ const axios = require('axios');
 const https = require('https'); // ✅ Added missing core module
 const flowEngine = require('../services/flowEngine');
 
-// --- CONCURRENCY CONTROL ---
-const FLOW_CONCURRENCY_LIMIT = 20; // Max concurrent flow executions
+// --- CONCURRENCY & NETWORK AGENTS ---
+const FLOW_CONCURRENCY_LIMIT = 20;
 const activeFlows = new Set();
 const flowQueue = [];
+
+// Dedicated agent for binary downloads (lookaside.fbsbx.com)
+// Force IPv4 (family: 4) to avoid Docker IPv6 routing issues.
+const mediaDownloadAgent = new https.Agent({
+    keepAlive: true,
+    maxSockets: 30,
+    family: 4,
+    timeout: 60000,
+    scheduling: 'lifo'
+});
 
 const processFlowConcurrently = async (fn) => {
     if (activeFlows.size >= FLOW_CONCURRENCY_LIMIT) {
@@ -100,16 +110,6 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         let attempts = 0;
         const maxAttempts = 3;
 
-        // CRITICAL: Using a dedicated agent for binary downloads.
-        // family: 4 prevents IPv6 resolution issues common in Docker/VPS.
-        // keepAlive: true reduces handshake overhead for many media items.
-        const agent = new https.Agent({
-            keepAlive: true,
-            maxSockets: 20,
-            family: 4,
-            timeout: 60000
-        });
-
         while (attempts < maxAttempts) {
             attempts++;
             try {
@@ -117,16 +117,16 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                        'Accept': '*/*'
-                        // NOTE: Accept-Encoding is omitted to avoid decompression-related ECONNRESET
+                        'User-Agent': 'curl/7.81.0',
+                        'Accept': '*/*',
+                        'Connection': 'keep-alive'
                     },
                     responseType: 'arraybuffer',
-                    timeout: 45000, // 45s
+                    decompress: false, // ✅ CRITICAL: Prevent ECONNRESET during stream decompression
+                    timeout: 60000,
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity,
-                    proxy: false,
-                    httpsAgent: agent
+                    httpsAgent: mediaDownloadAgent // ✅ Re-using global agent
                 });
                 buffer = Buffer.from(mediaResponse.data);
                 console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
