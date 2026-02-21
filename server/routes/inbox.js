@@ -309,14 +309,23 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
 
         if (fetchError) throw fetchError;
 
-        // 2. Mark as read on WhatsApp (Async, don't wait for all)
+        // 2. Mark as read on WhatsApp
+        // ─────────────────────────────────────────────────────────────────
+        // KEY INSIGHT: Meta only needs the LATEST message marked as read.
+        // It auto-marks all previous messages as read too.
+        // Old code: Promise.all(30 msgs) → 30 simultaneous API calls → ECONNRESET storm
+        // New code: 1 API call for latest msg → same result, zero storm ✅
+        // ─────────────────────────────────────────────────────────────────
         if (unreadMessages && unreadMessages.length > 0) {
-            // We can process these in background
-            Promise.all(unreadMessages.map(async (msg) => {
-                if (msg.whatsapp_message_id) {
-                    await whatsappService.markAsRead(userId, msg.whatsapp_message_id);
-                }
-            })).catch(err => console.error('Background markAsRead error:', err));
+            const latestWithId = unreadMessages
+                .filter(msg => msg.whatsapp_message_id)
+                .pop(); // Last = most recent
+
+            if (latestWithId) {
+                // Fire-and-forget: don't block the API response
+                whatsappService.markAsRead(userId, latestWithId.whatsapp_message_id)
+                    .catch(err => console.error('Background markAsRead error:', err));
+            }
         }
 
         // 3. Update DB: Mark messages as read

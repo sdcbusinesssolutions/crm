@@ -169,12 +169,65 @@ function setCachedTemplate(wabaId, templateName, def) {
     TEMPLATE_CACHE.set(key, { def, expiresAt: Date.now() + TEMPLATE_CACHE_TTL_MS });
 }
 
+// ─────────────────────────────────────────────────────────────────
+// MEMORY MANAGEMENT UTILITIES
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Trigger V8 garbage collection if --expose-gc flag is set.
+ * Called after bulk operations (large batch sends) to reclaim memory immediately
+ * instead of waiting for V8's next GC cycle.
+ */
+function triggerGC(reason) {
+    if (typeof global.gc === 'function') {
+        global.gc();
+        // console.log(`[GC] Triggered: ${reason}`);
+    }
+}
+
+/**
+ * Evict expired entries from the TEMPLATE_CACHE Map.
+ * Without this, the Map grows unboundedly as new templates are used
+ * over days/weeks, eventually causing heap pressure.
+ */
+function evictExpiredTemplateCache() {
+    const now = Date.now();
+    let evicted = 0;
+    for (const [key, entry] of TEMPLATE_CACHE.entries()) {
+        if (now > entry.expiresAt) {
+            TEMPLATE_CACHE.delete(key);
+            evicted++;
+        }
+    }
+    if (evicted > 0) {
+        console.log(`[Cache] Evicted ${evicted} expired template entries. Cache size: ${TEMPLATE_CACHE.size}`);
+    }
+}
+
+/**
+ * Log current heap usage. Helps spot slow memory leaks over time.
+ * Run every 5 minutes. If heapUsed keeps climbing → memory leak.
+ */
+function logMemoryStats(workerId) {
+    const mem = process.memoryUsage();
+    const toMB = (b) => Math.round(b / 1024 / 1024);
+    console.log(
+        `[Mem:${workerId}] Heap: ${toMB(mem.heapUsed)}/${toMB(mem.heapTotal)}MB` +
+        ` | RSS: ${toMB(mem.rss)}MB` +
+        ` | External: ${toMB(mem.external)}MB` +
+        ` | TemplateCache: ${TEMPLATE_CACHE.size} entries`
+    );
+}
+
 class CampaignWorker {
     constructor(supabaseUrl, supabaseServiceKey) {
         this.supabase = createClient(supabaseUrl, supabaseServiceKey);
         this.isRunning = false;
         this.isProcessing = false;
         this.workerId = Math.random().toString(36).substring(2, 7).toUpperCase();
+        this.estimatedContainerCount = 10; // Starting estimate, self-tunes over time
+        this._memInterval = null;
+        this._cacheInterval = null;
         // Wire shared Supabase client for cross-container rate limit coordination
         setRateLimitSupabase(this.supabase);
     }
@@ -182,7 +235,25 @@ class CampaignWorker {
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        console.log('🚀 Campaign Worker Started (Robust Mode - v2.1 Fixed)');
+        console.log(`🚀 Campaign Worker [${this.workerId}] Started`);
+
+        // ─────────────────────────────────────────────────────────────────
+        // MEMORY MONITORING: Log heap stats every 5 min
+        // Watch for heapUsed steadily climbing → indicates a memory leak
+        // ─────────────────────────────────────────────────────────────────
+        this._memInterval = setInterval(() => {
+            logMemoryStats(this.workerId);
+        }, 5 * 60 * 1000); // every 5 minutes
+
+        // ─────────────────────────────────────────────────────────────────
+        // CACHE CLEANUP: Evict expired template entries every 10 min
+        // Without this, old template Maps stay in heap even after campaigns end
+        // ─────────────────────────────────────────────────────────────────
+        this._cacheInterval = setInterval(() => {
+            evictExpiredTemplateCache();
+            triggerGC('scheduled cache eviction');
+        }, 10 * 60 * 1000); // every 10 minutes
+
         try {
             logCampaignRequest('WORKER_START', {
                 mode: 'Robust',
@@ -190,6 +261,13 @@ class CampaignWorker {
             });
         } catch (e) { console.error('Logger init failed', e); }
         this.loop();
+    }
+
+    stop() {
+        this.isRunning = false;
+        if (this._memInterval) clearInterval(this._memInterval);
+        if (this._cacheInterval) clearInterval(this._cacheInterval);
+        console.log(`[Worker ${this.workerId}] Stopped cleanly.`);
     }
 
     async loop() {
@@ -653,6 +731,9 @@ class CampaignWorker {
             await Promise.all(promises);
             await sleep(RATE_LIMIT_DELAY_MS * chunk.length);
         }
+
+        // Free memory from this batch: axios response bodies, contact objects, payload buffers
+        triggerGC('batch complete');
     }
 
     async sendMessage(item, campaign, config, templateDef) {
