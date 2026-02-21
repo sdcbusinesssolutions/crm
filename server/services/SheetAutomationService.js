@@ -492,28 +492,55 @@ class SheetAutomationService {
                     proxy: false
                 });
             } catch (firstErr) {
-                if (firstErr.response && firstErr.response.status === 401 && creds.refresh_token) {
-                    console.log('[SheetAuto] Access Token expired (401). Refreshing...');
-                    try {
-                        const { credentials } = await authClient.refreshAccessToken();
-                        console.log('[SheetAuto] Token refreshed. Retrying request...');
+                if (firstErr.response && firstErr.response.status === 401) {
+                    if (creds.refresh_token) {
+                        console.log('[SheetAuto] Access Token expired (401). Refreshing...');
+                        try {
+                            const { credentials } = await authClient.refreshAccessToken();
+                            console.log('[SheetAuto] Token refreshed. Retrying request...');
 
-                        // Update DB with new tokens
-                        await supabaseAdmin
-                            .from('user_integrations')
-                            .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
-                            .eq('id', auto.connection_id);
+                            // Update DB with new tokens
+                            await supabaseAdmin
+                                .from('user_integrations')
+                                .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
+                                .eq('id', auto.connection_id);
 
-                        response = await axios.get(url, {
-                            headers: {
-                                'Authorization': `Bearer ${credentials.access_token}`,
-                                'Content-Type': 'application/json'
-                            },
-                            proxy: false
-                        });
-                    } catch (refreshErr) {
-                        console.error('[SheetAuto] Token refresh failed:', refreshErr.message);
-                        throw firstErr;
+                            response = await axios.get(url, {
+                                headers: {
+                                    'Authorization': `Bearer ${credentials.access_token}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                proxy: false
+                            });
+                        } catch (refreshErr) {
+                            console.error('[SheetAuto] Token refresh FAILED — pausing automation to stop infinite retry loop:', refreshErr.message);
+                            // ⚠️ CIRCUIT BREAKER: Mark automation as paused so it stops retrying with a dead token.
+                            // The user must reconnect their Google account in Integrations to reactivate.
+                            await supabaseAdmin.from('sheet_automations').update({
+                                status: 'paused',
+                                error_log: JSON.stringify({
+                                    error: 'Google authentication expired. Please reconnect your Google account in Integrations.',
+                                    failed_at: new Date().toISOString(),
+                                    original_error: refreshErr.message
+                                })
+                            }).eq('id', auto.id);
+                            const authErr = new Error('Google OAuth token expired and refresh failed. Automation paused.');
+                            authErr.code = 'AUTH_EXPIRED';
+                            throw authErr;
+                        }
+                    } else {
+                        // No refresh token at all — can't recover automatically
+                        console.error('[SheetAuto] 401 with NO refresh_token. Pausing automation — user must reconnect.');
+                        await supabaseAdmin.from('sheet_automations').update({
+                            status: 'paused',
+                            error_log: JSON.stringify({
+                                error: 'Google authentication missing. Please reconnect your Google account in Integrations.',
+                                failed_at: new Date().toISOString()
+                            })
+                        }).eq('id', auto.id);
+                        const authErr = new Error('No Google refresh token available. Automation paused.');
+                        authErr.code = 'AUTH_EXPIRED';
+                        throw authErr;
                     }
                 } else {
                     throw firstErr;

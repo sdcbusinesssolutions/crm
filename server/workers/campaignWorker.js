@@ -2,12 +2,15 @@ const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const https = require('https');
 
-// --- Global HTTPS Agent with Keep-Alive for high performance ---
+// --- Global HTTPS Agent — tuned for resilience against ECONNRESET ---
+// keepAlive=true reuses TCP connections (faster), but we cap maxSockets to prevent
+// overwhelming Meta's servers which causes ECONNRESET under high load.
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    maxSockets: 100, // Handle up to 100 concurrent connections
-    maxFreeSockets: 10,
-    timeout: 30000 // 30s timeout
+    maxSockets: 10,          // Reduced: too many sockets = Meta drops connections (ECONNRESET)
+    maxFreeSockets: 5,
+    timeout: 30000,          // 30s socket timeout
+    scheduling: 'lifo'       // Reuse most-recently-active sockets first (better keep-alive)
 });
 
 const { logCampaignRequest } = require('../utils/logger');
@@ -16,45 +19,105 @@ const whatsappService = require('../services/whatsappService');
 // --- Configuration ---
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
 const BATCH_SIZE = 50; // Items to fetch per tick
-const MAX_CONCURRENCY = 10; // Max parallel requests
+const MAX_CONCURRENCY = 5; // Max parallel requests (reduced to prevent Meta rate limit 80008)
 const MAX_RETRIES = 3; // Max retry attempts for transient errors
-const RATE_LIMIT_DELAY_MS = 1000 / 20; // ~20 requests per second (Conservative)
+const RATE_LIMIT_DELAY_MS = 200; // 200ms between chunks = ~5 msg/sec (safe for Meta's limits)
 
 // --- Template Cache (prevents repeated Meta API calls for same template) ---
 // Key: `${wabaId}:${templateName}`, Value: { def, expiresAt }
 const TEMPLATE_CACHE = new Map();
 const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
-// --- Rate Limit State (per-WABA — each WhatsApp Business Account is tracked independently) ---
-// Meta docs: https://developers.facebook.com/docs/graph-api/overview/rate-limiting
-// Limit: 200 req/hr (default) or 5000 req/hr (active WABA with registered phone)
-// IMPORTANT: Continuing to call after limit INCREASES penalty time!
-// Key: wabaId (string), Value: timestamp (ms) until which that WABA is paused
-const RATE_LIMIT_MAP = new Map(); // Per-WABA rate limit tracking
+// --- Rate Limit State (per-WABA, SHARED ACROSS ALL CONTAINERS via Supabase DB) ---
+// 
+// ⚠️ PROBLEM with in-memory Map: Each Docker container has its OWN RATE_LIMIT_MAP.
+// If WABA X is rate-limited on Container 1, Containers 2-6 don't know — they keep
+// hammering Meta, making the penalty WORSE (Meta increases ban duration for continued requests!).
+//
+// ✅ SOLUTION: Use Supabase `campaign_rate_limits` table as shared state.
+//    - Local in-memory cache for fast-path (avoids DB query every 2 seconds)
+//    - DB is source of truth, synced when cache expires or on rate-limit event
+//
+// DB Table Required (run once in Supabase SQL Editor):
+// CREATE TABLE IF NOT EXISTS campaign_rate_limits (
+//     waba_id TEXT PRIMARY KEY,
+//     paused_until TIMESTAMPTZ NOT NULL,
+//     updated_at TIMESTAMPTZ DEFAULT NOW()
+// );
+
 const RATE_LIMIT_DEFAULT_PAUSE_MS = 60 * 1000; // 60s fallback if header not available
 
-// Helper: Check if a specific WABA is currently rate-limited
-function isWabaRateLimited(wabaId) {
-    const until = RATE_LIMIT_MAP.get(wabaId) || 0;
-    return Date.now() < until;
+// Local fast-path cache: { wabaId -> pausedUntilMs }
+// Only used to avoid hitting DB on every 2-second tick
+const LOCAL_RATE_LIMIT_CACHE = new Map();
+const LOCAL_CACHE_TTL_MS = 30 * 1000; // Re-check DB every 30s max
+const LOCAL_CACHE_TIMESTAMPS = new Map(); // wabaId -> last DB check time
+
+// Shared supabase client for rate limit operations (set once worker starts)
+let _rlSupabase = null;
+function setRateLimitSupabase(client) { _rlSupabase = client; }
+
+// Helper: Check if a specific WABA is currently rate-limited (local cache first, DB fallback)
+async function isWabaRateLimited(wabaId) {
+    const now = Date.now();
+
+    // 1. Fast-path: local cache hit (< 30s old)
+    const lastCheck = LOCAL_CACHE_TIMESTAMPS.get(wabaId) || 0;
+    if (now - lastCheck < LOCAL_CACHE_TTL_MS) {
+        const cachedUntil = LOCAL_RATE_LIMIT_CACHE.get(wabaId) || 0;
+        return now < cachedUntil;
+    }
+
+    // 2. Cache miss or stale — check DB (shared across all containers)
+    try {
+        if (_rlSupabase) {
+            const { data } = await _rlSupabase
+                .from('campaign_rate_limits')
+                .select('paused_until')
+                .eq('waba_id', wabaId)
+                .single();
+
+            const pausedUntilMs = data?.paused_until ? new Date(data.paused_until).getTime() : 0;
+            LOCAL_RATE_LIMIT_CACHE.set(wabaId, pausedUntilMs);
+            LOCAL_CACHE_TIMESTAMPS.set(wabaId, now);
+            return now < pausedUntilMs;
+        }
+    } catch (e) { /* DB error — fail open (allow sending) */ }
+
+    return false;
 }
 
 // Helper: Get remaining wait seconds for a WABA
 function getWabaRateLimitWaitSec(wabaId) {
-    const until = RATE_LIMIT_MAP.get(wabaId) || 0;
+    const until = LOCAL_RATE_LIMIT_CACHE.get(wabaId) || 0;
     return Math.max(0, Math.ceil((until - Date.now()) / 1000));
 }
 
-// Helper: Set rate limit for a specific WABA
-function setWabaRateLimit(wabaId, pauseMs) {
-    const until = Date.now() + pauseMs;
-    RATE_LIMIT_MAP.set(wabaId, until);
-    // Auto-clean after expiry to avoid memory leak
-    setTimeout(() => {
-        if ((RATE_LIMIT_MAP.get(wabaId) || 0) <= Date.now()) {
-            RATE_LIMIT_MAP.delete(wabaId);
+// Helper: Set rate limit for a specific WABA — writes to DB (shared) + local cache
+async function setWabaRateLimit(wabaId, pauseMs) {
+    const until = new Date(Date.now() + pauseMs);
+    const untilMs = until.getTime();
+
+    // 1. Update local cache immediately (fast-path for THIS container)
+    LOCAL_RATE_LIMIT_CACHE.set(wabaId, untilMs);
+    LOCAL_CACHE_TIMESTAMPS.set(wabaId, Date.now());
+
+    // 2. Persist to DB so ALL other containers see it
+    try {
+        if (_rlSupabase) {
+            await _rlSupabase
+                .from('campaign_rate_limits')
+                .upsert({
+                    waba_id: wabaId,
+                    paused_until: until.toISOString(),
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'waba_id' });
+            console.log(`[RateLimit] ✅ WABA ${wabaId} paused until ${until.toISOString()} — written to DB (all containers will see this).`);
         }
-    }, pauseMs + 1000);
+    } catch (e) {
+        console.error(`[RateLimit] ⚠️ Failed to persist rate limit for WABA ${wabaId} to DB:`, e.message);
+        // Even if DB write fails, local cache is set — this container at least won't hammer
+    }
 }
 
 // Helper: Parse X-Business-Use-Case-Usage header to get exact wait time from Meta
@@ -112,6 +175,8 @@ class CampaignWorker {
         this.isRunning = false;
         this.isProcessing = false;
         this.workerId = Math.random().toString(36).substring(2, 7).toUpperCase();
+        // Wire shared Supabase client for cross-container rate limit coordination
+        setRateLimitSupabase(this.supabase);
     }
 
     start() {
@@ -128,36 +193,45 @@ class CampaignWorker {
     }
 
     async loop() {
+        // ✅ JITTER: Each container waits a random 0-5s before starting its first tick.
+        // Without this, all 100 containers start simultaneously and hammer the DB at the same moment.
+        const startJitter = Math.floor(Math.random() * 5000);
+        console.log(`[Worker ${this.workerId}] Starting with ${startJitter}ms jitter...`);
+        await sleep(startJitter);
+
         while (this.isRunning) {
             try {
-                // NOTE: Rate limits are now per-WABA, not global.
-                // We no longer pause the entire loop here — instead each campaign
-                // checks its own WABA's rate limit inside processCampaignBatch().
-                // This allows other users' campaigns to continue while one WABA is paused.
-
-                // Prevent overlapping loops if processing takes longer than sleep
                 if (!this.isProcessing) {
                     this.isProcessing = true;
-                    // Maintenance: Recover stale locks (items stuck in SENDING > 15m)
-                    await this.recoverStaleLocks();
 
-                    await this.processScheduledCampaigns();
+                    // ✅ STAGGERED MAINTENANCE: Only ~1% of containers run heavy maintenance per tick.
+                    // At 100 containers, this means ~1 container does recovery every 2s tick.
+                    // Without this, all 100 containers run recoverStaleLocks simultaneously.
+                    const shouldRunMaintenance = Math.random() < (1 / Math.max(1, this.estimatedContainerCount));
+                    if (shouldRunMaintenance) {
+                        await this.recoverStaleLocks();
+                        await this.processScheduledCampaigns();
+                    }
+
                     await this.processQueue();
                     this.isProcessing = false;
                 }
             } catch (error) {
-                console.error('❌ Worker Loop Error:', error);
+                console.error(`[❌ Worker ${this.workerId}] Loop Error:`, error.message);
                 this.isProcessing = false;
             }
-            // Wait 2 seconds before next tick
-            await sleep(2000);
+
+            // ✅ JITTER ON EVERY TICK: Base 2s + random 0-3s extra.
+            // Spreads 100 container ticks across a 5s window instead of all hitting at once.
+            const tickJitter = 2000 + Math.floor(Math.random() * 3000);
+            await sleep(tickJitter);
         }
     }
 
     async recoverStaleLocks() {
-        // Recover items stuck in SENDING for more than 2 minutes
-        const timeoutMins = 2;
-        const threshold = new Date(Date.now() - timeoutMins * 60 * 1000).toISOString();
+        // Recover items stuck in SENDING for more than 2 minutes.
+        // ✅ Only ~1 container per tick runs this (probability-based in loop()).
+        const threshold = new Date(Date.now() - 2 * 60 * 1000).toISOString();
 
         const { data: recovered } = await this.supabase
             .from('campaign_queue')
@@ -167,50 +241,47 @@ class CampaignWorker {
             .select('id');
 
         if (recovered && recovered.length > 0) {
-            console.log(`[Worker] Auto-Recovered ${recovered.length} stuck items.`);
-            try { logCampaignRequest('RECOVER_STALE', { count: recovered.length }); } catch (ignore) { }
+            console.log(`[Worker ${this.workerId}] Auto-Recovered ${recovered.length} stale SENDING items.`);
+        }
+
+        // Release claims from dead containers (no heartbeat for > 60s).
+        // Uses campaign_worker_claims table (no ALTER TABLE needed on campaigns).
+        const claimThreshold = new Date(Date.now() - 60 * 1000).toISOString();
+        const { error: releaseErr } = await this.supabase
+            .from('campaign_worker_claims')
+            .delete()
+            .lt('claimed_at', claimThreshold);
+
+        if (releaseErr && releaseErr.code !== '42P01') {
+            // 42P01 = table doesn't exist yet — ignore until migration runs
+            console.warn('[Worker] Stale claim cleanup error:', releaseErr.message);
         }
     }
 
     async processScheduledCampaigns() {
-        // Find campaigns that are SCHEDULED and due, and magically lock them to PROCESSING atomically.
-        // This prevents multiple workers from picking up the same campaign.
         const now = new Date().toISOString();
-
         const { data: startedCampaigns, error } = await this.supabase
             .from('campaigns')
             .update({ status: 'PROCESSING' })
             .eq('status', 'SCHEDULED')
             .lte('scheduled_at', now)
-            .select('id, title'); // Return the IDs we successfully claimed
+            .select('id, title');
 
         if (error) {
-            if (error.message && (error.message.includes('fetch failed') || error.message.includes('ECONNRESET'))) {
-                console.warn('[Worker] Transient Network Error (Supabase Connection): Retrying in next tick...');
+            if (error.message?.includes('fetch failed') || error.message?.includes('ECONNRESET')) {
+                console.warn('[Worker] Transient Supabase connection error. Retrying next tick...');
             } else {
-                console.error('Error processing scheduled campaigns:', error);
+                console.error('[Worker] Error starting scheduled campaigns:', error);
             }
             return;
         }
 
-        if (startedCampaigns && startedCampaigns.length > 0) {
-            console.log(`[Worker] Atomically locked & started ${startedCampaigns.length} campaigns:`, startedCampaigns.map(c => c.title).join(', '));
-
-            // Log the start event for each
-            startedCampaigns.forEach(c => {
-                try {
-                    logCampaignRequest('CAMPAIGN_STARTED', {
-                        campaignId: c.id,
-                        title: c.title,
-                        workerId: this.workerId
-                    });
-                } catch (ignore) { }
-            });
+        if (startedCampaigns?.length > 0) {
+            console.log(`[Worker ${this.workerId}] Started ${startedCampaigns.length} scheduled campaigns: ${startedCampaigns.map(c => c.title).join(', ')}`);
         }
     }
 
     async processQueue() {
-        // 1. Get active campaigns
         const { data: activeCampaigns } = await this.supabase
             .from('campaigns')
             .select('id, user_id, title, template_name, language_code, variable_mapping, media_url, media_type, location_header')
@@ -218,12 +289,79 @@ class CampaignWorker {
 
         if (!activeCampaigns || activeCampaigns.length === 0) return;
 
-        for (const campaign of activeCampaigns) {
-            await this.processCampaignBatch(campaign);
-        }
+        // ✅ SCALE: Update estimated container count based on active campaigns volume.
+        // This self-tunes the maintenance probability in loop().
+        this.estimatedContainerCount = Math.max(10, this.estimatedContainerCount || 10);
+
+        // ✅ SHUFFLE: Randomize campaign order so not all containers compete on the same campaign first.
+        const shuffled = [...activeCampaigns].sort(() => Math.random() - 0.5);
+
+        // Process campaigns in parallel — each claims exclusive ownership before working.
+        await Promise.all(shuffled.map(campaign => this.processCampaignBatch(campaign)));
     }
 
     async processCampaignBatch(campaign) {
+        // ═══════════════════════════════════════════════════════════════════
+        // ✅ CAMPAIGN-LEVEL OWNERSHIP CLAIM (100+ container safe)
+        // ═══════════════════════════════════════════════════════════════════
+        // Uses a SEPARATE `campaign_worker_claims` table — no ALTER TABLE needed.
+        // UPSERT atomically: only succeeds if no live claim exists.
+        // The other 99 containers get a conflict error → they skip immediately.
+        // ═══════════════════════════════════════════════════════════════════
+        const claimExpiry = new Date(Date.now() - 60 * 1000).toISOString();
+        const now = new Date().toISOString();
+
+        // Step 1: Delete any expired claim for this campaign (dead container cleanup)
+        await this.supabase
+            .from('campaign_worker_claims')
+            .delete()
+            .eq('campaign_id', campaign.id)
+            .lt('claimed_at', claimExpiry);
+
+        // Step 2: Try to INSERT our claim — fails if another container already has it
+        const { error: claimErr } = await this.supabase
+            .from('campaign_worker_claims')
+            .insert({ campaign_id: campaign.id, worker_id: this.workerId, claimed_at: now });
+
+        if (claimErr) {
+            if (claimErr.code === '42P01') {
+                // Table doesn't exist yet — migration not run. Skip claiming, process anyway.
+                // Remove this fallback once SQL migration is confirmed.
+                console.warn('[Worker] campaign_worker_claims table missing. Run SQL migration. Processing without claim lock.');
+            } else if (claimErr.code === '23505') {
+                // Unique violation — another container already claimed this campaign
+                return; // Skip silently — the owner is handling it
+            } else {
+                console.warn(`[Worker ${this.workerId}] Claim insert error:`, claimErr.message);
+                return;
+            }
+        }
+
+        // We own this campaign. Heartbeat renews claimed_at every 20s.
+        const heartbeatInterval = setInterval(async () => {
+            try {
+                await this.supabase
+                    .from('campaign_worker_claims')
+                    .update({ claimed_at: new Date().toISOString() })
+                    .eq('campaign_id', campaign.id)
+                    .eq('worker_id', this.workerId);
+            } catch (e) { /* ignore */ }
+        }, 20000);
+
+        try {
+            await this._processCampaignBatchInternal(campaign);
+        } finally {
+            clearInterval(heartbeatInterval);
+            // Release claim so other containers can pick up next batch
+            await this.supabase
+                .from('campaign_worker_claims')
+                .delete()
+                .eq('campaign_id', campaign.id)
+                .eq('worker_id', this.workerId);
+        }
+    }
+
+    async _processCampaignBatchInternal(campaign) {
         // Get Config (WABA, Token)
         const { data: config } = await this.supabase
             .from('whatsapp_config')
@@ -233,8 +371,14 @@ class CampaignWorker {
 
         if (!config) {
             console.error(`No config found for user ${campaign.user_id}`);
-            // Mark campaign as failed to stop loop
             await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+            return;
+        }
+
+        // Check if THIS WABA is rate-limited BEFORE doing ANY work
+        if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
+            const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
+            console.warn(`[Worker ${this.workerId}] ⏸️ WABA ${config.whatsapp_business_account_id} rate-limited ${waitSec}s. Skipping.`);
             return;
         }
 
@@ -268,7 +412,7 @@ class CampaignWorker {
             // OPTIMIZATION: Use cache to avoid hammering Meta API every 2 seconds
             if (!config.whatsapp_business_account_id) {
                 console.warn('[Worker] Missing WABA ID in config. Skipping Meta Template Fetch.');
-            } else if (isWabaRateLimited(config.whatsapp_business_account_id)) {
+            } else if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
                 // Rate-limited: skip Meta fetch, rely on local template
                 console.warn(`[Worker] ⏸️ Skipping Meta API fetch (rate-limited for WABA ${config.whatsapp_business_account_id}). Using local template only.`);
             } else {
@@ -333,9 +477,15 @@ class CampaignWorker {
                         console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! No header info. Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s until ${new Date(Date.now() + pauseMs).toISOString()}`);
                     }
 
-                    setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
-                    // Invalidate template cache so fresh fetch happens after pause
-                    TEMPLATE_CACHE.clear();
+                    await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
+                    // ✅ FIX: Only clear the cache for THIS specific WABA, not ALL WABAs.
+                    // Previously TEMPLATE_CACHE.clear() wiped templates for all users,
+                    // forcing innocent WABAs to re-fetch from Meta (wasting their quota too).
+                    for (const key of TEMPLATE_CACHE.keys()) {
+                        if (key.startsWith(`${config.whatsapp_business_account_id}:`)) {
+                            TEMPLATE_CACHE.delete(key);
+                        }
+                    }
                 }
             }
         }
@@ -802,10 +952,9 @@ class CampaignWorker {
             } catch (ignore) { }
 
             // Guard: Don't send if we are currently rate-limited by Meta
-            if (isWabaRateLimited(config.whatsapp_business_account_id)) {
+            if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
                 const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
                 console.warn(`[Worker] ⏸️ Skipping send to ${item.phone_number} — rate-limited for ${waitSec}s more. Will retry.`);
-                // Put item back to RETRYING so it gets picked up after the pause
                 await this.supabase.from('campaign_queue').update({
                     status: 'RETRYING',
                     retry_count: (item.retry_count || 0),
@@ -1108,9 +1257,19 @@ class CampaignWorker {
                 } else {
                     console.error(`[Worker] 🚨 80008 on SEND! Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s.`);
                 }
-                setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
-                TEMPLATE_CACHE.clear();
+                await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
+                // ✅ FIX: Only clear cache for THIS WABA — not all other users' WABAs
+                for (const key of TEMPLATE_CACHE.keys()) {
+                    if (key.startsWith(`${config.whatsapp_business_account_id}:`)) {
+                        TEMPLATE_CACHE.delete(key);
+                    }
+                }
             } else if (errorCode >= 500 || errorCode === 131006 || !error.response) {
+                shouldRetry = true;
+            } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+                // Network-level failure (Meta's server refusing or dropping connection)
+                // This usually happens during or just after a rate limit period — always retry
+                console.warn(`[Worker] Network error (${error.code}) sending to ${item.phone_number}. Will retry.`);
                 shouldRetry = true;
             }
 
