@@ -60,26 +60,12 @@ services:
       - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
-      # ─────────────────────────────────────────────────────────────────
-      # NODE.JS MEMORY & GC OPTIMIZATION
-      # Container limit: 1GB. OS overhead: ~100MB. Node usable: ~768MB.
-      # --max-old-space-size=768  : V8 heap ceiling. GC triggers before OOM kill.
-      # --max-semi-space-size=64  : Young-gen (new objects) arena. Larger = fewer minor GCs = faster throughput.
-      # --expose-gc               : Allows manual gc() calls in code for cleanup after bulk ops.
-      # --optimize-for-size       : Smaller machine code footprint — better for many small containers.
-      # --gc-interval=100         : Force minor GC sweep every 100 allocations (prevents heap spikes).
-      # ─────────────────────────────────────────────────────────────────
-      - NODE_OPTIONS=--max-old-space-size=768 --max-semi-space-size=64 --expose-gc --optimize-for-size --gc-interval=100
+      # MEMORY OPTIMIZATION: Prevent OOM Kills by forcing GC before container limit (1GB)
+      - NODE_OPTIONS=--max-old-space-size=768 --max-semi-space-size=64 --expose-gc --optimize-for-size --gc-interval=100 
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
       - ./server_uploads/${DOMAIN}:/app/uploads
-      # tmpfs: RAM-backed temp storage (zero disk I/O, auto-cleared on restart)
-      # Using long-form syntax for Docker Compose compatibility
-      - type: tmpfs
-        target: /tmp
-        tmpfs:
-          size: 134217728   # 128MB in bytes
       
     labels:
       - "traefik.enable=true"
@@ -93,28 +79,6 @@ services:
       # Keeps a user connected to the same container if needed
       # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
     
-    # ─────────────────────────────────────────────────────────────────
-    # HEALTHCHECK: Docker restarts container if /health stops responding.
-    # Uses Node.js built-in http module — works in ANY Node image (slim/full).
-    # curl is NOT pre-installed in node:18-slim, so we avoid depending on it.
-    # ─────────────────────────────────────────────────────────────────
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-    # ─────────────────────────────────────────────────────────────────
-    # ULIMITS: Prevent file descriptor / process exhaustion
-    # nofile 65536: Each open socket, log file, DB connection = 1 file descriptor.
-    # Default Linux limit is 1024 — way too low for a busy Node.js server.
-    # ─────────────────────────────────────────────────────────────────
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-
     networks:
       - traefik_network
 
