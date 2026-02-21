@@ -260,9 +260,12 @@ class CampaignWorker {
 
     async processScheduledCampaigns() {
         const now = new Date().toISOString();
+
+        // NOTE: claimed_by/claimed_at do NOT exist on campaigns table.
+        // Campaign ownership is tracked via the separate `campaign_worker_claims` table.
         const { data: startedCampaigns, error } = await this.supabase
             .from('campaigns')
-            .update({ status: 'PROCESSING', claimed_by: null, claimed_at: null })
+            .update({ status: 'PROCESSING' })
             .eq('status', 'SCHEDULED')
             .lte('scheduled_at', now)
             .select('id, title');
@@ -270,13 +273,6 @@ class CampaignWorker {
         if (error) {
             if (error.message?.includes('fetch failed') || error.message?.includes('ECONNRESET')) {
                 console.warn('[Worker] Transient Supabase connection error. Retrying next tick...');
-            } else if (error.code === '42703') {
-                // claimed_by column doesn't exist yet - fall back to old query
-                await this.supabase
-                    .from('campaigns')
-                    .update({ status: 'PROCESSING' })
-                    .eq('status', 'SCHEDULED')
-                    .lte('scheduled_at', now);
             } else {
                 console.error('[Worker] Error starting scheduled campaigns:', error);
             }
