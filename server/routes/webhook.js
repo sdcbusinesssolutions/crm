@@ -73,6 +73,11 @@ setInterval(() => {
 // PROVEN: curl succeeds 100% from VPS where Node.js HTTPS gets ECONNRESET.
 // Meta's CDN (lookaside.fbsbx.com) blocks Node.js's TLS fingerprint but not curl's.
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Download binary from a URL using curl (bypasses Node.js TLS block)
+// PROVEN: curl succeeds 100% from VPS where Node.js HTTPS gets ECONNRESET.
+// Meta's CDN (lookaside.fbsbx.com) blocks Node.js's TLS fingerprint but not curl's.
+// ─────────────────────────────────────────────────────────────────────────────
 function downloadBinaryWithCurl(url, token) {
     return new Promise((resolve, reject) => {
         const args = [
@@ -82,7 +87,7 @@ function downloadBinaryWithCurl(url, token) {
             '--max-time', '60',       // 60 second total timeout
             '--max-filesize', '52428800', // Block files >50MB
             '-H', `Authorization: Bearer ${token}`,
-            '-H', 'User-Agent: WhatsApp/2.2412.10 N', // Meta's own client UA
+            '-H', 'User-Agent: WhatsApp/2.21.11.17 A', // Real client User-Agent
             '-H', 'Accept: */*',
             url
         ];
@@ -109,111 +114,188 @@ function downloadBinaryWithCurl(url, token) {
 //   Step 2: curl subprocess → download binary from CDN URL
 //           curl has different TLS fingerprint → bypasses CDN blocking on VPS
 // ─────────────────────────────────────────────────────────────────────────────
+// const downloadMedia = async (mediaId, accessToken, userId) => {
+//     try {
+//         if (!mediaId) return null;
+//         if (!accessToken) {
+//             console.error('downloadMedia: ❌ No accessToken — update token in Settings > WhatsApp Config');
+//             return null;
+//         }
+
+//         console.log(`downloadMedia: Fetching URL for mediaId ${mediaId}`);
+
+//         // ── Step 1: Get metadata + CDN URL from Graph API ────────────────────
+//         let urlData;
+//         let metaAttempts = 0;
+//         while (metaAttempts < 3) {
+//             metaAttempts++;
+//             try {
+//                 const r = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+//                     headers: { Authorization: `Bearer ${accessToken}` },
+//                     timeout: 15000
+//                 });
+//                 urlData = r.data;
+//                 if (urlData && urlData.url) break;
+//             } catch (err) {
+//                 const statusCode = err.response?.status;
+//                 if (statusCode === 401 || statusCode === 403) {
+//                     console.error(`downloadMedia: ❌ TOKEN EXPIRED (HTTP ${statusCode}). Refresh in Settings > WhatsApp Config.`);
+//                     return { url: '__TOKEN_EXPIRED__', mime_type: null };
+//                 }
+//                 console.error(`downloadMedia: Meta metadata attempt ${metaAttempts}/3 failed: ${err.message}`);
+//                 if (metaAttempts >= 3) return null;
+//                 await new Promise(r => setTimeout(r, 2000 * metaAttempts));
+//             }
+//         }
+
+//         if (!urlData || !urlData.url) {
+//             console.error(`downloadMedia: ❌ No CDN URL returned from Meta for ${mediaId}`);
+//             return null;
+//         }
+
+//         const mimeType = urlData.mime_type || 'application/octet-stream';
+//         console.log(`downloadMedia: CDN URL obtained. MIME: ${mimeType}, Size: ${urlData.file_size}`);
+
+//         // ── Step 2: Download binary via curl ─────────────────────────────────
+//         let buffer = null;
+//         let binAttempts = 0;
+//         while (binAttempts < 3) {
+//             binAttempts++;
+//             try {
+//                 console.log(`downloadMedia: Binary download attempt ${binAttempts}/3 via curl...`);
+//                 buffer = await downloadBinaryWithCurl(urlData.url, accessToken);
+//                 if (buffer && buffer.length > 0) {
+//                     console.log(`downloadMedia: ✅ Success — ${buffer.length} bytes on attempt ${binAttempts}`);
+//                     break;
+//                 }
+//             } catch (curlErr) {
+//                 console.error(`downloadMedia: curl attempt ${binAttempts}/3 failed: ${curlErr.message}`);
+//                 if (binAttempts >= 3) {
+//                     console.error(`downloadMedia: ❌ All curl attempts exhausted for ${mediaId}`);
+//                     return null;
+//                 }
+//                 await new Promise(r => setTimeout(r, 2000 * binAttempts));
+//             }
+//         }
+
+//         if (!buffer || buffer.length === 0) {
+//             console.error(`downloadMedia: ❌ Empty buffer for ${mediaId}`);
+//             return null;
+//         }
+
+//         // ── Step 3: Upload to Supabase Storage ───────────────────────────────
+//         const ext = mimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
+//         const filename = `${mediaId}-${Date.now()}.${ext}`;
+//         let finalPublicUrl = null;
+
+//         try {
+//             const bucketName = 'campaign-media';
+//             const dateStr = new Date().toISOString().split('T')[0];
+//             const storagePath = `${userId}/inbound/${dateStr}/${filename}`;
+//             console.log(`downloadMedia: Uploading ${buffer.length} bytes → ${storagePath}`);
+
+//             const { error: uploadError } = await supabaseAdmin.storage
+//                 .from(bucketName)
+//                 .upload(storagePath, buffer, {
+//                     contentType: mimeType,
+//                     cacheControl: '3600',
+//                     upsert: false
+//                 });
+
+//             if (uploadError) {
+//                 console.error(`downloadMedia: ❌ Supabase upload failed: ${uploadError.message}`);
+//                 return null;
+//             }
+
+//             const { data: publicUrlData } = supabaseAdmin.storage.from(bucketName).getPublicUrl(storagePath);
+//             if (publicUrlData?.publicUrl) {
+//                 finalPublicUrl = publicUrlData.publicUrl;
+//                 console.log(`downloadMedia: ✅ Supabase URL: ${finalPublicUrl}`);
+//             }
+//         } catch (storageErr) {
+//             console.error(`downloadMedia: ❌ Supabase exception: ${storageErr.message}`);
+//             return null;
+//         }
+
+//         return { url: finalPublicUrl, mime_type: mimeType, filename, type: mimeType.split('/')[0] };
+
+//     } catch (error) {
+//         console.error('downloadMedia: Unhandled exception:', error.message);
+//         return null;
+//     }
+// };
+
 const downloadMedia = async (mediaId, accessToken, userId) => {
     try {
-        if (!mediaId) return null;
-        if (!accessToken) {
-            console.error('downloadMedia: ❌ No accessToken — update token in Settings > WhatsApp Config');
+        if (!mediaId || !accessToken) return null;
+
+        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId} (v21.0)`);
+
+        // 1. Get CDN URL from Meta
+        let urlData;
+        try {
+            const metaResp = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                timeout: 15000
+            });
+            urlData = metaResp.data;
+        } catch (err) {
+            console.error(`downloadMedia: Meta metadata fetch failed: ${err.message}`);
             return null;
         }
 
-        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId}`);
-
-        // ── Step 1: Get metadata + CDN URL from Graph API ────────────────────
-        let urlData;
-        let metaAttempts = 0;
-        while (metaAttempts < 3) {
-            metaAttempts++;
-            try {
-                const r = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                    timeout: 15000
-                });
-                urlData = r.data;
-                if (urlData && urlData.url) break;
-            } catch (err) {
-                const statusCode = err.response?.status;
-                if (statusCode === 401 || statusCode === 403) {
-                    console.error(`downloadMedia: ❌ TOKEN EXPIRED (HTTP ${statusCode}). Refresh in Settings > WhatsApp Config.`);
-                    return { url: '__TOKEN_EXPIRED__', mime_type: null };
-                }
-                console.error(`downloadMedia: Meta metadata attempt ${metaAttempts}/3 failed: ${err.message}`);
-                if (metaAttempts >= 3) return null;
-                await new Promise(r => setTimeout(r, 2000 * metaAttempts));
-            }
-        }
-
         if (!urlData || !urlData.url) {
-            console.error(`downloadMedia: ❌ No CDN URL returned from Meta for ${mediaId}`);
+            console.error(`downloadMedia: No CDN URL returned for ${mediaId}`);
             return null;
         }
 
         const mimeType = urlData.mime_type || 'application/octet-stream';
-        console.log(`downloadMedia: CDN URL obtained. MIME: ${mimeType}, Size: ${urlData.file_size}`);
+        console.log(`downloadMedia: Got URL. Attempting binary download via curl...`);
 
-        // ── Step 2: Download binary via curl ─────────────────────────────────
+        // 2. Download via curl (THE FIX for ECONNRESET)
         let buffer = null;
-        let binAttempts = 0;
-        while (binAttempts < 3) {
-            binAttempts++;
+        let attempts = 0;
+        while (attempts < 3) {
+            attempts++;
             try {
-                console.log(`downloadMedia: Binary download attempt ${binAttempts}/3 via curl...`);
                 buffer = await downloadBinaryWithCurl(urlData.url, accessToken);
-                if (buffer && buffer.length > 0) {
-                    console.log(`downloadMedia: ✅ Success — ${buffer.length} bytes on attempt ${binAttempts}`);
-                    break;
-                }
+                if (buffer && buffer.length > 0) break;
             } catch (curlErr) {
-                console.error(`downloadMedia: curl attempt ${binAttempts}/3 failed: ${curlErr.message}`);
-                if (binAttempts >= 3) {
-                    console.error(`downloadMedia: ❌ All curl attempts exhausted for ${mediaId}`);
-                    return null;
-                }
-                await new Promise(r => setTimeout(r, 2000 * binAttempts));
+                console.error(`downloadMedia: curl attempt ${attempts} failed: ${curlErr.message}`);
+                if (attempts >= 3) return null;
+                await new Promise(r => setTimeout(r, 2000 * attempts));
             }
         }
 
-        if (!buffer || buffer.length === 0) {
-            console.error(`downloadMedia: ❌ Empty buffer for ${mediaId}`);
-            return null;
-        }
+        if (!buffer || buffer.length === 0) return null;
 
-        // ── Step 3: Upload to Supabase Storage ───────────────────────────────
+        console.log(`downloadMedia: Binary downloaded (${buffer.length} bytes). Uploading to Supabase...`);
+
+        // 3. Upload to Supabase Storage
         const ext = mimeType.split('/')[1]?.replace(/[^a-z0-9]/gi, '') || 'bin';
         const filename = `${mediaId}-${Date.now()}.${ext}`;
-        let finalPublicUrl = null;
+        const bucketName = 'campaign-media';
+        const dateStr = new Date().toISOString().split('T')[0];
+        const storagePath = `${userId}/inbound/${dateStr}/${filename}`;
 
-        try {
-            const bucketName = 'campaign-media';
-            const dateStr = new Date().toISOString().split('T')[0];
-            const storagePath = `${userId}/inbound/${dateStr}/${filename}`;
-            console.log(`downloadMedia: Uploading ${buffer.length} bytes → ${storagePath}`);
+        const { error: uploadError } = await supabaseAdmin.storage
+            .from(bucketName)
+            .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
 
-            const { error: uploadError } = await supabaseAdmin.storage
-                .from(bucketName)
-                .upload(storagePath, buffer, {
-                    contentType: mimeType,
-                    cacheControl: '3600',
-                    upsert: false
-                });
-
-            if (uploadError) {
-                console.error(`downloadMedia: ❌ Supabase upload failed: ${uploadError.message}`);
-                return null;
-            }
-
-            const { data: publicUrlData } = supabaseAdmin.storage.from(bucketName).getPublicUrl(storagePath);
-            if (publicUrlData?.publicUrl) {
-                finalPublicUrl = publicUrlData.publicUrl;
-                console.log(`downloadMedia: ✅ Supabase URL: ${finalPublicUrl}`);
-            }
-        } catch (storageErr) {
-            console.error(`downloadMedia: ❌ Supabase exception: ${storageErr.message}`);
+        if (uploadError) {
+            console.error(`downloadMedia: Supabase upload failed: ${uploadError.message}`);
             return null;
         }
 
-        return { url: finalPublicUrl, mime_type: mimeType, filename, type: mimeType.split('/')[0] };
+        const { data: publicUrlData } = supabaseAdmin.storage.from(bucketName).getPublicUrl(storagePath);
+        console.log(`downloadMedia: Success. Public URL: ${publicUrlData.publicUrl}`);
 
+        return {
+            url: publicUrlData.publicUrl,
+            mime_type: mimeType,
+            filename,
+            type: mimeType.split('/')[0]
+        };
     } catch (error) {
         console.error('downloadMedia: Unhandled exception:', error.message);
         return null;
