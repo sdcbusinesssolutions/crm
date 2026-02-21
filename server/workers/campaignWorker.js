@@ -3,14 +3,12 @@ const axios = require('axios');
 const https = require('https');
 
 // --- Global HTTPS Agent — tuned for resilience against ECONNRESET ---
-// keepAlive=true reuses TCP connections (faster), but we cap maxSockets to prevent
-// overwhelming Meta's servers which causes ECONNRESET under high load.
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    maxSockets: 10,          // Reduced: too many sockets = Meta drops connections (ECONNRESET)
-    maxFreeSockets: 5,
-    timeout: 30000,          // 30s socket timeout
-    scheduling: 'lifo'       // Reuse most-recently-active sockets first (better keep-alive)
+    maxSockets: 50,          // ✅ Matches whatsappService limit
+    maxFreeSockets: 10,
+    timeout: 30000,
+    scheduling: 'lifo'       // Reuse warm sockets first
 });
 
 const { logCampaignRequest } = require('../utils/logger');

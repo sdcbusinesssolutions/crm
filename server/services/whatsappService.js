@@ -2,14 +2,14 @@ const axios = require('axios');
 const https = require('https');
 
 // --- Global HTTPS Agent with Keep-Alive ---
-// maxSockets: 10 — prevents ECONNRESET from overwhelming Meta's servers.
-// 100 was the original value — caused connection storms under load.
+// maxSockets: 50 — Balance between performance and connection limits.
+// 100 caused ECONNRESET storms. 10 was stable but limited throughput.
 const httpsAgent = new https.Agent({
     keepAlive: true,
-    maxSockets: 10,       // ✅ Safe limit — matches campaignWorker setting
-    maxFreeSockets: 5,
+    maxSockets: 50,       // ✅ Scaled up to 50 for high-traffic servers
+    maxFreeSockets: 10,
     timeout: 30000,
-    scheduling: 'lifo'   // Reuse warm connections first → fewer resets
+    scheduling: 'lifo'
 });
 
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');

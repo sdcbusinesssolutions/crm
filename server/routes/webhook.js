@@ -99,12 +99,14 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         let attempts = 0;
         const maxAttempts = 3;
 
-        // CRITICAL FIX: Force IPv4 (family: 4) and disable Keep-Alive.
-        // Docker/VPS environments often fail IPv6 connections to Meta's CDN causing ECONNRESET.
-        const https = require('https');
+        // CRITICAL: Using a dedicated agent for binary downloads.
+        // family: 4 prevents IPv6 resolution issues common in Docker/VPS.
+        // keepAlive: true reduces handshake overhead for many media items.
         const agent = new https.Agent({
-            keepAlive: false,
-            family: 4
+            keepAlive: true,
+            maxSockets: 20,
+            family: 4,
+            timeout: 60000
         });
 
         while (attempts < maxAttempts) {

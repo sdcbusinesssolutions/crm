@@ -302,27 +302,30 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
         // 1. Get unread incoming messages with whatsapp_message_id
         const { data: unreadMessages, error: fetchError } = await supabase
             .from('messages')
-            .select('id, whatsapp_message_id')
+            .select('id, whatsapp_message_id, created_at')
             .eq('conversation_id', conversationId)
             .eq('direction', 'in')
-            .neq('status', 'read');
+            .neq('status', 'read')
+            .order('created_at', { ascending: true }); // ✅ Sorting added for reliable "latest" detection
 
         if (fetchError) throw fetchError;
 
         // 2. Mark as read on WhatsApp
         // ─────────────────────────────────────────────────────────────────
-        // KEY INSIGHT: Meta only needs the LATEST message marked as read.
-        // It auto-marks all previous messages as read too.
-        // Old code: Promise.all(30 msgs) → 30 simultaneous API calls → ECONNRESET storm
-        // New code: 1 API call for latest msg → same result, zero storm ✅
+        // Sorting by created_at is CRITICAL. Meta auto-marks all messages 
+        // older than the specified ID as read. If we pick a random ID,
+        // newer messages will stay unread.
         // ─────────────────────────────────────────────────────────────────
         if (unreadMessages && unreadMessages.length > 0) {
-            const latestWithId = unreadMessages
+            // Sort to ensure we truly have the latest WhatsApp message
+            const sorted = [...unreadMessages]
                 .filter(msg => msg.whatsapp_message_id)
-                .pop(); // Last = most recent
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+            const latestWithId = sorted.pop();
 
             if (latestWithId) {
-                // Fire-and-forget: don't block the API response
+                // Fire-and-forget: mark the newest message as read
                 whatsappService.markAsRead(userId, latestWithId.whatsapp_message_id)
                     .catch(err => console.error('Background markAsRead error:', err));
             }
