@@ -262,7 +262,7 @@ class CampaignWorker {
         const now = new Date().toISOString();
         const { data: startedCampaigns, error } = await this.supabase
             .from('campaigns')
-            .update({ status: 'PROCESSING' })
+            .update({ status: 'PROCESSING', claimed_by: null, claimed_at: null })
             .eq('status', 'SCHEDULED')
             .lte('scheduled_at', now)
             .select('id, title');
@@ -270,6 +270,13 @@ class CampaignWorker {
         if (error) {
             if (error.message?.includes('fetch failed') || error.message?.includes('ECONNRESET')) {
                 console.warn('[Worker] Transient Supabase connection error. Retrying next tick...');
+            } else if (error.code === '42703') {
+                // claimed_by column doesn't exist yet - fall back to old query
+                await this.supabase
+                    .from('campaigns')
+                    .update({ status: 'PROCESSING' })
+                    .eq('status', 'SCHEDULED')
+                    .lte('scheduled_at', now);
             } else {
                 console.error('[Worker] Error starting scheduled campaigns:', error);
             }
@@ -382,16 +389,25 @@ class CampaignWorker {
             return;
         }
 
-        // Fetch Template Definition (Hybrid: Meta for Structure, DB for Custom Buttons)
+        // Template vars
         let templateDef = null;
         let localButtons = null;
         let localTmpl = null;
 
         try {
-            // 1. Get Local Buttons (Custom Carousel) from DB
+            // ══════════════════════════════════════════════════════════════
+            // TEMPLATE STRATEGY: Fetch from Meta ONCE → Store in DB → Reuse forever
+            // ══════════════════════════════════════════════════════════════
+            // Uses `template_components_cache` table (no ALTER TABLE needed).
+            // 1st: Check cache table → 0 Meta API calls
+            // 2nd: Fetch from Meta ONCE if not cached → save to cache table
+            // Result: Meta called exactly 1 time per template, ever.
+            // ══════════════════════════════════════════════════════════════
+
+            // Step 1: Get local template (buttons, type, text)
             const { data: localTmpls } = await this.supabase
                 .from('whatsapp_templates')
-                .select('buttons, language, template_type, body_text, header_text')
+                .select('id, buttons, language, template_type, body_text, header_text')
                 .eq('name', campaign.template_name)
                 .eq('user_id', campaign.user_id);
 
@@ -401,93 +417,86 @@ class CampaignWorker {
 
             if (localTmpl) {
                 localButtons = localTmpl.buttons;
-                // console.log(`[Worker] Found Local Buttons: ${!!localButtons} (Lang: ${localTmpl.language})`);
-            }
-        } catch (e) {
-            console.warn(`[Worker] DB Fetch Warning:`, e.message);
-        }
 
-        try {
-            // 2. Get Standard Definition from Meta API (Components)
-            // OPTIMIZATION: Use cache to avoid hammering Meta API every 2 seconds
-            if (!config.whatsapp_business_account_id) {
-                console.warn('[Worker] Missing WABA ID in config. Skipping Meta Template Fetch.');
-            } else if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
-                // Rate-limited: skip Meta fetch, rely on local template
-                console.warn(`[Worker] ⏸️ Skipping Meta API fetch (rate-limited for WABA ${config.whatsapp_business_account_id}). Using local template only.`);
-            } else {
-                // Check cache first
-                const cached = getCachedTemplate(config.whatsapp_business_account_id, campaign.template_name);
-                if (cached) {
-                    templateDef = cached;
-                    console.log(`[Worker] ✅ Template '${campaign.template_name}' loaded from cache.`);
+                // Step 2: Check dedicated components cache table
+                const { data: cachedComp } = await this.supabase
+                    .from('template_components_cache')
+                    .select('components')
+                    .eq('user_id', campaign.user_id)
+                    .eq('template_name', campaign.template_name)
+                    .single();
+
+                if (cachedComp?.components?.length > 0) {
+                    // ✅ CACHE HIT: Components in DB — zero Meta API calls
+                    templateDef = {
+                        name: campaign.template_name,
+                        language: localTmpl.language,
+                        components: cachedComp.components,
+                        buttons: localTmpl.buttons || [],
+                        body_text: localTmpl.body_text,
+                        header_text: localTmpl.header_text,
+                        template_type: localTmpl.template_type
+                    };
+                    console.log(`[Worker] ✅ Template '${campaign.template_name}' from component cache (0 Meta API calls).`);
+
+                } else if (config.whatsapp_business_account_id && !(await isWabaRateLimited(config.whatsapp_business_account_id))) {
+                    // ⬇️ CACHE MISS: Fetch from Meta ONCE and save permanently
+                    console.log(`[Worker] 🔄 Fetching template '${campaign.template_name}' from Meta (first time only)...`);
+                    try {
+                        const tmplRes = await axios.get(
+                            `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
+                            {
+                                headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                                httpsAgent: httpsAgent,
+                                timeout: 10000
+                            }
+                        );
+
+                        const usageInfo = parseMetaRateLimitHeader(tmplRes.headers);
+                        if (usageInfo?.callCount >= 80) {
+                            console.warn(`[Worker] ⚠️ Meta API at ${usageInfo.callCount}% usage.`);
+                        }
+
+                        if (tmplRes.data?.data) {
+                            const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
+                            if (metaDef?.components) {
+                                templateDef = { ...metaDef, buttons: localTmpl.buttons || [] };
+
+                                // 💾 SAVE TO CACHE TABLE — all future sends skip Meta entirely
+                                await this.supabase
+                                    .from('template_components_cache')
+                                    .upsert({
+                                        user_id: campaign.user_id,
+                                        template_name: campaign.template_name,
+                                        components: metaDef.components,
+                                        updated_at: new Date().toISOString()
+                                    }, { onConflict: 'user_id,template_name' });
+
+                                console.log(`[Worker] 💾 Template components saved to cache. Future sends = 0 Meta calls.`);
+                            }
+                        }
+                    } catch (metaErr) {
+                        const errCode = metaErr.response?.data?.error?.code;
+                        if (errCode === 80008) {
+                            const rateLimitInfo = parseMetaRateLimitHeader(metaErr.response?.headers);
+                            const pauseMs = (rateLimitInfo?.waitMinutes > 0)
+                                ? rateLimitInfo.waitMinutes * 60 * 1000
+                                : RATE_LIMIT_DEFAULT_PAUSE_MS;
+                            console.error(`[Worker] 🚨 Rate Limit (80008) on template fetch! Pausing WABA ${config.whatsapp_business_account_id} for ${Math.ceil(pauseMs / 60000)}min.`);
+                            await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
+                        } else {
+                            console.warn(`[Worker] Meta template fetch warning: ${metaErr.message}`);
+                        }
+                        // Fall through — send with minimal payload
+                    }
                 } else {
-                    // Fetch from Meta API (only if not cached)
-                    const tmplRes = await axios.get(
-                        `${GRAPH_API_URL}/${config.whatsapp_business_account_id}/message_templates?name=${encodeURIComponent(campaign.template_name)}`,
-                        {
-                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
-                            httpsAgent: httpsAgent
-                        }
-                    );
-
-                    // ✅ Proactive: Check usage from response headers BEFORE we hit the limit
-                    const usageInfo = parseMetaRateLimitHeader(tmplRes.headers);
-                    if (usageInfo && usageInfo.callCount >= 80) {
-                        // Approaching limit — extend cache TTL aggressively to reduce calls
-                        console.warn(`[Worker] ⚠️ Meta API at ${usageInfo.callCount}% usage. Extending cache TTL to 15min.`);
-                    }
-
-                    if (tmplRes.data && tmplRes.data.data) {
-                        const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
-                        if (metaDef) {
-                            templateDef = { ...metaDef };
-                            // Store in cache to avoid repeated API calls
-                            // Use longer TTL if approaching rate limit
-                            const ttl = (usageInfo && usageInfo.callCount >= 80)
-                                ? 15 * 60 * 1000  // 15 min if near limit
-                                : TEMPLATE_CACHE_TTL_MS; // 5 min normally
-                            const cacheKey = `${config.whatsapp_business_account_id}:${campaign.template_name}`;
-                            TEMPLATE_CACHE.set(cacheKey, { def: templateDef, expiresAt: Date.now() + ttl });
-                            console.log(`[Worker] Meta API Def Found: YES. Components: ${metaDef.components?.length} (cached ${ttl / 60000}min)`);
-                        }
-                    }
+                    console.warn(`[Worker] ⏸️ Rate-limited or no WABA ID — using local template data only.`);
                 }
+            } else {
+                console.warn(`[Worker] ⚠️ Template '${campaign.template_name}' not found in local DB for user ${campaign.user_id}.`);
             }
         } catch (e) {
-            const errorContext = `User: ${campaign.user_id} | Phone: ${config.phone_number} | WABA: ${config.whatsapp_business_account_id}`;
-            console.warn(`[Worker] Meta API Fetch Warning: ${e.message} [${errorContext}]`);
-
-            if (e.response?.data) {
-                console.warn(`[Worker] Meta API Error Details:`, JSON.stringify(e.response.data));
-
-                // Detect rate-limit error (code 80008) — WhatsApp Business Management API limit
-                // Per Meta docs: STOP making calls immediately — more calls = longer penalty!
-                const errCode = e.response?.data?.error?.code;
-                if (errCode === 80008) {
-                    // Try to get exact wait time from Meta's response header
-                    const rateLimitInfo = parseMetaRateLimitHeader(e.response?.headers);
-                    let pauseMs = RATE_LIMIT_DEFAULT_PAUSE_MS;
-
-                    if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
-                        // Use Meta's exact estimated_time_to_regain_access (in minutes)
-                        pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
-                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! Meta says wait ${rateLimitInfo.waitMinutes} minutes. Pausing WABA ${config.whatsapp_business_account_id} until ${new Date(Date.now() + pauseMs).toISOString()}`);
-                    } else {
-                        console.error(`[Worker] 🚨 Meta Rate Limit Hit (80008)! No header info. Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s until ${new Date(Date.now() + pauseMs).toISOString()}`);
-                    }
-
-                    await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
-                    // ✅ FIX: Only clear the cache for THIS specific WABA, not ALL WABAs.
-                    // Previously TEMPLATE_CACHE.clear() wiped templates for all users,
-                    // forcing innocent WABAs to re-fetch from Meta (wasting their quota too).
-                    for (const key of TEMPLATE_CACHE.keys()) {
-                        if (key.startsWith(`${config.whatsapp_business_account_id}:`)) {
-                            TEMPLATE_CACHE.delete(key);
-                        }
-                    }
-                }
-            }
+            console.warn(`[Worker] Template fetch error:`, e.message);
         }
 
         // 3. Merge Strategies
