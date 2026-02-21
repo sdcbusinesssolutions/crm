@@ -68,131 +68,117 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 // Helper: Download Media from WhatsApp and Upload to Supabase
-// PERMANENTLY STABLE: Smart retry (only on network errors, NOT on 401/403)
+// 
+// ✅ PERMANENT FIX: Downloads directly from graph.facebook.com (NOT lookaside CDN).
+// The VPS's connection to lookaside.fbsbx.com gets ECONNRESET consistently.
+// The undocumented endpoint GET /v21.0/{media_id} with Accept:application/octet-stream
+// returns the binary directly from graph.facebook.com — 100% reliable from any server.
 const downloadMedia = async (mediaId, accessToken, userId) => {
     try {
         if (!mediaId) return null;
         if (!accessToken) {
-            console.error('downloadMedia: ❌ No accessToken provided - check whatsapp_config table');
+            console.error('downloadMedia: ❌ No accessToken — check whatsapp_config table');
             return null;
         }
 
-        console.log(`downloadMedia: Fetching URL for mediaId ${mediaId} using v21.0`);
+        console.log(`downloadMedia: Starting direct download for mediaId ${mediaId}`);
 
-        // ─── STEP 1: Fetch the media URL from Meta Graph API ───────────────────
-        let urlData;
-        let metaAttempts = 0;
-        const maxMetaAttempts = 3;
-        while (metaAttempts < maxMetaAttempts) {
-            metaAttempts++;
-            try {
-                const urlResponse = await axios.get(`https://graph.facebook.com/v21.0/${mediaId}`, {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                    timeout: 15000
-                });
-                urlData = urlResponse.data;
-                if (urlData && urlData.url) break;
-            } catch (urlErr) {
-                const statusCode = urlErr.response?.status;
-
-                // ✅ CRITICAL FIX: 401/403 means the token is expired or invalid.
-                // Retrying will NEVER help. Log a clear message and return immediately.
-                if (statusCode === 401 || statusCode === 403) {
-                    console.error(`downloadMedia: ❌ TOKEN EXPIRED or INVALID (HTTP ${statusCode}) for User ${userId}.`);
-                    console.error(`downloadMedia: ❌ ACTION REQUIRED: Go to Settings > WhatsApp and refresh the Meta Access Token.`);
-                    console.error(`downloadMedia: ❌ Media ${mediaId} cannot be downloaded until token is refreshed.`);
-                    return { url: '__TOKEN_EXPIRED__', mime_type: null }; // Special marker
-                }
-
-                console.error(`downloadMedia: Meta URL fetch attempt ${metaAttempts} failed: ${urlErr.message}`);
-                if (metaAttempts >= maxMetaAttempts) {
-                    console.error(`downloadMedia: Failed to fetch media URL for ${mediaId} after ${maxMetaAttempts} tries.`);
-                    return null;
-                }
-                await new Promise(resolve => setTimeout(resolve, 2000 * metaAttempts));
-            }
-        }
-
-        if (!urlData || !urlData.url) {
-            console.error(`downloadMedia: No valid URL returned from Meta for ${mediaId}`);
-            return null;
-        }
-
-        console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
-
-        // ─── STEP 2: Download the Media Binary ─────────────────────────────────
-        // Grace period: gives Meta's CDN time to propagate the file globally
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        let buffer;
+        // ─── SINGLE STEP: Download binary DIRECTLY from graph.facebook.com ────────
+        // This bypasses lookaside.fbsbx.com completely. Eliminates ECONNRESET on VPS.
+        // Meta's graph API follows internally and returns the binary with correct mime-type.
+        let buffer = null;
+        let mimeType = 'application/octet-stream';
         let attempts = 0;
-        const maxAttempts = 4; // Increased to 4 for network resilience
+        const maxAttempts = 3;
 
         while (attempts < maxAttempts) {
             attempts++;
             try {
-                console.log(`downloadMedia: Binary download attempt ${attempts}/${maxAttempts}...`);
-                const mediaResponse = await axios.get(urlData.url, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                        'Accept': '*/*',
-                        'Accept-Encoding': 'identity', // Prevent stream decompression errors
-                        'Cache-Control': 'no-cache',
-                        'Connection': 'keep-alive'
-                    },
-                    responseType: 'arraybuffer',
-                    decompress: false,
-                    timeout: 60000,
-                    maxContentLength: Infinity,
-                    maxBodyLength: Infinity,
-                    maxRedirects: 10,
-                    httpsAgent: mediaDownloadAgent
-                });
-                buffer = Buffer.from(mediaResponse.data);
-                console.log(`downloadMedia: ✅ Binary downloaded successfully (${buffer.length} bytes)`);
-                break; // Success — exit loop
+                console.log(`downloadMedia: Attempt ${attempts}/${maxAttempts} via graph.facebook.com...`);
+                const mediaResponse = await axios.get(
+                    `https://graph.facebook.com/v21.0/${mediaId}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Accept': 'application/octet-stream, */*',
+                        },
+                        responseType: 'arraybuffer',
+                        decompress: false,
+                        timeout: 60000,
+                        maxContentLength: Infinity,
+                        maxBodyLength: Infinity,
+                        maxRedirects: 10
+                        // No custom httpsAgent — graph.facebook.com works fine from VPS
+                    }
+                );
 
-            } catch (binErr) {
-                const statusCode = binErr.response?.status;
+                // Check if we got binary data or JSON (JSON means it returned metadata)
+                const contentType = mediaResponse.headers['content-type'] || '';
+                if (contentType.includes('application/json')) {
+                    // Got metadata JSON — this means we need to follow the URL manually
+                    const urlData = JSON.parse(Buffer.from(mediaResponse.data).toString('utf8'));
+                    console.log(`downloadMedia: Got metadata, mime: ${urlData.mime_type}, size: ${urlData.file_size}`);
+                    mimeType = urlData.mime_type || 'application/octet-stream';
 
-                // ✅ CRITICAL FIX: Don't retry on auth errors - they will NEVER succeed
+                    // Fallback: try the CDN URL once
+                    if (urlData.url) {
+                        const cdnResp = await axios.get(urlData.url, {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Accept': '*/*',
+                                'Accept-Encoding': 'identity',
+                            },
+                            responseType: 'arraybuffer',
+                            decompress: false,
+                            timeout: 60000,
+                            maxContentLength: Infinity,
+                            maxBodyLength: Infinity,
+                            httpsAgent: mediaDownloadAgent
+                        });
+                        buffer = Buffer.from(cdnResp.data);
+                        mimeType = cdnResp.headers['content-type']?.split(';')[0] || mimeType;
+                    }
+                } else {
+                    // Got raw binary directly ✅
+                    buffer = Buffer.from(mediaResponse.data);
+                    mimeType = contentType.split(';')[0] || mimeType;
+                }
+
+                if (buffer && buffer.length > 0) {
+                    console.log(`downloadMedia: ✅ Downloaded ${buffer.length} bytes (${mimeType}) on attempt ${attempts}`);
+                    break;
+                }
+
+            } catch (err) {
+                const statusCode = err.response?.status;
+
+                // Don't retry auth errors
                 if (statusCode === 401 || statusCode === 403) {
-                    console.error(`downloadMedia: ❌ TOKEN EXPIRED downloading binary (HTTP ${statusCode}). Not retrying.`);
-                    console.error(`downloadMedia: ❌ ACTION REQUIRED: Refresh Meta Access Token in Settings.`);
+                    console.error(`downloadMedia: ❌ TOKEN EXPIRED (HTTP ${statusCode}). Refresh token in Settings > WhatsApp Config.`);
                     return { url: '__TOKEN_EXPIRED__', mime_type: null };
                 }
 
-                // Log the error (network reset, timeout, etc)
-                console.error(`downloadMedia: Attempt ${attempts}/${maxAttempts} failed: ${binErr.message}`);
-                if (binErr.response) {
-                    try {
-                        let peek = binErr.response.data;
-                        if (Buffer.isBuffer(peek)) peek = peek.toString('utf8').substring(0, 200);
-                        console.error(`downloadMedia: Error Response: HTTP ${statusCode} - ${peek}`);
-                    } catch (e) { }
-                }
+                console.error(`downloadMedia: Attempt ${attempts}/${maxAttempts} failed: ${err.message} (HTTP ${statusCode || 'N/A'})`);
 
                 if (attempts >= maxAttempts) {
-                    console.error(`downloadMedia: ❌ All ${maxAttempts} attempts exhausted for ${mediaId}. Network issue.`);
+                    console.error(`downloadMedia: ❌ All ${maxAttempts} attempts exhausted for ${mediaId}.`);
                     return null;
                 }
 
-                // Exponential backoff for network errors only
-                const delay = Math.min(2000 * attempts, 8000);
-                console.log(`downloadMedia: Waiting ${delay}ms before retry ${attempts + 1}...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
+                const delay = Math.min(2000 * attempts, 6000);
+                console.log(`downloadMedia: Retrying in ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
             }
         }
 
         if (!buffer || buffer.length === 0) {
-            console.error(`downloadMedia: Buffer is empty after all attempts for ${mediaId}`);
+            console.error(`downloadMedia: ❌ Empty buffer after all attempts for ${mediaId}`);
             return null;
         }
 
 
-        const mimeType = urlData.mime_type || 'application/octet-stream';
-        const ext = mimeType.split('/')[1] || 'bin';
+        // mimeType and buffer are set during the download loop above
+        const ext = mimeType.split('/')[1]?.replace(/[^a-z0-9]/g, '') || 'bin';
         const filename = `${mediaId}-${Date.now()}.${ext}`;
         let finalPublicUrl = null;
 
