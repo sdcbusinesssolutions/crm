@@ -41,9 +41,9 @@ FROM node:18-slim
 
 ENV TZ="Asia/Kolkata"
 
-# Install TZ Data (Required for Slim images)
+# Install TZ Data + curl (curl is needed for Docker healthcheck)
 RUN apt-get update && \
-    apt-get install -y tzdata && \
+    apt-get install -y tzdata curl && \
     ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
     echo "Asia/Kolkata" > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*

@@ -74,6 +74,10 @@ app.get('/status', (req, res) => {
 app.get('/api/status', (req, res) => {
   res.json({ status: 'online', endpoint: 'api' });
 });
+// Docker healthcheck endpoint — must return 200 or container is marked unhealthy by Traefik
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', uptime: Math.floor(process.uptime()) });
+});
 
 // --- API Routes ---
 const router = express.Router();

@@ -97,14 +97,15 @@ services:
     
     # ─────────────────────────────────────────────────────────────────
     # HEALTHCHECK: Docker restarts container if /health stops responding.
-    # Interval=30s: checks every 30s. Timeout=5s. 3 failures = unhealthy → restart.
+    # Uses Node.js built-in http module — works in ANY Node image (slim/full).
+    # curl is NOT pre-installed in node:18-slim, so we avoid depending on it.
     # ─────────────────────────────────────────────────────────────────
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health", "--max-time", "5", "--silent"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 40s
 
     # ─────────────────────────────────────────────────────────────────
     # ULIMITS: Prevent file descriptor / process exhaustion
