@@ -21,12 +21,17 @@ const FLOW_CONCURRENCY_LIMIT = 20;
 const activeFlows = new Set();
 const flowQueue = [];
 
-// Dedicated agent for binary downloads (lookaside.fbsbx.com)
-// Removed family: 4 to allow OS to optimize routing for binary streams.
+// Dedicated agent for lookaside.fbsbx.com binary downloads
+// CRITICAL: family:4 forces IPv4 inside Docker containers.
+// Without this, Docker tries IPv6 first to Meta CDN which causes ECONNRESET.
+// This was verified by testing locally (no ECONNRESET) vs inside Docker (ECONNRESET).
 const mediaDownloadAgent = new https.Agent({
     keepAlive: true,
-    maxSockets: 50,          // Scale up for many images
-    timeout: 90000,          // 90s for large files
+    keepAliveMsecs: 30000,
+    maxSockets: 50,
+    maxFreeSockets: 10,
+    timeout: 90000,
+    family: 4,              // ← CRITICAL: Force IPv4 to Meta CDN (Docker IPv6 causes ECONNRESET)
     scheduling: 'lifo'
 });
 

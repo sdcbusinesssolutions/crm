@@ -61,7 +61,11 @@ services:
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
       # MEMORY OPTIMIZATION: Prevent OOM Kills by forcing GC before container limit (1GB)
-      - NODE_OPTIONS=--max-old-space-size=768 --max-semi-space-size=64 --expose-gc --optimize-for-size --gc-interval=100 
+      - NODE_OPTIONS=--max-old-space-size=768 --max-semi-space-size=64 --expose-gc --optimize-for-size --gc-interval=100
+      # CRITICAL NETWORK FIX: Force IPv4 DNS resolution inside Docker.
+      # Meta's CDN (lookaside.fbsbx.com) causes ECONNRESET when Docker uses IPv6.
+      # This is the OS-level fix; code-level fix is family:4 in https.Agent.
+      - NODE_DNS_ORDER=ipv4first
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
