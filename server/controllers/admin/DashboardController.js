@@ -31,7 +31,7 @@ exports.getDashboardStats = async (req, res) => {
 
         const { data: tenantProfiles, error: tenantError } = await supabaseAdmin
             .from('profiles')
-            .select('id, created_at, signup_domain, plan_expires_at, plan_name, name, email')
+            .select('id, created_at, signup_domain, plan_expires_at, plan_name, email')
             .ilike('signup_domain', safeDomain);
 
         if (tenantError) {
@@ -52,7 +52,7 @@ exports.getDashboardStats = async (req, res) => {
         if (isSuperAdmin) {
             const { data: allProfiles, error: allError } = await supabaseAdmin
                 .from('profiles')
-                .select('id, created_at, signup_domain, plan_expires_at, plan_name, name, email');
+                .select('id, created_at, signup_domain, plan_expires_at, plan_name, email');
 
             if (allProfiles) {
                 profiles = allProfiles;
@@ -131,7 +131,7 @@ exports.getDashboardStats = async (req, res) => {
 
             if (status) {
                 expiringUsersList.push({
-                    name: p.name || 'User',
+                    name: p.email ? p.email.split('@')[0] : 'User',
                     email: p.email,
                     plan: p.plan_name || 'Plan',
                     expiry: sub.end_date,

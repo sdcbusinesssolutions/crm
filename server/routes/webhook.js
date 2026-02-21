@@ -62,24 +62,22 @@ setInterval(() => {
     processedMessageIds.clear();
 }, 10 * 60 * 1000);
 
-// Helper: Download Media from WhatsApp to Local Disk AND Upload to Supabase
+// Helper: Download Media from WhatsApp and Upload to Supabase
+// PERMANENTLY STABLE: Smart retry (only on network errors, NOT on 401/403)
 const downloadMedia = async (mediaId, accessToken, userId) => {
     try {
-        if (!mediaId) {
-            console.error('downloadMedia: No mediaId provided');
-            return null;
-        }
+        if (!mediaId) return null;
         if (!accessToken) {
-            console.error('downloadMedia: No accessToken provided');
+            console.error('downloadMedia: ❌ No accessToken provided - check whatsapp_config table');
             return null;
         }
 
         console.log(`downloadMedia: Fetching URL for mediaId ${mediaId} using v21.0`);
 
-        // 1. Get Media URL from Meta (Upgraded to v21.0 with Retry)
+        // ─── STEP 1: Fetch the media URL from Meta Graph API ───────────────────
         let urlData;
         let metaAttempts = 0;
-        const maxMetaAttempts = 2;
+        const maxMetaAttempts = 3;
         while (metaAttempts < maxMetaAttempts) {
             metaAttempts++;
             try {
@@ -90,74 +88,104 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 urlData = urlResponse.data;
                 if (urlData && urlData.url) break;
             } catch (urlErr) {
-                console.error(`downloadMedia: Meta metadata fetch attempt ${metaAttempts} failed: ${urlErr.message}`);
+                const statusCode = urlErr.response?.status;
+
+                // ✅ CRITICAL FIX: 401/403 means the token is expired or invalid.
+                // Retrying will NEVER help. Log a clear message and return immediately.
+                if (statusCode === 401 || statusCode === 403) {
+                    console.error(`downloadMedia: ❌ TOKEN EXPIRED or INVALID (HTTP ${statusCode}) for User ${userId}.`);
+                    console.error(`downloadMedia: ❌ ACTION REQUIRED: Go to Settings > WhatsApp and refresh the Meta Access Token.`);
+                    console.error(`downloadMedia: ❌ Media ${mediaId} cannot be downloaded until token is refreshed.`);
+                    return { url: '__TOKEN_EXPIRED__', mime_type: null }; // Special marker
+                }
+
+                console.error(`downloadMedia: Meta URL fetch attempt ${metaAttempts} failed: ${urlErr.message}`);
                 if (metaAttempts >= maxMetaAttempts) {
-                    console.error(`downloadMedia: Failed to fetch media metadata for ${mediaId} after ${maxMetaAttempts} tries.`);
+                    console.error(`downloadMedia: Failed to fetch media URL for ${mediaId} after ${maxMetaAttempts} tries.`);
                     return null;
                 }
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, 2000 * metaAttempts));
             }
+        }
+
+        if (!urlData || !urlData.url) {
+            console.error(`downloadMedia: No valid URL returned from Meta for ${mediaId}`);
+            return null;
         }
 
         console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
-        // 2. Download Media Binary (With Retry for Robustness)
-        // Added 2000ms grace period: Ensures Meta's CDN is ready across all global nodes
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // ─── STEP 2: Download the Media Binary ─────────────────────────────────
+        // Grace period: gives Meta's CDN time to propagate the file globally
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         let buffer;
         let attempts = 0;
-        const maxAttempts = 3;
+        const maxAttempts = 4; // Increased to 4 for network resilience
 
         while (attempts < maxAttempts) {
             attempts++;
             try {
-                console.log(`downloadMedia: Downloading binary from Meta (Attempt ${attempts}/${maxAttempts})...`);
-                // CRITICAL: Do NOT send the Authorization header to the lookaside URL.
-                // Meta's CDN URL is already authorized via query params.
-                // Sending a header token here causes intermittent connection drops.
+                console.log(`downloadMedia: Binary download attempt ${attempts}/${maxAttempts}...`);
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
+                        'Authorization': `Bearer ${accessToken}`,
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                         'Accept': '*/*',
-                        'Accept-Encoding': 'identity',
+                        'Accept-Encoding': 'identity', // Prevent stream decompression errors
                         'Cache-Control': 'no-cache',
                         'Connection': 'keep-alive'
                     },
                     responseType: 'arraybuffer',
                     decompress: false,
-                    timeout: 90000,
+                    timeout: 60000,
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity,
                     maxRedirects: 10,
                     httpsAgent: mediaDownloadAgent
                 });
                 buffer = Buffer.from(mediaResponse.data);
-                console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
-                break; // Success!
-            } catch (binErr) {
-                console.error(`downloadMedia: Attempt ${attempts} failed: ${binErr.message}`);
+                console.log(`downloadMedia: ✅ Binary downloaded successfully (${buffer.length} bytes)`);
+                break; // Success — exit loop
 
-                // Safely log response details if available protecting against circular structs
+            } catch (binErr) {
+                const statusCode = binErr.response?.status;
+
+                // ✅ CRITICAL FIX: Don't retry on auth errors - they will NEVER succeed
+                if (statusCode === 401 || statusCode === 403) {
+                    console.error(`downloadMedia: ❌ TOKEN EXPIRED downloading binary (HTTP ${statusCode}). Not retrying.`);
+                    console.error(`downloadMedia: ❌ ACTION REQUIRED: Refresh Meta Access Token in Settings.`);
+                    return { url: '__TOKEN_EXPIRED__', mime_type: null };
+                }
+
+                // Log the error (network reset, timeout, etc)
+                console.error(`downloadMedia: Attempt ${attempts}/${maxAttempts} failed: ${binErr.message}`);
                 if (binErr.response) {
-                    console.error(`downloadMedia: Error Status: ${binErr.response.status}`);
                     try {
                         let peek = binErr.response.data;
-                        if (Buffer.isBuffer(peek)) peek = peek.toString('utf8').substring(0, 100);
-                        console.error(`downloadMedia: Error Data: ${peek}`);
+                        if (Buffer.isBuffer(peek)) peek = peek.toString('utf8').substring(0, 200);
+                        console.error(`downloadMedia: Error Response: HTTP ${statusCode} - ${peek}`);
                     } catch (e) { }
                 }
 
                 if (attempts >= maxAttempts) {
-                    console.error(`downloadMedia: All ${maxAttempts} attempts exhausted for ${mediaId}.`);
+                    console.error(`downloadMedia: ❌ All ${maxAttempts} attempts exhausted for ${mediaId}. Network issue.`);
                     return null;
                 }
-                // Wait before retrying (exponential backoff)
-                await new Promise(resolve => setTimeout(resolve, 2000 * attempts));
+
+                // Exponential backoff for network errors only
+                const delay = Math.min(2000 * attempts, 8000);
+                console.log(`downloadMedia: Waiting ${delay}ms before retry ${attempts + 1}...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
 
-        // 3. Upload to Supabase Storage Directly (No Local Save)
+        if (!buffer || buffer.length === 0) {
+            console.error(`downloadMedia: Buffer is empty after all attempts for ${mediaId}`);
+            return null;
+        }
+
+
         const mimeType = urlData.mime_type || 'application/octet-stream';
         const ext = mimeType.split('/')[1] || 'bin';
         const filename = `${mediaId}-${Date.now()}.${ext}`;
@@ -899,6 +927,16 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         try {
                             console.log(`[Webhook] BG: Downloading media for msg ${savedMessageId} (ID: ${extracted.mediaId})`);
                             const mediaData = await downloadMedia(extracted.mediaId, accessToken, userId);
+
+                            if (mediaData && mediaData.url === '__TOKEN_EXPIRED__') {
+                                // Token is expired. Mark the message so UI shows proper error.
+                                await supabaseAdmin.from('messages')
+                                    .update({ media_url: null, text: '[Media unavailable — Meta access token expired. Please refresh token in Settings > WhatsApp Config.]' })
+                                    .eq('id', savedMessageId);
+                                console.error(`[Webhook] BG: ❌ TOKEN EXPIRED for msg ${savedMessageId}. Message marked. User must refresh token.`);
+                                return;
+                            }
+
                             if (mediaData && mediaData.url) {
                                 // Update the message row with the real media URL
                                 const { error: updateErr } = await supabaseAdmin
@@ -913,7 +951,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 if (updateErr) {
                                     console.error(`[Webhook] BG: Failed to update media_url for msg ${savedMessageId}:`, updateErr.message);
                                 } else {
-                                    console.log(`[Webhook] BG: Media URL saved for msg ${savedMessageId}: ${mediaData.url}`);
+                                    console.log(`[Webhook] BG: ✅ Media URL saved for msg ${savedMessageId}: ${mediaData.url}`);
                                 }
                             } else {
                                 console.warn(`[Webhook] BG: Media download failed for msg ${savedMessageId} (mediaId: ${extracted.mediaId})`);
@@ -921,7 +959,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         } catch (bgErr) {
                             console.error(`[Webhook] BG: Exception downloading media for msg ${savedMessageId}:`, bgErr.message);
                         }
-                    })(); // Fire and forget - do not await
+                    })(); // Fire and forget
                 }
 
                 // Media vars for Flow Engine
