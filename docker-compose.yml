@@ -74,14 +74,12 @@ services:
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
       - ./server_uploads/${DOMAIN}:/app/uploads
-
-    # ─────────────────────────────────────────────────────────────────
-    # TMPFS: Temp files written to RAM — zero disk I/O, auto-cleared on restart
-    # /tmp is used by Node, multer uploads-in-progress, and OS temp ops.
-    # Size capped at 128MB so it doesn't eat into the 1GB container RAM limit.
-    # ─────────────────────────────────────────────────────────────────
-    tmpfs:
-      - /tmp:size=128m,mode=1777
+      # tmpfs: RAM-backed temp storage (zero disk I/O, auto-cleared on restart)
+      # Using long-form syntax for Docker Compose compatibility
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 134217728   # 128MB in bytes
       
     labels:
       - "traefik.enable=true"
