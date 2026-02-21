@@ -103,8 +103,8 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
         console.log(`downloadMedia: Downloading binary from ${urlData.url.substring(0, 50)}...`);
 
         // 2. Download Media Binary (With Retry for Robustness)
-        // Added 500ms grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Added 1500ms grace period: Sometimes the URL needs a moment to propagate in Meta's CDN
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         let buffer;
         let attempts = 0;
@@ -117,16 +117,19 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
                 const mediaResponse = await axios.get(urlData.url, {
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
-                        'User-Agent': 'curl/7.81.0',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                         'Accept': '*/*',
+                        'Accept-Encoding': 'identity', // ✅ Force identity to prevent stream abortion
+                        'Cache-Control': 'no-cache',
                         'Connection': 'keep-alive'
                     },
                     responseType: 'arraybuffer',
-                    decompress: false, // ✅ CRITICAL: Prevent ECONNRESET during stream decompression
+                    decompress: false,
                     timeout: 60000,
                     maxContentLength: Infinity,
                     maxBodyLength: Infinity,
-                    httpsAgent: mediaDownloadAgent // ✅ Re-using global agent
+                    maxRedirects: 10,
+                    httpsAgent: mediaDownloadAgent
                 });
                 buffer = Buffer.from(mediaResponse.data);
                 console.log(`downloadMedia: Binary downloaded successfully (${buffer.length} bytes)`);
