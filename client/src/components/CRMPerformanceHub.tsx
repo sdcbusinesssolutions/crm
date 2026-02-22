@@ -363,10 +363,10 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 {/* --- Side Percentage Markers (Reference Image Style - Alternating) --- */}
                                 {/* Row 1 Marker (Right) */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="312" cy="43" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="312" y="47" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
-                                    <line x1="291" y1="43" x2="285" y2="43" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M280,43 L286,40 L286,46 Z" fill="#3b82f6" />
+                                    <circle cx="312" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="312" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
+                                    <line x1="291" y1="72" x2="285" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M280,72 L286,69 L286,75 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 2 Marker (Left) */}
