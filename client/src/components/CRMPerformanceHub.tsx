@@ -93,6 +93,12 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
         { label: 'Won / Lost:', value: wonLostCount }
     ];
 
+    // Calculate Percentages for side markers (Reference Style)
+    const leadsPercent = 100;
+    const activePercent = totalLeads > 0 ? Math.round((activeLeads / totalLeads) * 100) : 0;
+    const warmPercent = totalLeads > 0 ? Math.round((warmCount / totalLeads) * 100) : 0;
+    const wonLostPercent = totalLeads > 0 ? Math.round((wonLostCount / totalLeads) * 100) : 0;
+
     // Forecast Data - Dynamic Pipeline Value
     const pipelineValRaw = stats?.summary.pipelineValue || 0;
     const forecastTarget = 10000000; // Example Target: 1 Crore
@@ -307,6 +313,11 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* 3. Funnel Body */}
                         <div className="w-[300px] h-[340px] absolute top-[54px] z-0 filter drop-shadow-xl">
                             <svg viewBox="0 0 300 340" className="w-full h-full overflow-visible">
+                                <defs>
+                                    <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                        <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
+                                    </marker>
+                                </defs>
 
                                 {/* Level 1: Navy Blue */}
                                 <path d="M0,0 L300,0 L260,86 L40,86 Z" fill="#172554" stroke="white" strokeWidth="2" />
@@ -327,6 +338,39 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 <path d="M100,258 L200,258 L195,300 Q150,340 105,300 L100,258 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
                                 <text x="150" y="285" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[3].label}</text>
                                 <text x="150" y="310" textAnchor="middle" fill="white" className="text-2xl font-bold">{funnelSteps[3].value}</text>
+
+                                {/* --- Side Percentage Markers (Reference Image Style - Alternating) --- */}
+                                {/* Row 1 Marker (Right) */}
+                                <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
+                                    <circle cx="312" cy="43" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="312" y="47" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
+                                    <line x1="291" y1="43" x2="285" y2="43" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M280,43 L286,40 L286,46 Z" fill="#3b82f6" />
+                                </g>
+
+                                {/* Row 2 Marker (Left) */}
+                                <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
+                                    <circle cx="26" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="26" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
+                                    <line x1="47" y1="129" x2="52" y2="129" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M57,129 L51,126 L51,132 Z" fill="#3b82f6" />
+                                </g>
+
+                                {/* Row 3 Marker (Right) */}
+                                <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '1000ms', animationFillMode: 'forwards' }}>
+                                    <circle cx="246" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="246" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
+                                    <line x1="225" y1="215" x2="218" y2="215" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M213,215 L219,212 L219,218 Z" fill="#3b82f6" />
+                                </g>
+
+                                {/* Row 4 Marker (Left) */}
+                                <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '1200ms', animationFillMode: 'forwards' }}>
+                                    <circle cx="71" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="71" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
+                                    <line x1="92" y1="300" x2="98" y2="300" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M103,300 L97,297 L97,303 Z" fill="#3b82f6" />
+                                </g>
                             </svg>
                         </div>
 
