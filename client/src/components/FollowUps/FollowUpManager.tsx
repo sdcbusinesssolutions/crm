@@ -7,6 +7,7 @@ import { TriggerIcon } from '../icons';
 
 interface FollowUpManagerProps {
     onNavigate?: (item: any) => void;
+    initialView?: 'list' | 'form';
 }
 
 // Extended interface to support both FollowUps and CRM Tasks
@@ -16,8 +17,8 @@ interface UnifiedTask extends FollowUp {
     pipeline_name?: string;
 }
 
-const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate }) => {
-    const [view, setView] = useState<'list' | 'form'>('list');
+const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialView = 'list' }) => {
+    const [view, setView] = useState<'list' | 'form'>(initialView);
     const [followUps, setFollowUps] = useState<UnifiedTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');

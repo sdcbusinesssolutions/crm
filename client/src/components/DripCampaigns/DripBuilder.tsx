@@ -51,7 +51,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [selectedStep, setSelectedStep] = useState<DripStep | null>(null);
     const [showCampaignSettings, setShowCampaignSettings] = useState(false);
     const [showAddMenu, setShowAddMenu] = useState(false);
-    const [showSaveFirstToast, setShowSaveFirstToast] = useState(false);
+    const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
 
     // --- State: Canvas ---
     const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
@@ -133,64 +133,98 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
     // --- Actions ---
     const handleSaveCampaign = async (exitAfterSave = true) => {
+        if (loading) return;
         setLoading(true);
         try {
-            if (campaignId) {
-                await dripCampaignService.updateCampaign(campaignId, campaign);
-                if (exitAfterSave) onBack();
+            let currentCampaignId = campaignId;
+
+            // 1. Create or Update the main Campaign metadata
+            if (currentCampaignId) {
+                await dripCampaignService.updateCampaign(currentCampaignId, campaign);
             } else {
-                await dripCampaignService.createCampaign(campaign);
-                if (exitAfterSave) onBack();
+                const createdComp = await dripCampaignService.createCampaign(campaign);
+                currentCampaignId = createdComp.id;
             }
+
+            // 2. Reconciliation of Steps (Manual Sync)
+            if (currentCampaignId) {
+                // a. Delete removed steps
+                for (const stepId of deletedStepIds) {
+                    await dripCampaignService.deleteStep(currentCampaignId, stepId).catch(err => console.error("Step deletion error:", err));
+                }
+
+                // b. Create/Update remaining steps
+                if (campaign.steps && campaign.steps.length > 0) {
+                    for (const step of campaign.steps) {
+                        const isTempId = step.id.startsWith('temp_');
+                        if (isTempId) {
+                            // Create new step (omit temp ID)
+                            const { id, ...stepData } = step;
+                            await dripCampaignService.createStep(currentCampaignId, stepData);
+                        } else {
+                            // Update existing step
+                            await dripCampaignService.updateStep(currentCampaignId, step.id, step);
+                        }
+                    }
+                }
+            }
+
+            if (exitAfterSave) onBack();
         } catch (e) {
-            console.error(e);
-            alert('Failed to save');
+            console.error('Failed to save drip campaign:', e);
+            alert('Failed to save. Please check your network and try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAddStep = async (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
-        // If campaign not yet saved, show inline toast — don't auto-save
-        if (!campaignId) {
-            setShowSaveFirstToast(true);
-            setTimeout(() => setShowSaveFirstToast(false), 3000);
-            setShowAddMenu(false);
-            return;
-        }
-
-        const newStep: Partial<DripStep> = {
-            campaign_id: campaignId,
+    const handleAddStep = (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
+        // MANUAL MODE: Just update local state. IDs for new steps are temporary
+        const newStep: DripStep = {
+            id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            campaign_id: campaignId || '',
             step_order: (campaign.steps?.length || 0) + 1,
             step_type: type,
             step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
             delay_value: 1,
             delay_unit: 'DAYS'
         };
-        try {
-            await dripCampaignService.createStep(campaignId, newStep);
-            loadCampaign(campaignId);
-        } catch (e) { console.error(e); }
+
+        setCampaign(prev => ({
+            ...prev,
+            steps: [...(prev.steps || []), newStep]
+        }));
+        setShowAddMenu(false);
     };
 
-    const handleUpdateStep = async (stepId: string, updates: Partial<DripStep>) => {
-        if (!campaignId) return;
-        const updatedSteps = campaign.steps?.map(s => s.id === stepId ? { ...s, ...updates } : s);
-        setCampaign({ ...campaign, steps: updatedSteps });
+    const handleUpdateStep = (stepId: string, updates: Partial<DripStep>) => {
+        // MANUAL MODE: Just update local state
+        setCampaign(prev => {
+            const updatedSteps = prev.steps?.map(s => s.id === stepId ? { ...s, ...updates } : s);
+            return { ...prev, steps: updatedSteps };
+        });
 
-        if (selectedStep?.id === stepId) setSelectedStep({ ...selectedStep, ...updates });
-
-        try { await dripCampaignService.updateStep(campaignId, stepId, updates); }
-        catch (e) { console.error(e); }
+        if (selectedStep?.id === stepId) {
+            setSelectedStep(prev => prev ? { ...prev, ...updates } : null);
+        }
     };
 
-    const handleDeleteStep = async (stepId: string) => {
-        if (!campaignId || !window.confirm('Delete step?')) return;
-        try {
-            await dripCampaignService.deleteStep(campaignId, stepId);
-            loadCampaign(campaignId);
-            setSelectedStep(null);
-        } catch (e) { console.error(e); }
+    const handleDeleteStep = (stepId: string) => {
+        if (!window.confirm('Delete step from your sequence?')) return;
+
+        // MANUAL MODE: Remove from local state and track if it was a DB record
+        const stepToDelete = campaign.steps?.find(s => s.id === stepId);
+        if (stepToDelete && !stepToDelete.id.startsWith('temp_')) {
+            setDeletedStepIds(prev => [...prev, stepId]);
+        }
+
+        setCampaign(prev => {
+            const remainingSteps = prev.steps?.filter(s => s.id !== stepId)
+                .map((s, idx) => ({ ...s, step_order: idx + 1 })); // Maintain order
+            return { ...prev, steps: remainingSteps };
+        });
+
+        setSelectedStep(null);
     };
 
     const handleStopEnrollment = async (id: string) => {
@@ -274,26 +308,35 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                     </button>
                 </div>
 
-                <button
-                    onClick={() => handleSaveCampaign(true)}
-                    disabled={loading}
-                    className="px-6 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all active:scale-95 disabled:opacity-50 border border-brand-500"
-                >
-                    {loading ? 'Saving...' : 'Save & Exit'}
-                </button>
+                <div className="flex items-center gap-4">
+                    {/* Status Toggle */}
+                    <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700 mr-2">
+                        <button
+                            onClick={() => setCampaign({ ...campaign, status: 'DRAFT' })}
+                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'DRAFT' ? 'bg-slate-700 text-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'DRAFT' ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                            Draft
+                        </button>
+                        <button
+                            onClick={() => setCampaign({ ...campaign, status: 'ACTIVE' })}
+                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-slate-700 text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                            Publish
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={() => handleSaveCampaign(true)}
+                        disabled={loading}
+                        className="px-6 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all active:scale-95 disabled:opacity-50 border border-brand-500"
+                    >
+                        {loading ? 'Saving...' : 'Save & Exit'}
+                    </button>
+                </div>
             </div>
 
-            {/* Save-First Toast — shows when user tries to add step before saving */}
-            {showSaveFirstToast && (
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-                    <div className="flex items-center gap-3 bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-2xl font-bold text-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        Please click <span className="bg-white/20 px-2 py-0.5 rounded-lg mx-1">Save &amp; Exit</span> first to save your campaign
-                    </div>
-                </div>
-            )}
 
             {/* Main Workspace */}
             <div className="flex-1 relative overflow-hidden flex">

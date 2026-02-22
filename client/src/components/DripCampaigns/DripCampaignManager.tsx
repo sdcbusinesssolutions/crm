@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import DripList from './DripList';
 import DripBuilder from './DripBuilder';
 
-const DripCampaignManager: React.FC<{ onToggleSidebar: () => void }> = ({ onToggleSidebar }) => {
-    const [view, setView] = useState<'list' | 'builder'>('list');
+const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?: 'list' | 'builder', onExit?: () => void }> = ({ onToggleSidebar, initialView = 'list', onExit }) => {
+    const [view, setView] = useState<'list' | 'builder'>(initialView);
     const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
 
     const handleCreate = () => {
@@ -18,7 +18,13 @@ const DripCampaignManager: React.FC<{ onToggleSidebar: () => void }> = ({ onTogg
 
     const handleBack = () => {
         setSelectedCampaignId(null);
-        setView('list');
+
+        // If we started in builder mode (direct navigation), exit should go back to origin
+        if (initialView === 'builder' && onExit) {
+            onExit();
+        } else {
+            setView('list');
+        }
     };
 
     return (

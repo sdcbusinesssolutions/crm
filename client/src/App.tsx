@@ -104,6 +104,8 @@ const MainApp: React.FC = () => {
     const [isSidebarOpen, setSidebarOpen] = useState(false); // UI state, no need to persist
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(() => new URLSearchParams(window.location.search).get('createSheetAuto') === 'true');
     const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('editSheetAutoId'));
+    const [isCreatingDrip, setIsCreatingDrip] = useState(false);
+    const [followUpInitialView, setFollowUpInitialView] = useState<'list' | 'form'>('list');
     const [createCampaignData, setCreateCampaignData] = useState<{
         templateId?: string;
         manualNumbers?: string[];
@@ -411,46 +413,48 @@ const MainApp: React.FC = () => {
 
     const handleBackToDashboard = useCallback(() => {
         setCurrentFlowId(null);
-        setActiveMenuItem('Flows');
+        setActiveMenuItem('Dashboard');
     }, []);
 
-    const handleMenuNavigation = useCallback((item: MenuItem) => {
+    const handleMenuNavigation = useCallback((item: MenuItem | 'CREATE_DRIP') => {
+        if (item === 'CREATE_DRIP') {
+            setIsCreatingDrip(true);
+            setActiveMenuItem('Drip Campaigns');
+            setSidebarOpen(false);
+            return;
+        }
+
+        // Reset States on every navigation
+        setIsCreatingDrip(false);
+        setFollowUpInitialView('list');
         setActiveMenuItem(item);
 
-        // Always reset flow view to list when clicking the main menu item
-        if (item === 'Flows') {
-            setCurrentFlowId(null);
-        } else {
-            setCurrentFlowId(null);
-        }
-        if (item !== 'Pipelines') {
-            setCurrentPipelineId(null);
-        }
-        if (item !== 'Whatsapp Forms') {
-            setCurrentWhatsAppFlowId(null);
-        }
+        // Feature-specific resets
+        setCurrentFlowId(null);
+
+        if (item !== 'Pipelines') setCurrentPipelineId(null);
+        if (item !== 'Whatsapp Forms') setCurrentWhatsAppFlowId(null);
         if (item !== 'Whatsapp Templates') {
             setCurrentTemplateId(null);
             setIsTemplateBuilderOpen(false);
         }
 
         // Reset Campaign State
-        if (item === 'Campaigns') {
-            setIsCreatingCampaign(false);
-            setCreateCampaignData(undefined);
-            setCurrentCampaignId(null);
-        } else {
-            setIsCreatingCampaign(false);
-            setCreateCampaignData(undefined);
-            setCurrentCampaignId(null);
-        }
+        setIsCreatingCampaign(false);
+        setCreateCampaignData(undefined);
+        setCurrentCampaignId(null);
 
         if (item !== 'G Automation') {
             setIsCreatingSheetAutomation(false);
         }
 
-        setSidebarOpen(false); // Close sidebar on mobile when navigating
-    }, []);
+        setSidebarOpen(false);
+    }, [
+        setIsCreatingDrip, setActiveMenuItem, setSidebarOpen, setFollowUpInitialView,
+        setCurrentFlowId, setCurrentPipelineId, setCurrentWhatsAppFlowId,
+        setCurrentTemplateId, setIsTemplateBuilderOpen, setIsCreatingCampaign,
+        setCreateCampaignData, setCurrentCampaignId, setIsCreatingSheetAutomation
+    ]);
 
     const handleLogout = useCallback(async () => {
         await supabase.auth.signOut();
@@ -569,7 +573,7 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Follow-up') {
-            return <Contacts initialTab="follow-up" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
+            return <Contacts initialTab="follow-up" followUpInitialView={followUpInitialView} onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'Tags') {
@@ -676,7 +680,21 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Drip Campaigns') {
-            return <DripCampaignManager onToggleSidebar={() => setSidebarOpen(true)} />;
+            return (
+                <DripCampaignManager
+                    initialView={isCreatingDrip ? 'builder' : 'list'}
+                    onToggleSidebar={() => setSidebarOpen(true)}
+                    onExit={() => {
+                        if (isCreatingDrip) {
+                            setFollowUpInitialView('form');
+                            setActiveMenuItem('Follow-up');
+                            setIsCreatingDrip(false);
+                        } else {
+                            setActiveMenuItem('Drip Campaigns');
+                        }
+                    }}
+                />
+            );
         }
 
         return (
