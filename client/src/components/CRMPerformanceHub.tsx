@@ -85,6 +85,21 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     // Fallback if no pipeline data (e.g. initial load)
     if (warmCount === 0 && stats?.taskStats) warmCount = stats.taskStats.due;
 
+    // Helper for proper percentage calculation with precision
+    const calculatePercentNum = (val: number, total: number) => {
+        if (total === 0) return 0;
+        return (val / total) * 100;
+    };
+
+    const formatPercent = (val: number, total: number) => {
+        if (total === 0) return '0';
+        const p = (val / total) * 100;
+        if (p === 0) return '0';
+        if (p < 0.1) return p.toFixed(2);
+        if (p < 1) return p.toFixed(1);
+        return Math.round(p).toString();
+    };
+
     // Funnel Steps Mapping
     const funnelSteps = [
         { label: 'Leads:', value: totalLeads },
@@ -94,15 +109,21 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     ];
 
     // Calculate Percentages for side markers (Reference Style)
-    const leadsPercent = 100;
-    const activePercent = totalLeads > 0 ? Math.round((activeLeads / totalLeads) * 100) : 0;
-    const warmPercent = totalLeads > 0 ? Math.round((warmCount / totalLeads) * 100) : 0;
-    const wonLostPercent = totalLeads > 0 ? Math.round((wonLostCount / totalLeads) * 100) : 0;
+    // For Leads, show percentage of goal (1500), capped at 100%
+    const leadsGoal = 1500;
+    const leadsPercentRaw = Math.min(calculatePercentNum(totalLeads, leadsGoal), 100);
+    const leadsPercent = leadsPercentRaw < 100 ? formatPercent(totalLeads, leadsGoal) : "100";
+
+    // For sub-stages, show percentage of total leads with better precision
+    const activePercent = formatPercent(activeLeads, totalLeads);
+    const warmPercent = formatPercent(warmCount, totalLeads);
+    const wonLostPercent = formatPercent(wonLostCount, totalLeads);
 
     // Forecast Data - Dynamic Pipeline Value
     const pipelineValRaw = stats?.summary.pipelineValue || 0;
     const forecastTarget = 10000000; // Example Target: 1 Crore
-    const forecastPercent = Math.min(Math.round((pipelineValRaw / forecastTarget) * 100), 100);
+    const forecastPercentRaw = Math.min(calculatePercentNum(pipelineValRaw, forecastTarget), 100);
+    const forecastPercentDisplay = forecastPercentRaw < 100 ? formatPercent(pipelineValRaw, forecastTarget) : "100";
 
     const formatINR = (val: number) => {
         if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)}Cr`;
@@ -140,14 +161,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     useEffect(() => {
         // Delay to allow start-at-zero animation on mount
         const timer = setTimeout(() => {
-            setDisplayedPercent(forecastPercent);
+            setDisplayedPercent(forecastPercentRaw);
 
             // Animate widths for followup bars
             setAnimatedFollowupWidths(followupData.map(d => (d.val / maxFollowupVal) * 100));
         }, 100);
 
         return () => clearTimeout(timer);
-    }, [forecastPercent, stats]); // Recalculate when stats update
+    }, [forecastPercentRaw, stats]); // Recalculate when stats update
 
 
     // Category Data for Bottom Right Card
@@ -435,7 +456,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         {forecastDisplayVal}
                                     </div>
                                     <div className="text-[9px] font-bold text-slate-500 mt-0.5">
-                                        ({forecastPercent}% of Goal)
+                                        ({forecastPercentDisplay}% of Goal)
                                     </div>
                                 </div>
                             </div>
