@@ -89,6 +89,10 @@ services:
       - "traefik.http.routers.${ROUTER_NAME}.entrypoints=websecure"
       - "traefik.http.routers.${ROUTER_NAME}.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
+      # SAN Certificate: explicitly tell Traefik to issue ONE cert covering ALL domains
+      # Without this, Traefik may only cert the first domain in the || rule
+      - "traefik.http.routers.${ROUTER_NAME}.tls.domains[0].main=${TLS_MAIN}"
+      - "traefik.http.routers.${ROUTER_NAME}.tls.domains[0].sans=${TLS_SANS}"
       
       # Sticker / Session Stickiness (Optional)
       # Keeps a user connected to the same container if needed

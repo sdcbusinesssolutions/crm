@@ -144,12 +144,21 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     # Input: "clickube.com|apiautomation.in|chatmat.in"
     # Output: "Host(`clickube.com`) || Host(`apiautomation.in`) || Host(`chatmat.in`)"
     hostRule=""
+    tlsMain="$primaryDomain"
+    tlsSans=""
     IFS='|' read -ra domainArr <<< "$allDomains"
     for d in "${domainArr[@]}"; do
         if [ -z "$hostRule" ]; then
             hostRule="Host(\`$d\`)"
+            # primary domain is already tlsMain, skip it for SANs
         else
             hostRule="$hostRule || Host(\`$d\`)"
+            # All non-primary domains → SANs for the SAN certificate
+            if [ -z "$tlsSans" ]; then
+                tlsSans="$d"
+            else
+                tlsSans="$tlsSans,$d"
+            fi
         fi
     done
 
@@ -165,6 +174,8 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     echo "   📌 Primary Domain : $primaryDomain"
     echo "   🌐 All Domains    : $(echo "$allDomains" | tr '|' ' ')"
     echo "   🔀 Traefik Rule   : $hostRule"
+    echo "   🔒 TLS Main       : $tlsMain"
+    echo "   🔒 TLS SANs       : ${tlsSans:-'(none – single domain)'}"
     echo "   🔑 Supabase URL   : $sbUrl"
     echo "   🔒 Cert Resolver  : $certResolver"
 
@@ -180,6 +191,8 @@ PORT=5000
 DOMAIN="$primaryDomain"
 ROUTER_NAME="$safeName"
 ROUTER_RULE=$hostRule
+TLS_MAIN="$tlsMain"
+TLS_SANS="$tlsSans"
 IMAGE_TAG="$IMAGE_TAG"
 TRAEFIK_NETWORK="$traefikNetwork"
 CERT_RESOLVER="$certResolver"
