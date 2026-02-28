@@ -85,7 +85,7 @@ services:
     labels:
       - "traefik.enable=true"
       # Load Balancer Rule (Round Robin by default)
-      - "traefik.http.routers.${ROUTER_NAME}.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${ROUTER_NAME}.rule=${ROUTER_RULE}"
       - "traefik.http.routers.${ROUTER_NAME}.entrypoints=websecure"
       - "traefik.http.routers.${ROUTER_NAME}.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
