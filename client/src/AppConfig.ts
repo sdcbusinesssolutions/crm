@@ -25,7 +25,14 @@ export const AppConfig = {
         return window.env?.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
     },
     get VITE_CLIENT_URL() {
-        return window.env?.VITE_CLIENT_URL || import.meta.env.VITE_CLIENT_URL || '';
+        const raw = window.env?.VITE_CLIENT_URL || import.meta.env.VITE_CLIENT_URL || '';
+        // __DYNAMIC_ORIGIN__ is a sentinel set by entrypoint.sh in multi-domain mode.
+        // It means "use whatever domain the browser is actually on right now."
+        // This ensures clickube.com, apiautomation.in, etc. all get their OWN origin.
+        if (raw === '__DYNAMIC_ORIGIN__' || !raw) {
+            return window.location.origin;
+        }
+        return raw;
     },
     get VITE_API_URL() {
         return window.env?.VITE_API_URL || import.meta.env.VITE_API_URL || '';
