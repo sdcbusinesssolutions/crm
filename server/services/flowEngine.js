@@ -147,11 +147,10 @@ class FlowEngine {
                 // 1. Handle DELAYED sessions
                 const { data: delayedSessions, error } = await rpcClient
                     .from('flow_sessions')
-                    .select('*')
+                    .select('id, status, current_node_id, variables')
                     .eq('status', 'delayed');
 
                 if (!error && delayedSessions && delayedSessions.length > 0) {
-                    console.log(`[FlowEngine] Scheduler: ACtively monitoring ${delayedSessions.length} delayed sessions.`);
                     for (const session of delayedSessions) {
                         const variables = session.variables || {};
                         const currentNodeId = session.current_node_id;
@@ -191,7 +190,7 @@ class FlowEngine {
                 // 2. Handle WAITING_INPUT sessions with Timeout (Unresponsive)
                 const { data: waitingSessions, error: waitingError } = await rpcClient
                     .from('flow_sessions')
-                    .select('*')
+                    .select('id, status, current_node_id, variables')
                     .eq('status', 'waiting_input');
 
                 if (!waitingError && waitingSessions && waitingSessions.length > 0) {
