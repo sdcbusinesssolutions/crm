@@ -179,7 +179,20 @@ const MainApp: React.FC = () => {
 
                     // Clear local storage aggressively just in case to prevent loops
                     tokenService.clearAccessToken();
-                    localStorage.removeItem('sb-ssckorsnhjhzqxyukexm-auth-token');
+
+                    // Supabase derives the local storage key from the URL automatically
+                    // Because we use a dynamic proxy URL now, the key changes. We should clear everything 
+                    // starting with 'sb-' to ensure no old session fragments remain.
+                    try {
+                        for (let i = 0; i < localStorage.length; i++) {
+                            const key = localStorage.key(i);
+                            if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                                localStorage.removeItem(key);
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Failed to clear local storage dynamically:', err);
+                    }
 
                     window.location.href = targetUrl;
                     return false; // Validation failed

@@ -49,12 +49,30 @@ try {
   const { createProxyMiddleware } = require('http-proxy-middleware');
   const proxyTarget = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.trim() : '';
   if (proxyTarget) {
-    app.use('/api/supabase-proxy', createProxyMiddleware({
+    const supabaseProxy = createProxyMiddleware({
       target: proxyTarget,
       changeOrigin: true,
+      ws: true,
       pathRewrite: { '^/api/supabase-proxy': '' },
-      logLevel: 'error'
-    }));
+      logLevel: 'error',
+      onProxyReqWs: (proxyReq, req, socket, options, head) => {
+        // Essential for WebSocket protocol mirroring
+        if (req.headers['sec-websocket-protocol']) {
+          proxyReq.setHeader('sec-websocket-protocol', req.headers['sec-websocket-protocol']);
+        }
+      },
+      onProxyRes: (proxyRes, req, res) => {
+        // Ensure CORS headers are always present to override restrictive Supabase defaults if needed
+        proxyRes.headers['Access-Control-Allow-Origin'] = req.headers.origin || '*';
+        proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
+        proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization';
+      }
+    });
+    app.use('/api/supabase-proxy', supabaseProxy);
+    app.set('supabaseProxy', supabaseProxy); // Save for upgrade event
+    console.log(`✅ [Proxy] Route /api/supabase-proxy mapped to ${proxyTarget}`);
+  } else {
+    console.warn(`⚠️ [Proxy] SUPABASE_URL missing, proxy not created.`);
   }
 } catch (e) {
   console.log('Skipping proxy setup:', e.message);
@@ -291,8 +309,19 @@ if (require.main === module) {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+
+    // If we have a proxy middleware, attach it to the upgrade event for WebSockets
+    const supabaseProxy = app.get('supabaseProxy');
+    if (supabaseProxy) {
+      server.on('upgrade', (req, socket, head) => {
+        if (req.url.startsWith('/api/supabase-proxy') && typeof supabaseProxy.upgrade === 'function') {
+          supabaseProxy.upgrade(req, socket, head);
+        }
+      });
+      console.log(`🔌 Attached WebSocket proxy for Supabase Realtime.`);
+    }
 
     // Start Campaign Worker
     // Note: In production, this should ideally be a separate process.
