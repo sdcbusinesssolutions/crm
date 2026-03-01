@@ -56,33 +56,84 @@ const EXECUTORS = {
 };
 
 const { flattenObject } = require('../utils/objectUtils');
+const NodeCache = require('node-cache'); // We need to add this to package.json if it isn't, but let's try a simple custom implement/Map first
+
+// --- HIGH PERFORMANCE CACHE ---
+// For 10 Lakh customers, querying DB for 'whatsapp_config' or 'flow_definition' 
+// on EVERY message causes DB deadlocks and high latency.
+// These caches hold data for 5 minutes.
+const configCache = new Map();
+const flowCache = new Map();
+
+// Helper to manage simple TTL
+const getCached = (cacheMap, key) => {
+    const item = cacheMap.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiry) {
+        cacheMap.delete(key);
+        return null;
+    }
+    return item.data;
+};
+
+const setCached = (cacheMap, key, data, ttlMinutes = 5) => {
+    cacheMap.set(key, {
+        data: data,
+        expiry: Date.now() + (ttlMinutes * 60 * 1000) // 5 minutes standard TTL
+    });
+};
+// -----------------------------
 
 class FlowEngine {
     constructor() {
-        this.phoneCache = new Map();
         this.instanceId = Math.random().toString(36).substring(7); // Debug ID
         this.startScheduler();
     }
 
-    async getBusinessConfig(userId) {
-        if (this.phoneCache.has(userId)) return this.phoneCache.get(userId);
+    async getBusinessConfig(userId, phoneNumberId = null) {
+        // Cache Key: Try to use specific phone, else generic user
+        const cacheKey = `config_${userId}_${phoneNumberId || 'default'}`;
+        const cached = getCached(configCache, cacheKey);
+
+        if (cached) {
+            // console.log(`[Cache Hit] WhatsApp Config (User: ${userId})`);
+            return cached;
+        }
 
         try {
-            const { data } = await supabaseAdmin
-                .from('whatsapp_config')
-                .select('phone_number, phone_number_id')
-                .eq('user_id', userId)
-                .maybeSingle();
+            let query = supabaseAdmin.from('whatsapp_config').select('phone_number, phone_number_id').eq('user_id', userId);
+            if (phoneNumberId) query = query.eq('phone_number_id', phoneNumberId);
+
+            const { data } = await query.maybeSingle();
 
             const config = {
                 phoneNumber: data?.phone_number || 'System',
                 phoneNumberId: data?.phone_number_id || 'Unknown'
             };
-            this.phoneCache.set(userId, config);
+
+            setCached(configCache, cacheKey, config, 10); // Cache for 10 minutes
             return config;
         } catch (e) {
             return { phoneNumber: 'System', phoneNumberId: 'Unknown' };
         }
+    }
+
+    // --- NEW: Helper to fetch Flow with Caching ---
+    async getCachedFlow(flowId) {
+        const cacheKey = `flow_${flowId}`;
+        const cached = getCached(flowCache, cacheKey);
+        if (cached) {
+            // console.log(`[Cache Hit] Flow Definition (${flowId})`);
+            return cached;
+        }
+
+        const { data: flowData } = await supabaseAdmin.rpc('get_flow_by_id', { p_flow_id: flowId });
+
+        if (flowData && flowData.length > 0) {
+            setCached(flowCache, cacheKey, flowData[0], 5); // Cache for 5 mins
+            return flowData[0];
+        }
+        return null;
     }
 
     startScheduler() {
@@ -217,13 +268,10 @@ class FlowEngine {
     async resumeSession(session, interactionId = null) {
         const rpcClient = supabaseAdmin;
 
-        // Fetch Flow
-        const { data: flowData } = await rpcClient.rpc('get_flow_by_id', {
-            p_flow_id: session.flow_id
-        });
+        // Fetch Flow (Now using high-speed cache!)
+        const flow = await this.getCachedFlow(session.flow_id);
 
-        if (flowData && flowData[0]) {
-            const flow = flowData[0];
+        if (flow) {
             // Update status to active
             await rpcClient.rpc('update_session_status', {
                 p_session_id: session.id,
@@ -636,16 +684,13 @@ class FlowEngine {
     async continueFlow(session, input, interactionId = null) {
         const rpcClient = supabaseAdmin || supabase;
 
-        // Use RPC to get flow by ID (bypass RLS)
-        const { data: flowData, error: flowError } = await rpcClient.rpc('get_flow_by_id', {
-            p_flow_id: session.flow_id
-        });
+        // Use RPC to get flow by ID (Cache bypasses RLS too)
+        const flow = await this.getCachedFlow(session.flow_id);
 
-        if (flowError || !flowData || flowData.length === 0) {
-            console.error('[FlowEngine] Error fetching flow for session:', flowError);
+        if (!flow) {
+            console.error('[FlowEngine] Error fetching flow for session:', session.id);
             return;
         }
-        const flow = flowData[0];
 
         // --- OPTIMISTIC LOCKING START ---
         // Prevent race conditions where two simultaneous webhooks trigger the same step twice.
@@ -845,7 +890,7 @@ class FlowEngine {
             nextInteractionId = 'invalid';
         }
 
-        // Move to next step
+        // Move to next step (Context passed IN-MEMORY)
         await this.executeNextStep({ ...session, variables: nextContext }, flow, currentNodeId, nextInteractionId);
     }
 
@@ -884,10 +929,17 @@ class FlowEngine {
         if (!edge) {
             console.log(`[FlowEngine] No outgoing edge found from ${currentNodeId}. Flow completed.`);
             const rpcClient = supabaseAdmin || supabase;
-            await rpcClient.rpc('update_session_status', {
-                p_session_id: session.id,
-                p_status: 'completed'
-            });
+
+            // 🚀 SCALE OPTIMIZATION: Final Save
+            // Now that the engine has finished processing all invisible steps in RAM,
+            // we do exactly ONE write to the database to mark it complete and save all vars.
+            await rpcClient.from('flow_sessions').update({
+                status: 'completed',
+                current_node_id: currentNodeId,
+                variables: session.variables,
+                last_interaction_at: new Date().toISOString()
+            }).eq('id', session.id);
+
             return;
         }
 
@@ -901,15 +953,8 @@ class FlowEngine {
             return;
         }
 
-        // Update Session via RPC
-        const rpcClient = supabaseAdmin || supabase;
-        await rpcClient.rpc('update_session_step', {
-            p_session_id: session.id,
-            p_current_node_id: nextNodeId,
-            p_status: 'active'
-        });
-
         // Execute Node
+        // 🚀 SCALE OPTIMIZATION: Call-stack passing! No DB I/O for `status = active` transition.
         await this.executeNode(session, flow, nextNode);
     }
 
@@ -1014,19 +1059,15 @@ class FlowEngine {
                 return; // Stop execution
             }
 
-            // 4. Update Context with Output
+            // 4. Update Context with Output (In-Memory ONLY)
             const newContext = {
                 ...session.variables,
                 [node.id]: { ...(session.variables[node.id] || {}), ...output }
             };
 
-            await rpcClient.from('flow_sessions')
-                .update({
-                    variables: newContext,
-                    current_node_id: node.id, // Update current node for tracking
-                    last_interaction_at: new Date().toISOString()
-                })
-                .eq('id', session.id);
+            // 🚀 SCALE OPTIMIZATION:
+            // We specifically SKIP hitting the Database ('flow_sessions' .update) right here!
+            // Supabase Database receives 0 load while the logic evaluates internally.
 
             // 5. Continue
             // If output contains an 'outcome' (e.g. from Check Condition), pass it as interactionId to find the right edge

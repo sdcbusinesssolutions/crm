@@ -27,6 +27,7 @@
     "http-proxy-middleware": "^2.0.9",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "node-cache": "^5.1.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.12",
     "openai": "^6.21.0",
