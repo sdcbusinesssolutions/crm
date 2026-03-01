@@ -43,6 +43,23 @@ if (!PORT) {
 
 // --- Middleware ---
 app.use(cors());
+
+// --- Supabase Reverse Proxy (Must be BEFORE express.json) ---
+try {
+  const { createProxyMiddleware } = require('http-proxy-middleware');
+  const proxyTarget = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.trim() : '';
+  if (proxyTarget) {
+    app.use('/api/supabase-proxy', createProxyMiddleware({
+      target: proxyTarget,
+      changeOrigin: true,
+      pathRewrite: { '^/api/supabase-proxy': '' },
+      logLevel: 'error'
+    }));
+  }
+} catch (e) {
+  console.log('Skipping proxy setup:', e.message);
+}
+
 // Force Restart: 2026-01-12 23:25 UTC - Deduplication Active
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));

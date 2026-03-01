@@ -19,7 +19,9 @@ declare global {
 // Helper to get config values with fallback to import.meta.env (for local dev)
 export const AppConfig = {
     get VITE_SUPABASE_URL() {
-        return window.env?.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '';
+        // --- Jio ISP Block Bypass Proxy ---
+        // Instead of targeting the real supabase domain directly, route through our API proxy
+        return `${window.location.origin}/api/supabase-proxy`;
     },
     get VITE_SUPABASE_ANON_KEY() {
         return window.env?.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
