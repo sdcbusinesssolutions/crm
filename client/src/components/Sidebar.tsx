@@ -335,7 +335,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         <>
             {isOpen && <div className="fixed inset-0 bg-slate-900/40 z-[290] lg:hidden backdrop-blur-sm transition-opacity duration-300" onClick={onClose} />}
             <div
-                className={`fixed inset-y-0 left-0 z-[300] flex flex-col shadow-2xl lg:shadow-none transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) 
+                className={`shrink-0 fixed inset-y-0 left-0 z-[300] flex flex-col shadow-2xl lg:shadow-none transform transition-all duration-300 cubic-bezier(0.4, 0, 0.2, 1) 
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 lg:static lg:h-full 
         w-64 bg-[#00684a] border-r border-slate-700 
         ${isCollapsed ? 'lg:w-20 lg:bg-[#00684a] lg:border-none' : ''}`}

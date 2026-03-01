@@ -1517,7 +1517,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     return (
         <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
             {/* Left Sidebar: Conversation List */}
-            <div className={`w-full md:w-72 lg:w-80 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
+            <div className={`shrink-0 w-full md:w-72 lg:w-80 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
                 <div className="p-4 bg-white z-20">
                     <div className="flex justify-between items-center mb-4">
@@ -1711,7 +1711,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             {/* Main Chat Area */}
             <div
-                className={`flex-1 flex flex-col fixed md:relative inset-0 z-[200] md:z-auto transform transition-transform duration-300 h-[100dvh] md:h-auto ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
+                className={`flex-1 min-w-0 flex flex-col fixed md:relative inset-0 z-[200] md:z-auto transform transition-transform duration-300 h-[100dvh] md:h-auto ${activeChatId ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}
                 style={{
                     backgroundColor: '#333333',
                 }}

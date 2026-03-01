@@ -7,10 +7,7 @@
         "start": "echo 'Please run npm start in client or server directory'",
         "install-all": "npm install && cd client && npm install && cd ../server && npm install"
     },
-    "workspaces": [
-        "client",
-        "server"
-    ],
+    "workspaces": [],
     "dependencies": {
         "google-auth-library": "^10.5.0"
     }
