@@ -51,9 +51,17 @@ const Canvas: React.FC<CanvasProps> = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = React.useState<string | null>(null);
 
-  const NODE_WIDTH = 320; // Matches w-[320px] in Node.tsx
-  const TARGET_HANDLE_OFFSET = 32; // Matches top-8 (2rem = 32px) in Node.tsx
-  const DEFAULT_SOURCE_OFFSET = 60; // Fallback approximation
+  // Force re-render after mount so document.getElementById can find the node handles
+  const [domLoaded, setDomLoaded] = React.useState(0);
+  React.useEffect(() => {
+    // Give it a tiny tick for the DOM to paint the nodes
+    const timer = setTimeout(() => setDomLoaded(prev => prev + 1), 50);
+    return () => clearTimeout(timer);
+  }, [nodes]);
+
+  const NODE_WIDTH = 250; // Fix: Matched to actual Node w-[250px]
+  const TARGET_HANDLE_OFFSET = 32;
+  const DEFAULT_SOURCE_OFFSET = 45;
 
   // Color Mapping for Connection Lines
   const getNodeColor = (type: NodeType) => {
@@ -200,10 +208,19 @@ const Canvas: React.FC<CanvasProps> = ({
             const midY = (sourcePos.y + targetPos.y) / 2;
             const isHovered = hoveredEdgeId === edge.id;
 
+            // SMART BEZIER ROUTING
+            const dist = Math.abs(targetPos.x - sourcePos.x);
+            const isTargetLeft = targetPos.x < sourcePos.x;
+            const controlOffset = isTargetLeft ? Math.max(dist * 0.8, 150) : Math.max(dist / 2, 80);
+
+            const cp1X = sourcePos.x + controlOffset;
+            const cp2X = targetPos.x - controlOffset;
+            const pathData = `M ${sourcePos.x} ${sourcePos.y} C ${cp1X} ${sourcePos.y} ${cp2X} ${targetPos.y} ${targetPos.x} ${targetPos.y}`;
+
             return (
               <g key={edge.id} className="pointer-events-auto" onMouseEnter={() => setHoveredEdgeId(edge.id)} onMouseLeave={() => setHoveredEdgeId(null)}>
                 <path
-                  d={`M ${sourcePos.x} ${sourcePos.y} C ${sourcePos.x + 100} ${sourcePos.y} ${targetPos.x - 100} ${targetPos.y} ${targetPos.x} ${targetPos.y}`}
+                  d={pathData}
                   stroke={isHovered ? animateColor : strokeColor}
                   strokeWidth={isHovered ? "4" : "2"}
                   fill="none"
@@ -212,7 +229,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 />
                 {/* Animated Flow Dots */}
                 <path
-                  d={`M ${sourcePos.x} ${sourcePos.y} C ${sourcePos.x + 100} ${sourcePos.y} ${targetPos.x - 100} ${targetPos.y} ${targetPos.x} ${targetPos.y}`}
+                  d={pathData}
                   stroke={animateColor}
                   strokeWidth="2"
                   fill="none"
@@ -221,7 +238,7 @@ const Canvas: React.FC<CanvasProps> = ({
                 />
                 {/* Invisible wider path for easier hovering */}
                 <path
-                  d={`M ${sourcePos.x} ${sourcePos.y} C ${sourcePos.x + 100} ${sourcePos.y} ${targetPos.x - 100} ${targetPos.y} ${targetPos.x} ${targetPos.y}`}
+                  d={pathData}
                   stroke="transparent"
                   strokeWidth="20"
                   fill="none"
@@ -247,17 +264,21 @@ const Canvas: React.FC<CanvasProps> = ({
             );
           })}
 
-          {connectionLine && (
-            <line
-              x1={connectionLine.x1}
-              y1={connectionLine.y1}
-              x2={connectionLine.x2}
-              y2={connectionLine.y2}
-              stroke="#06b6d4"
-              strokeWidth="2"
-              strokeDasharray="5,5"
-            />
-          )}
+          {connectionLine && (() => {
+            const distLine = Math.abs(connectionLine.x2 - connectionLine.x1);
+            const isLineLeft = connectionLine.x2 < connectionLine.x1;
+            const connOffset = isLineLeft ? Math.max(distLine * 0.8, 150) : Math.max(distLine / 2, 80);
+
+            return (
+              <path
+                d={`M ${connectionLine.x1} ${connectionLine.y1} C ${connectionLine.x1 + connOffset} ${connectionLine.y1} ${connectionLine.x2 - connOffset} ${connectionLine.y2} ${connectionLine.x2} ${connectionLine.y2}`}
+                stroke="#06b6d4"
+                strokeWidth="2"
+                fill="none"
+                strokeDasharray="5,5"
+              />
+            );
+          })()}
         </svg>
 
         {/* Nodes Layer */}
