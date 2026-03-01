@@ -202,7 +202,7 @@ SUPABASE_URL="$sbUrl"
 SUPABASE_KEY="$sbKey"
 SUPABASE_SERVICE_KEY="$sbServiceKey"
 BRIDGE_DOMAIN="$bridgeDomain"
-VITE_MASTER_URL="$masterDomain"
+VITE_MASTER_URL=$masterDomain
 EOF
 
     echo "   📄 Config: $envFileName generated"
