@@ -58,6 +58,7 @@ services:
       - DOMAIN=${DOMAIN}
       - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
+      - VITE_MASTER_URL=${VITE_MASTER_URL}
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
       # MEMORY OPTIMIZATION: Maximize usage of 3.5GB container limit
