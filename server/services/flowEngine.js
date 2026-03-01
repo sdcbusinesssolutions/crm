@@ -1056,6 +1056,33 @@ class FlowEngine {
                     })
                     .eq('id', session.id);
 
+                // 🚀 HIGH-PERFORMANCE DELAY OPTIMIZATION:
+                // Global DB Scheduler runs every 30s. If user sets a "5 second delay", they shouldn't 
+                // have to wait up to 30 seconds for the next database sweep. 
+                // We will use an exact RAM timeout for any delay under 5 minutes.
+                if (output.delayMs && output.delayMs <= 5 * 60 * 1000) {
+                    console.log(`[FlowEngine] Short delay detected. Scheduling exact RAM trigger in ${output.delayMs}ms.`);
+                    setTimeout(async () => {
+                        try {
+                            // Optimistic Lock: Check if another server instance already grabbed it
+                            const { data: claimed, error: claimError } = await rpcClient
+                                .from('flow_sessions')
+                                .update({ status: 'resuming' })
+                                .eq('id', session.id)
+                                .eq('status', 'delayed')
+                                .select();
+
+                            if (!claimError && claimed && claimed.length > 0) {
+                                console.log(`[FlowEngine] RAM Timer Fired Exactly for Session ${session.id}!`);
+                                // Execute perfectly on time
+                                await this.resumeSession({ ...session, variables: newContext });
+                            }
+                        } catch (e) {
+                            console.error('RAM Delay Timer Error:', e);
+                        }
+                    }, output.delayMs);
+                }
+
                 return; // Stop execution
             }
 
