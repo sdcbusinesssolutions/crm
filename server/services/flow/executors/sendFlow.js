@@ -86,6 +86,25 @@ class SendFlowExecutor {
             throw error;
         }
     }
+
+    async validate(session, node, response) {
+        // The flowToken generated and sent to the user was saved in the session variables during execute()
+        const expectedToken = session.variables[node.id]?.flowToken;
+
+        // We look for the flow_token returned by Meta in the actual payload (which is parsed into response here)
+        // If it's a valid form submission, response will be an object containing the keys from the form, PLUS flow_token.
+        const receivedToken = typeof response === 'object' && response !== null ? response.flow_token : null;
+
+        if (!receivedToken || receivedToken !== expectedToken) {
+            console.warn(`[SendFlowExecutor] Invalid input received during form submission wait. Expected flow_token: ${expectedToken}, got: ${receivedToken}. Ignoring input.`);
+            // Returning RETRY forces the engine to STOP executing this node's continuation.
+            // It will re-execute the sendFlow node (resending the "Please fill this form" message) 
+            // so the user knows they still need to submit the form.
+            return { valid: false, action: 'RETRY' };
+        }
+
+        return { valid: true };
+    }
 }
 
 module.exports = new SendFlowExecutor();
