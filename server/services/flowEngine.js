@@ -344,35 +344,8 @@ class FlowEngine {
         if (wcError) console.error('[FlowEngine] RPC Error finding wildcard flow:', wcError);
         if (keywordFlows) wildcardFlows = keywordFlows;
 
-        // B. (Robustness) If no explicit '*' flow, search for a flow that STARTS with 'newLead' node.
-        // This allows users to just drag "New Lead" as start node without config.
-        if (wildcardFlows.length === 0) {
-            const { data: allFlows } = await rpcClient
-                .from('flows')
-                .select('*')
-                .eq('user_id', userId)
-                .ilike('status', 'published');
-
-            if (allFlows) {
-                // Find first flow where the 'newLead' node has no incoming edges (is a start node)
-                // OR simply contains a newLead node if we want to be generous.
-                // Strict check: Is 'newLead' a root node?
-                const defaultFlow = allFlows.find(f => {
-                    if (!f.nodes || f.nodes.length === 0) return false;
-                    const newLeadNode = f.nodes.find(n => n.type === 'newLead');
-                    if (!newLeadNode) return false;
-
-                    // Check if anything connects TO this node
-                    const edgesToNewLead = (f.edges || []).filter(e => e.target === newLeadNode.id);
-                    return edgesToNewLead.length === 0; // It is a start node
-                });
-
-                if (defaultFlow) {
-                    console.log(`[FlowEngine] Found Implicit Default Flow (starts with New Lead): ${defaultFlow.name}`);
-                    wildcardFlows = [defaultFlow];
-                }
-            }
-        }
+        // B. (Removed) We no longer implicitly trigger a flow just because it starts with a 'newLead' node.
+        // Users must explicitly set '*' wildcard or specify keywords to trigger flows.
 
         if (wildcardFlows && wildcardFlows.length > 0) {
             console.log(`[FlowEngine] Triggering Wildcard/Default Flow: ${wildcardFlows[0].name}`);

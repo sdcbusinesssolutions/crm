@@ -963,8 +963,19 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 let flowPromise = null;
                 const isMedia = ['image', 'video', 'audio', 'document', 'sticker'].includes(extracted.type);
 
-                // If NOT media, we can trigger flow concurrently with DB writes
-                if (!isMedia && inputPayload) {
+                // --- STALE MESSAGE CHECK ---
+                // If Meta delivers a message that the user sent more than 5 minutes ago (e.g. because our server was down or Meta was retrying),
+                // we drop it here so we don't accidentally trigger the bot for a very old message.
+                const messageTimestamp = parseInt(extracted.timestamp, 10);
+                const currentTimestamp = Math.floor(Date.now() / 1000);
+                const isStale = (currentTimestamp - messageTimestamp) > 300; // 5 minutes (300 seconds)
+
+                if (isStale) {
+                    console.warn(`[Webhook] STALE MESSAGE DETECTED (${currentTimestamp - messageTimestamp}s old). Recording to database but skipping Flow Engine.`);
+                }
+
+                // If NOT media, we can trigger flow concurrently with DB writes (only if not stale!)
+                if (!isMedia && inputPayload && !isStale) {
                     // Normalize payload
                     if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
                     if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
@@ -1034,7 +1045,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 }).eq('id', savedMessageId);
 
                                 // 2. Trigger Flow Engine (NOW WITH URL)
-                                if (inputPayload) {
+                                if (inputPayload && !isStale) {
                                     inputPayload.url = mediaData.url;
                                     inputPayload.mime_type = mediaData.mime_type || null;
                                     inputPayload.filename = extracted.filename || mediaData.filename || null;
@@ -1046,7 +1057,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             } else {
                                 console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
                                 // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
-                                if (inputPayload) {
+                                if (inputPayload && !isStale) {
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
                             }
