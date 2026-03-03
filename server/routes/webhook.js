@@ -981,6 +981,13 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
 
                     console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
+
+                    // --- TYPING INDICATOR START ---
+                    // Show typing indicator in UI while bot is "thinking"
+                    const whatsappService = require('../services/whatsappService');
+                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                    // --- TYPING INDICATOR END ---
+
                     flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
                         .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
                 }
@@ -1052,12 +1059,23 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                     if (typeof inputPayload === 'object') inputPayload.name = contactName;
 
                                     console.log(`[Webhook] BG: Triggering Flow Engine for ${savedMessageId} post-download`);
+
+                                    // --- TYPING INDICATOR START ---
+                                    const whatsappService = require('../services/whatsappService');
+                                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                                    // --- TYPING INDICATOR END ---
+
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
                             } else {
                                 console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
                                 // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
                                 if (inputPayload && !isStale) {
+                                    // --- TYPING INDICATOR START ---
+                                    const whatsappService = require('../services/whatsappService');
+                                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                                    // --- TYPING INDICATOR END ---
+
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
                             }

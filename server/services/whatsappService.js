@@ -358,11 +358,12 @@ class WhatsAppService {
         }
     }
     /**
-     * Mark a message as read
+     * Mark a message as read (and optionally show typing indicator)
      * @param {string} userId 
      * @param {string} messageId - WhatsApp Message ID (wamid)
+     * @param {boolean} showTyping - Whether to show a typing indicator
      */
-    async markAsRead(userId, messageId) {
+    async markAsRead(userId, messageId, showTyping = false) {
         try {
             const config = await this.getConfig(userId);
             const fromPhoneId = config.phone_number_id;
@@ -376,6 +377,14 @@ class WhatsAppService {
                 message_id: messageId
             };
 
+            // --- TYPING INDICATOR START ---
+            if (showTyping) {
+                body.typing_indicator = {
+                    type: "text"
+                };
+            }
+            // --- TYPING INDICATOR END ---
+
             await axios.post(url, body, {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`,
@@ -384,7 +393,10 @@ class WhatsAppService {
                 httpsAgent: httpsAgent
             });
 
-            console.log(`Message ${messageId} marked as read.`);
+            // --- TYPING INDICATOR START ---
+            console.log(`Message ${messageId} marked as read.${showTyping ? ' Typing indicator sent.' : ''}`);
+            // --- TYPING INDICATOR END ---
+
             return true;
         } catch (error) {
             const errorData = error.response?.data?.error;
@@ -399,6 +411,47 @@ class WhatsAppService {
             return false;
         }
     }
+
+    // --- TYPING INDICATOR START ---
+    /**
+     * Send typing indicator
+     * @param {string} userId 
+     * @param {string} to - Recipient phone number
+     */
+    async sendTypingIndicator(userId, to) {
+        try {
+            const config = await this.getConfig(userId);
+            const fromPhoneId = config.phone_number_id;
+            const accessToken = config.meta_access_token;
+
+            const url = `${this.baseUrl}/${fromPhoneId}/messages`;
+
+            const body = {
+                messaging_product: 'whatsapp',
+                recipient_type: 'individual',
+                to: to,
+                type: 'action',
+                action: {
+                    name: 'typing'
+                }
+            };
+
+            await axios.post(url, body, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                httpsAgent: httpsAgent
+            });
+
+            console.log(`Typing indicator sent to ${to}.`);
+            return true;
+        } catch (error) {
+            console.error('WhatsAppService sendTypingIndicator Error:', error.response?.data || error.message);
+            return false;
+        }
+    }
+    // --- TYPING INDICATOR END ---
 }
 
 module.exports = new WhatsAppService();
