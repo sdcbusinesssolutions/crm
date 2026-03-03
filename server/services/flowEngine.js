@@ -738,43 +738,71 @@ class FlowEngine {
         // --- VALIDATION LOGIC ---
         const node = flow.nodes.find(n => n.id === currentNodeId);
 
-        // --- STALE BUTTON CLICK PREVENTION ---
-        // Prevents users from clicking completed buttons from previous steps
-        if (interactionId && interactionId !== 'unresponsive' && interactionId !== 'invalid' && node) {
+        // --- STALE BUTTON CLICK OR INVALID TEXT PREVENTION ---
+        // Prevents users from clicking completed buttons from previous steps,
+        // OR typing random text to bypass a menu node.
+        if (node) {
             const isMenuNode = ['quickReplyMessage', 'listMessage'].includes(node.type);
 
             if (isMenuNode) {
                 let isValidClick = false;
+                let recognizedInteractionId = interactionId;
 
-                // 1. Check if it matches quick reply buttons
-                if (node.data.buttons && Array.isArray(node.data.buttons)) {
-                    if (node.data.buttons.some(b => String(b.id) === String(interactionId) || String(b.payload) === String(interactionId))) {
+                if (interactionId === 'unresponsive' || interactionId === 'invalid') {
+                    isValidClick = true;
+                } else {
+                    // 1. Check if it matches quick reply buttons
+                    if (node.data.buttons && Array.isArray(node.data.buttons)) {
+                        // Check by ID
+                        if (recognizedInteractionId && node.data.buttons.some(b => String(b.id) === String(recognizedInteractionId) || String(b.payload) === String(recognizedInteractionId))) {
+                            isValidClick = true;
+                        } else if (!recognizedInteractionId && finalResponse && finalResponse.text) {
+                            // Check by Exact Text Match (if user typed the button label)
+                            const userText = finalResponse.text.toLowerCase().trim();
+                            const matchedBtn = node.data.buttons.find(b => b.title && b.title.toLowerCase().trim() === userText);
+                            if (matchedBtn) {
+                                isValidClick = true;
+                                recognizedInteractionId = matchedBtn.id;
+                            }
+                        }
+                    }
+
+                    // 2. Check list items
+                    if (node.data.sections && Array.isArray(node.data.sections)) {
+                        for (const section of node.data.sections) {
+                            const items = section.rows || section.items || [];
+                            if (Array.isArray(items)) {
+                                if (recognizedInteractionId && items.some(i => String(i.id) === String(recognizedInteractionId))) {
+                                    isValidClick = true;
+                                } else if (!recognizedInteractionId && finalResponse && finalResponse.text) {
+                                    // Match list item text
+                                    const userText = finalResponse.text.toLowerCase().trim();
+                                    const matchedItem = items.find(i => i.title && i.title.toLowerCase().trim() === userText);
+                                    if (matchedItem) {
+                                        isValidClick = true;
+                                        recognizedInteractionId = matchedItem.id;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 3. Provide bypass for dynamic list sections
+                    if (node.type === 'listMessage' && node.data.dynamicSections) {
                         isValidClick = true;
                     }
                 }
 
-                // 2. Check list items
-                if (node.data.sections && Array.isArray(node.data.sections)) {
-                    for (const section of node.data.sections) {
-                        const items = section.rows || section.items || [];
-                        if (Array.isArray(items) && items.some(i => String(i.id) === String(interactionId))) {
-                            isValidClick = true;
-                        }
-                    }
-                }
-
-                // 3. Provide bypass for dynamic list sections which evaluate dynamically
-                if (node.type === 'listMessage' && node.data.dynamicSections) {
-                    isValidClick = true;
-                }
-
                 if (!isValidClick) {
-                    console.warn(`[FlowEngine] STALE BUTTON PREVENTION: Ignoring old/invalid interactionId '${interactionId}' for current node '${node.id}'`);
+                    console.warn(`[FlowEngine] INVALID INPUT PREVENTION: Ignoring random text/invalid interaction for menu node '${node.id}'`);
                     // Release the lock from 'processing' to 'waiting_input' so the user is not soft-locked
                     await rpcClient.from('flow_sessions').update({
                         status: 'waiting_input'
                     }).eq('id', session.id);
                     return; // Stop execution without replying or advancing
+                } else {
+                    // Update interactionId in case we mapped text to a button ID
+                    interactionId = recognizedInteractionId;
                 }
             }
         }

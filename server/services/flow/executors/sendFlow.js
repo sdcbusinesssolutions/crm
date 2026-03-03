@@ -97,10 +97,9 @@ class SendFlowExecutor {
 
         if (!receivedToken || receivedToken !== expectedToken) {
             console.warn(`[SendFlowExecutor] Invalid input received during form submission wait. Expected flow_token: ${expectedToken}, got: ${receivedToken}. Ignoring input.`);
-            // Returning RETRY forces the engine to STOP executing this node's continuation.
-            // It will re-execute the sendFlow node (resending the "Please fill this form" message) 
-            // so the user knows they still need to submit the form.
-            return { valid: false, action: 'RETRY' };
+            // Returning IGNORE forces the engine to STOP executing this node's continuation.
+            // It will just drop the message and leave the user parked at this node until they actually return a valid form.
+            return { valid: false, action: 'IGNORE' };
         }
 
         return { valid: true };
