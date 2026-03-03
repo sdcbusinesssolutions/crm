@@ -737,7 +737,49 @@ class FlowEngine {
 
         // --- VALIDATION LOGIC ---
         const node = flow.nodes.find(n => n.id === currentNodeId);
-        const executor = EXECUTORS[node.type];
+
+        // --- STALE BUTTON CLICK PREVENTION ---
+        // Prevents users from clicking completed buttons from previous steps
+        if (interactionId && interactionId !== 'unresponsive' && interactionId !== 'invalid' && node) {
+            const isMenuNode = ['quickReplyMessage', 'listMessage'].includes(node.type);
+
+            if (isMenuNode) {
+                let isValidClick = false;
+
+                // 1. Check if it matches quick reply buttons
+                if (node.data.buttons && Array.isArray(node.data.buttons)) {
+                    if (node.data.buttons.some(b => String(b.id) === String(interactionId) || String(b.payload) === String(interactionId))) {
+                        isValidClick = true;
+                    }
+                }
+
+                // 2. Check list items
+                if (node.data.sections && Array.isArray(node.data.sections)) {
+                    for (const section of node.data.sections) {
+                        const items = section.rows || section.items || [];
+                        if (Array.isArray(items) && items.some(i => String(i.id) === String(interactionId))) {
+                            isValidClick = true;
+                        }
+                    }
+                }
+
+                // 3. Provide bypass for dynamic list sections which evaluate dynamically
+                if (node.type === 'listMessage' && node.data.dynamicSections) {
+                    isValidClick = true;
+                }
+
+                if (!isValidClick) {
+                    console.warn(`[FlowEngine] STALE BUTTON PREVENTION: Ignoring old/invalid interactionId '${interactionId}' for current node '${node.id}'`);
+                    // Release the lock from 'processing' to 'waiting_input' so the user is not soft-locked
+                    await rpcClient.from('flow_sessions').update({
+                        status: 'waiting_input'
+                    }).eq('id', session.id);
+                    return; // Stop execution without replying or advancing
+                }
+            }
+        }
+
+        const executor = EXECUTORS[node ? node.type : null];
 
         let nextContext = updatedContext;
 
@@ -774,6 +816,11 @@ class FlowEngine {
                     // We need to pass the *updated* session
                     await this.executeNode({ ...session, variables: nextContext }, flow, node);
                     return; // STOP here, do not proceed to next step
+                } else if (validationResult.action === 'IGNORE') {
+                    console.log(`[FlowEngine] Validation returned IGNORE. Aborting continuation.`);
+                    // Release lock back to waiting
+                    await rpcClient.from('flow_sessions').update({ status: 'waiting_input' }).eq('id', session.id);
+                    return; // STOP here
                 } else if (validationResult.action === 'INVALID' || validationResult.action === 'FAILURE') {
                     // Send Failure message if defined
                     if (node.data.retryMessage) {
