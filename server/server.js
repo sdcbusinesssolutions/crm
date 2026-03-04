@@ -199,7 +199,7 @@ const inboxRoutes = require('./routes/inbox');
 
 const webhookRoutes = require('./routes/webhook');
 const incomingWebhookRoutes = require('./routes/incoming_webhooks');
-// const testRequestRoutes = require('./routes/test_request');
+const testRequestRoutes = require('./routes/test_request');
 const uploadRoutes = require('./routes/upload');
 const whatsappTemplatesRoutes = require('./routes/whatsapp_templates');
 const campaignsRoutes = require('./routes/campaigns');
@@ -256,7 +256,7 @@ router.use('/campaigns', requireAuth, campaignsRoutes);
 router.use('/campaigns', requireAuth, campaignsRoutes);
 router.use('/inbox', requireAuth, inboxRoutes);
 router.use('/inbox', requireAuth, inboxRoutes);
-// router.use('/test-request', requireAuth, testRequestRoutes);
+router.use('/test-request', requireAuth, testRequestRoutes);
 router.use('/upload', requireAuth, uploadRoutes);
 
 // Admin Routes (Mounted under /admin)

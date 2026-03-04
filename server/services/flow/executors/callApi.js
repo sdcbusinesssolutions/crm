@@ -1,4 +1,5 @@
 const axios = require('axios');
+const contextManager = require('../context');
 
 module.exports = {
     async execute(session, node, context) {
@@ -7,42 +8,50 @@ module.exports = {
         console.log(`[CallApiExecutor] Executing API Call to ${url} (${method})`);
 
         try {
+            const resolvedUrl = contextManager.resolve(url, context);
+            const resolvedHeaders = contextManager.resolveObject(headers, context);
+            const resolvedParams = contextManager.resolveObject(params, context);
+            const resolvedBody = contextManager.resolveObject(body, context);
+
             // Construct headers object
             const headersObj = {};
-            if (headers && Array.isArray(headers)) {
-                headers.forEach(h => {
+            if (resolvedHeaders && Array.isArray(resolvedHeaders)) {
+                resolvedHeaders.forEach(h => {
                     if (h.key && h.value) headersObj[h.key] = h.value;
                 });
             }
 
             // Handle Authentication
             if (authType === 'basic') {
-                const user = authUsername || '';
-                const pass = authPassword || '';
+                const user = contextManager.resolve(authUsername, context) || '';
+                const pass = contextManager.resolve(authPassword, context) || '';
                 const auth = Buffer.from(`${user}:${pass}`).toString('base64');
                 headersObj['Authorization'] = `Basic ${auth}`;
             } else if (authType === 'bearer') {
-                const token = authToken || '';
+                const token = contextManager.resolve(authToken, context) || '';
                 headersObj['Authorization'] = `Bearer ${token}`;
             } else if (authType === 'header') {
-                if (authHeaderName && authHeaderValue) {
-                    headersObj[authHeaderName] = authHeaderValue;
+                const name = contextManager.resolve(authHeaderName, context);
+                const value = contextManager.resolve(authHeaderValue, context);
+                if (name && value) {
+                    headersObj[name] = value;
                 }
             }
 
             // Construct params object
             const paramsObj = {};
-            if (params && Array.isArray(params)) {
-                params.forEach(p => {
+            if (resolvedParams && Array.isArray(resolvedParams)) {
+                resolvedParams.forEach(p => {
                     if (p.key && p.value) paramsObj[p.key] = p.value;
                 });
             }
 
             // Construct body
-            let data = body;
+            let data = resolvedBody;
             if (node.data.bodyInputType === 'kv' && node.data.bodyFields && Array.isArray(node.data.bodyFields)) {
                 const fieldsObj = {};
-                node.data.bodyFields.forEach(f => {
+                const resolvedFields = contextManager.resolveObject(node.data.bodyFields, context);
+                resolvedFields.forEach(f => {
                     if (f.key) fieldsObj[f.key] = f.value;
                 });
                 data = fieldsObj;
@@ -62,9 +71,9 @@ module.exports = {
                         }
                     }
                 }
-            } else if (bodyType === 'json' && typeof body === 'string') {
+            } else if (bodyType === 'json' && typeof resolvedBody === 'string') {
                 try {
-                    data = JSON.parse(body);
+                    data = JSON.parse(resolvedBody);
                 } catch (e) {
                     console.warn('[CallApiExecutor] Failed to parse JSON body, sending as string.');
                 }
@@ -77,7 +86,7 @@ module.exports = {
                 debugHeaders['Authorization'] = debugHeaders['Authorization'].substring(0, 10) + '...';
             }
             console.log(`[CallApiExecutor] Sending Request:`, {
-                url,
+                url: resolvedUrl,
                 method,
                 headers: debugHeaders,
                 data
@@ -85,7 +94,7 @@ module.exports = {
 
             const response = await axios({
                 method: method || 'GET',
-                url: url,
+                url: resolvedUrl,
                 headers: headersObj,
                 params: paramsObj,
                 data: data
