@@ -71,11 +71,21 @@ module.exports = {
                         }
                     }
                 }
-            } else if (bodyType === 'json' && typeof resolvedBody === 'string') {
-                try {
-                    data = JSON.parse(resolvedBody);
-                } catch (e) {
-                    console.warn('[CallApiExecutor] Failed to parse JSON body, sending as string.');
+            } else if (typeof data === 'string') {
+                const trimmed = data.trim();
+                if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                    try {
+                        data = JSON.parse(trimmed);
+                    } catch (e) {
+                        console.warn('[CallApiExecutor] Failed to parse JSON body, sending as string.', e.message);
+                    }
+                }
+            }
+
+            if (typeof data === 'object' && data !== null) {
+                const hasContentType = Object.keys(headersObj).some(k => k.toLowerCase() === 'content-type');
+                if (!hasContentType) {
+                    headersObj['Content-Type'] = 'application/json';
                 }
             }
             // TODO: Handle form-data if needed (might need FormData polyfill or qs)

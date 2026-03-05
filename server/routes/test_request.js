@@ -74,13 +74,21 @@ router.post('/', async (req, res) => {
                     }
                 }
             }
-        } else if (bodyType === 'json' && typeof resolvedBody === 'string') {
-            try {
-                data = JSON.parse(resolvedBody);
-            } catch (e) {
-                console.warn('Failed to parse JSON body string, sending as is:', e.message);
-                // If parsing fails, we might want to send it as is or error out.
-                // For now, let's assume if it's not valid JSON, it's just a string.
+        } else if (typeof data === 'string') {
+            const trimmed = data.trim();
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    data = JSON.parse(trimmed);
+                } catch (e) {
+                    console.warn('Failed to parse JSON body string, sending as is:', e.message);
+                }
+            }
+        }
+
+        if (typeof data === 'object' && data !== null) {
+            const hasContentType = Object.keys(headersObj).some(k => k.toLowerCase() === 'content-type');
+            if (!hasContentType) {
+                headersObj['Content-Type'] = 'application/json';
             }
         }
 
