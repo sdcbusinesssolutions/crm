@@ -41,9 +41,9 @@ FROM node:18-slim
 
 ENV TZ="Asia/Kolkata"
 
-# Install TZ Data + curl (curl is needed for Docker healthcheck)
+# Install TZ Data, curl, and ffmpeg (for video transcoding)
 RUN apt-get update && \
-    apt-get install -y tzdata curl && \
+    apt-get install -y tzdata curl ffmpeg && \
     ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
     echo "Asia/Kolkata" > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*

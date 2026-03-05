@@ -347,6 +347,12 @@ class WhatsAppService {
                     'Authorization': `Bearer ${accessToken}`,
                     ...formData.getHeaders()
                 },
+                // [FIX: 2026-03-05] UN-THROTTLE AXIOS BUFFER LIMITS FOR LARGE VIDEOS
+                // By default, Axios strictly limits uploads/downloads to ~10MB (throws MaxBodyLength errors).
+                // Setting these explicitly to Infinity forces Node to bypass arbitrary buffer constraints
+                // so heavy 16MB native H.264 video payloads can rapidly push to Meta's API at full Gigabit line speeds.
+                maxBodyLength: Infinity,
+                maxContentLength: Infinity,
                 httpsAgent: httpsAgent
             });
 

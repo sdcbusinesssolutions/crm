@@ -754,6 +754,112 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);
                     }
 
+                    // =========================================================================
+                    // 🚨 AUTOMATIC MEDIA FALLBACK AND AUTO-HEALING ENGINE (FIX: 2026-03-05) 🚨
+                    // =========================================================================
+                    // ROOT CAUSE: Meta's internal Media Engine strictly requires Video/MP4 files 
+                    // to be encoded in H.264 (Baseline) with AAC Audio formats.
+                    // If a user uploads a video with an unsupported codec (like HEVC/H.265 or lacking audio), 
+                    // it will upload successfully to Supabase but Meta will violently reject its delivery 
+                    // asymptotically throwing Error Code 131053 or 131052.
+                    // 
+                    // SOLUTION: The system dynamically hooks `failed` statuses. It downloads the corrupt video  
+                    // natively via Gigabit unthrottled streams, runs it through an extremely high-speed 
+                    // 'ultrafast' FFmpeg transcoder to correct the codec, uploads a new Media ID, 
+                    // and violently re-sends the payload as a flawless native Video!
+                    if (newStatus === 'failed' && status.errors && status.errors.length > 0) {
+                        const errCode = status.errors[0].code;
+                        if (errCode === 131053 || errCode === 131052) {
+                            console.warn(`[Auto-Heal] Detected unsupported media codec for message ${waMessageId}. Attempting to Transcode and Fix...`);
+
+                            // 1. Fetch original message details
+                            const { data: origMsg, error: msgErr } = await supabaseAdmin
+                                .from('messages')
+                                .select('conversation_id, text, media_url, type, filename')
+                                .eq('whatsapp_message_id', waMessageId)
+                                .maybeSingle();
+
+                            if (origMsg && (origMsg.type === 'video' || origMsg.type === 'audio') && origMsg.media_url) {
+                                // 2. Fetch contact phone and owner userId from conversation
+                                const { data: conv } = await supabaseAdmin
+                                    .from('conversations')
+                                    .select('contact_phone, user_id')
+                                    .eq('id', origMsg.conversation_id)
+                                    .maybeSingle();
+
+                                if (conv && conv.contact_phone && conv.user_id) {
+                                    const ownerId = conv.user_id;
+                                    try {
+                                        let finalType = origMsg.type;
+                                        let finalContent = {};
+
+                                        // TRY FFMPEG TRANSCODE FOR VIDEOS
+                                        if (origMsg.type === 'video') {
+                                            console.log(`[Auto-Heal] Downloading corrupted video & performing H.264 Transcode...`);
+                                            // 3. Download the raw file
+                                            const dlResponse = await axios.get(origMsg.media_url, {
+                                                responseType: 'arraybuffer',
+                                                maxBodyLength: Infinity,
+                                                maxContentLength: Infinity
+                                            });
+                                            const rawBuffer = Buffer.from(dlResponse.data);
+
+                                            // 4. Force Transcode
+                                            const { transcodeToWhatsAppVideo } = require('../utils/videoTranscoder');
+                                            try {
+                                                const transcodedBuffer = await transcodeToWhatsAppVideo(rawBuffer);
+                                                console.log(`[Auto-Heal] Transcode successful. Uploading new Media ID...`);
+
+                                                // 5. Re-Upload to Meta
+                                                const whatsappService = require('../services/whatsappService');
+                                                const newMediaId = await whatsappService.uploadMediaToWhatsApp(
+                                                    ownerId,
+                                                    transcodedBuffer,
+                                                    'video/mp4',
+                                                    'auto_fixed_video.mp4' // Force standard name
+                                                );
+
+                                                finalType = 'video';
+                                                finalContent = { id: newMediaId, caption: origMsg.text || '' };
+
+                                            } catch (transcodeErr) {
+                                                console.error('[Auto-Heal] FFmpeg Transcode failed (Missing FFmpeg?), falling back to Document.', transcodeErr.message);
+                                                // Fall back to Document
+                                                finalType = 'document';
+                                                finalContent = {
+                                                    link: origMsg.media_url,
+                                                    caption: `[Fallback: Sent as document due to format] ${origMsg.text || ''}`.trim(),
+                                                    filename: origMsg.filename || `media_fallback.mp4`
+                                                };
+                                            }
+                                        } else {
+                                            // Audio fallback is just document
+                                            finalType = 'document';
+                                            finalContent = {
+                                                link: origMsg.media_url,
+                                                caption: `[Fallback: Audio format unsupported] ${origMsg.text || ''}`.trim(),
+                                                filename: origMsg.filename || `audio_fallback.mp3`
+                                            };
+                                        }
+
+                                        console.log(`[Auto-Heal] Resending final payload as ${finalType}...`);
+                                        const whatsappService = require('../services/whatsappService');
+                                        await whatsappService.sendMessage(
+                                            ownerId,
+                                            conv.contact_phone,
+                                            finalType,
+                                            finalContent,
+                                            logPhoneId, // Use the phoneId from the webhook status update
+                                            false // Store in DB
+                                        );
+                                        console.log(`[Auto-Heal] Successfully resent unsupported media!`);
+                                    } catch (retryErr) {
+                                        console.error(`[Auto-Heal] Auto-Heal delivery failed heavily:`, retryErr.message);
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // --- UPDATE CAMPAIGN QUEUE STATUS ---
                     try {
