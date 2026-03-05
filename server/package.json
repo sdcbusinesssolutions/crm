@@ -5,6 +5,14 @@
   "main": "server.js",
   "bin": "server.js",
   "pkg": {
+    "scripts": [
+      "routes/**/*.js",
+      "services/**/*.js",
+      "workers/**/*.js",
+      "utils/**/*.js",
+      "middleware/**/*.js",
+      "lib/**/*.js"
+    ],
     "assets": [
       "node_modules/axios/**",
       "node_modules/**/*.json"

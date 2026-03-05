@@ -49,7 +49,7 @@ REM 3. Copy SERVER (Only Production Code)
 echo 📂 Copying Server...
 REM /XD: Exclude huge/unneeded folders (node_modules, uploads, logs, sql, doc)
 REM /XF: Exclude debug files (.js), dumps (.sql), docs (.md), logs
-robocopy "server" "%BUILD_DIR%\server" /E /XD node_modules node_modules_old uploads logs tests tmp doc docs documentation sql db_sql /XF debug_*.js test_*.js *.zip *.log .env* .DS_Store *.md *.sql *.txt run_sql.js
+robocopy "server" "%BUILD_DIR%\server" /E /XD node_modules node_modules_old uploads logs tests tmp doc docs documentation sql db_sql /XF debug_*.js *.zip *.log .env* .DS_Store *.md *.sql *.txt run_sql.js
 REM Explicitly ensure controllers are copied (Fix for missing module error)
 robocopy "server\controllers" "%BUILD_DIR%\server\controllers" /E
 
