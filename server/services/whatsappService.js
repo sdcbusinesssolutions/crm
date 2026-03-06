@@ -288,7 +288,7 @@ class WhatsAppService {
         try {
             const { data: template } = await supabaseAdmin
                 .from('whatsapp_templates')
-                .select('body_text')
+                .select('body_text, header_text, footer_text, buttons')
                 .eq('user_id', userId)
                 .eq('name', content.name)
                 //.eq('language', content.language?.code || 'en') 
@@ -315,7 +315,20 @@ class WhatsAppService {
                 }
             }
 
-            return { ...content, _rendered_body: bodyText };
+            // Extract buttons structure
+            let renderedButtons = [];
+            if (template.buttons && template.buttons.type !== 'NONE') {
+                renderedButtons = template.buttons.buttons || template.buttons || [];
+            }
+
+            return {
+                ...content,
+                _rendered_body: bodyText,
+                _footer_text: template.footer_text || null,
+                _rendered_header_text: template.header_text || null,
+                _rendered_buttons: renderedButtons,
+                _rendered_cards: template.buttons?.cards || [] // If carousel
+            };
         } catch (e) {
             return null;
         }

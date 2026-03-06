@@ -1,0 +1,5 @@
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[Startup] Cleaning process.env.NO_PROXY
+[dotenv@17.3.1] injecting env (0) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+[dotenv@17.3.1] injecting env (0) from ..\.env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+[DEBUG_INIT] Supabase Service Key Length: 0

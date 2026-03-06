@@ -234,8 +234,7 @@ router.get('/', async (req, res) => {
                                     };
                                 }
                             }
-                            // Carousel buttons are handled within cards structure usually, 
-                            // but high level type might need update
+                        } else if (c.type === 'CAROUSEL') {
                             // Parse cards to match local structure
                             const parsedCards = (c.cards || []).map(card => {
                                 let cardHeader = null;
