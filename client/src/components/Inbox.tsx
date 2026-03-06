@@ -1506,9 +1506,25 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             }
 
             default:
+                if (type === 'unsupported') {
+                    return (
+                        <div className="flex flex-col gap-1 p-3 bg-slate-50 border border-slate-200 rounded-lg max-w-[280px]">
+                            <div className="flex items-center gap-2 text-slate-500">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-xs font-bold uppercase tracking-wider">Message Hidden</span>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed">
+                                The user sent a format not supported by the WhatsApp Business API (e.g., a Poll, View-Once Media, or Live Location).
+                            </p>
+                        </div>
+                    );
+                }
+
                 return (
-                    <div className="p-2 bg-red-50 text-red-600 text-xs rounded border border-red-100">
-                        Unsupported message type: {type}
+                    <div className="p-2 bg-slate-50 text-slate-400 text-xs rounded border border-slate-100 italic">
+                        [System: Unrecognized format - {type}]
                     </div>
                 );
         }
