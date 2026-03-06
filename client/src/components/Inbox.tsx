@@ -1503,6 +1503,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                     </div>
                 );
+            } // Closing brace for the 'interactive' case
+
+            case 'button': {
+                return (
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <p className="text-sm text-slate-800 font-medium">{msg.text}</p>
+                    </div>
+                );
             }
 
             default:
