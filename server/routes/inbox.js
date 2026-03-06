@@ -168,9 +168,11 @@ router.post('/messages/:conversationId', async (req, res) => {
                     // (or another 100MB-allowed type) during upload if it exceeds the limit.
 
                     if (fileSizeInBytes > 15 * 1024 * 1024) { // 15MB (safety buffer)
-                        if (type === 'video' || type === 'audio') {
+                        if (type === 'audio') {
                             console.warn(`File size (${fileSizeInBytes}) exceeds 16MB limit for ${type}. Switching to 'document' mode with MIME: ${mimeType}`);
-                            type = 'document'; // Force message type to document to allow up to 100MB
+                            type = 'document'; // Force message type to document to allow up to 100MB (audio only fallback)
+                        } else if (type === 'video') {
+                            console.warn(`File size (${fileSizeInBytes}) > 16MB limit. User requested NO DOCUMENT FALLBACK for videos. Attempting to send as video anyway. It may fail.`);
                         }
                     }
 

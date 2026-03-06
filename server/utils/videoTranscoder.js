@@ -5,11 +5,16 @@ const fs = require('fs');
 let ffmpegPath = 'ffmpeg'; // Default host fallback
 try {
     const ffmpegStatic = require('ffmpeg-static');
-    if (ffmpegStatic) {
+    if (ffmpegStatic && !process.pkg) {
         ffmpegPath = ffmpegStatic;
     }
 } catch (err) {
     console.log('[videoTranscoder] ffmpeg-static not found, falling back to system ffmpeg');
+}
+
+// Ensure inside Docker/pkg env we strictly use the system ffmpeg installed via apt-get
+if (process.pkg) {
+    ffmpegPath = 'ffmpeg';
 }
 
 /**

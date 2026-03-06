@@ -793,7 +793,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                         let finalType = origMsg.type;
                                         let finalContent = {};
 
-                                        // TRY FFMPEG TRANSCODE FOR VIDEOS
+                                        // TRY FFMPEG TRANSCODE FOR VIDEOS ONLY (NO AUDIO DOCUMENT FALLBACKS)
                                         if (origMsg.type === 'video') {
                                             console.log(`[Auto-Heal] Downloading corrupted video & performing H.264 Transcode...`);
                                             // 3. Download the raw file
@@ -822,37 +822,39 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                                 finalType = 'video';
                                                 finalContent = { id: newMediaId, caption: origMsg.text || '' };
 
+                                                console.log(`[Auto-Heal] Resending final payload properly as Video...`);
+                                                const resData = await whatsappService.sendMessage(
+                                                    ownerId,
+                                                    conv.contact_phone,
+                                                    finalType,
+                                                    finalContent,
+                                                    logPhoneId, // Use the phoneId from the webhook status update
+                                                    true // CRITICAL: skipDBLog = true -> DO NOT DUPLICATE MESSAGE IN UI
+                                                );
+
+                                                // 6. Update the old row quietly with the newly healed WA Message ID!
+                                                const healedWaMessageId = resData?.messages?.[0]?.id;
+                                                if (healedWaMessageId) {
+                                                    await supabaseAdmin
+                                                        .from('messages')
+                                                        .update({
+                                                            whatsapp_message_id: healedWaMessageId,
+                                                            status: 'sent',
+                                                            updated_at: new Date().toISOString()
+                                                        })
+                                                        .eq('whatsapp_message_id', waMessageId); // Find original failed row
+                                                    console.log(`[Auto-Heal] Original DB Row smoothly updated with new WAMID: ${healedWaMessageId}. Duplicate prevented.`);
+                                                }
+
                                             } catch (transcodeErr) {
-                                                console.error('[Auto-Heal] FFmpeg Transcode failed (Missing FFmpeg?), falling back to Document.', transcodeErr.message);
-                                                // Fall back to Document
-                                                finalType = 'document';
-                                                finalContent = {
-                                                    link: origMsg.media_url,
-                                                    caption: `[Fallback: Sent as document due to format] ${origMsg.text || ''}`.trim(),
-                                                    filename: origMsg.filename || `media_fallback.mp4`
-                                                };
+                                                console.error('[Auto-Heal] FFmpeg Transcode failed. NO FALLBACK PERMITTED. Message will permanently fail.', transcodeErr.message);
+                                                // We simply return. Do NOT trigger a document fallback!
+                                                return;
                                             }
                                         } else {
-                                            // Audio fallback is just document
-                                            finalType = 'document';
-                                            finalContent = {
-                                                link: origMsg.media_url,
-                                                caption: `[Fallback: Audio format unsupported] ${origMsg.text || ''}`.trim(),
-                                                filename: origMsg.filename || `audio_fallback.mp3`
-                                            };
+                                            console.warn(`[Auto-Heal] Skipping auto-heal for non-video type: ${origMsg.type}. Document fallbacks disabled by user policy.`);
+                                            return;
                                         }
-
-                                        console.log(`[Auto-Heal] Resending final payload as ${finalType}...`);
-                                        const whatsappService = require('../services/whatsappService');
-                                        await whatsappService.sendMessage(
-                                            ownerId,
-                                            conv.contact_phone,
-                                            finalType,
-                                            finalContent,
-                                            logPhoneId, // Use the phoneId from the webhook status update
-                                            false // Store in DB
-                                        );
-                                        console.log(`[Auto-Heal] Successfully resent unsupported media!`);
                                     } catch (retryErr) {
                                         console.error(`[Auto-Heal] Auto-Heal delivery failed heavily:`, retryErr.message);
                                     }
