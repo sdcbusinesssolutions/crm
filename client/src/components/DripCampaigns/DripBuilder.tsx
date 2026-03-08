@@ -27,7 +27,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [campaign, setCampaign] = useState<Partial<DripCampaign>>({
         name: 'New Sequence',
         description: '',
-        trigger_type: 'TAG_ADDED',
+        trigger_type: 'MANUAL',
         trigger_value: '',
         status: 'DRAFT',
         stop_on_reply: true,

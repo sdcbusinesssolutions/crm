@@ -85,7 +85,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         }
     };
 
-    const handleSave = async (data: Partial<FollowUp>) => {
+    const handleSave = async (data: any) => {
         try {
             if (editingFollowUp) {
                 if (editingFollowUp.source === 'crm_task') {
@@ -100,6 +100,15 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     // Update FollowUp
                     await followUpService.updateFollowUp(editingFollowUp.id, data);
                 }
+            } else if (data.contact_ids && data.contact_ids.length > 0) {
+                // Create New for Multiple Contacts (one follow-up per contact)
+                const promises = data.contact_ids.map((cid: string) =>
+                    followUpService.createFollowUp({
+                        ...data,
+                        contact_id: cid
+                    })
+                );
+                await Promise.all(promises);
             } else {
                 // Create New (Always create as standard FollowUp for now via this UI)
                 await followUpService.createFollowUp(data);
@@ -220,9 +229,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     // --- RENDER FORM VIEW ---
     if (view === 'form') {
         return (
-            <div className="h-full flex flex-col bg-slate-50 p-6 overflow-hidden font-sans">
+            <div className="h-full flex flex-col bg-slate-50 p-4 sm:p-6 overflow-hidden font-sans">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-4 mb-4">
                     <button
                         onClick={() => setView('list')}
                         className="bg-white p-2 rounded-lg border border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300 transition-all shadow-sm group"
@@ -232,16 +241,16 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         </svg>
                     </button>
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800">
+                        <h1 className="text-2xl font-black text-slate-800 tracking-tight">
                             {editingFollowUp ? 'Edit Follow-Up' : 'Create New Follow-Up'}
                         </h1>
-                        <p className="text-slate-500 text-sm">Fill in the details below to schedule your task.</p>
+                        <p className="text-slate-500 text-sm font-medium">Fill in the details below to schedule your task.</p>
                     </div>
                 </div>
 
                 {/* Form Container */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+                <div className="flex-1 overflow-y-auto w-full pb-6 custom-scrollbar">
+                    <div className="max-w-[1400px] w-full mx-auto xs:px-2 sm:px-4 md:px-6">
                         <FollowUpForm
                             initialData={editingFollowUp || {}}
                             onSave={handleSave}
