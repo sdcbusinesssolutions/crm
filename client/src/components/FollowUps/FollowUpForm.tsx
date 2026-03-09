@@ -70,17 +70,37 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
     // Drip Selection
     const [activeCampaigns, setActiveCampaigns] = useState<DripCampaign[]>([]);
-    const [selectedCampaignId, setSelectedCampaignId] = useState('');
-    const [isLooping, setIsLooping] = useState(false);
-    const [notificationRules, setNotificationRules] = useState<any[]>([
-        { phone: '', value: 24, unit: 'HOURS' }
-    ]);
+    const [selectedCampaignId, setSelectedCampaignId] = useState(() => {
+        if (!initialData?.id || !initialData?.contacts) return '';
+        const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+        const enrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status)) || contact?.drip_enrollments?.[0];
+        return enrollment?.drip_campaign_id || '';
+    });
+    const [isLooping, setIsLooping] = useState(() => {
+        if (!initialData?.id || !initialData?.contacts) return false;
+        const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+        const enrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status)) || contact?.drip_enrollments?.[0];
+        return !!enrollment?.is_looping;
+    });
+    const [notificationRules, setNotificationRules] = useState<any[]>(() => {
+        if (!initialData?.id || !initialData?.contacts) return [{ phone: '', value: 24, unit: 'HOURS' }];
+        const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+        const enrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status)) || contact?.drip_enrollments?.[0];
+        return (enrollment?.notification_rules && Array.isArray(enrollment.notification_rules)) ? enrollment.notification_rules : [{ phone: '', value: 24, unit: 'HOURS' }];
+    });
     const [savedWithDrip, setSavedWithDrip] = useState(false);
     const [selectedContacts, setSelectedContacts] = useState<any[]>([]);
     const [isBulkCreating, setIsBulkCreating] = useState(false);
 
     // --- Persistence Helper ---
     const [draftRestored, setDraftRestored] = useState(false);
+
+    const [initialCampaignName, setInitialCampaignName] = useState(() => {
+        if (!initialData?.id || !initialData?.contacts) return '';
+        const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+        const enrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status)) || contact?.drip_enrollments?.[0];
+        return enrollment?.drip_campaigns?.name || '';
+    });
 
     // --- Contact Helper Functions ---
     const addContact = (contact: any) => {
@@ -96,7 +116,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     useEffect(() => {
         let isEditing = !!initialData?.id;
 
-        // 1. If Editing, always trust initialData
+        // 1. If Editing, trust initialData for everything
         if (isEditing) {
             setFormData(prev => ({
                 ...prev,
@@ -108,6 +128,33 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
             if (initialData?.recurrence_rule) {
                 setRecurrence({ enabled: true, ...initialData.recurrence_rule });
+            }
+
+            // --- CRITICAL FIX: Extract Drip & Contact Details for Edit Mode ---
+            if (initialData?.contacts) {
+                const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+                if (contact) {
+                    // Set the selected contact (Required for Card 1 view and Enrollment)
+                    setSelectedContacts([contact]);
+                    
+                    // Look for an existing enrollment to populate Card 3
+                    if (contact.drip_enrollments && contact.drip_enrollments.length > 0) {
+                        // Priority: active/paused enrollments, then most recent
+                        const enrollment = contact.drip_enrollments.find(e => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status)) || contact.drip_enrollments[0];
+                        
+                        if (enrollment) {
+                            if (enrollment.drip_campaign_id) {
+                                setSelectedCampaignId(enrollment.drip_campaign_id);
+                            }
+                            if (enrollment.is_looping !== undefined) {
+                                setIsLooping(!!enrollment.is_looping);
+                            }
+                            if (enrollment.notification_rules && Array.isArray(enrollment.notification_rules)) {
+                                setNotificationRules(enrollment.notification_rules);
+                            }
+                        }
+                    }
+                }
             }
         }
         // 2. If New Task, try to restore draft
@@ -128,7 +175,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                     console.error("Failed to restore draft", e);
                 }
             } else if (initialData && Object.keys(initialData).length > 0) {
-                // Initial setup for new task if no draft
+                // Initial setup for new task if no draft (e.g. creating from contact profile)
                 setFormData(prev => ({
                     ...prev,
                     ...initialData,
@@ -155,6 +202,18 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         const timer = setTimeout(() => setIsReady(true), 50);
         return () => clearTimeout(timer);
     }, [initialData?.id]);
+
+    // ✅ Auto-prefill first alert phone if contact selected and phone is empty
+    useEffect(() => {
+        if (selectedContacts.length === 1 && notificationRules.length > 0 && isReady) {
+            const contact = selectedContacts[0];
+            if (contact.phone && !notificationRules[0].phone) {
+                const newRules = [...notificationRules];
+                newRules[0].phone = contact.phone;
+                setNotificationRules(newRules);
+            }
+        }
+    }, [selectedContacts, notificationRules.length, isReady]);
 
     // Persistence Auto-Save Effect
     useEffect(() => {
@@ -796,6 +855,11 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                                         {c.name} {c.status === 'DRAFT' ? '[DRAFT]' : '✓'}
                                                     </option>
                                                 ))}
+                                                {selectedCampaignId && !activeCampaigns.find(c => c.id === selectedCampaignId) && (
+                                                    <option value={selectedCampaignId}>
+                                                        {initialCampaignName || 'Loading sequence...'}
+                                                    </option>
+                                                )}
                                             </select>
                                             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-purple-500">
                                                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -852,7 +916,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                     </button>
                                 </div>
 
-                                {activeCampaigns.length === 0 && (
+                                {activeCampaigns.length === 0 && !selectedCampaignId && (
                                     <p className="text-xs text-purple-600 bg-white border border-purple-100 rounded-xl p-3 flex items-center gap-2">
                                         <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                         No sequences yet. Create one by clicking the + icon.
