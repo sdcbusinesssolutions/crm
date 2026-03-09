@@ -245,7 +245,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         parts.forEach(p => {
             const clean = p.replace(/[^0-9+]/g, '');
             // Simple validation: at least 8 digits
-            if (clean.length >= 8) {
+            if (clean.length >= 4) {
                 addContact({
                     id: `temp_${Date.now()}_${Math.random()}`,
                     name: clean,
@@ -283,7 +283,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     // Debounced Search Effect
     useEffect(() => {
         const timeoutId = setTimeout(async () => {
-            if (contactSearch.length > 2 && !formData.contact_id) {
+            if (contactSearch.length > 2) {
                 setIsSearching(true);
                 try {
                     const results = await contactService.getContactsPaginated(1, 5, contactSearch);
@@ -298,17 +298,23 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                 setContacts([]);
                 setShowDropdown(false);
             }
-        }, 300);
+        }, 200);
 
         return () => clearTimeout(timeoutId);
     }, [contactSearch]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' || e.key === ',') {
-            // If there's a selected option in a dropdown, handle via click
-            // Otherwise, it's a number add request
-            if (contacts.length === 0 || contactSearch.includes(',')) {
-                e.preventDefault();
+            e.preventDefault();
+            // Case 1: If we have search results, pick the first one
+            if (contacts.length > 0 && !contactSearch.includes(',')) {
+                addContact(contacts[0]);
+                setContactSearch('');
+                setContacts([]);
+                setShowDropdown(false);
+            } 
+            // Case 2: Manual number(s) add
+            else {
                 handleAddNumbers();
             }
         }

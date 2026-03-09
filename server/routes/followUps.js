@@ -88,7 +88,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { title, description, scheduled_at, status, priority, type, recurrence_rule } = req.body;
+        const { title, description, scheduled_at, status, priority, type, contact_id, recurrence_rule } = req.body;
 
         const updates = {};
         if (title !== undefined) updates.title = title;
@@ -97,6 +97,7 @@ router.put('/:id', async (req, res) => {
         if (status !== undefined) updates.status = status;
         if (priority !== undefined) updates.priority = priority;
         if (type !== undefined) updates.type = type;
+        if (contact_id !== undefined) updates.contact_id = contact_id;
         if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule;
         updates.updated_at = new Date();
 
