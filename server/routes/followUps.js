@@ -58,6 +58,10 @@ router.post('/', async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_id, title, description, scheduled_at, priority, type, timezone, recurrence_rule } = req.body;
+        
+        if (!contact_id) {
+            return res.status(400).json({ error: 'Contact ID is required' });
+        }
 
         const { data, error } = await supabase
             .from('follow_ups')

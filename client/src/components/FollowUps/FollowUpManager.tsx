@@ -106,7 +106,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
 
                     // If more contacts were added during edit, create NEW tasks for them
                     if (data.contact_ids && data.contact_ids.length > 1) {
-                        const extraIds = data.contact_ids.filter((id: string) => id !== primaryContactId);
+                        const extraIds = data.contact_ids.filter((id: string) => id && id !== primaryContactId);
                         const promises = extraIds.map((cid: string) =>
                             followUpService.createFollowUp({
                                 ...data,
@@ -118,7 +118,8 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 }
             } else if (data.contact_ids && data.contact_ids.length > 0) {
                 // Create New for Multiple Contacts (one follow-up per contact)
-                const promises = data.contact_ids.map((cid: string) =>
+                const validContactIds = data.contact_ids.filter(Boolean);
+                const promises = validContactIds.map((cid: string) =>
                     followUpService.createFollowUp({
                         ...data,
                         contact_id: cid

@@ -443,7 +443,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         // 3. Save the Follow-Up Task(s)
         await onSave({
             ...dataToSave,
-            contact_ids: allContactIds
+            contact_ids: allContactIds.filter(Boolean)
         });
 
         clearDraft();
@@ -605,24 +605,30 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                         Tip: Paste comma-separated numbers (e.g. 9988776655, 1122334455) to bulk add.
                                     </p>
 
-                                    {showDropdown && contacts.length > 0 && (
-                                        <div className="absolute z-50 w-full bg-white border border-slate-100 rounded-xl shadow-2xl mt-2 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
-                                            {contacts.map(c => (
-                                                <div
-                                                    key={c.id}
-                                                    onClick={() => {
-                                                        addContact(c);
-                                                        setContactSearch('');
-                                                        setShowDropdown(false);
-                                                    }}
-                                                    className="p-3 hover:bg-[#00684A]/10 cursor-pointer border-b border-slate-50 last:border-0 group transition-colors"
-                                                >
-                                                    <div className="font-bold text-slate-800 group-hover:text-[#00684A]">{c.name || 'Unknown User'}</div>
-                                                    <div className="text-xs text-slate-700 font-mono group-hover:text-[#00684A]">{c.phone}</div>
+                                    {(() => {
+                                        const filtered = contacts.filter(c => !selectedContacts.find(sc => sc.phone === c.phone || sc.id === c.id));
+                                        if (showDropdown && filtered.length > 0) {
+                                            return (
+                                                <div className="absolute z-50 w-full bg-white border border-slate-100 rounded-xl shadow-2xl mt-2 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                                                    {filtered.map(c => (
+                                                        <div
+                                                            key={c.id}
+                                                            onClick={() => {
+                                                                addContact(c);
+                                                                setContactSearch('');
+                                                                setShowDropdown(false);
+                                                            }}
+                                                            className="p-3 hover:bg-[#00684A]/10 cursor-pointer border-b border-slate-50 last:border-0 group transition-colors"
+                                                        >
+                                                            <div className="font-bold text-slate-800 group-hover:text-[#00684A]">{c.name || 'Unknown User'}</div>
+                                                            <div className="text-xs text-slate-700 font-mono group-hover:text-[#00684A]">{c.phone}</div>
+                                                        </div>
+                                                    ))}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                     {contactSearch.length > 2 && contacts.length === 0 && !isSearching && selectedContacts.length === 0 && (
                                         <div className="text-xs text-red-500 mt-1.5 font-bold ml-1 flex items-center gap-1">
                                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
