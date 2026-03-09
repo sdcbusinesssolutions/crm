@@ -332,7 +332,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                         disabled={loading}
                         className="px-6 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all active:scale-95 disabled:opacity-50 border border-brand-500"
                     >
-                        {loading ? 'Saving...' : 'Save & Exit'}
+                        {loading ? 'Saving...' : (campaign.status === 'ACTIVE' ? 'Publish & Exit' : 'Save & Exit')}
                     </button>
                 </div>
             </div>

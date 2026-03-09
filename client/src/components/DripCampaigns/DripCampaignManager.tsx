@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import DripList from './DripList';
 import DripBuilder from './DripBuilder';
 
-const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?: 'list' | 'builder', onExit?: () => void }> = ({ onToggleSidebar, initialView = 'list', onExit }) => {
-    const [view, setView] = useState<'list' | 'builder'>(initialView);
-    const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?: 'list' | 'builder', initialCampaignId?: string | null, onExit?: () => void }> = ({ onToggleSidebar, initialView = 'list', initialCampaignId = null, onExit }) => {
+    const [view, setView] = useState<'list' | 'builder'>(initialCampaignId ? 'builder' : initialView);
+    const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialCampaignId);
 
     const handleCreate = () => {
         setSelectedCampaignId(null);

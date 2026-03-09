@@ -8,7 +8,7 @@ interface FollowUpFormProps {
     initialData?: Partial<FollowUp>;
     onSave: (data: any) => Promise<void>;
     onCancel: () => void;
-    onNavigate?: (item: string) => void;
+    onNavigate?: (item: string, extraData?: any) => void;
 }
 
 const FORM_STORAGE_KEY = 'follow_up_form_draft';
@@ -783,22 +783,51 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
                             <div className="space-y-4">
                                 <div className="flex gap-2 items-center">
-                                    <div className="relative flex-1">
-                                        <select
-                                            value={selectedCampaignId}
-                                            onChange={(e) => setSelectedCampaignId(e.target.value)}
-                                            className="block w-full rounded-full border border-slate-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm py-2 px-4 transition-all hover:border-[#00684A] bg-white text-slate-800 font-medium placeholder-slate-400 appearance-none cursor-pointer"
-                                        >
-                                            <option value="">-- No Sequence selected --</option>
-                                            {activeCampaigns.map(c => (
-                                                <option key={c.id} value={c.id}>
-                                                    {c.name} {c.status === 'DRAFT' ? '[DRAFT]' : '✓'}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-purple-500">
-                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    <div className="flex-1 flex gap-2">
+                                        <div className="relative flex-1">
+                                            <select
+                                                value={selectedCampaignId}
+                                                onChange={(e) => setSelectedCampaignId(e.target.value)}
+                                                className="block w-full rounded-full border border-slate-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm py-2 px-4 transition-all hover:border-[#00684A] bg-white text-slate-800 font-medium placeholder-slate-400 appearance-none cursor-pointer"
+                                            >
+                                                <option value="">-- No Sequence selected --</option>
+                                                {activeCampaigns.map(c => (
+                                                    <option key={c.id} value={c.id}>
+                                                        {c.name} {c.status === 'DRAFT' ? '[DRAFT]' : '✓'}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-purple-500">
+                                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
                                         </div>
+
+                                        {selectedCampaignId && (
+                                            <button
+                                                type="button"
+                                                title="Edit selected Sequence"
+                                                onClick={() => {
+                                                    // Explicitly save draft before navigating
+                                                    const state = {
+                                                        formData,
+                                                        selectedContacts,
+                                                        selectedCampaignId,
+                                                        isLooping,
+                                                        notificationRules
+                                                    };
+                                                    sessionStorage.setItem(FORM_STORAGE_KEY, JSON.stringify(state));
+                                                    // Pass the ID as a second argument (casting onNavigate if needed or handling in App)
+                                                    if (onNavigate) {
+                                                        onNavigate('EDIT_DRIP', selectedCampaignId);
+                                                    }
+                                                }}
+                                                className="shrink-0 flex items-center justify-center p-3 bg-white border border-purple-200 text-purple-600 rounded-xl hover:bg-purple-50 hover:border-purple-300 shadow-sm active:scale-95 transition-all w-12 h-12"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                        )}
                                     </div>
                                     <button
                                         type="button"

@@ -105,6 +105,7 @@ const MainApp: React.FC = () => {
     const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(() => new URLSearchParams(window.location.search).get('createSheetAuto') === 'true');
     const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('editSheetAutoId'));
     const [isCreatingDrip, setIsCreatingDrip] = useState(false);
+    const [selectedDripId, setSelectedDripId] = useState<string | null>(null);
     const [followUpInitialView, setFollowUpInitialView] = useState<'list' | 'form'>('list');
     const [createCampaignData, setCreateCampaignData] = useState<{
         templateId?: string;
@@ -429,9 +430,18 @@ const MainApp: React.FC = () => {
         setActiveMenuItem('Dashboard');
     }, []);
 
-    const handleMenuNavigation = useCallback((item: MenuItem | 'CREATE_DRIP') => {
+    const handleMenuNavigation = useCallback((item: MenuItem | 'CREATE_DRIP' | 'EDIT_DRIP', extraData?: any) => {
         if (item === 'CREATE_DRIP') {
             setIsCreatingDrip(true);
+            setSelectedDripId(null);
+            setActiveMenuItem('Drip Campaigns');
+            setSidebarOpen(false);
+            return;
+        }
+
+        if (item === 'EDIT_DRIP') {
+            setIsCreatingDrip(false);
+            setSelectedDripId(extraData as string);
             setActiveMenuItem('Drip Campaigns');
             setSidebarOpen(false);
             return;
@@ -439,6 +449,7 @@ const MainApp: React.FC = () => {
 
         // Reset States on every navigation
         setIsCreatingDrip(false);
+        setSelectedDripId(null);
         setFollowUpInitialView('list');
         setActiveMenuItem(item);
 
@@ -695,13 +706,15 @@ const MainApp: React.FC = () => {
         if (activeMenuItem === 'Drip Campaigns') {
             return (
                 <DripCampaignManager
-                    initialView={isCreatingDrip ? 'builder' : 'list'}
+                    initialView={(isCreatingDrip || selectedDripId) ? 'builder' : 'list'}
+                    initialCampaignId={selectedDripId}
                     onToggleSidebar={() => setSidebarOpen(true)}
                     onExit={() => {
-                        if (isCreatingDrip) {
+                        if (isCreatingDrip || selectedDripId) {
                             setFollowUpInitialView('form');
                             setActiveMenuItem('Follow-up');
                             setIsCreatingDrip(false);
+                            setSelectedDripId(null);
                         } else {
                             setActiveMenuItem('Drip Campaigns');
                         }

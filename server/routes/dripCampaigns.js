@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
                 trigger_config,
                 stop_on_reply: stop_on_reply !== undefined ? stop_on_reply : true,
                 allow_reentry: allow_reentry || false,
-                status: 'DRAFT'
+                status: req.body.status || 'DRAFT'
             })
             .select()
             .single();
