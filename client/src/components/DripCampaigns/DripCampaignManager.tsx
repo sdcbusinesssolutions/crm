@@ -37,6 +37,7 @@ const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?:
                 />
             ) : (
                 <DripBuilder
+                    key={selectedCampaignId || 'new-drip'}
                     campaignId={selectedCampaignId}
                     onBack={handleBack}
                 />
