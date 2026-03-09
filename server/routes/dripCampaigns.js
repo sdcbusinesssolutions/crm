@@ -59,7 +59,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { name, description, trigger_type, trigger_config, stop_on_reply, allow_reentry } = req.body;
+        const { name, description, trigger_type, trigger_config, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
+        const status = req.body.status || 'DRAFT';
 
         const { data, error } = await supabase
             .from('drip_campaigns')
@@ -72,7 +73,10 @@ router.post('/', async (req, res) => {
                 trigger_config,
                 stop_on_reply: stop_on_reply !== undefined ? stop_on_reply : true,
                 allow_reentry: allow_reentry || false,
-                status: req.body.status || 'DRAFT'
+                status: status,
+                allowed_days: allowed_days || '0,1,2,3,4,5,6',
+                time_window_start: time_window_start || '00:00',
+                time_window_end: time_window_end || '23:59'
             })
             .select()
             .single();
@@ -89,7 +93,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { name, description, trigger_type, trigger_config, status, stop_on_reply, allow_reentry } = req.body;
+        const { name, description, trigger_type, trigger_config, status, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
 
         const updates = {};
         if (name !== undefined) updates.name = name;
@@ -100,6 +104,9 @@ router.put('/:id', async (req, res) => {
         if (status !== undefined) updates.status = status;
         if (stop_on_reply !== undefined) updates.stop_on_reply = stop_on_reply;
         if (allow_reentry !== undefined) updates.allow_reentry = allow_reentry;
+        if (allowed_days !== undefined) updates.allowed_days = allowed_days;
+        if (time_window_start !== undefined) updates.time_window_start = time_window_start;
+        if (time_window_end !== undefined) updates.time_window_end = time_window_end;
         updates.updated_at = new Date();
 
         const { data, error } = await supabase

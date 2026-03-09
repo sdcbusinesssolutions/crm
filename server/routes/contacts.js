@@ -426,6 +426,9 @@ router.post('/bulk', async (req, res) => {
                       .update({ group_ids: mergedGroups })
                       .eq('id', existing.id);
                   }
+
+                  // IMPORTANT: Add existing contact to results so caller gets the ID
+                  chunkedResults.push(existing);
                 }
               } catch (mergeErr) {
                 console.error('⚠️ Group merge failed for duplicate:', mergeErr);
