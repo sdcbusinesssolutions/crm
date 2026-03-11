@@ -745,12 +745,8 @@ const MainApp: React.FC = () => {
     // However, for clean separation, let's keep only auth logic here.
 
     if (isAuthLoading) {
-        return (
-            <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 text-brand-600">
-                <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
-                <p className="text-slate-500 text-sm font-medium animate-pulse">Verifying session...</p>
-            </div>
-        );
+        // Render nothing while verifying — no spinner, no flash, just wait silently
+        return null;
     }
 
     if (!session) {

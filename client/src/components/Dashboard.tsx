@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { tokenService } from '../services/tokenService';
 import { MenuItem } from './Sidebar';
 import EngagementCard from './EngagementCard';
 import CRMPerformanceHub from './CRMPerformanceHub';
@@ -622,12 +623,42 @@ const WhatsAppScannerCard: React.FC<{
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline, onToggleSidebar }) => {
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [loading, setLoading] = useState(true);
+    // ── Read cache SYNCHRONOUSLY on init — no skeleton for returning users ──
+    const [stats, setStats] = useState<DashboardStats | null>(() => {
+        try {
+            const raw = localStorage.getItem('dashboard_stats_cache');
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const age = Date.now() - (parsed.timestamp || 0);
+            // Only use cache if it's fresh (< 5 min) and has data
+            if (parsed.data && age < 5 * 60 * 1000) return parsed.data;
+        } catch { }
+        return null;
+    });
+    const [loading, setLoading] = useState<boolean>(() => {
+        try {
+            const raw = localStorage.getItem('dashboard_stats_cache');
+            if (!raw) return true;
+            const parsed = JSON.parse(raw);
+            const age = Date.now() - (parsed.timestamp || 0);
+            // If fresh cache found, start with loading=false (no skeleton)
+            return !(parsed.data && age < 5 * 60 * 1000);
+        } catch { }
+        return true;
+    });
     const [timeRange, setTimeRange] = useState('7d');
-    const [chartPeriod, setChartPeriod] = useState('7days'); // Added missing state
+    const [chartPeriod, setChartPeriod] = useState('7days');
     const [leadTimeRange, setLeadTimeRange] = useState<7 | 30>(30);
-    const [revenueStats, setRevenueStats] = useState({ totalValue: 0, wonValue: 0, conversionRate: '0%' });
+    const [revenueStats, setRevenueStats] = useState(() => {
+        try {
+            const raw = localStorage.getItem('dashboard_stats_cache');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed.data?.revenueStats) return parsed.data.revenueStats;
+            }
+        } catch { }
+        return { totalValue: 0, wonValue: 0, conversionRate: '0%' };
+    });
 
     useEffect(() => {
         loadStats();
@@ -635,103 +666,114 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token || '';
-            const userId = session?.user?.id;
-
-            // --- 1. INSTANT LOAD: Check LocalStorage ---
+            // ── PHASE 1: INSTANT — Show cache before ANY async work ──────────────
             const cached = localStorage.getItem('dashboard_stats_cache');
-            if (cached && userId) {
+            let cachedUserId: string | undefined;
+            if (cached) {
                 try {
                     const parsed = JSON.parse(cached);
-                    // SECURITY: Verify user and check staleness (1 hour max)
-                    const isStale = !parsed.timestamp || (Date.now() - parsed.timestamp > 3600000);
-                    if (parsed.userId === userId && !isStale) {
+                    cachedUserId = parsed.userId;
+                    const age = Date.now() - (parsed.timestamp || 0);
+                    if (parsed.data) {
                         setStats(parsed.data);
                         if (parsed.data.revenueStats) setRevenueStats(parsed.data.revenueStats);
-                        setLoading(false);
-                    } else if (isStale && parsed.userId === userId) {
-                        // Use stale data temporarily but stay in loading state
-                        setStats(parsed.data);
-                        if (parsed.data.revenueStats) setRevenueStats(parsed.data.revenueStats);
-                    } else {
-                        localStorage.removeItem('dashboard_stats_cache');
+                        if (age < 5 * 60 * 1000) { // Fresh within 5 min → stop skeleton immediately
+                            setLoading(false);
+                        }
                     }
-                } catch (e) {
-                    localStorage.removeItem('dashboard_stats_cache');
+                } catch { localStorage.removeItem('dashboard_stats_cache'); }
+            }
+
+            // ── PHASE 2: Get token (use in-memory, skip getSession if possible) ──
+            let token = tokenService.getAccessToken();
+            let userId: string | undefined;
+            if (!token) {
+                const { data: { session } } = await supabase.auth.getSession();
+                token = session?.access_token || '';
+                userId = session?.user?.id;
+            } else {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    userId = payload.sub;
+                } catch {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    token = session?.access_token || ''; userId = session?.user?.id;
                 }
             }
 
-            // --- 2. FAST FETCH: Main Stats (DB Only) ---
+            // Invalidate cache if different user
+            if (cached && cachedUserId && cachedUserId !== userId) {
+                localStorage.removeItem('dashboard_stats_cache');
+                setStats(null); setLoading(true);
+            }
+
+            // ── PHASE 2: Fetch fast summary stats (~150ms) ───────────────────────
             const res = await fetch('/api/dashboard/stats', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
             if (res.ok) {
                 const data = await res.json();
                 if (data) {
-                    // PRESERVE CONNECTION STATE from stale cache if valid
-                    const cachedWrapper = cached ? JSON.parse(cached) : null;
-                    const cachedData = cachedWrapper?.data;
-                    if (cachedData?.connection?.status &&
-                        cachedData.connection.status !== 'LOADING' &&
-                        data.connection?.status === 'LOADING') {
-                        data.connection = { ...cachedData.connection };
+                    // Preserve connection from cache if API not yet updated
+                    const cachedWrapper = cached ? (() => { try { return JSON.parse(cached); } catch { return null; } })() : null;
+                    const cachedConn = cachedWrapper?.data?.connection;
+                    if (cachedConn?.status && cachedConn.status !== 'LOADING' && data.connection?.status === 'LOADING') {
+                        data.connection = { ...cachedConn };
                     }
-
+                    // Preserve chart data from cache while new chart data loads
+                    if (!data.chartData?.length && cachedWrapper?.data?.chartData?.length) {
+                        data.chartData = cachedWrapper.data.chartData;
+                        data.leadsChartData = cachedWrapper.data.leadsChartData;
+                    }
                     setStats(data);
                     if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
-
-                    // Only update cache if we have a real status
-                    if (data.connection?.status !== 'LOADING') {
-                        const cacheWrapper = {
-                            data,
-                            userId,
-                            timestamp: Date.now()
-                        };
-                        localStorage.setItem('dashboard_stats_cache', JSON.stringify(cacheWrapper));
-                    }
+                    localStorage.setItem('dashboard_stats_cache', JSON.stringify({ data, userId, timestamp: Date.now() }));
                 }
             } else {
                 if (!cached) setLoading(false);
             }
 
-            // --- 3. LAZY FETCH: Connections (External APIs) ---
-            fetch('/api/dashboard/connections', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
+            // ── PHASE 3: Lazy background fetches (non-blocking) ─────────────────
+            // Charts and connections run in parallel AFTER UI is already showing
+            const authHeader = { 'Authorization': `Bearer ${token}` };
+
+            // 3a: Chart data (heavy — 10 min cache on server)
+            fetch('/api/dashboard/charts', { headers: authHeader })
                 .then(r => r.ok ? r.json() : null)
-                .then(connData => {
-                    if (connData && connData.connection) {
+                .then(chartData => {
+                    if (chartData) {
                         setStats(prev => {
                             if (!prev) return prev;
-                            const newData = {
+                            const updated = { ...prev, chartData: chartData.chartData || [], leadsChartData: chartData.leadsChartData || [] };
+                            // Update cache with chart data
+                            const existing = (() => { try { return JSON.parse(localStorage.getItem('dashboard_stats_cache') || '{}'); } catch { return {}; } })();
+                            localStorage.setItem('dashboard_stats_cache', JSON.stringify({ ...existing, data: updated, timestamp: Date.now() }));
+                            return updated;
+                        });
+                    }
+                }).catch(() => null);
+
+            // 3b: WhatsApp connection health (external Meta API)
+            fetch('/api/dashboard/connections', { headers: authHeader })
+                .then(r => r.ok ? r.json() : null)
+                .then(connData => {
+                    if (connData?.connection) {
+                        setStats(prev => {
+                            if (!prev) return prev;
+                            const updated = {
                                 ...prev,
                                 connection: { ...prev.connection, ...connData.connection },
                                 integrationStats: { ...prev.integrationStats, ...connData.integrationStats }
                             };
-                            // Update cache wrapper
-                            const finalCache = {
-                                data: newData,
-                                userId,
-                                timestamp: Date.now()
-                            };
-                            localStorage.setItem('dashboard_stats_cache', JSON.stringify(finalCache));
-                            return newData;
+                            const existing = (() => { try { return JSON.parse(localStorage.getItem('dashboard_stats_cache') || '{}'); } catch { return {}; } })();
+                            localStorage.setItem('dashboard_stats_cache', JSON.stringify({ ...existing, data: updated, timestamp: Date.now() }));
+                            return updated;
                         });
                     }
                 })
-                .catch(err => {
-                    console.error('Background fetch connections error', err);
-                    // On error, fallback to UNKNOWN so it doesn't get stuck on "Checking..."
-                    setStats(prev => {
-                        if (!prev) return prev;
-                        return {
-                            ...prev,
-                            connection: { ...prev.connection, status: 'UNKNOWN', quality_rating: 'UNKNOWN' }
-                        };
-                    });
+                .catch(() => {
+                    setStats(prev => prev ? { ...prev, connection: { ...prev.connection, status: 'UNKNOWN', quality_rating: 'UNKNOWN' } } : prev);
                 });
 
         } catch (error) {
@@ -739,6 +781,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (!localStorage.getItem('dashboard_stats_cache')) setLoading(false);
         }
     };
+
 
     const handleNav = (item: MenuItem) => {
         if (onNavigate) {
@@ -823,8 +866,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
         return <SkeletonDashboard />;
     }
 
-    // Show error if no data after loading
-    if (!stats) {
+    // Show error only when done loading with no data
+    if (!stats && !loading) {
         return (
             <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
                 <div className="flex flex-col items-center gap-4 max-w-md text-center">
