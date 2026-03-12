@@ -6,102 +6,153 @@ const requireAuth = require('../middleware/requireAuth');
 const facebookService = require('../services/FacebookLeadService');
 
 // ============================================================
-// PHASE 1: FAST SUMMARY — returns in ~150ms
-// Only uses COUNT queries and small SELECTs. NO full row fetches.
-// Cache: 5 minutes (300s) — safe for dashboard counters
+// In-memory JSON cache — shared per user, held in-process RAM
+// Much faster than re-fetching Supabase on every request
+// ============================================================
+if (!global.dashboardCache)      global.dashboardCache      = {};
+if (!global.dashboardChartCache) global.dashboardChartCache = {};
+if (!global.connectionCache)     global.connectionCache     = {};
+
+const STATS_TTL   = 5  * 60 * 1000; // 5  minutes
+const CHARTS_TTL  = 10 * 60 * 1000; // 10 minutes
+const CONN_TTL    = 5  * 60 * 1000; // 5  minutes
+
+// ============================================================
+// PHASE 1: FAST SUMMARY — ~8 parallel queries (was 19)
+// KEY IMPROVEMENT: Single leads fetch replaces 5 separate ones
+// Cache: 5 min in-process memory → nearly instant on warmup
 // ============================================================
 router.get('/stats', requireAuth, async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Cache-Control', 'no-store');
     try {
         const userId = req.user.id;
         const supabase = supabaseAdmin;
 
-        // Fast in-memory cache: 5 minutes
-        if (!global.dashboardCache) global.dashboardCache = {};
+        // ── Serve from in-memory cache if fresh ───────────────────────
         const cached = global.dashboardCache[userId];
-        const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-        if (cached && (Date.now() - cached.timestamp < CACHE_TTL) && !req.query.force) {
+        if (cached && (Date.now() - cached.timestamp < STATS_TTL) && !req.query.force) {
             return res.json(cached.data);
         }
 
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
+        const todayISO   = startOfToday.toISOString();
+        const tomorrowISO = new Date(startOfToday.getTime() + 86400000).toISOString();
 
-        // PHASE 1 QUERIES: All COUNT/head=true or tiny selects — no full row scans
+        // ── ALL queries in ONE parallel batch (no sequential await blocks) ──────
+        // 11 total queries (was 19). whatsapp_templates/campaigns counts derived from data.
         const [
             { count: totalContacts },
-            { count: activeLeads },
-            { count: newLeadsToday },
-            { count: totalTemplates },
-            { count: totalCampaigns },
             { count: totalFlows },
-            { count: totalPipelines },
-            { count: totalGroups },
-            { count: completedTasks },
-            { count: dueTasks },
-            { count: todayTasks },
             { data: waConfig },
-            { data: recentLeads },
+            { data: allLeads },
             { data: pipelines },
-            { data: stages },
+            { data: stagesData },
             { data: integrations },
-            // Revenue: fetch ONLY value + status columns (not all columns)
-            { data: leadsForRevenue },
-            // Template status breakdown - only status column
-            { data: templatesStatus },
-            // Recent campaigns — tiny limit
+            { data: allTasksData },
+            { data: templatesStatusData },
             { data: lastCampaigns },
+            { count: totalGroups },
         ] = await Promise.all([
-            // Pure COUNT queries — extremely fast with DB index on user_id
+            // Fast COUNT with DB index
             supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'active'),
-            supabase.from('leads').select('*', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', startOfToday.toISOString()),
-            supabase.from('whatsapp_templates').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('campaigns').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('flows').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('pipelines').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', true),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false).gte('due_date', startOfToday.toISOString()).lte('due_date', new Date(startOfToday.getTime() + 86400000).toISOString()),
-            // Small selects — bounded by one record
+
+            // Config — 1 row
             supabase.from('whatsapp_config').select('phone_number, phone_number_id').eq('user_id', userId).limit(1),
-            supabase.from('leads').select('id, name, created_at, status, pipeline_id').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
-            supabase.from('pipelines').select('id, name').eq('user_id', userId).order('created_at', { ascending: false }),
+
+            // Leads — ONE query replaces 5 separate lead queries
+            supabase.from('leads')
+                .select('id, name, created_at, status, pipeline_id, stage_id, estimated_value')
+                .eq('user_id', userId)
+                .limit(10000),
+
+            // Structure
+            supabase.from('pipelines').select('id, name').eq('user_id', userId),
             supabase.from('pipeline_stages').select('id, name, pipeline_id').eq('user_id', userId),
-            supabase.from('user_integrations').select('provider').eq('user_id', userId),
-            // Revenue: only 2 columns (not all) — still needs rows but much lighter
-            supabase.from('leads').select('estimated_value, status, stage_id, pipeline_id').eq('user_id', userId).limit(5000),
-            // Template status: only 1 column
-            supabase.from('whatsapp_templates').select('status').eq('user_id', userId).limit(1000),
-            // Last 5 campaigns
-            supabase.from('campaigns').select('id, title, success_count, failed_count').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
+
+            // Integrations
+            supabase.from('user_integrations').select('provider').eq('user_id', userId).limit(200),
+
+            // Tasks (count + due logic from data)
+            supabase.from('tasks').select('is_completed, due_date').eq('user_id', userId).limit(5000),
+
+            // Templates: fetch status rows + exact count in one request
+            supabase.from('whatsapp_templates')
+                .select('status', { count: 'exact' })
+                .eq('user_id', userId)
+                .limit(2000),
+
+            // Campaigns: fetch rows + exact count in one request
+            supabase.from('campaigns')
+                .select('id, title, success_count, failed_count', { count: 'exact' })
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(200),
+
+            // Groups count only
+            supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
         ]);
 
-        // --- CPU Aggregations ---
+        // Counts derived from already-fetched row data (no extra DB calls)
+        // Limits (2000 templates, 200 campaigns) are generous for most users
+        const totalTemplates = (templatesStatusData || []).length;
+        const totalCampaigns = (lastCampaigns || []).length;
 
-        // Revenue
-        const leadsList = leadsForRevenue || [];
+
+
+        const allTasks        = allTasksData        || [];
+        const templatesStatus = templatesStatusData  || [];
+        const integrList      = integrations         || [];
+        const campaignRows    = lastCampaigns        || [];
+
+
+        // Derive recent leads from allLeads (CPU sort — no extra DB query)
+        const recentLeads = (allLeads || [])
+            .slice()
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 5)
+            .map(l => ({ id: l.id, name: l.name, created_at: l.created_at, status: l.status, pipeline_id: l.pipeline_id }));
+
+        // ── CPU aggregations on the single leads array ─────────────────
+        const leads = allLeads || [];
         let totalPipelineValue = 0, wonValue = 0, wonCount = 0;
-        leadsList.forEach(l => {
+        let activeLeads = 0, newLeadsToday = 0;
+
+        // Build pipeline map from separate pipelines + stages arrays
+        const pipelineMap = {};
+        (pipelines || []).forEach(p => {
+            pipelineMap[p.id] = { id: p.id, name: p.name, stages: [] };
+        });
+        (stagesData || []).forEach(s => {
+            if (pipelineMap[s.pipeline_id]) {
+                pipelineMap[s.pipeline_id].stages.push({ id: s.id, name: s.name });
+            }
+        });
+        const pipelineList = Object.values(pipelineMap);
+        const totalPipelines = pipelineList.length;
+
+        leads.forEach(l => {
             const val = Number(l.estimated_value) || 0;
             totalPipelineValue += val;
             const isWon = (l.status && l.status.toLowerCase() === 'won') || (l.stage_id && l.stage_id.toLowerCase().includes('won'));
             if (isWon) { wonValue += val; wonCount++; }
+            if (l.status === 'active') activeLeads++;
+            if (l.created_at >= todayISO && l.created_at < tomorrowISO) newLeadsToday++;
         });
+
         const revenueStats = {
             totalValue: totalPipelineValue,
             wonValue,
-            conversionRate: Math.round((wonCount / Math.max(leadsList.length, 1)) * 100) + '%'
+            conversionRate: Math.round((wonCount / Math.max(leads.length, 1)) * 100) + '%'
         };
 
-        // Pipeline breakdown using already-fetched leads
-        const pipelineStats = (pipelines || []).map(p => {
-            const pLeads = leadsList.filter(l => l.pipeline_id === p.id);
+        // Pipeline breakdown — CPU only, no extra DB hits
+        const pipelineStats = pipelineList.map(p => {
+            const pLeads = leads.filter(l => l.pipeline_id === p.id);
             return {
                 id: p.id, name: p.name, totalLeads: pLeads.length,
-                stages: (stages || []).filter(s => s.pipeline_id === p.id).map(s => ({
+                stages: p.stages.map(s => ({
                     name: s.name, count: pLeads.filter(l => l.stage_id === s.id).length
                 }))
             };
@@ -109,58 +160,65 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         // Template stats
         const templateStats = { approved: 0, pending: 0, rejected: 0 };
-        (templatesStatus || []).forEach(t => {
+        templatesStatus.forEach(t => {
             const s = (t.status || '').toUpperCase();
-            if (s === 'APPROVED') templateStats.approved++;
+            if      (s === 'APPROVED') templateStats.approved++;
             else if (s === 'REJECTED') templateStats.rejected++;
-            else templateStats.pending++;
+            else                       templateStats.pending++;
         });
 
         // Integration stats
         const integrationStats = { total: 0, breakdown: {} };
-        (integrations || []).forEach(i => {
+        integrList.forEach(i => {
             const p = i.provider || 'unknown';
             integrationStats.breakdown[p] = (integrationStats.breakdown[p] || 0) + 1;
             integrationStats.total++;
         });
 
-        // Campaign stats
-        const campaignStats = (lastCampaigns || []).map(c => ({
+        // Task stats — CPU aggregation
+        let completedTasks = 0, dueTasks = 0, todayTasks = 0;
+        allTasks.forEach(t => {
+            if (t.is_completed) { completedTasks++; return; }
+            dueTasks++;
+            if (t.due_date && t.due_date >= todayISO && t.due_date < tomorrowISO) todayTasks++;
+        });
+
+        // Campaign stats — use first 5 from the campaignRows (already ordered by created_at desc)
+        const campaignStats = campaignRows.slice(0, 5).map(c => ({
             name: c.title,
             sent: (c.success_count || 0) + (c.failed_count || 0),
             delivered: c.success_count || 0,
             read: 0
         }));
 
-        // Config
         const config = waConfig?.[0];
 
         const dashboardData = {
             summary: {
                 totalContacts: totalContacts || 0,
-                activeLeads: activeLeads || 0,
-                newLeadsToday: newLeadsToday || 0,
-                pipelineValue: totalPipelineValue || 0,
+                activeLeads,
+                newLeadsToday,
+                pipelineValue: totalPipelineValue,
                 totalTemplates: totalTemplates || 0,
                 totalCampaigns: totalCampaigns || 0,
                 totalFlows: totalFlows || 0,
-                totalPipelines: totalPipelines || 0,
-                totalGroups: totalGroups || 0
+                totalPipelines,
+                totalGroups: totalGroups || 0,
             },
             revenueStats,
-            recentLeads: recentLeads || [],
+            recentLeads,
             templateStats,
             pipelineStats,
             taskStats: {
-                today: todayTasks || 0,
-                total: (completedTasks || 0) + (dueTasks || 0),
-                completed: completedTasks || 0,
-                due: dueTasks || 0,
+                today: todayTasks,
+                total: completedTasks + dueTasks,
+                completed: completedTasks,
+                due: dueTasks,
                 breakdown: {}
             },
             integrationStats,
             campaignStats,
-            // Chart data stubbed — loaded by /charts endpoint separately
+            // Charts loaded separately by /charts endpoint
             chartData: [],
             leadsChartData: [],
             connection: {
@@ -174,6 +232,7 @@ router.get('/stats', requireAuth, async (req, res) => {
             }
         };
 
+        // Write to in-memory JSON cache
         global.dashboardCache[userId] = { data: dashboardData, timestamp: Date.now() };
         res.json(dashboardData);
 
@@ -184,31 +243,27 @@ router.get('/stats', requireAuth, async (req, res) => {
 });
 
 // ============================================================
-// PHASE 2: CHART DATA — loads in background after main stats
-// Heavier queries — runs after UI is already showing data
+// PHASE 2: CHART DATA — background load after UI is visible
 // Cache: 10 minutes
 // ============================================================
 router.get('/charts', requireAuth, async (req, res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Cache-Control', 'no-store');
     try {
         const userId = req.user.id;
         const supabase = supabaseAdmin;
 
-        if (!global.dashboardChartCache) global.dashboardChartCache = {};
         const cached = global.dashboardChartCache[userId];
-        const CACHE_TTL = 10 * 60 * 1000; // 10 minutes — charts don't need to be real-time
-
-        if (cached && (Date.now() - cached.timestamp < CACHE_TTL) && !req.query.force) {
+        if (cached && (Date.now() - cached.timestamp < CHARTS_TTL) && !req.query.force) {
             return res.json(cached.data);
         }
 
         const now = new Date();
-        const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const sevenDaysAgo  = new Date(now); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // Get conversation IDs for this user first (needed for message filtering)
+        // Get conversation IDs first (needed for message filtering)
         const { data: convIds } = await supabase
-            .from('conversations').select('id').eq('user_id', userId);
+            .from('conversations').select('id').eq('user_id', userId).limit(2000);
         const cids = (convIds || []).map(c => c.id);
 
         const [{ data: rawMessages }, { data: rawLeadsHistory }] = await Promise.all([
@@ -227,7 +282,7 @@ router.get('/charts', requireAuth, async (req, res) => {
                 .limit(5000)
         ]);
 
-        // Build traffic chart
+        // Build traffic chart (7-day)
         const trafficMap = {};
         for (let i = 6; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
@@ -243,7 +298,7 @@ router.get('/charts', requireAuth, async (req, res) => {
             }
         });
 
-        // Build leads growth chart
+        // Build leads growth chart (30-day)
         const leadsMap = {};
         for (let i = 29; i >= 0; i--) {
             const d = new Date(); d.setDate(d.getDate() - i);
@@ -271,15 +326,15 @@ router.get('/charts', requireAuth, async (req, res) => {
 
 // ============================================================
 // PHASE 3: CONNECTION HEALTH — WhatsApp Meta API
+// Runs in background after UI is already showing
 // Cache: 5 minutes (Meta API is slow)
 // ============================================================
 router.get('/connections', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        if (!global.connectionCache) global.connectionCache = {};
         const cached = global.connectionCache[userId];
-        if (cached && (Date.now() - cached.timestamp < 300000) && !req.query.force) {
+        if (cached && (Date.now() - cached.timestamp < CONN_TTL) && !req.query.force) {
             return res.json(cached.data);
         }
 
@@ -289,11 +344,14 @@ router.get('/connections', requireAuth, async (req, res) => {
             facebookService.getUserConnectedStatus(userId).catch(() => ({ connected: false }))
         ]);
 
-        const config = waConfigData?.[0];
-        const whatsAppId = config?.phone_number_id;
+        const config    = waConfigData?.[0];
+        const whatsAppId  = config?.phone_number_id;
         const accessToken = config?.meta_access_token;
 
-        let phoneHealth = { quality_rating: 'UNKNOWN', messaging_limit_tier: 'TIER_50', status: 'UNKNOWN', name_status: 'UNKNOWN', display_phone_number: null };
+        let phoneHealth = {
+            quality_rating: 'UNKNOWN', messaging_limit_tier: 'TIER_50',
+            status: 'UNKNOWN', name_status: 'UNKNOWN', display_phone_number: null
+        };
 
         if (whatsAppId && accessToken) {
             try {
@@ -306,13 +364,13 @@ router.get('/connections', requireAuth, async (req, res) => {
                     httpsAgent: agent
                 });
                 if (metaRes) phoneHealth = {
-                    quality_rating: (metaRes.quality_rating || 'UNKNOWN').toUpperCase(),
-                    messaging_limit: (metaRes.messaging_limit_tier || 'TIER_50').toUpperCase(),
-                    status: (metaRes.status || 'UNKNOWN').toUpperCase(),
-                    name_status: (metaRes.name_status || 'UNKNOWN').toUpperCase(),
+                    quality_rating:      (metaRes.quality_rating      || 'UNKNOWN').toUpperCase(),
+                    messaging_limit:     (metaRes.messaging_limit_tier || 'TIER_50').toUpperCase(),
+                    status:              (metaRes.status               || 'UNKNOWN').toUpperCase(),
+                    name_status:         (metaRes.name_status          || 'UNKNOWN').toUpperCase(),
                     display_phone_number: metaRes.display_phone_number || null
                 };
-            } catch (e) { /* silent */ }
+            } catch (e) { /* silent — connection may not be configured */ }
         }
 
         const data = {
@@ -327,6 +385,18 @@ router.get('/connections', requireAuth, async (req, res) => {
         console.error('Connection Stats Error:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// ============================================================
+// Cache invalidation endpoint — call after mutations
+// POST /api/dashboard/invalidate
+// ============================================================
+router.post('/invalidate', requireAuth, (req, res) => {
+    const userId = req.user.id;
+    delete global.dashboardCache[userId];
+    delete global.dashboardChartCache[userId];
+    delete global.connectionCache[userId];
+    res.json({ ok: true, message: 'Dashboard cache cleared' });
 });
 
 module.exports = router;
