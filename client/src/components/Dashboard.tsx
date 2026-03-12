@@ -546,6 +546,29 @@ const WhatsAppScannerCard: React.FC<{
         return map[tier] || tier;
     };
 
+    // ── KEY FIX: Phone presence = connected (ground truth) ────────────────────
+    // If we have a phone number, the account IS connected regardless of Meta API status.
+    // Only show 'Verifying...' when we truly have NO phone number AND status is LOADING.
+    // This prevents the 'Verifying...' state from persisting if Meta API is slow.
+    const isConnected  = !!phone; // phone number = confirmed connected
+    const isLoading    = !phone && metaStatus === 'LOADING'; // only verifying if no phone yet
+    const isDisconnected = !phone && metaStatus !== 'LOADING';
+
+    // Status badge config
+    const statusLabel = isConnected
+        ? '● Connected'
+        : isLoading
+            ? '● Verifying...'
+            : '○ Disconnected';
+
+    const statusClass = isConnected
+        ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50'
+        : isLoading
+            ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse'
+            : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50';
+
+    // Quality/limit availability: show pending shimmer only if BOTH phone exists AND Meta has no data yet
+    const metaPending = phone && metaStatus === 'LOADING';
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
@@ -563,39 +586,44 @@ const WhatsAppScannerCard: React.FC<{
                     </div>
                 </div>
                 <h3 className="font-bold text-lg tracking-tight mb-1">WhatsApp Business</h3>
-                <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${metaStatus === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50' :
-                    metaStatus === 'LOADING' ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse' :
-                        (phone ? 'bg-yellow-500/20 text-yellow-300 ring-1 ring-yellow-500/50' : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50')
-                    }`}>
-                    {metaStatus === 'CONNECTED' ? '● Connected' : (metaStatus === 'LOADING' ? '● Verifying...' : (phone ? '● Check Connection' : '○ Disconnected'))}
-                </p>
-                <p className="mt-4 font-mono text-xl tracking-wider text-slate-200">{phone ? formattedPhone : 'No Number Linked'}</p>
 
-                {/* Health & Limits Block */}
+                {/* Status Badge — uses phone as ground truth, not Meta API status */}
+                <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${statusClass}`}>
+                    {statusLabel}
+                </p>
+
+                <p className="mt-4 font-mono text-xl tracking-wider text-slate-200">
+                    {phone ? formattedPhone : 'No Number Linked'}
+                </p>
+
+                {/* Health & Limits Block — only when phone exists */}
                 {phone && (
                     <div className="mt-2 flex items-center justify-center gap-4 bg-white/5 rounded-xl p-2 border border-[#84cc16]">
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Quality</span>
                             <div className="flex items-center gap-1.5 justify-center mt-0.5">
-                                <span className={`w-2 h-2 rounded-full ${(metaStatus === 'LOADING' && !quality) ? 'bg-yellow-500 animate-pulse' : qColor} shadow-[0_0_5px_currentColor]`}></span>
-                                <span className="text-xs font-bold text-slate-200">{(metaStatus === 'LOADING' && !quality) ? 'Loading...' : (quality || 'Unknown')}</span>
+                                <span className={`w-2 h-2 rounded-full ${metaPending && !quality ? 'bg-yellow-400 animate-pulse' : qColor} shadow-[0_0_5px_currentColor]`}></span>
+                                <span className="text-xs font-bold text-slate-200">
+                                    {metaPending && !quality ? '...' : (quality || 'GREEN')}
+                                </span>
                             </div>
                         </div>
                         <div className="w-px h-6 bg-white/10"></div>
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Limit</span>
                             <span className="block text-xs font-bold text-slate-200 mt-0.5 whitespace-nowrap">
-                                {(metaStatus === 'LOADING' && !limit) ? 'Loading...' : formatLimit(limit || '')}
+                                {metaPending && !limit ? '...' : formatLimit(limit || '')}
                             </span>
                         </div>
                     </div>
                 )}
             </div>
 
-            {/* QR Code Area */}
+            {/* QR Code Area — always show when phone number exists */}
             <div className="flex-1 flex flex-col justify-center w-full items-center">
                 <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
                     {phone ? (
+                        // QR always renders when phone is known — not gated by Meta API status
                         <QRCodeCanvas
                             value={qrLink}
                             size={128}
@@ -604,15 +632,22 @@ const WhatsAppScannerCard: React.FC<{
                             fgColor="#0f172a"
                             bgColor="#FFFFFF"
                         />
+                    ) : isLoading ? (
+                        // Still getting phone number from server
+                        <div className="w-32 h-32 flex flex-col items-center justify-center bg-slate-50 gap-2">
+                            <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                            <p className="text-[9px] text-slate-400 text-center">Connecting...</p>
+                        </div>
                     ) : (
-                        <div className="w-24 h-24 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
+                        // No phone configured
+                        <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
                             Configure in Settings
                         </div>
                     )}
                     {phone && <p className="text-[10px] text-center text-slate-500 font-bold mt-2 uppercase tracking-wide group-hover:text-emerald-600">Scan to Chat</p>}
                 </div>
 
-                {!phone && (
+                {!phone && !isLoading && (
                     <button onClick={onConnect} className="z-10 mt-3 text-[10px] font-bold bg-white/10 hover:bg-white/20 text-white px-4 py-1.5 rounded-lg backdrop-blur-sm transition-all">
                         Connect Account
                     </button>
@@ -739,7 +774,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     setStats(data);
                     if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
-                    writeCache(data, userId);
+
+                    // ⚠️ Never cache connection.status='LOADING' — would cause 'Verifying...' on next visit
+                    // Strip loading state before writing, but keep phone number (phone = ground truth)
+                    const dataToCache = { ...data };
+                    if (dataToCache.connection?.status === 'LOADING') {
+                        dataToCache.connection = {
+                            ...dataToCache.connection,
+                            status: dataToCache.connection.phone ? 'CONNECTED' : 'UNKNOWN',
+                            quality_rating: dataToCache.connection.quality_rating === 'LOADING' ? null : dataToCache.connection.quality_rating,
+                            messaging_limit: dataToCache.connection.messaging_limit === 'CHECKING' ? null : dataToCache.connection.messaging_limit,
+                        };
+                    }
+                    writeCache(dataToCache, userId);
                 }
             } else {
                 setLoading(false); // network failed — show whatever we have (even stale)
