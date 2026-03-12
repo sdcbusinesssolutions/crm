@@ -13,9 +13,9 @@ if (!global.dashboardCache)      global.dashboardCache      = {};
 if (!global.dashboardChartCache) global.dashboardChartCache = {};
 if (!global.connectionCache)     global.connectionCache     = {};
 
-const STATS_TTL   = 5  * 60 * 1000; // 5  minutes
-const CHARTS_TTL  = 10 * 60 * 1000; // 10 minutes
-const CONN_TTL    = 5  * 60 * 1000; // 5  minutes
+const STATS_TTL   = 15 * 60 * 1000; // 15 minutes (was 5) — more visits served from RAM
+const CHARTS_TTL  = 30 * 60 * 1000; // 30 minutes (was 10) — chart data changes rarely
+const CONN_TTL    = 10 * 60 * 1000; // 10 minutes (was 5)  — Meta API is slow, cache longer
 
 // ============================================================
 // PHASE 1: FAST SUMMARY — ~8 parallel queries (was 19)

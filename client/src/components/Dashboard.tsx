@@ -624,8 +624,11 @@ const WhatsAppScannerCard: React.FC<{
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline, onToggleSidebar }) => {
     // ── Helpers ─────────────────────────────────────────────────────────────────
-    const CACHE_KEY   = 'dashboard_stats_cache';
-    const CACHE_TTL   = 5 * 60 * 1000; // 5 min
+    const CACHE_KEY = 'dashboard_stats_cache';
+    // DISPLAY TTL: how long before we silently background-refresh (not show skeleton)
+    // Skeleton only shows when there is ZERO cached data (true first visit)
+    const CACHE_REFRESH_TTL = 5 * 60 * 1000;  // 5 min — background-refresh trigger
+    const CACHE_MAX_AGE     = 60 * 60 * 1000; // 60 min — max age before we discard data
 
     const readCache = (): { data: DashboardStats | null; userId?: string; fresh: boolean } => {
         try {
@@ -633,7 +636,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (!raw) return { data: null, fresh: false };
             const parsed = JSON.parse(raw);
             const age = Date.now() - (parsed.timestamp || 0);
-            const fresh = !!(parsed.data && age < CACHE_TTL);
+            // Discard data older than 60 minutes (definitely stale)
+            if (age > CACHE_MAX_AGE) {
+                localStorage.removeItem(CACHE_KEY);
+                return { data: null, fresh: false };
+            }
+            // Fresh = within 5-min refresh window
+            const fresh = !!(parsed.data && age < CACHE_REFRESH_TTL);
             return { data: parsed.data || null, userId: parsed.userId, fresh };
         } catch {}
         return { data: null, fresh: false };
@@ -654,12 +663,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
         } catch {}
     };
 
-    // ── Read cache SYNCHRONOUSLY on init — zero skeleton flash for returning users ──
+    // ── Synchronous cache read on init ─────────────────────────────────────────
+    // KEY RULE: loading=true ONLY when there is NO data at all (first-ever visit)
+    // Stale data? → show it immediately, refresh silently in background (no skeleton!)
     const initialCache = readCache();
 
-    const [stats, setStats]             = useState<DashboardStats | null>(initialCache.data);
-    const [loading, setLoading]         = useState<boolean>(!initialCache.fresh);
-    const [timeRange, setTimeRange]     = useState('7d');
+    const [stats, setStats]         = useState<DashboardStats | null>(initialCache.data);
+    const [loading, setLoading]     = useState<boolean>(!initialCache.data); // ← ONLY true when zero data
+    const [timeRange, setTimeRange] = useState('7d');
     const [chartPeriod, setChartPeriod] = useState('7days');
     const [leadTimeRange, setLeadTimeRange] = useState<7 | 30>(30);
     const [revenueStats, setRevenueStats]   = useState(
@@ -672,16 +683,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
     const loadStats = async () => {
         try {
-            // ── PHASE 1: Check cache freshness ───────────────────────────────────────
+            // ── PHASE 1: Check cache ─────────────────────────────────────────────────
             const { data: cachedData, userId: cachedUserId, fresh: cacheIsFresh } = readCache();
 
-            // Show stale cached data immediately (so UI is never blank)
-            if (cachedData && !cacheIsFresh) {
+            // Always show cached data immediately — NEVER block on loading if we have any data
+            if (cachedData) {
                 setStats(cachedData);
                 if (cachedData.revenueStats) setRevenueStats(cachedData.revenueStats);
+                setLoading(false); // ← never show skeleton if we have ANY cached data
             }
 
-            // ── PHASE 2: Get auth token efficiently (avoid getSession if possible) ──
+            // ── PHASE 2: Get auth token ──────────────────────────────────────────────
             let token = tokenService.getAccessToken();
             let userId: string | undefined;
             if (!token) {
@@ -703,37 +715,34 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (cachedUserId && userId && cachedUserId !== userId) {
                 localStorage.removeItem(CACHE_KEY);
                 setStats(null);
-                setLoading(true);
+                setLoading(true); // legitimate fresh user — show skeleton
             }
 
             const authHeader = { 'Authorization': `Bearer ${token}` };
 
-            if (!cacheIsFresh || (cachedUserId && userId && cachedUserId !== userId)) {
-                // ── PHASE 2b: Fetch summary stats (server has 5-min in-memory cache) ──
-                const res = await fetch('/api/dashboard/stats', { headers: authHeader });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data) {
-                        // Keep good connection data from cache — avoid LOADING flicker
-                        if (cachedData?.connection?.status && cachedData.connection.status !== 'LOADING'
-                            && data.connection?.status === 'LOADING') {
-                            data.connection = { ...cachedData.connection };
-                        }
-                        // Keep cached chart data while background chart fetch runs
-                        if (!data.chartData?.length && cachedData?.chartData?.length) {
-                            data.chartData = cachedData.chartData;
-                            data.leadsChartData = cachedData.leadsChartData;
-                        }
-                        setStats(data);
-                        if (data.revenueStats) setRevenueStats(data.revenueStats);
-                        setLoading(false);
-                        writeCache(data, userId);
+            // Always fetch fresh data — but if we already had cache data, this is a silent background refresh
+            // If no cache data at all — this is the only time the skeleton shows
+            const res = await fetch('/api/dashboard/stats', { headers: authHeader });
+            if (res.ok) {
+                const data = await res.json();
+                if (data) {
+                    // Preserve good connection data from cache — avoid LOADING flicker
+                    if (cachedData?.connection?.status && cachedData.connection.status !== 'LOADING'
+                        && data.connection?.status === 'LOADING') {
+                        data.connection = { ...cachedData.connection };
                     }
-                } else {
+                    // Preserve cached chart data while background chart fetch runs
+                    if (!data.chartData?.length && cachedData?.chartData?.length) {
+                        data.chartData = cachedData.chartData;
+                        data.leadsChartData = cachedData.leadsChartData;
+                    }
+                    setStats(data);
+                    if (data.revenueStats) setRevenueStats(data.revenueStats);
                     setLoading(false);
+                    writeCache(data, userId);
                 }
             } else {
-                setLoading(false);
+                setLoading(false); // network failed — show whatever we have (even stale)
             }
 
             // ── PHASE 3: Background fetches — run after UI is already rendered ───────
