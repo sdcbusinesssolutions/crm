@@ -761,10 +761,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             if (res.ok) {
                 const data = await res.json();
                 if (data) {
-                    // Preserve good connection data from cache — avoid LOADING flicker
-                    if (cachedData?.connection?.status && cachedData.connection.status !== 'LOADING'
-                        && data.connection?.status === 'LOADING') {
-                        data.connection = { ...cachedData.connection };
+                    // Preserve good Meta API data from cache — avoid flicker of Quality and Limits
+                    if (data.connection?.status === 'LOADING' && cachedData?.connection) {
+                        data.connection.quality_rating = cachedData.connection.quality_rating || 'LOADING';
+                        data.connection.messaging_limit = cachedData.connection.messaging_limit || 'CHECKING';
+                        // Note: We DO NOT overwrite phone number from cache. 
+                        // The fresh stats response provides the true phone number!
                     }
                     // Preserve cached chart data while background chart fetch runs
                     if (!data.chartData?.length && cachedData?.chartData?.length) {
