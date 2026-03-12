@@ -15,7 +15,7 @@ if (!global.connectionCache)     global.connectionCache     = {};
 
 const STATS_TTL   = 15 * 60 * 1000; // 15 minutes (was 5) — more visits served from RAM
 const CHARTS_TTL  = 30 * 60 * 1000; // 30 minutes (was 10) — chart data changes rarely
-const CONN_TTL    = 60 * 60 * 1000; // 60 minutes (was 10) — Meta API call is expensive, cache 1 hour
+const CONN_TTL    = 24 * 60 * 60 * 1000; // 24 hours (1 day) — Meta API call is expensive, cache heavily to avoid limits
 
 // ============================================================
 // PHASE 1: FAST SUMMARY — ~8 parallel queries (was 19)
