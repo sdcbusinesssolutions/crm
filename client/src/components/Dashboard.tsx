@@ -1155,32 +1155,33 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                                 </div>
                             </div>
 
-                            {/* B. Revenue Forecast */}
-                            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm items-center justify-center text-center">
-                                <h3 className="font-bold text-lg text-slate-800 mb-6 w-full text-left">Revenue Forecast</h3>
-                                <div className="mb-6 relative">
-                                    <svg className="w-32 h-32 transform -rotate-90">
-                                        <circle cx="64" cy="64" r="56" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                                        <circle
-                                            cx="64" cy="64" r="56"
-                                            fill="transparent"
-                                            stroke="#10b981"
-                                            strokeWidth="12"
-                                            strokeDasharray={`${(Number(revenueStats.conversionRate.replace('%', '')) / 100) * 351} 351`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-2xl font-extrabold text-slate-800">{revenueStats.conversionRate}</span>
-                                        <span className="text-[10px] uppercase font-bold text-slate-400">Conversion</span>
+                            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm hover:shadow-emerald-500/5 transition-shadow">
+                                <h3 className="font-bold text-lg text-slate-800 shrink-0">Revenue Forecast</h3>
+                                <div className="flex-1 flex flex-col items-center justify-center mt-2">
+                                    <div className="relative mb-8 mt-4">
+                                        <svg className="w-32 h-32 transform -rotate-90 overflow-visible" viewBox="0 0 128 128">
+                                            <circle cx="64" cy="64" r="56" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                                            <circle
+                                                cx="64" cy="64" r="56"
+                                                fill="transparent"
+                                                stroke="#10b981"
+                                                strokeWidth="12"
+                                                strokeDasharray={`${(Number(revenueStats.conversionRate.replace('%', '')) / 100) * 351} 351`}
+                                                strokeLinecap="round"
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-2xl font-extrabold text-slate-800">{revenueStats.conversionRate}</span>
+                                            <span className="text-[10px] uppercase font-bold text-slate-400">Conversion</span>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="w-full grid grid-cols-1 gap-4">
-                                    <div className="bg-slate-50 p-3 rounded-2xl">
+                                <div className="w-full grid grid-cols-1 gap-4 shrink-0">
+                                    <div className="bg-slate-50 p-3 rounded-2xl text-center">
                                         <p className="text-xs text-slate-500 mb-1">Total Pipeline</p>
                                         <p className="text-sm font-bold text-slate-900">{revenueStats.totalValue.toLocaleString()}</p>
                                     </div>
-                                    <div className="bg-emerald-50 p-3 rounded-2xl">
+                                    <div className="bg-emerald-50 p-3 rounded-2xl text-center">
                                         <p className="text-xs text-emerald-600 mb-1">Won Revenue</p>
                                         <p className="text-sm font-bold text-emerald-700">{revenueStats.wonValue.toLocaleString()}</p>
                                     </div>
