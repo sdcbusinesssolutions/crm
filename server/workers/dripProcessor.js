@@ -314,39 +314,60 @@ async function processDrips() {
                                 langCode = langCode || 'en';
 
                                 // Construct Components
-                                const components = [];
+                                let components = [];
+                                const isCarousel = enrollment.current_step?.step_config?.template_type === 'CAROUSEL';
 
-                                // 1. HEADER
-                                if (params.header) {
-                                    if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(params.header.type) && params.header.url) {
+                                if (isCarousel) {
+                                    // For Carousels, we can't send root header or body.
+                                    // If DripBuilder collected a body text parameter, it's for card 0.
+                                    if (params.body && Array.isArray(params.body) && params.body.length > 0) {
+                                        const bodyParams = Array.from(params.body).map(val => ({
+                                            type: 'text',
+                                            text: replaceVariables(val || '', enrollment)
+                                        }));
                                         components.push({
-                                            type: 'header',
-                                            parameters: [{
-                                                type: params.header.type.toLowerCase(),
-                                                [params.header.type.toLowerCase()]: { link: params.header.url }
-                                            }]
-                                        });
-                                    } else if (params.header.type === 'TEXT' && params.header.text) {
-                                        components.push({
-                                            type: 'header',
-                                            parameters: [{
-                                                type: 'text',
-                                                text: replaceVariables(params.header.text, enrollment)
-                                            }]
+                                            type: 'carousel',
+                                            cards: [
+                                                {
+                                                    card_index: 0,
+                                                    components: [{ type: 'body', parameters: bodyParams }]
+                                                }
+                                            ]
                                         });
                                     }
-                                }
+                                } else {
+                                    // 1. STANDARD HEADER
+                                    if (params.header) {
+                                        if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes((params.header.type || '').toUpperCase()) && params.header.url) {
+                                            components.push({
+                                                type: 'header',
+                                                parameters: [{
+                                                    type: params.header.type.toLowerCase(),
+                                                    [params.header.type.toLowerCase()]: { link: params.header.url }
+                                                }]
+                                            });
+                                        } else if ((params.header.type || '').toUpperCase() === 'TEXT' && params.header.text) {
+                                            components.push({
+                                                type: 'header',
+                                                parameters: [{
+                                                    type: 'text',
+                                                    text: replaceVariables(params.header.text, enrollment)
+                                                }]
+                                            });
+                                        }
+                                    }
 
-                                // 2. BODY
-                                if (params.body && Array.isArray(params.body) && params.body.length > 0) {
-                                    const bodyParams = Array.from(params.body).map(val => ({
-                                        type: 'text',
-                                        text: replaceVariables(val || '', enrollment)
-                                    }));
-                                    components.push({
-                                        type: 'body',
-                                        parameters: bodyParams
-                                    });
+                                    // 2. STANDARD BODY
+                                    if (params.body && Array.isArray(params.body) && params.body.length > 0) {
+                                        const bodyParams = Array.from(params.body).map(val => ({
+                                            type: 'text',
+                                            text: replaceVariables(val || '', enrollment)
+                                        }));
+                                        components.push({
+                                            type: 'body',
+                                            parameters: bodyParams
+                                        });
+                                    }
                                 }
 
                                 const content = {

@@ -3,6 +3,7 @@ import { dripCampaignService, DripCampaign, DripStep } from '../../services/drip
 import { integrationsService } from '../../services/integrationsService';
 import { tagService } from '../../services/tagService';
 import { pipelineService } from '../../services/pipelineService';
+import { supabase } from '../../lib/supabase';
 import {
     ArrowLeftIcon,
     SettingsIcon,
@@ -47,6 +48,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
     // --- State: UI ---
     const [loading, setLoading] = useState(false);
+    const [uploadingMedia, setUploadingMedia] = useState(false);
     const [activeTab, setActiveTab] = useState<'BUILDER' | 'ENROLLMENTS'>('BUILDER');
     const [selectedStep, setSelectedStep] = useState<DripStep | null>(null);
     const [showCampaignSettings, setShowCampaignSettings] = useState(false);
@@ -206,6 +208,49 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
         if (selectedStep?.id === stepId) {
             setSelectedStep(prev => prev ? { ...prev, ...updates } : null);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, stepId: string, location: 'HEADER' | 'CAROUSEL', cardIndex?: number) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        setUploadingMedia(true);
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('No session');
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                const step = campaign.steps?.find(s => s.id === stepId);
+                if (step) {
+                    const currentParams = step.step_config?.parameters || {};
+                    if (location === 'HEADER') {
+                        handleUpdateStep(stepId, {
+                            step_config: { ...step.step_config, parameters: { ...currentParams, header: { type: currentParams.header?.type || 'IMAGE', url: data.url } } }
+                        });
+                    } else if (location === 'CAROUSEL' && cardIndex !== undefined) {
+                        const currentCarousel = currentParams.carousel || {};
+                        currentCarousel[cardIndex] = data.url;
+                        handleUpdateStep(stepId, {
+                            step_config: { ...step.step_config, parameters: { ...currentParams, carousel: currentCarousel } }
+                        });
+                    }
+                }
+            } else {
+                alert('Upload failed: ' + data.error);
+            }
+        } catch (err: any) {
+            alert('Upload error: ' + err.message);
+        } finally {
+            setUploadingMedia(false);
         }
     };
 
@@ -684,30 +729,59 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                         if (!tpl) return null;
 
                                                         const components = tpl.components || [];
-                                                        const header = components.find((c: any) => c.type === 'HEADER');
-                                                        const body = components.find((c: any) => c.type === 'BODY');
+                                                        const header = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
+                                                        const body = components.find((c: any) => c.type === 'BODY' || c.type === 'body');
+                                                        const carousel = components.find((c: any) => c.type === 'CAROUSEL' || c.type === 'carousel');
 
-                                                        // Parse Body Params ({{1}}, {{2}})
-                                                        const bodyText = body?.text || '';
-                                                        const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
-                                                        const bodyParamCount = bodyMatch.length; // Approximate, assuming {{1}}..{{N}}
+                                                        // Parse Body Params ({{1}}, {{2}}) OR Carousel params
+                                                        let bodyParamCount = 0;
+                                                        
+                                                        if (body) {
+                                                            const bodyText = body.text || '';
+                                                            const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
+                                                            bodyParamCount = bodyMatch.length;
+                                                        } else if (carousel) {
+                                                            // If it's a carousel, check the first card's body for an idea of params per card
+                                                            const firstCard = carousel.cards?.[0] || carousel.cards?.[0];
+                                                            const cardBody = firstCard?.components?.find((c: any) => c.type === 'BODY' || c.type === 'body');
+                                                            if (cardBody) {
+                                                                const bodyText = cardBody.text || '';
+                                                                const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
+                                                                bodyParamCount = bodyMatch.length;
+                                                            }
+                                                        }
 
                                                         return (
                                                             <div className="space-y-4 animate-fade-in">
                                                                 {/* Header Mapping */}
                                                                 {header && (
-                                                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                                                                         <div className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
                                                                             <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
                                                                             Header ({header.format})
                                                                         </div>
-                                                                        {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header.format) && (
+                                                                        {['IMAGE', 'VIDEO', 'DOCUMENT'].includes((header.format || '').toUpperCase()) && (
                                                                             <div>
-                                                                                <label className="text-[10px] text-slate-500 mb-1 block">Media URL (Image/Video/Doc)</label>
+                                                                                <div className="flex gap-2 mb-2">
+                                                                                    <input
+                                                                                        type="file"
+                                                                                        accept={(header.format || '').toUpperCase() === 'IMAGE' ? 'image/*' : (header.format || '').toUpperCase() === 'VIDEO' ? 'video/*' : '.pdf,.doc,.docx'}
+                                                                                        onChange={(e) => handleFileUpload(e, selectedStep.id, 'HEADER')}
+                                                                                        className="block w-full text-xs text-slate-400
+                                                                                        file:mr-2 file:py-1 file:px-2
+                                                                                        file:rounded-full file:border-0
+                                                                                        file:text-[10px] file:font-bold
+                                                                                        file:bg-brand-600 file:text-white
+                                                                                        hover:file:bg-brand-500
+                                                                                        cursor-pointer"
+                                                                                    />
+                                                                                </div>
+                                                                                {uploadingMedia && <p className="text-[10px] text-brand-400 animate-pulse mb-2">Uploading...</p>}
+                                                                                <label className="text-[10px] text-slate-500 mb-1 block">Or Direct URL</label>
                                                                                 <input
                                                                                     type="text"
                                                                                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
-                                                                                    placeholder={`https://example.com/file.${header.format === 'IMAGE' ? 'jpg' : header.format === 'VIDEO' ? 'mp4' : 'pdf'}`}
+                                                                                    placeholder={`https://example.com/file.${(header.format || '').toUpperCase() === 'IMAGE' ? 'jpg' : (header.format || '').toUpperCase() === 'VIDEO' ? 'mp4' : 'pdf'}`}
                                                                                     value={selectedStep.step_config?.parameters?.header?.url || ''}
                                                                                     onChange={(e) => {
                                                                                         const currentParams = selectedStep.step_config?.parameters || {};
@@ -724,7 +798,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                                                 />
                                                                             </div>
                                                                         )}
-                                                                        {header.format === 'TEXT' && header.text?.includes('{{1}}') && (
+                                                                        {(header.format || '').toUpperCase() === 'TEXT' && header.text?.includes('{{1}}') && (
                                                                             <div>
                                                                                 <label className="text-[10px] text-slate-500 mb-1 block">Header Variable {'{{1}}'}</label>
                                                                                 <input
@@ -747,6 +821,61 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                                                 />
                                                                             </div>
                                                                         )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Carousel Display */}
+                                                                {carousel && carousel.cards && (
+                                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                                                                        <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2 uppercase">
+                                                                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                                                                            Carousel Cards Media
+                                                                        </div>
+                                                                        {carousel.cards.map((card: any, idx: number) => {
+                                                                            const headerComp = card.components?.find((c: any) => c.type === 'HEADER' || c.type === 'header');
+                                                                            const cardFormat = (headerComp?.format || 'IMAGE').toUpperCase();
+                                                                            return (
+                                                                                <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                                                                    <div className="flex justify-between items-center mb-2">
+                                                                                        <span className="text-[10px] font-bold text-slate-400">Card {idx + 1} ({cardFormat})</span>
+                                                                                    </div>
+                                                                                    <div className="flex gap-2 mb-2">
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            accept={cardFormat === 'VIDEO' ? 'video/*' : 'image/*'}
+                                                                                            onChange={(e) => handleFileUpload(e, selectedStep.id, 'CAROUSEL', idx)}
+                                                                                            className="block w-full text-xs text-slate-400
+                                                                                            file:mr-2 file:py-1 file:px-2
+                                                                                            file:rounded-full file:border-0
+                                                                                            file:text-[10px] file:font-bold
+                                                                                            file:bg-indigo-600 file:text-white
+                                                                                            hover:file:bg-indigo-500
+                                                                                            cursor-pointer"
+                                                                                        />
+                                                                                    </div>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
+                                                                                        value={selectedStep.step_config?.parameters?.carousel?.[idx] || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                            const currentCarousel = currentParams.carousel || {};
+                                                                                            currentCarousel[idx] = e.target.value;
+                                                                                            handleUpdateStep(selectedStep.id, {
+                                                                                                step_config: {
+                                                                                                    ...selectedStep.step_config,
+                                                                                                    parameters: {
+                                                                                                        ...currentParams,
+                                                                                                        carousel: currentCarousel
+                                                                                                    }
+                                                                                                }
+                                                                                            });
+                                                                                        }}
+                                                                                        placeholder="Media URL"
+                                                                                    />
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 )}
 
@@ -784,7 +913,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                                                         />
                                                                                         {/* Quick Var Inserter */}
                                                                                         <button
-                                                                                            className="px-2 bg-slate-800 border border-slate-700 rounded-lg text-[10px] font-bold text-slate-400 hover:text-brand-400 hover:border-brand-500"
+                                                                                            className="px-2 bg-slate-800 border border-slate-700 rounded-lg text-[10px] font-bold text-slate-400 hover:text-brand-400 hover:border-brand-500 whitespace-nowrap"
                                                                                             onClick={() => {
                                                                                                 const currentParams = selectedStep.step_config?.parameters || {};
                                                                                                 const currentBody = [...(currentParams.body || [])];
@@ -809,6 +938,37 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                                         </div>
                                                                     </div>
                                                                 )}
+                                                                
+                                                                {/* Footer and Buttons Previews */}
+                                                                {(() => {
+                                                                    const footer = components.find((c: any) => c.type === 'FOOTER' || c.type === 'footer');
+                                                                    const buttons = components.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
+                                                                    if (!footer && (!buttons || !buttons.buttons?.length)) return null;
+                                                                    return (
+                                                                        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700 space-y-3 opacity-80 pointer-events-none">
+                                                                            {footer && (
+                                                                                <div>
+                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">Footer</div>
+                                                                                    <div className="text-xs text-slate-400 italic">{footer.text}</div>
+                                                                                </div>
+                                                                            )}
+                                                                            {buttons && buttons.buttons?.length > 0 && (
+                                                                                <div>
+                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">Buttons</div>
+                                                                                    <div className="flex flex-wrap gap-2">
+                                                                                        {buttons.buttons.map((btn: any, bIdx: number) => (
+                                                                                            <div key={bIdx} className="px-3 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg border border-slate-600 flex items-center gap-1">
+                                                                                                {btn.type === 'URL' && <span className="text-brand-400">🔗</span>}
+                                                                                                {btn.type === 'QUICK_REPLY' && <span className="text-emerald-400">↩️</span>}
+                                                                                                {btn.text}
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
 
                                                                 {/* Helper Text */}
                                                                 <div className="text-[10px] text-slate-500 italic px-1">

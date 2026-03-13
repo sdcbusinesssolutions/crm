@@ -363,6 +363,28 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         }
     }, [selectedTemplateId, formData.type]);
 
+    // Auto-update title when Drip Sequence changes for smooth UX
+    useEffect(() => {
+        if (selectedCampaignId) {
+            const camp = activeCampaigns.find(c => c.id === selectedCampaignId);
+            if (camp) {
+                setFormData(prev => {
+                    if (!prev.title || prev.title.startsWith("Sequence:")) {
+                        return { ...prev, title: `Sequence: ${camp.name}` };
+                    }
+                    return prev;
+                });
+            }
+        } else if (isReady && !initialData?.id) {
+             setFormData(prev => {
+                 if (prev.title && prev.title.startsWith("Sequence:")) {
+                     return { ...prev, title: '' };
+                 }
+                 return prev;
+             });
+        }
+    }, [selectedCampaignId, activeCampaigns, isReady, initialData?.id]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -425,6 +447,21 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
         // 2. Handle Drip Enrollment
         let dripEnrolled = false;
+
+        // Stop old enrollment if editing and the campaign changed or was removed
+        if (initialData?.id && initialData?.contacts) {
+            const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
+            const oldEnrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status));
+            
+            if (oldEnrollment && oldEnrollment.drip_campaign_id !== selectedCampaignId) {
+                try {
+                    await dripCampaignService.stopEnrollment(oldEnrollment.id);
+                } catch (e) {
+                    console.error('Failed to stop old drip enrollment', e);
+                }
+            }
+        }
+
         if (selectedCampaignId && allContactIds.length > 0) {
             try {
                 await dripCampaignService.enrollContacts(
