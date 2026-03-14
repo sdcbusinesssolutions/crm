@@ -221,3 +221,20 @@ body {
   stroke-dasharray: 6, 6;
   animation: dash-flow 1s linear infinite;
 }
+
+/* Audio Bar Animations */
+@keyframes audio-bar-1 {
+  0%, 100% { height: 12px; }
+  50% { height: 28px; }
+}
+@keyframes audio-bar-2 {
+  0%, 100% { height: 24px; }
+  50% { height: 40px; }
+}
+@keyframes audio-bar-3 {
+  0%, 100% { height: 40px; }
+  50% { height: 20px; }
+}
+.animate-audio-bar-1 { animation: audio-bar-1 0.8s ease infinite; transform-origin: bottom; }
+.animate-audio-bar-2 { animation: audio-bar-2 0.8s ease 0.2s infinite; transform-origin: bottom; }
+.animate-audio-bar-3 { animation: audio-bar-3 0.8s ease 0.4s infinite; transform-origin: bottom; }

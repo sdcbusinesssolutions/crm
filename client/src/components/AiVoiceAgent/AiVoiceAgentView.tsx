@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { MicrophoneIcon, RobotIcon, PhoneIcon, TrashIcon, DocumentFileIcon as DocumentIcon } from '../icons';
 import { aiAgentService, Agent } from '../../services/aiAgentService';
 import CreateAgentModal from './CreateAgentModal';
@@ -12,6 +12,58 @@ const AiVoiceAgentView: React.FC = () => {
 
     // Upload State
     const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+
+    // Demo State
+    const [selectedDemo, setSelectedDemo] = useState('Appointment Booking');
+    const [isPlayingDemo, setIsPlayingDemo] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const audioFiles: Record<string, string> = {
+        'EMI Collections': '/assets/demo_emi.wav',
+        'Appointment Booking': '/assets/demo_appointment.wav',
+        'Online Banking': '/assets/demo_banking.wav',
+        'Customer Support': '/assets/demo_support.wav',
+    };
+
+    const handlePlayDemo = () => {
+        if (isPlayingDemo) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            setIsPlayingDemo(false);
+            return;
+        }
+
+        const audioSrc = audioFiles[selectedDemo];
+        if (audioSrc) {
+            const audio = new Audio(audioSrc);
+            audioRef.current = audio;
+            audio.play();
+            setIsPlayingDemo(true);
+
+            audio.onended = () => {
+                setIsPlayingDemo(false);
+            };
+        }
+    };
+
+    useEffect(() => {
+        if (audioRef.current && isPlayingDemo) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlayingDemo(false);
+        }
+    }, [selectedDemo]);
+
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = "";
+            }
+        };
+    }, []);
 
     useEffect(() => {
         loadAgents();
@@ -77,6 +129,74 @@ const AiVoiceAgentView: React.FC = () => {
                         >
                             <span>+</span> Create Agent
                         </button>
+                    </div>
+                </div>
+
+                {/* Voice Experience Section */}
+                <div className="bg-slate-900 text-white p-10 rounded-[2rem] mb-8 border border-slate-700/50 shadow-xl shadow-brand-900/10 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                    {/* Background glows - customized to brand colors */}
+                    <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-72 h-72 bg-brand-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    
+                    <div className="text-center mb-10 relative z-10">
+                        <span className="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-bold tracking-wider mb-4 border border-emerald-500/30">LIVE DEMO</span>
+                        <h2 className="text-3xl font-extrabold mb-3 text-white tracking-tight">Experience Our Voice AI Agents</h2>
+                        <p className="text-slate-300 max-w-2xl mx-auto text-sm leading-relaxed">
+                            Discover how our advanced conversational models handle real-world challenges fluidly. From appointment bookings to complex customer support, hear the future of automated interaction.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col md:flex-row items-center gap-16 max-w-4xl mx-auto relative z-10 p-6 rounded-3xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-xl">
+                        <div className="flex flex-col gap-3 w-full md:w-5/12">
+                            {['EMI Collections', 'Appointment Booking', 'Online Banking', 'Customer Support'].map((option) => (
+                                <button
+                                    key={option}
+                                    onClick={() => setSelectedDemo(option)}
+                                    className={`px-6 py-4 rounded-xl text-sm font-semibold transition-all duration-300 text-left flex items-center justify-between group ${selectedDemo === option 
+                                        ? 'bg-emerald-500 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] border border-emerald-400' 
+                                        : 'bg-slate-800/80 border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                                >
+                                    <span>{option}</span>
+                                    {selectedDemo === option && (
+                                        <div className="w-2 h-2 rounded-full bg-slate-950 animate-pulse"></div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="flex-1 flex flex-col items-center justify-center">
+                            <div className="relative group cursor-pointer mb-8" onClick={handlePlayDemo}>
+                                {/* Microphone button glowing background */}
+                                <div className={`absolute inset-0 bg-white/10 rounded-full blur-2xl transition-all duration-500 ${isPlayingDemo ? 'scale-[2.5] animate-pulse bg-emerald-500/20' : 'group-hover:scale-150 group-hover:bg-brand-500/20'}`}></div>
+                                
+                                {/* Inner concentric ring */}
+                                <div className={`absolute -inset-4 rounded-full border border-slate-700 transition-all duration-700 ${isPlayingDemo ? 'border-emerald-500/50 scale-110 rotate-180' : ''}`}></div>
+
+                                {/* Microphone button circle */}
+                                <div className={`w-28 h-28 rounded-full flex items-center justify-center relative shadow-2xl z-10 transition-all duration-300 group-hover:scale-105 active:scale-95 ${isPlayingDemo ? 'bg-emerald-500 text-slate-900 border-4 border-emerald-300' : 'bg-slate-800 text-slate-200 border border-slate-600'}`}>
+                                    {isPlayingDemo ? (
+                                        <div className="flex gap-1.5 items-end justify-center h-10 w-10">
+                                            {/* Audio bars animation */}
+                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-1 h-3"></span>
+                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-2 h-6"></span>
+                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-3 h-10"></span>
+                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-1 h-5"></span>
+                                        </div>
+                                    ) : (
+                                        <MicrophoneIcon className="w-10 h-10" />
+                                    )}
+                                </div>
+                            </div>
+                            <div className="text-slate-300 font-medium tracking-wide h-6 flex items-center justify-center">
+                                {isPlayingDemo ? (
+                                    <span className="text-emerald-400 flex items-center gap-3">
+                                        Agent speaks: "{selectedDemo}"
+                                    </span>
+                                ) : (
+                                    "Tap to hear the demonstration"
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
