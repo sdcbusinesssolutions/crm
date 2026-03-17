@@ -19,10 +19,10 @@ const AiVoiceAgentView: React.FC = () => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const audioFiles: Record<string, string> = {
-        'EMI Collections': '/assets/demo_emi.wav',
-        'Appointment Booking': '/assets/demo_appointment.wav',
-        'Online Banking': '/assets/demo_banking.wav',
-        'Customer Support': '/assets/demo_support.wav',
+        'EMI Collections': '/assets/demo_emi.mp3',
+        'Appointment Booking': '/assets/demo_appointment.mp3',
+        'Online Banking': '/assets/demo_banking.mp3',
+        'Customer Support': '/assets/demo_support.mp3',
     };
 
     const handlePlayDemo = () => {
@@ -132,6 +132,45 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Dashboard Stats / Types Info (Static for now) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_voice.png"
+                                alt="AI Voice Agent Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
+                        </div>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Voice Agent</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Clone realistic voices for your agents</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_chat.png"
+                                alt="AI Chatbot Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
+                        </div>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Chatbot</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Advanced NLP for natural conversations</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            <img
+                                src="/assets/cute_orange_robot_task.png"
+                                alt="Task Management Robot"
+                                className="w-full h-full object-contain drop-shadow-xl"
+                            />
+                        </div>
+                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Task Management</h3>
+                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
+                    </div>
+                </div>
+
                 {/* Voice Experience Section */}
                 <div className="bg-slate-900 text-white p-10 rounded-[2rem] mb-8 border border-slate-700/50 shadow-xl shadow-brand-900/10 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
                     {/* Background glows - customized to brand colors */}
@@ -197,45 +236,6 @@ const AiVoiceAgentView: React.FC = () => {
                                 )}
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                {/* Dashboard Stats / Types Info (Static for now) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
-                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
-                            <img
-                                src="/assets/cute_orange_robot_voice.png"
-                                alt="AI Voice Agent Robot"
-                                className="w-full h-full object-contain drop-shadow-xl"
-                            />
-                        </div>
-                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Voice Agent</h3>
-                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Clone realistic voices for your agents</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
-                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
-                            <img
-                                src="/assets/cute_orange_robot_chat.png"
-                                alt="AI Chatbot Robot"
-                                className="w-full h-full object-contain drop-shadow-xl"
-                            />
-                        </div>
-                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Chatbot</h3>
-                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Advanced NLP for natural conversations</p>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
-                        <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
-                            <img
-                                src="/assets/cute_orange_robot_task.png"
-                                alt="Task Management Robot"
-                                className="w-full h-full object-contain drop-shadow-xl"
-                            />
-                        </div>
-                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Task Management</h3>
-                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
                     </div>
                 </div>
 
