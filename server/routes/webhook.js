@@ -1093,7 +1093,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     // --- TYPING INDICATOR START ---
                     // Show typing indicator in UI while bot is "thinking"
                     const whatsappService = require('../services/whatsappService');
-                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
                     // --- TYPING INDICATOR END ---
 
                     flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
@@ -1170,7 +1170,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                                     // --- TYPING INDICATOR START ---
                                     const whatsappService = require('../services/whatsappService');
-                                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
                                     // --- TYPING INDICATOR END ---
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
@@ -1181,7 +1181,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 if (inputPayload && !isStale) {
                                     // --- TYPING INDICATOR START ---
                                     const whatsappService = require('../services/whatsappService');
-                                    whatsappService.markAsRead(userId, extracted.id, true).catch(err => console.error('Typing indicator error:', err));
+                                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
                                     // --- TYPING INDICATOR END ---
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
