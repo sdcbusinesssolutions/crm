@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v20.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v23.0';
     }
 
     async getSystemSettings(targetDomain = 'clickube.com') {
@@ -350,24 +350,45 @@ class MetaOnboardingService {
             logOnboardingEvent('MMLITE_PARTNER_ONBOARD_SUCCESS', { businessId, requestId: response.data.request_id });
             return response.data;
         } catch (error) {
+            const metaError = error.response?.data?.error;
+            const errorMsg = metaError?.message || error.message;
+            const errorCode = metaError?.code;
+
+            console.log(`[MM Lite] Debug Meta Error - Code: ${errorCode}, Msg: ${errorMsg}`);
+
+            // Special case: Client already onboarded (error code 136031 or message contains it)
+            if (errorCode === 136031 || errorMsg.includes('136031')) {
+                console.log(`[MM Lite] Client already onboarded at business level. Proceeding...`);
+                return { 
+                    success: true, 
+                    already_onboarded: true, 
+                    message: 'Client has already accepted terms of service at the business level.' 
+                };
+            }
+
             console.error('MM Lite Partner Onboarding Error:', error.response?.data || error.message);
-            throw new Error('Failed to initiate MM Lite partner onboarding: ' + (error.response?.data?.error?.message || error.message));
+            throw new Error('Failed to initiate MM Lite partner onboarding: ' + errorMsg);
         }
     }
 
     async checkMMLiteEligibility(wabaId, accessToken) {
         try {
-            logOnboardingEvent('CHECK_MMLITE_START', { wabaId });
+            console.log(`[MM Lite] Checking eligibility for WABA: ${wabaId}`);
             const response = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
                 params: {
                     access_token: accessToken,
-                    fields: 'id,name,onboarding_status,marketing_messages_lite_onboarding_status'
+                    fields: 'marketing_messages_lite_onboarding_status'
                 }
             });
-            return response.data;
+            console.log(`[MM Lite] Eligibility Response:`, JSON.stringify(response.data));
+            return {
+                id: response.data.id || wabaId,
+                marketing_messages_lite_onboarding_status: response.data.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
+            };
         } catch (error) {
-            console.error('MM Lite Eligibility Check Error:', error.response?.data || error.message);
-            throw new Error('Failed to check MM Lite eligibility: ' + (error.response?.data?.error?.message || error.message));
+            const metaError = error.response?.data?.error;
+            console.error('MM Lite Eligibility Check Error:', metaError || error.message);
+            throw new Error('Failed to check MM Lite eligibility: ' + (metaError?.message || error.message));
         }
     }
 

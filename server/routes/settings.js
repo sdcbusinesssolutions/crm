@@ -1138,17 +1138,29 @@ router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
         }
 
         // 2. Check Eligibility via Service
-        const eligibility = await MetaOnboardingService.checkMMLiteEligibility(waba_id, accessToken);
+        try {
+            const eligibility = await MetaOnboardingService.checkMMLiteEligibility(waba_id, accessToken);
 
-        res.json({
-            waba_id: eligibility.id,
-            onboarding_status: eligibility.onboarding_status,
-            mm_lite_status: eligibility.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
-        });
+            if (!eligibility) {
+                return res.status(404).json({ error: 'Eligibility data not returned from Meta' });
+            }
+
+            res.json({
+                waba_id: eligibility.id || waba_id,
+                onboarding_status: eligibility.onboarding_status || 'APPROVED',
+                mm_lite_status: eligibility.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
+            });
+        } catch (serviceError) {
+            console.error('MM Lite Service Error:', serviceError.message);
+            res.status(502).json({ 
+                error: 'Meta API Communication Error', 
+                details: serviceError.message 
+            });
+        }
 
     } catch (err) {
         console.error('MM Lite Eligibility Route Error:', err);
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Internal server error: ' + err.message });
     }
 });
 
