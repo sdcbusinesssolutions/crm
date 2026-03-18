@@ -500,7 +500,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const handleExport = () => {
         if (contacts.length === 0) return;
 
-        const csvData = contacts.map(c => {
+        // If something is selected, export ONLY those. Otherwise, export everything.
+        const contactsToExport = selectedIds.size > 0 
+            ? contacts.filter(c => selectedIds.has(c.id))
+            : contacts;
+
+        if (contactsToExport.length === 0) return;
+
+        const csvData = contactsToExport.map(c => {
             const groupNames = (c.groupIds || [])
                 .map(gid => availableGroups.find(g => g.id === gid)?.name)
                 .filter(Boolean)
@@ -529,7 +536,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', 'contacts_export.csv');
+        link.setAttribute('download', selectedIds.size > 0 ? 'selected_contacts.csv' : 'contacts_export.csv');
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
