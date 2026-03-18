@@ -264,5 +264,39 @@ export const settingsService = {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to extend token');
         return data;
+    },
+    initiateMMLitePartnerOnboarding: async (accountId: string) => {
+        const headers = await getHeaders();
+        const response = await fetch(`${API_URL}/settings/whatsapp/mm-lite/partner-onboard/${accountId}`, {
+            method: 'POST',
+            headers
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to initiate partner onboarding');
+        }
+        return response.json();
+    },
+
+    checkMMLiteEligibility: async (accountId: string) => {
+        const headers = await getHeaders();
+        const res = await fetch(`${API_URL}/settings/whatsapp/mm-lite/eligibility/${accountId}`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to check MM Lite eligibility');
+        }
+        return res.json();
+    },
+    transitionToMMLite: async (accountId: string) => {
+        const headers = await getHeaders();
+        const res = await fetch(`${API_URL}/settings/whatsapp/mm-lite/transition/${accountId}`, {
+            method: 'POST',
+            headers
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to transition to MM Lite');
+        }
+        return res.json();
     }
 };

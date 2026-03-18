@@ -3,8 +3,9 @@ import AccountSetup from './AccountSetup';
 import WebhookSetup from './WebhookSetup';
 import ChangePassword from './ChangePassword';
 import TwoFactorAuth from './TwoFactorAuth';
+import MMLiteOnboarding from './MMLiteOnboarding';
 
-type Tab = 'account' | 'webhook' | 'password' | '2fa';
+type Tab = 'account' | 'webhook' | 'marketing' | 'password' | '2fa';
 
 const WhatsAppManagement: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('account');
@@ -15,6 +16,8 @@ const WhatsAppManagement: React.FC = () => {
                 return <AccountSetup />;
             case 'webhook':
                 return <WebhookSetup />;
+            case 'marketing':
+                return <MMLiteOnboarding />;
             case 'password':
                 return <ChangePassword />;
             case '2fa':
@@ -52,6 +55,15 @@ const WhatsAppManagement: React.FC = () => {
                                 }`}
                         >
                             Webhook Setup
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('marketing')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'marketing'
+                                    ? 'bg-white text-pink-600 shadow-sm font-bold'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
+                                }`}
+                        >
+                            Marketing (MM Lite)
                         </button>
                         <button
                             onClick={() => setActiveTab('password')}

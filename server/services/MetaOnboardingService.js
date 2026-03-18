@@ -315,6 +315,61 @@ class MetaOnboardingService {
             return null;
         }
     }
+    async initiateMMLitePartnerOnboarding(businessId, accessToken, solutionId = null) {
+        try {
+            logOnboardingEvent('MMLITE_PARTNER_ONBOARD_START', { businessId, solutionId });
+            
+            const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
+            
+            const params = {
+                access_token: accessToken
+            };
+            
+            if (solutionId) {
+                params.solution_id = solutionId;
+            }
+
+            const response = await axios.post(url, {}, { params });
+            
+            logOnboardingEvent('MMLITE_PARTNER_ONBOARD_SUCCESS', { businessId, requestId: response.data.request_id });
+            return response.data;
+        } catch (error) {
+            console.error('MM Lite Partner Onboarding Error:', error.response?.data || error.message);
+            throw new Error('Failed to initiate MM Lite partner onboarding: ' + (error.response?.data?.error?.message || error.message));
+        }
+    }
+
+    async checkMMLiteEligibility(wabaId, accessToken) {
+        try {
+            logOnboardingEvent('CHECK_MMLITE_START', { wabaId });
+            const response = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
+                params: {
+                    access_token: accessToken,
+                    fields: 'id,name,onboarding_status,marketing_messages_lite_onboarding_status'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('MM Lite Eligibility Check Error:', error.response?.data || error.message);
+            throw new Error('Failed to check MM Lite eligibility: ' + (error.response?.data?.error?.message || error.message));
+        }
+    }
+
+    async transitionNumberToMMLite(phoneNumberId, accessToken) {
+        try {
+            logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId });
+            // Transition endpoint: POST /v21.0/{phone-number-id}/number_transition
+            const response = await axios.post(`${this.graphApiUrl}/${phoneNumberId}/number_transition`, {
+                transition_type: 'MARKETING_MESSAGES_LITE'
+            }, {
+                params: { access_token: accessToken }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('MM Lite Number Transition Error:', error.response?.data || error.message);
+            throw new Error('Failed to transition number to MM Lite: ' + (error.response?.data?.error?.message || error.message));
+        }
+    }
 }
 
 module.exports = new MetaOnboardingService();

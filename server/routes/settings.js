@@ -1054,4 +1054,128 @@ router.post('/whatsapp/token-extend', async (req, res) => {
     }
 });
 
+// ==========================================
+// 10. Marketing Messages Lite (MM Lite)
+// ==========================================
+
+// POST /settings/whatsapp/mm-lite/partner-onboard/:id - Initiate partner onboarding
+router.post('/whatsapp/mm-lite/partner-onboard/:id', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const accountId = req.params.id;
+        const supabase = getAuthenticatedSupabase(req);
+
+        // Fetch account details
+        const { data: config, error: fetchError } = await supabase
+            .from('whatsapp_config')
+            .select('*')
+            .eq('id', accountId)
+            .eq('user_id', userId)
+            .single();
+
+        if (fetchError || !config) {
+            return res.status(404).json({ error: 'WhatsApp account not found' });
+        }
+
+        const businessId = config.whatsapp_business_account_id; // Using WABA ID as fallback if separate Meta Biz ID isn't stored yet
+        // In many setups, the WABA ID is what's used for this partner request if they are linked.
+
+        const result = await MetaOnboardingService.initiateMMLitePartnerOnboarding(
+            businessId,
+            config.meta_access_token
+        );
+
+        res.json({ 
+            success: true,
+            message: 'Partner onboarding initiated successfully', 
+            data: result 
+        });
+    } catch (error) {
+        console.error('Partner Onboarding Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /settings/whatsapp/mm-lite/eligibility/:id - Check eligibility
+router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const accountId = req.params.id;
+        const supabase = getAuthenticatedSupabase(req);
+
+        // 1. Get Config from DB
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('*')
+            .eq('id', accountId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !config) {
+            return res.status(404).json({ error: 'WhatsApp account not found' });
+        }
+
+        const waba_id = config.whatsapp_business_account_id;
+        const accessToken = config.meta_access_token;
+
+        if (!waba_id || !accessToken) {
+            return res.status(400).json({ error: 'Incomplete configuration' });
+        }
+
+        // 2. Check Eligibility via Service
+        const eligibility = await MetaOnboardingService.checkMMLiteEligibility(waba_id, accessToken);
+
+        res.json({
+            waba_id: eligibility.id,
+            onboarding_status: eligibility.onboarding_status,
+            mm_lite_status: eligibility.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
+        });
+
+    } catch (err) {
+        console.error('MM Lite Eligibility Route Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// POST /settings/whatsapp/mm-lite/transition/:id - Transition number
+router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const accountId = req.params.id;
+        const supabase = getAuthenticatedSupabase(req);
+
+        // 1. Get Config from DB
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('*')
+            .eq('id', accountId)
+            .eq('user_id', userId)
+            .single();
+
+        if (error || !config) {
+            return res.status(404).json({ error: 'WhatsApp account not found' });
+        }
+
+        const phone_id = config.phone_number_id;
+        const accessToken = config.meta_access_token;
+
+        if (!phone_id || !accessToken) {
+            return res.status(400).json({ error: 'Incomplete configuration' });
+        }
+
+        // 2. Transition Number via Service
+        const result = await MetaOnboardingService.transitionNumberToMMLite(phone_id, accessToken);
+
+        res.json({
+            success: true,
+            message: 'Number transition initiated successfully',
+            data: result
+        });
+
+    } catch (err) {
+        console.error('MM Lite Transition Route Error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
