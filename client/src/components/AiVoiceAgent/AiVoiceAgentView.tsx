@@ -14,14 +14,13 @@ const AiVoiceAgentView: React.FC = () => {
     const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
     // Demo State
-    const [selectedDemo, setSelectedDemo] = useState('Appointment Booking');
+    const [selectedDemo, setSelectedDemo] = useState('Admission Operation');
     const [isPlayingDemo, setIsPlayingDemo] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const audioFiles: Record<string, string> = {
-        'EMI Collections': '/assets/demo_emi.mp3',
-        'Appointment Booking': '/assets/demo_appointment.mp3',
-        'Online Banking': '/assets/demo_banking.mp3',
+        'Admission Operation': '/assets/1007073305828481-1773854364318.mp4',
+        'Ecommerce': '/assets/ecommerse.m4a',
         'Customer Support': '/assets/demo_support.mp3',
     };
 
@@ -171,69 +170,91 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Voice Experience Section */}
-                <div className="bg-slate-900 text-white p-10 rounded-[2rem] mb-8 border border-slate-700/50 shadow-xl shadow-brand-900/10 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                    {/* Background glows - customized to brand colors */}
-                    <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/10 blur-[100px] rounded-full pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-72 h-72 bg-brand-500/10 blur-[100px] rounded-full pointer-events-none"></div>
-                    
-                    <div className="text-center mb-10 relative z-10">
-                        <span className="inline-block px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-full text-xs font-bold tracking-wider mb-4 border border-emerald-500/30">LIVE DEMO</span>
-                        <h2 className="text-3xl font-extrabold mb-3 text-white tracking-tight">Experience Our Voice AI Agents</h2>
-                        <p className="text-slate-300 max-w-2xl mx-auto text-sm leading-relaxed">
-                            Discover how our advanced conversational models handle real-world challenges fluidly. From appointment bookings to complex customer support, hear the future of automated interaction.
+                {/* Voice Experience Zone - Enhanced with Calling Indicators and Premium Border */}
+                <div className="bg-black text-white p-12 rounded-[3.5rem] mb-12 border-[6px] border-slate-900/80 shadow-[0_0_60px_rgba(147,51,234,0.2)] relative overflow-hidden ring-1 ring-white/5">
+                    {/* Atmospheric lighting */}
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
+
+                    <div className="text-center mb-12 relative z-10">
+                        <h2 className="text-4xl font-extrabold mb-4 text-white tracking-tight">Step Into The Voicebot Experience Zone</h2>
+                        <p className="text-slate-400 max-w-3xl mx-auto text-base leading-relaxed font-medium">
+                            From sales to support – experience how Smartping's GenAI Voicebot handles real conversations across sectors and languages with precision and ease.
                         </p>
                     </div>
 
-                    <div className="flex flex-col md:flex-row items-center gap-16 max-w-4xl mx-auto relative z-10 p-6 rounded-3xl bg-slate-800/40 border border-slate-700/50 backdrop-blur-xl">
-                        <div className="flex flex-col gap-3 w-full md:w-5/12">
-                            {['EMI Collections', 'Appointment Booking', 'Online Banking', 'Customer Support'].map((option) => (
+                    <div className="flex flex-col md:flex-row items-stretch gap-12 max-w-5xl mx-auto relative z-10">
+                        <div className="flex flex-col gap-4 w-full md:w-4/12">
+                            {['Admission Operation', 'Ecommerce', 'Customer Support'].map((option) => (
                                 <button
                                     key={option}
                                     onClick={() => setSelectedDemo(option)}
-                                    className={`px-6 py-4 rounded-xl text-sm font-semibold transition-all duration-300 text-left flex items-center justify-between group ${selectedDemo === option 
-                                        ? 'bg-emerald-500 text-slate-950 shadow-[0_0_20px_rgba(16,185,129,0.3)] border border-emerald-400' 
-                                        : 'bg-slate-800/80 border-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                                    className={`px-8 py-4 rounded-full text-sm font-bold transition-all duration-300 text-center border-2 ${selectedDemo === option 
+                                        ? 'bg-purple-600 border-purple-500 text-white shadow-[0_0_25px_rgba(147,51,234,0.4)] scale-105' 
+                                        : 'bg-transparent border-white/20 text-white hover:border-white hover:bg-white/5'}`}
                                 >
-                                    <span>{option}</span>
-                                    {selectedDemo === option && (
-                                        <div className="w-2 h-2 rounded-full bg-slate-950 animate-pulse"></div>
-                                    )}
+                                    {option}
                                 </button>
                             ))}
                         </div>
 
-                        <div className="flex-1 flex flex-col items-center justify-center">
-                            <div className="relative group cursor-pointer mb-8" onClick={handlePlayDemo}>
-                                {/* Microphone button glowing background */}
-                                <div className={`absolute inset-0 bg-white/10 rounded-full blur-2xl transition-all duration-500 ${isPlayingDemo ? 'scale-[2.5] animate-pulse bg-emerald-500/20' : 'group-hover:scale-150 group-hover:bg-brand-500/20'}`}></div>
-                                
-                                {/* Inner concentric ring */}
-                                <div className={`absolute -inset-4 rounded-full border border-slate-700 transition-all duration-700 ${isPlayingDemo ? 'border-emerald-500/50 scale-110 rotate-180' : ''}`}></div>
+                        {/* Right: Interaction Panel */}
+                        <div className="flex-1 bg-slate-900/30 rounded-[2.5rem] p-10 border border-white/10 flex flex-col items-center justify-between relative overflow-hidden backdrop-blur-xl">
+                            <div className="flex items-center justify-between w-full relative z-10">
+                                {/* Professional Enterprise AI Assistant */}
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className={`w-28 h-28 rounded-full border-[3px] transition-all duration-700 flex items-center justify-center p-0.5 bg-gradient-to-b from-slate-800 to-black relative overflow-hidden ${isPlayingDemo ? 'border-purple-400 shadow-[0_0_50px_rgba(147,51,234,0.6)] scale-110' : 'border-white/20 hover:border-white/40 shadow-inner'}`}>
+                                        <div className="absolute inset-0 bg-purple-500/5 backdrop-blur-3xl"></div>
+                                        <img src="/assets/professional_calling_bot.png" alt="AI Agent" className={`w-full h-full object-cover relative z-10 transition-all duration-700 ${isPlayingDemo ? 'scale-105 saturate-100' : 'opacity-60 saturate-50'}`} />
+                                        
+                                        {isPlayingDemo && (
+                                            <div className="absolute top-0 right-0 bg-purple-600 text-white p-2 rounded-full border-2 border-black animate-pulse shadow-xl z-20">
+                                                <PhoneIcon className="w-4 h-4 relative z-10" />
+                                                <div className="absolute inset-0 bg-white/40 rounded-full animate-ping"></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-700 ${isPlayingDemo ? 'text-purple-300' : 'text-slate-500'}`}>
+                                        {isPlayingDemo ? 'VOICE CONNECTED' : 'AI ASSISTANT'}
+                                    </span>
+                                </div>
 
-                                {/* Microphone button circle */}
-                                <div className={`w-28 h-28 rounded-full flex items-center justify-center relative shadow-2xl z-10 transition-all duration-300 group-hover:scale-105 active:scale-95 ${isPlayingDemo ? 'bg-emerald-500 text-slate-900 border-4 border-emerald-300' : 'bg-slate-800 text-slate-200 border border-slate-600'}`}>
-                                    {isPlayingDemo ? (
-                                        <div className="flex gap-1.5 items-end justify-center h-10 w-10">
-                                            {/* Audio bars animation */}
-                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-1 h-3"></span>
-                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-2 h-6"></span>
-                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-3 h-10"></span>
-                                            <span className="w-1.5 bg-slate-900 rounded-full animate-audio-bar-1 h-5"></span>
-                                        </div>
-                                    ) : (
-                                        <MicrophoneIcon className="w-10 h-10" />
-                                    )}
+                                {/* Central Action Control */}
+                                <div className="flex flex-col items-center gap-6">
+                                    <button 
+                                        onClick={handlePlayDemo}
+                                        className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative group ${isPlayingDemo ? 'bg-red-500/20 border-4 border-red-500/50 text-red-500' : 'bg-slate-100 text-black hover:bg-white'}`}
+                                    >
+                                        {isPlayingDemo ? (
+                                            <PhoneIcon className="w-12 h-12 rotate-[135deg]" />
+                                        ) : (
+                                            <MicrophoneIcon className="w-12 h-12 transition-transform group-hover:scale-110" />
+                                        )}
+                                        {isPlayingDemo && <div className="absolute -inset-6 border-2 border-purple-500/30 rounded-full animate-ping"></div>}
+                                    </button>
+                                    <span className={`text-xs font-black tracking-[0.2em] uppercase transition-all ${isPlayingDemo ? 'text-purple-400 animate-pulse' : 'text-slate-500'}`}>
+                                        {isPlayingDemo ? 'Simulation Active' : 'Tap To Experience'}
+                                    </span>
+                                </div>
+
+                                {/* Customer Portrait */}
+                                <div className="flex flex-col items-center gap-4">
+                                    <div className={`w-28 h-28 rounded-full border-4 transition-all duration-500 overflow-hidden bg-slate-900 relative ${isPlayingDemo ? 'border-purple-500 scale-110 shadow-[0_0_30px_rgba(147,51,234,0.3)]' : 'border-white/10 opacity-40'}`}>
+                                        <img src="/assets/indian_customer_avatar.png" alt="User" className={`w-full h-full object-cover transition-all duration-700 ${isPlayingDemo ? 'grayscale-0' : 'grayscale'}`} />
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Customer</span>
                                 </div>
                             </div>
-                            <div className="text-slate-300 font-medium tracking-wide h-6 flex items-center justify-center">
-                                {isPlayingDemo ? (
-                                    <span className="text-emerald-400 flex items-center gap-3">
-                                        Agent speaks: "{selectedDemo}"
-                                    </span>
-                                ) : (
-                                    "Tap to hear the demonstration"
-                                )}
+
+                            {/* Audio Waveform Visualization */}
+                            <div className="w-full h-16 flex items-center justify-center gap-[4px] mt-10 px-6">
+                                {[...Array(28)].map((_, i) => (
+                                    <div 
+                                        key={i}
+                                        className={`w-1 rounded-full transition-all duration-300 ${isPlayingDemo ? 'bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)] animate-audio-bar-' + ((i % 3) + 1) : 'h-1.5 bg-white/10'}`}
+                                        style={{ height: isPlayingDemo ? `${15 + Math.random() * 85}%` : '8px' }}
+                                    ></div>
+                                ))}
                             </div>
                         </div>
                     </div>
