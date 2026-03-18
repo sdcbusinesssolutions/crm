@@ -125,6 +125,22 @@ class MetaOnboardingService {
         }
     }
 
+    async getWabaInfo(wabaId, accessToken) {
+        try {
+            const response = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
+                params: {
+                    access_token: accessToken,
+                    fields: 'id,name,owner_business_info'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Get WABA Info Error:', error.response?.data || error.message);
+            // Don't throw if we want to fallback gracefully elsewhere, but let's throw for now
+            throw new Error('Failed to fetch WABA info: ' + (error.response?.data?.error?.message || error.message));
+        }
+    }
+
     async exchangeCodeForToken(code, targetDomain = 'clickube.com') {
         const settings = await this.getSystemSettings(targetDomain);
 

@@ -1077,8 +1077,23 @@ router.post('/whatsapp/mm-lite/partner-onboard/:id', async (req, res) => {
             return res.status(404).json({ error: 'WhatsApp account not found' });
         }
 
-        const businessId = config.whatsapp_business_account_id; // Using WABA ID as fallback if separate Meta Biz ID isn't stored yet
-        // In many setups, the WABA ID is what's used for this partner request if they are linked.
+        let businessId = config.whatsapp_business_account_id; // Start with WABA ID
+        
+        // --- AUTO-FIX: Resolve Meta Business ID (Required for MM Lite) ---
+        // If we only have the WABA ID, we need to find the ID of the Business that owns it.
+        try {
+            console.log(`[MM Lite] Attempting to resolve Business ID for WABA: ${businessId}`);
+            const wabaInfo = await MetaOnboardingService.getWabaInfo(businessId, config.meta_access_token);
+            if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
+                const realBusinessId = wabaInfo.owner_business_info.id;
+                console.log(`[MM Lite] Correction: Resolved Business ID ${realBusinessId} from WABA ID ${businessId}`);
+                businessId = realBusinessId;
+            } else {
+                console.warn(`[MM Lite] No owner_business_info found for WABA ${businessId}. Proceeding with original ID.`);
+            }
+        } catch (resolveErr) {
+            console.warn(`[MM Lite] Business ID resolution failed (continuing with original):`, resolveErr.message);
+        }
 
         const result = await MetaOnboardingService.initiateMMLitePartnerOnboarding(
             businessId,
