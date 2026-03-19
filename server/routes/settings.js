@@ -1140,7 +1140,7 @@ router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
 
         // 2. Check Eligibility via Service
         try {
-            const eligibility = await MetaOnboardingService.checkMMLiteEligibility(waba_id, accessToken);
+            const eligibility = await MetaOnboardingService.checkMMLiteEligibility(waba_id, accessToken, config.phone_number_id);
 
             if (!eligibility) {
                 return res.status(404).json({ error: 'Eligibility data not returned from Meta' });
@@ -1158,6 +1158,7 @@ router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
                                     ? 'APPROVED' 
                                     : 'PENDING',
                 mm_lite_status: mappedStatus,
+                phone_status: eligibility.phone_status || 'NOT_STARTED',
                 bm_status: eligibility.bm_status || 'NOT_STARTED',
                 full_eligibility: eligibility
             });

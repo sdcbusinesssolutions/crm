@@ -72,12 +72,12 @@ const MMLiteOnboarding: React.FC = () => {
             // ELIGIBLE: Can start transition
             // IN_PROGRESS: Transition is happening
             
-            if (result.mm_lite_status === 'COMPLETED') {
-                setCurrentStep(3); // Go to Status screen instead of skipping
-            } else if (result.mm_lite_status === 'ELIGIBLE') {
-                setCurrentStep(3); // Same
+            if (result.phone_status === 'ACTIVE') {
+                setCurrentStep(5); // Truly finished
+            } else if (result.mm_lite_status === 'COMPLETED' || result.mm_lite_status === 'ELIGIBLE') {
+                setCurrentStep(3); // Onboarded but needs transition
             } else if (result.mm_lite_status === 'IN_PROGRESS') {
-                setCurrentStep(5); // Show status in success screen
+                setCurrentStep(5); // Special case
             }
         } catch (err: any) {
             if (!silent) setError(err.message || 'Verification failed');
@@ -335,12 +335,20 @@ const MMLiteOnboarding: React.FC = () => {
                                         </div>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                        status.mm_lite_status === 'ELIGIBLE' ? 'bg-green-100 text-green-700' : 
+                                        status.phone_status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
                                         status.mm_lite_status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                                     }`}>
-                                        {status.mm_lite_status}
+                                        {status.phone_status === 'ACTIVE' ? 'ACTIVE' : status.mm_lite_status}
                                     </span>
                                 </div>
+                                {status.phone_status && status.phone_status !== 'UNKNOWN' && (
+                                    <div className="flex items-center justify-between px-5 py-2 bg-slate-50 rounded-lg border border-slate-100 mt-2">
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Phone API Status</span>
+                                        <span className={`text-[10px] font-bold ${status.phone_status === 'ACTIVE' ? 'text-green-600' : 'text-amber-600'}`}>
+                                            {status.phone_status}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {status.mm_lite_status === 'NOT_STARTED' || status.mm_lite_status === 'INELIGIBLE' ? (
                                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
@@ -359,10 +367,10 @@ const MMLiteOnboarding: React.FC = () => {
                                             Back
                                         </button>
                                         <button 
-                                            onClick={() => setCurrentStep(status.mm_lite_status === 'COMPLETED' ? 5 : 4)}
+                                            onClick={() => setCurrentStep(status.phone_status === 'ACTIVE' ? 5 : 4)}
                                             className="flex-1 py-2.5 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-all shadow-md text-sm"
                                         >
-                                            {status.mm_lite_status === 'COMPLETED' ? 'Proceed to Confirmation' : 'Continue to Transition'}
+                                            {status.phone_status === 'ACTIVE' ? 'Proceed to Confirmation' : (status.mm_lite_status === 'COMPLETED' ? 'Proceed to Transition' : 'Continue to Transition')}
                                         </button>
                                     </div>
                                 )}

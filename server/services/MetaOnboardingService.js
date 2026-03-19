@@ -371,40 +371,57 @@ class MetaOnboardingService {
         }
     }
 
-    async checkMMLiteEligibility(wabaId, accessToken) {
+    async checkMMLiteEligibility(wabaId, accessToken, phoneNumberId = null) {
         try {
-            console.log(`[MM Lite] Checking eligibility for WABA: ${wabaId}`);
-            // Fetch both fields for compatibility: new one and old one (which will be deprecated)
-            // Also include owner_business_info to check BM level status
-            const response = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
+            console.log(`[MM Lite] Checking eligibility for WABA: ${wabaId}${phoneNumberId ? ' and Phone: ' + phoneNumberId : ''}`);
+            
+            // 1. Fetch WABA level status
+            const wabaResponse = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
                 params: {
                     access_token: accessToken,
                     fields: 'id,marketing_messages_onboarding_status,marketing_messages_lite_api_status,owner_business_info'
                 }
             });
-            console.log(`[MM Lite] Eligibility Response:`, JSON.stringify(response.data));
+            console.log(`[MM Lite] WABA Eligibility Response:`, JSON.stringify(wabaResponse.data));
 
-            // Normalize the status. It can be a string (ONBOARDED/ELIGIBLE) or an object (for BM)
-            let mmStatus = response.data.marketing_messages_onboarding_status || 
-                           response.data.marketing_messages_lite_api_status || 
+            // Normalize the status.
+            let mmStatus = wabaResponse.data.marketing_messages_onboarding_status || 
+                           wabaResponse.data.marketing_messages_lite_api_status || 
                            'NOT_STARTED';
             
-            // If it's an object, extract the status string
             if (typeof mmStatus === 'object' && mmStatus !== null) {
                 mmStatus = mmStatus.status || 'NOT_STARTED';
             }
 
             // Check BM level if WABA level is not enough
             let bmStatus = 'NOT_STARTED';
-            if (response.data.owner_business_info?.marketing_messages_onboarding_status) {
-                const bmOnboarding = response.data.owner_business_info.marketing_messages_onboarding_status;
+            if (wabaResponse.data.owner_business_info?.marketing_messages_onboarding_status) {
+                const bmOnboarding = wabaResponse.data.owner_business_info.marketing_messages_onboarding_status;
                 bmStatus = typeof bmOnboarding === 'object' ? bmOnboarding.status : bmOnboarding;
             }
 
+            // 2. Fetch Phone level status if provided
+            let phoneStatus = 'UNKNOWN';
+            if (phoneNumberId) {
+                try {
+                    const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
+                        params: {
+                            access_token: accessToken,
+                            fields: 'marketing_messages_lite_api_status'
+                        }
+                    });
+                    phoneStatus = phoneRes.data.marketing_messages_lite_api_status || 'NOT_STARTED';
+                    console.log(`[MM Lite] Phone Status for ${phoneNumberId}: ${phoneStatus}`);
+                } catch (pe) {
+                    console.warn(`[MM Lite] Could not fetch phone-level status: ${pe.message}`);
+                }
+            }
+
             return {
-                id: response.data.id || wabaId,
+                id: wabaResponse.data.id || wabaId,
                 marketing_messages_onboarding_status: mmStatus,
                 bm_status: bmStatus,
+                phone_status: phoneStatus,
                 // Map to old field for compatibility with existing routes
                 marketing_messages_lite_onboarding_status: mmStatus === 'ONBOARDED' ? 'APPROVED' : mmStatus
             };
@@ -415,8 +432,6 @@ class MetaOnboardingService {
 
             console.error('MM Lite Eligibility Check Error:', metaError || error.message);
 
-            // If the field is missing or not available yet, it might return 400
-            // This happens before any onboarding has started.
             if (error.response?.status === 400 && 
                 (metaMsg.includes('field') || metaMsg.includes('permission') || metaCode === 100)) {
                 console.log('[MM Lite] Field not accessible or missing. Assuming NOT_STARTED.');
@@ -424,7 +439,8 @@ class MetaOnboardingService {
                     id: wabaId,
                     marketing_messages_onboarding_status: 'NOT_STARTED',
                     bm_status: 'NOT_STARTED',
-                    marketing_messages_lite_onboarding_status: 'NOT_STARTED'
+                    marketing_messages_lite_onboarding_status: 'NOT_STARTED',
+                    phone_status: 'NOT_STARTED'
                 };
             }
 
