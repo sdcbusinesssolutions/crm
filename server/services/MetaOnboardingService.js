@@ -407,10 +407,16 @@ class MetaOnboardingService {
                     const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
                         params: {
                             access_token: accessToken,
-                            fields: 'marketing_messages_lite_api_status'
+                            fields: 'marketing_messages_lite_api_status,marketing_messages_onboarding_status'
                         }
                     });
-                    phoneStatus = phoneRes.data.marketing_messages_lite_api_status || 'NOT_STARTED';
+                    // Prioritize the newer onboarding status, then the lite_api status
+                    phoneStatus = phoneRes.data.marketing_messages_onboarding_status || 
+                                  phoneRes.data.marketing_messages_lite_api_status || 
+                                  'NOT_STARTED';
+
+                    if (typeof phoneStatus === 'object') phoneStatus = phoneStatus.status || 'NOT_STARTED';
+                    
                     console.log(`[MM Lite] Phone Status for ${phoneNumberId}: ${phoneStatus}`);
                 } catch (pe) {
                     console.warn(`[MM Lite] Could not fetch phone-level status: ${pe.message}`);
@@ -451,12 +457,17 @@ class MetaOnboardingService {
     async transitionNumberToMMLite(phoneNumberId, accessToken) {
         try {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId });
-            // Transition endpoint: POST /v21.0/{phone-number-id}/number_transition
-            const response = await axios.post(`${this.graphApiUrl}/${phoneNumberId}/number_transition`, {
-                transition_type: 'MARKETING_MESSAGES_LITE'
+            
+            // New v25.0+ endpoint for Marketing Messages API (transition from Cloud API)
+            // Edge: /marketing_messages
+            // Payload: { "status": "ONBOARDED" }
+            const response = await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, {
+                status: 'ONBOARDED'
             }, {
                 params: { access_token: accessToken }
             });
+            
+            console.log(`[MM Lite] Transition Success for ${phoneNumberId}:`, JSON.stringify(response.data));
             return response.data;
         } catch (error) {
             console.error('MM Lite Number Transition Error:', error.response?.data || error.message);

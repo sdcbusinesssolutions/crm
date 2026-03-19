@@ -72,10 +72,12 @@ const MMLiteOnboarding: React.FC = () => {
             // ELIGIBLE: Can start transition
             // IN_PROGRESS: Transition is happening
             
-            if (result.phone_status === 'ACTIVE') {
+            const isFinished = result.phone_status === 'ACTIVE' || result.phone_status === 'ONBOARDED' || result.mm_lite_status === 'ONBOARDED';
+            
+            if (isFinished) {
                 setCurrentStep(5); // Truly finished
-            } else if (result.mm_lite_status === 'COMPLETED' || result.mm_lite_status === 'ELIGIBLE') {
-                setCurrentStep(3); // Onboarded but needs transition
+            } else if (result.mm_lite_status === 'COMPLETED' || result.mm_lite_status === 'ELIGIBLE' || result.mm_lite_status === 'APPROVED') {
+                setCurrentStep(3); // Onboarded at WABA level, but needs number transition
             } else if (result.mm_lite_status === 'IN_PROGRESS') {
                 setCurrentStep(5); // Special case
             }
@@ -335,10 +337,10 @@ const MMLiteOnboarding: React.FC = () => {
                                         </div>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                                        status.phone_status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 
+                                        (status.phone_status === 'ACTIVE' || status.phone_status === 'ONBOARDED') ? 'bg-green-100 text-green-700' : 
                                         status.mm_lite_status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
                                     }`}>
-                                        {status.phone_status === 'ACTIVE' ? 'ACTIVE' : status.mm_lite_status}
+                                        {(status.phone_status === 'ACTIVE' || status.phone_status === 'ONBOARDED') ? 'ACTIVE' : status.mm_lite_status}
                                     </span>
                                 </div>
                                 {status.phone_status && status.phone_status !== 'UNKNOWN' && (
@@ -367,10 +369,10 @@ const MMLiteOnboarding: React.FC = () => {
                                             Back
                                         </button>
                                         <button 
-                                            onClick={() => setCurrentStep(status.phone_status === 'ACTIVE' ? 5 : 4)}
+                                            onClick={() => setCurrentStep((status.phone_status === 'ACTIVE' || status.phone_status === 'ONBOARDED') ? 5 : 4)}
                                             className="flex-1 py-2.5 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-all shadow-md text-sm"
                                         >
-                                            {status.phone_status === 'ACTIVE' ? 'Proceed to Confirmation' : (status.mm_lite_status === 'COMPLETED' ? 'Proceed to Transition' : 'Continue to Transition')}
+                                            {(status.phone_status === 'ACTIVE' || status.phone_status === 'ONBOARDED') ? 'Proceed to Confirmation' : (status.mm_lite_status === 'COMPLETED' ? 'Proceed to Transition' : 'Continue to Transition')}
                                         </button>
                                     </div>
                                 )}
