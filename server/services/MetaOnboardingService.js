@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v23.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v25.0';
     }
 
     async getSystemSettings(targetDomain = 'clickube.com') {
@@ -374,21 +374,61 @@ class MetaOnboardingService {
     async checkMMLiteEligibility(wabaId, accessToken) {
         try {
             console.log(`[MM Lite] Checking eligibility for WABA: ${wabaId}`);
+            // Fetch both fields for compatibility: new one and old one (which will be deprecated)
+            // Also include owner_business_info to check BM level status
             const response = await axios.get(`${this.graphApiUrl}/${wabaId}`, {
                 params: {
                     access_token: accessToken,
-                    fields: 'marketing_messages_lite_onboarding_status'
+                    fields: 'id,marketing_messages_onboarding_status,marketing_messages_lite_api_status,owner_business_info'
                 }
             });
             console.log(`[MM Lite] Eligibility Response:`, JSON.stringify(response.data));
+
+            // Normalize the status. It can be a string (ONBOARDED/ELIGIBLE) or an object (for BM)
+            let mmStatus = response.data.marketing_messages_onboarding_status || 
+                           response.data.marketing_messages_lite_api_status || 
+                           'NOT_STARTED';
+            
+            // If it's an object, extract the status string
+            if (typeof mmStatus === 'object' && mmStatus !== null) {
+                mmStatus = mmStatus.status || 'NOT_STARTED';
+            }
+
+            // Check BM level if WABA level is not enough
+            let bmStatus = 'NOT_STARTED';
+            if (response.data.owner_business_info?.marketing_messages_onboarding_status) {
+                const bmOnboarding = response.data.owner_business_info.marketing_messages_onboarding_status;
+                bmStatus = typeof bmOnboarding === 'object' ? bmOnboarding.status : bmOnboarding;
+            }
+
             return {
                 id: response.data.id || wabaId,
-                marketing_messages_lite_onboarding_status: response.data.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
+                marketing_messages_onboarding_status: mmStatus,
+                bm_status: bmStatus,
+                // Map to old field for compatibility with existing routes
+                marketing_messages_lite_onboarding_status: mmStatus === 'ONBOARDED' ? 'APPROVED' : mmStatus
             };
         } catch (error) {
             const metaError = error.response?.data?.error;
+            const metaMsg = metaError?.message || error.message;
+            const metaCode = metaError?.code;
+
             console.error('MM Lite Eligibility Check Error:', metaError || error.message);
-            throw new Error('Failed to check MM Lite eligibility: ' + (metaError?.message || error.message));
+
+            // If the field is missing or not available yet, it might return 400
+            // This happens before any onboarding has started.
+            if (error.response?.status === 400 && 
+                (metaMsg.includes('field') || metaMsg.includes('permission') || metaCode === 100)) {
+                console.log('[MM Lite] Field not accessible or missing. Assuming NOT_STARTED.');
+                return {
+                    id: wabaId,
+                    marketing_messages_onboarding_status: 'NOT_STARTED',
+                    bm_status: 'NOT_STARTED',
+                    marketing_messages_lite_onboarding_status: 'NOT_STARTED'
+                };
+            }
+
+            throw new Error('Failed to check MM Lite eligibility: ' + metaMsg);
         }
     }
 

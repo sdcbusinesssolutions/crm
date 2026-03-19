@@ -18,7 +18,7 @@ const { logInboxMessage } = require('../utils/logger');
 
 class WhatsAppService {
     constructor() {
-        this.baseUrl = 'https://graph.facebook.com/v21.0';
+        this.baseUrl = 'https://graph.facebook.com/v25.0';
     }
 
     /**

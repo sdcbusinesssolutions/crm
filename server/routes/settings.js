@@ -1097,7 +1097,8 @@ router.post('/whatsapp/mm-lite/partner-onboard/:id', async (req, res) => {
 
         const result = await MetaOnboardingService.initiateMMLitePartnerOnboarding(
             businessId,
-            config.meta_access_token
+            config.meta_access_token,
+            config.meta_app_id // Use the App ID from DB as solution_id
         );
 
         res.json({ 
@@ -1145,10 +1146,19 @@ router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
                 return res.status(404).json({ error: 'Eligibility data not returned from Meta' });
             }
 
+            // Map Meta statuses to Frontend expected statuses
+            let mappedStatus = eligibility.marketing_messages_onboarding_status || 'NOT_STARTED';
+            if (mappedStatus === 'ONBOARDED') mappedStatus = 'COMPLETED';
+            if (mappedStatus === 'APPROVED') mappedStatus = 'COMPLETED'; // Support old field mapping too
+
             res.json({
                 waba_id: eligibility.id || waba_id,
-                onboarding_status: eligibility.onboarding_status || 'APPROVED',
-                mm_lite_status: eligibility.marketing_messages_lite_onboarding_status || 'NOT_STARTED'
+                onboarding_status: (eligibility.marketing_messages_onboarding_status === 'ONBOARDED' || eligibility.marketing_messages_lite_onboarding_status === 'APPROVED') 
+                                    ? 'APPROVED' 
+                                    : 'PENDING',
+                mm_lite_status: mappedStatus,
+                bm_status: eligibility.bm_status || 'NOT_STARTED',
+                full_eligibility: eligibility
             });
         } catch (serviceError) {
             console.error('MM Lite Service Error:', serviceError.message);
