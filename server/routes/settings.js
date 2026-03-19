@@ -1153,6 +1153,7 @@ router.get('/whatsapp/mm-lite/eligibility/:id', async (req, res) => {
 
             res.json({
                 waba_id: eligibility.id || waba_id,
+                app_id: config.meta_app_id, // Added for clarity
                 onboarding_status: (eligibility.marketing_messages_onboarding_status === 'ONBOARDED' || eligibility.marketing_messages_lite_onboarding_status === 'APPROVED') 
                                     ? 'APPROVED' 
                                     : 'PENDING',

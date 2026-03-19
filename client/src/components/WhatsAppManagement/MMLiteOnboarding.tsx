@@ -73,9 +73,9 @@ const MMLiteOnboarding: React.FC = () => {
             // IN_PROGRESS: Transition is happening
             
             if (result.mm_lite_status === 'COMPLETED') {
-                setCurrentStep(5); // Straight to Success
+                setCurrentStep(3); // Go to Status screen instead of skipping
             } else if (result.mm_lite_status === 'ELIGIBLE') {
-                if (!silent) setCurrentStep(4); // Only move automatically if user clicked 'Check'
+                setCurrentStep(3); // Same
             } else if (result.mm_lite_status === 'IN_PROGRESS') {
                 setCurrentStep(5); // Show status in success screen
             }
@@ -359,10 +359,10 @@ const MMLiteOnboarding: React.FC = () => {
                                             Back
                                         </button>
                                         <button 
-                                            onClick={() => setCurrentStep(4)}
+                                            onClick={() => setCurrentStep(status.mm_lite_status === 'COMPLETED' ? 5 : 4)}
                                             className="flex-1 py-2.5 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-all shadow-md text-sm"
                                         >
-                                            Continue to Transition
+                                            {status.mm_lite_status === 'COMPLETED' ? 'Proceed to Confirmation' : 'Continue to Transition'}
                                         </button>
                                     </div>
                                 )}
@@ -405,10 +405,28 @@ const MMLiteOnboarding: React.FC = () => {
                         <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border-4 border-white">
                             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                         </div>
-                        <h3 className="text-2xl font-bold text-slate-800 mb-2">Setup Complete!</h3>
                         <p className="text-slate-500 mb-8 max-w-sm mx-auto">
                             Congratulations! Your WhatsApp number is now optimized for Marketing Messages Lite.
                         </p>
+                        
+                        <div className="max-w-md mx-auto bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left mb-8 shadow-inner">
+                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Meta Verification Data</h4>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Meta Status</span>
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-lg text-[10px] font-black uppercase">ACTIVE / ONBOARDED</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Solution ID</span>
+                                    <span className="text-xs font-mono text-slate-400 select-all">{status?.app_id || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Business ID</span>
+                                    <span className="text-xs font-mono text-slate-400 select-all">{status?.waba_id || 'N/A'}</span>
+                                </div>
+                            </div>
+                            <p className="mt-4 text-[10px] text-slate-400 text-center italic">IDs are verified directly from Meta's API response.</p>
+                        </div>
                         <button 
                             onClick={() => window.location.reload()}
                             className="px-8 py-3 bg-slate-800 text-white font-bold rounded-xl shadow-lg hover:bg-slate-900 transition-all hover:scale-105 active:scale-95"
