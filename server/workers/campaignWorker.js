@@ -1048,14 +1048,42 @@ class CampaignWorker {
                 return;
             }
 
-            const response = await axios.post(
-                `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
-                payload,
-                {
-                    headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
-                    httpsAgent: httpsAgent
+            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
+            // Use specialized high-performance endpoint for Marketing templates
+            const isMarketingTemplate = templateDef?.category === 'MARKETING' || campaign.template_name?.toLowerCase().includes('mkt');
+            const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
+            const url = `${GRAPH_API_URL}/${config.phone_number_id}/${endpoint}`;
+
+            console.log(`[Worker] Sending via ${endpoint.toUpperCase()} endpoint (Template Category: ${templateDef?.category || 'Unknown'})`);
+
+            let response;
+            try {
+                response = await axios.post(
+                    url,
+                    payload,
+                    {
+                        headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                        httpsAgent: httpsAgent
+                    }
+                );
+            } catch (postErr) {
+                // FALLBACK: If /marketing_messages fails with 'Unknown path' (Error 100), 
+                // it might not be transitioned yet. Fall back to standard /messages.
+                const errData = postErr.response?.data?.error;
+                if (isMarketingTemplate && (errData?.code === 100 || errData?.message?.includes('Unknown path'))) {
+                    console.warn(`[Worker] Fallback: /marketing_messages not ready for ${config.phone_number_id}. Using standard /messages.`);
+                    response = await axios.post(
+                        `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
+                        payload,
+                        {
+                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                            httpsAgent: httpsAgent
+                        }
+                    );
+                } else {
+                    throw postErr; // Re-throw other errors
                 }
-            );
+            }
 
             // LOG SUCCESS RESPONSE
             try {

@@ -103,16 +103,40 @@ class WhatsAppService {
                     throw new Error(`Unsupported message type: ${type}`);
             }
 
-            console.log(`Sending ${type} message to ${to}...`);
-            console.log('Final WhatsApp Payload:', JSON.stringify(body, null, 2));
+            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
+            // Use specialized high-performance endpoint for Marketing templates if onboarded
+            const templateCategory = content?.category || (type === 'template' && content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : null);
+            const isMarketingTemplate = type === 'template' && templateCategory === 'MARKETING';
+            const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
+            const url = `${this.baseUrl}/${fromPhoneId}/${endpoint}`;
 
-            const response = await axios.post(url, body, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                },
-                httpsAgent: httpsAgent
-            });
+            console.log(`[WhatsAppService] Sending via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'})`);
+
+            let response;
+            try {
+                response = await axios.post(url, body, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    httpsAgent: httpsAgent
+                });
+            } catch (postErr) {
+                // FALLBACK: If /marketing_messages not ready, use standard /messages
+                const errData = postErr.response?.data?.error;
+                if (isMarketingTemplate && (errData?.code === 100 || errData?.message?.includes('Unknown path'))) {
+                    console.warn(`[WhatsAppService] Fallback: /marketing_messages not ready for ${fromPhoneId}.`);
+                    response = await axios.post(`${this.baseUrl}/${fromPhoneId}/messages`, body, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        httpsAgent: httpsAgent
+                    });
+                } else {
+                    throw postErr; // Re-throw real errors
+                }
+            }
 
             console.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
