@@ -18,7 +18,8 @@ const { logInboxMessage } = require('../utils/logger');
 
 class WhatsAppService {
     constructor() {
-        this.baseUrl = 'https://graph.facebook.com/v25.0';
+        this.version = 'v21.0';
+        this.baseUrl = `https://graph.facebook.com/${this.version}`;
     }
 
     /**
@@ -101,16 +102,15 @@ class WhatsAppService {
                     break;
                 default:
                     throw new Error(`Unsupported message type: ${type}`);
-            }
-
-            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
-            // Use specialized high-performance endpoint for Marketing templates if onboarded
-            const templateCategory = content?.category || (type === 'template' && content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : null);
+            }            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
+            // Determine if we should use the specialized high-performance endpoint.
+            // We prioritize the MM Lite endpoint for templates if they are categorized as MARKETING.
+            const templateCategory = content?.category || (type === 'template' && (content?.name?.toLowerCase().includes('mkt') || content?.name?.toLowerCase().includes('devk')) ? 'MARKETING' : null);
             const isMarketingTemplate = type === 'template' && templateCategory === 'MARKETING';
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${this.baseUrl}/${fromPhoneId}/${endpoint}`;
 
-            console.log(`[WhatsAppService] Sending via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'})`);
+            console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'})`);
 
             let response;
             try {
@@ -122,10 +122,13 @@ class WhatsAppService {
                     httpsAgent: httpsAgent
                 });
             } catch (postErr) {
-                // FALLBACK: If /marketing_messages not ready, use standard /messages
                 const errData = postErr.response?.data?.error;
-                if (isMarketingTemplate && (errData?.code === 100 || errData?.message?.includes('Unknown path'))) {
-                    console.warn(`[WhatsAppService] Fallback: /marketing_messages not ready for ${fromPhoneId}.`);
+                console.warn(`[WhatsAppService] ${endpoint.toUpperCase()} call failed: ${errData?.message || postErr.message}`);
+
+                // FALLBACK: If using marketing_messages endpoint and it fails for ANY reason (not ready, permissions, etc.), 
+                // we fall back to the standard /messages endpoint to ensure the user receives the message.
+                if (endpoint === 'marketing_messages') {
+                    console.log(`[WhatsAppService] Fallback: Retrying with standard MESSAGES endpoint...`);
                     response = await axios.post(`${this.baseUrl}/${fromPhoneId}/messages`, body, {
                         headers: {
                             'Authorization': `Bearer ${accessToken}`,
@@ -134,7 +137,8 @@ class WhatsAppService {
                         httpsAgent: httpsAgent
                     });
                 } else {
-                    throw postErr; // Re-throw real errors
+                    // If it was already the standard endpoint, we throw the error.
+                    throw postErr;
                 }
             }
 

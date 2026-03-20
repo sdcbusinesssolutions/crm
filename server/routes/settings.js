@@ -1202,8 +1202,12 @@ router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
             return res.status(400).json({ error: 'Incomplete configuration' });
         }
 
-        // 2. Transition Number via Service
-        const result = await MetaOnboardingService.transitionNumberToMMLite(phone_id, accessToken);
+        // 2. Transition Number via Service (Using Meta Partner Onboarding API)
+        const result = await MetaOnboardingService.transitionNumberToMMLite(
+            phone_id, 
+            accessToken, 
+            config.whatsapp_business_account_id
+        );
 
         res.json({
             success: true,

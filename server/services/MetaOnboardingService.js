@@ -454,24 +454,71 @@ class MetaOnboardingService {
         }
     }
 
-    async transitionNumberToMMLite(phoneNumberId, accessToken) {
+    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null) {
         try {
-            logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId });
+            logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
-            // New v25.0+ endpoint for Marketing Messages API (transition from Cloud API)
-            // Edge: /marketing_messages
-            // Payload: { "status": "ONBOARDED" }
-            const response = await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, {
-                status: 'ONBOARDED'
-            }, {
-                params: { access_token: accessToken }
-            });
+            // 1. Resolve Meta Business ID (Required for the correct Meta partner endpoint)
+            let businessId = null;
+            if (wabaId) {
+                console.log(`[MM Lite] Resolving Business ID for Transition (WABA: ${wabaId})`);
+                const wabaInfo = await this.getWabaInfo(wabaId, accessToken);
+                if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
+                    businessId = wabaInfo.owner_business_info.id;
+                    console.log(`[MM Lite] Resolved Business ID ${businessId} for transition.`);
+                }
+            }
+
+            if (!businessId) {
+                // FALLBACK: Try to find WABA ID from the phone number if not provided
+                console.log(`[MM Lite] WABA ID not provided, fetching from phone ID ${phoneNumberId}`);
+                const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
+                    params: { access_token: accessToken, fields: 'whatsapp_business_account' }
+                });
+                const resolvedWabaId = phoneRes.data.whatsapp_business_account?.id;
+                if (resolvedWabaId) {
+                    const wabaInfo = await this.getWabaInfo(resolvedWabaId, accessToken);
+                    businessId = wabaInfo.owner_business_info?.id;
+                }
+            }
+
+            if (!businessId) {
+                throw new Error('Could not resolve Meta Business ID. Ensure permissions are granted.');
+            }
+
+            // 2. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)
+            // This endpoint creates the business agreement and sets mobility intents.
+            const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
             
-            console.log(`[MM Lite] Transition Success for ${phoneNumberId}:`, JSON.stringify(response.data));
+            const params = {
+                access_token: accessToken
+            };
+
+            // Meta documentation specifies data: {} (empty body) for this POST call
+            const response = await axios.post(url, {}, { params });
+            
+            console.log(`[MM Lite] Transition Success (Request ID: ${response.data.request_id})`);
+            logOnboardingEvent('TRANSITION_MMLITE_SUCCESS', { phoneNumberId, requestId: response.data.request_id });
             return response.data;
         } catch (error) {
-            console.error('MM Lite Number Transition Error:', error.response?.data || error.message);
-            throw new Error('Failed to transition number to MM Lite: ' + (error.response?.data?.error?.message || error.message));
+            const metaError = error.response?.data?.error;
+            const metaMsg = metaError?.message || error.message;
+            const errorCode = metaError?.code;
+
+            console.error('MM Lite Number Transition Error:', metaError || error.message);
+
+            // Special case: Client already onboarded at business level (error code 136031)
+            // This is actually a success state for us.
+            if (errorCode === 136031 || metaMsg.includes('136031')) {
+                console.log(`[MM Lite] Client already onboarded for ${phoneNumberId}. Proceeding as success.`);
+                return { 
+                    success: true, 
+                    already_onboarded: true, 
+                    message: 'Client already onboarded at business level.' 
+                };
+            }
+
+            throw new Error('Failed to transition number to MM Lite: ' + metaMsg);
         }
     }
 }
