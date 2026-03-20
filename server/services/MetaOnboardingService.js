@@ -487,17 +487,30 @@ class MetaOnboardingService {
             }
 
             // 2. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)
-            // This endpoint creates the business agreement and sets mobility intents.
             const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
+            const params = { access_token: accessToken };
             
-            const params = {
-                access_token: accessToken
-            };
-
-            // Meta documentation specifies data: {} (empty body) for this POST call
+            console.log(`[MM Lite] Calling Business Onboarding API: ${url}`);
             const response = await axios.post(url, {}, { params });
+            console.log(`[MM Lite] Business Onboarding Success (Request ID: ${response.data.request_id})`);
+
+            // 3. SECONDARY STEP: Set Phone-Level Status to ONBOARDED
+            // For some partners, after the business agreement, the phone needs an explicit activation signal
+            // on the /marketing_messages edge to enable the high-performance throughput.
+            try {
+                console.log(`[MM Lite] Activating Phone Edge for ${phoneNumberId}...`);
+                await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, {
+                    messaging_product: 'whatsapp',
+                    status: 'ONBOARDED'
+                }, { params });
+                console.log(`[MM Lite] Phone Edge Activated for ${phoneNumberId}.`);
+            } catch (phoneErr) {
+                // If it fails with "Param status must be one of {READ}" or already onboarded, ignore it 
+                // as the business-level call (Step 2) is the primary one.
+                console.log(`[MM Lite] Phone Activation Hint: ${phoneErr.response?.data?.error?.message || phoneErr.message}`);
+                // Proceed anyway as business onboarding was successful.
+            }
             
-            console.log(`[MM Lite] Transition Success (Request ID: ${response.data.request_id})`);
             logOnboardingEvent('TRANSITION_MMLITE_SUCCESS', { phoneNumberId, requestId: response.data.request_id });
             return response.data;
         } catch (error) {
