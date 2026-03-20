@@ -56,7 +56,7 @@ class WhatsAppService {
             const fromPhoneId = config.phone_number_id;
             const accessToken = config.meta_access_token;
 
-            const url = `${this.baseUrl}/${fromPhoneId}/messages`;
+
 
             const body = {
                 messaging_product: 'whatsapp',
@@ -158,8 +158,8 @@ class WhatsAppService {
             } catch (e) { }
 
             // --- LOG TO FILE (INBOX LOGGER) ---
+
             try {
-                const { logInboxMessage } = require('../utils/logger');
                 logInboxMessage('OUT_MESSAGE', {
                     from: fromPhone,
                     to: to,
