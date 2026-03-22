@@ -23,13 +23,11 @@ class MetaOnboardingService {
         this.graphApiUrl = 'https://graph.facebook.com/v25.0';
     }
 
-    async getSystemSettings(targetDomain = 'clickube.com') {
+    async getSystemSettings(targetDomain) {
         if (!supabaseAdmin) {
             console.error('MetaOnboardingService: Cannot fetch settings. Supabase Admin client not initialized.');
             throw new Error('System configuration error: Database connection not available.');
         }
-
-        console.log(`[MetaService] Fetching ID for domain: ${targetDomain}`);
 
         let { data, error } = await supabaseAdmin
             .from('onboarding_settings')
@@ -39,29 +37,14 @@ class MetaOnboardingService {
             .single();
 
         if (error || !data) {
-            console.warn(`[MetaService] No settings found for ${targetDomain}. Trying fallback to master (clickube.com).`);
-
-            // Fallback to Master Domain (Inheritance)
-            const { data: masterData, error: masterError } = await supabaseAdmin
-                .from('onboarding_settings')
-                .select('*')
-                .eq('user_id', 'system')
-                .eq('domain', 'clickube.com')
-                .single();
-
-            if (masterError || !masterData) {
-                // Both missing
-                throw new Error(`System onboarding settings not configured for ${targetDomain} or master.`);
-            }
-
-            console.log(`[MetaService] Using master settings for ${targetDomain}`);
-            return masterData;
+            console.warn(`[MetaService] No settings found for domain: ${targetDomain}.`);
+            return null;
         }
 
         return data;
     }
 
-    async getWabas(accessToken, targetDomain = 'clickube.com') {
+    async getWabas(accessToken, targetDomain) {
         try {
             logOnboardingEvent('FETCH_WABAS_START', { accessToken: accessToken ? '***' : 'missing' });
             // 1. Try standard edge
@@ -331,7 +314,7 @@ class MetaOnboardingService {
             return null;
         }
     }
-    async initiateMMLitePartnerOnboarding(businessId, accessToken, solutionId = null, targetDomain = 'clickube.com') {
+    async initiateMMLitePartnerOnboarding(businessId, accessToken, solutionId = null, targetDomain) {
         try {
             logOnboardingEvent('MMLITE_PARTNER_ONBOARD_START', { businessId, solutionId });
             
@@ -474,7 +457,7 @@ class MetaOnboardingService {
         }
     }
 
-    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null, targetDomain = 'clickube.com') {
+    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null, targetDomain) {
         try {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
@@ -538,10 +521,13 @@ class MetaOnboardingService {
             // on the /marketing_messages edge to enable the high-performance throughput.
             try {
                 console.log(`[MM Lite] Activating Phone Edge for ${phoneNumberId}...`);
-                await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, {
+                const phoneBody = {
                     messaging_product: 'whatsapp',
                     status: 'ONBOARDED'
-                }, { params });
+                };
+                if (partnerAppId) phoneBody.solution_id = partnerAppId;
+
+                await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, phoneBody, { params });
                 console.log(`[MM Lite] Phone Edge Activated for ${phoneNumberId}.`);
             } catch (phoneErr) {
                 // If it fails with "Param status must be one of {READ}" or already onboarded, ignore it 

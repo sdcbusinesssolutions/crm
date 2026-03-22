@@ -1,29 +1,22 @@
+const { supabaseAdmin } = require('./lib/supabaseClient');
 
-const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
-
-if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing Supabase credentials');
-    process.exit(1);
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-async function checkSettings() {
-    const { data, error } = await supabase
+async function check() {
+    console.log('Checking onboarding_settings...');
+    const { data, error } = await supabaseAdmin
         .from('onboarding_settings')
-        .select('*')
-        .eq('user_id', 'system');
-
+        .select('*');
+    
     if (error) {
-        console.error('Error:', error);
+        console.error('Error fetching settings:', error);
+        return;
+    }
+    
+    if (data.length === 0) {
+        console.log('No onboarding settings found in database.');
     } else {
-        console.log('Onboarding Settings:', JSON.stringify(data, null, 2));
+        console.log('Found Settings:');
+        console.log(JSON.stringify(data, null, 2));
     }
 }
 
-checkSettings();
+check();
