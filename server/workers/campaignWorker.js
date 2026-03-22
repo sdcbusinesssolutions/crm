@@ -444,7 +444,7 @@ class CampaignWorker {
         // Get Config (WABA, Token)
         const { data: config } = await this.supabase
             .from('whatsapp_config')
-            .select('phone_number_id, meta_access_token, whatsapp_business_account_id, phone_number')
+            .select('phone_number_id, meta_access_token, whatsapp_business_account_id, phone_number, meta_app_id')
             .eq('user_id', campaign.user_id)
             .single();
 
@@ -1050,11 +1050,19 @@ class CampaignWorker {
 
             // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Use specialized high-performance endpoint for Marketing templates
-            const isMarketingTemplate = templateDef?.category === 'MARKETING' || campaign.template_name?.toLowerCase().includes('mkt');
+            const isMarketingTemplate = templateDef?.category === 'MARKETING' || 
+                                      campaign.template_name?.toLowerCase().includes('mkt') ||
+                                      campaign.template_name?.toLowerCase().includes('devk');
+            
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${GRAPH_API_URL}/${config.phone_number_id}/${endpoint}`;
 
-            console.log(`[Worker] Sending via ${endpoint.toUpperCase()} endpoint (Template Category: ${templateDef?.category || 'Unknown'})`);
+            // --- PARTNER ATTRIBUTION (MM LITE ONLY) ---
+            if (isMarketingTemplate && config.meta_app_id) {
+                payload.solution_id = config.meta_app_id;
+            }
+
+            console.log(`[Worker] Sending via ${endpoint.toUpperCase()} endpoint (Template Category: ${templateDef?.category || 'Unknown'}${payload.solution_id ? ', Solution: ' + payload.solution_id : ''})`);
 
             let response;
             try {
@@ -1072,9 +1080,13 @@ class CampaignWorker {
                 const errData = postErr.response?.data?.error;
                 if (isMarketingTemplate && (errData?.code === 100 || errData?.message?.includes('Unknown path'))) {
                     console.warn(`[Worker] Fallback: /marketing_messages not ready for ${config.phone_number_id}. Using standard /messages.`);
+                    
+                    const fallbackPayload = { ...payload };
+                    delete fallbackPayload.solution_id;
+
                     response = await axios.post(
                         `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
-                        payload,
+                        fallbackPayload,
                         {
                             headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
                             httpsAgent: httpsAgent

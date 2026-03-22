@@ -110,7 +110,12 @@ class WhatsAppService {
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${this.baseUrl}/${fromPhoneId}/${endpoint}`;
 
-            console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'})`);
+            // --- PARTNER ATTRIBUTION (MM LITE ONLY) ---
+            if (isMarketingTemplate && config.meta_app_id) {
+                body.solution_id = config.meta_app_id;
+            }
+
+            console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'}${body.solution_id ? ', Solution: ' + body.solution_id : ''})`);
 
             let response;
             try {
@@ -129,7 +134,12 @@ class WhatsAppService {
                 // we fall back to the standard /messages endpoint to ensure the user receives the message.
                 if (endpoint === 'marketing_messages') {
                     console.log(`[WhatsAppService] Fallback: Retrying with standard MESSAGES endpoint...`);
-                    response = await axios.post(`${this.baseUrl}/${fromPhoneId}/messages`, body, {
+                    // Note: We remove solution_id for regular /messages endpoint if it causes issues, 
+                    // though usually it's ignored. Meta docs say it's for MM Lite.
+                    const fallbackBody = { ...body };
+                    delete fallbackBody.solution_id;
+
+                    response = await axios.post(`${this.baseUrl}/${fromPhoneId}/messages`, fallbackBody, {
                         headers: {
                             'Authorization': `Bearer ${accessToken}`,
                             'Content-Type': 'application/json'
