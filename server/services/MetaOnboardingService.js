@@ -511,37 +511,17 @@ class MetaOnboardingService {
                 console.log(`[MM Lite] Using System Partner App ID: ${partnerAppId}`);
             }
 
-            // 3. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)
-            const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
-            const params = { access_token: partnerAccessToken };
-            
-            const body = {};
-            if (partnerAppId) body.solution_id = partnerAppId;
+            const params = { access_token: accessToken }; // Use client's token for WABA-level status update
+            // Official Meta Transition: POST to WABA ID with marketing_messages_onboarding_status=ONBOARDED
+            const wabaBody = {
+                marketing_messages_onboarding_status: 'ONBOARDED'
+            };
+            if (partnerAppId) wabaBody.solution_id = partnerAppId;
 
-            console.log(`[MM Lite] Calling Business Onboarding API: ${url} with solution_id: ${partnerAppId}`);
-            throw new Error(`DEBUG: URL=${url}, solutionId=${partnerAppId}, tokenPresent=${!!partnerAccessToken}`);
-            const response = await axios.post(url, body, { params });
-            console.log(`[MM Lite] Business Onboarding Success (Request ID: ${response.data.request_id})`);
-
-            // 3. SECONDARY STEP: Set Phone-Level Status to ONBOARDED
-            // For some partners, after the business agreement, the phone needs an explicit activation signal
-            // on the /marketing_messages edge to enable the high-performance throughput.
-            try {
-                console.log(`[MM Lite] Activating Phone Edge for ${phoneNumberId}...`);
-                const phoneBody = {
-                    messaging_product: 'whatsapp',
-                    status: 'ONBOARDED'
-                };
-                if (partnerAppId) phoneBody.solution_id = partnerAppId;
-
-                await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, phoneBody, { params });
-                console.log(`[MM Lite] Phone Edge Activated for ${phoneNumberId}.`);
-            } catch (phoneErr) {
-                // If it fails with "Param status must be one of {READ}" or already onboarded, ignore it 
-                // as the business-level call (Step 2) is the primary one.
-                console.log(`[MM Lite] Phone Activation Hint: ${phoneErr.response?.data?.error?.message || phoneErr.message}`);
-                // Proceed anyway as business onboarding was successful.
-            }
+            console.log(`[MM Lite] Transitioning WABA ${wabaId} to ONBOARDED with solution_id: ${partnerAppId} using client token...`);
+            const transitionUrl = `${this.graphApiUrl}/${wabaId}`; 
+            const response = await axios.post(transitionUrl, wabaBody, { params });
+            console.log(`[MM Lite] WABA Transition Success (Request ID: ${response.data.request_id || 'N/A'}).`);
             
             logOnboardingEvent('TRANSITION_MMLITE_SUCCESS', { phoneNumberId, requestId: response.data.request_id });
             return response.data;
