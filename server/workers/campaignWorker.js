@@ -1051,8 +1051,7 @@ class CampaignWorker {
             // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Use specialized high-performance endpoint for Marketing templates
             const isMarketingTemplate = templateDef?.category === 'MARKETING' || 
-                                      campaign.template_name?.toLowerCase().includes('mkt') ||
-                                      campaign.template_name?.toLowerCase().includes('devk');
+                                      campaign.template_name?.toLowerCase().includes('mkt');
             
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${GRAPH_API_URL}/${config.phone_number_id}/${endpoint}`;

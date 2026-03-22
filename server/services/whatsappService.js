@@ -105,7 +105,7 @@ class WhatsAppService {
             }            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Determine if we should use the specialized high-performance endpoint.
             // We prioritize the MM Lite endpoint for templates if they are categorized as MARKETING.
-            const templateCategory = content?.category || (type === 'template' && (content?.name?.toLowerCase().includes('mkt') || content?.name?.toLowerCase().includes('devk')) ? 'MARKETING' : null);
+            const templateCategory = content?.category || (type === 'template' && content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : null);
             const isMarketingTemplate = type === 'template' && templateCategory === 'MARKETING';
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${this.baseUrl}/${fromPhoneId}/${endpoint}`;
