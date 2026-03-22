@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v25.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v19.0';
     }
 
     async getSystemSettings(targetDomain) {
@@ -457,7 +457,7 @@ class MetaOnboardingService {
         }
     }
 
-    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null, targetDomain) {
+    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null, targetDomain, metaAppId = null) {
         try {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
@@ -486,6 +486,11 @@ class MetaOnboardingService {
             }
 
             if (!businessId) {
+                console.warn(`[MM Lite] Using provided WABA ID ${wabaId || resolvedWabaId} as fallback for Business ID.`);
+                businessId = wabaId || resolvedWabaId;
+            }
+
+            if (!businessId) {
                 throw new Error('Could not resolve Meta Business ID. Ensure permissions are granted.');
             }
 
@@ -500,9 +505,11 @@ class MetaOnboardingService {
             }
 
             // 3. Resolve Solution ID for the Transition
-            let partnerAppId = null;
+            // Priority: System Settings for Domain -> Passed metaAppId -> Fallback
+            let partnerAppId = metaAppId;
             if (systemSettings && systemSettings.embedded_app_id) {
                 partnerAppId = systemSettings.embedded_app_id;
+                console.log(`[MM Lite] Using System Partner App ID: ${partnerAppId}`);
             }
 
             // 3. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)

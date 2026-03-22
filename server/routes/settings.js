@@ -1233,7 +1233,8 @@ router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
             phone_id, 
             accessToken, 
             config.whatsapp_business_account_id,
-            targetDomain
+            targetDomain,
+            config.meta_app_id
         );
 
         res.json({
