@@ -337,15 +337,30 @@ class MetaOnboardingService {
             
             const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
             
-            const params = {
-                access_token: accessToken
-            };
-            
-            if (solutionId) {
-                params.solution_id = solutionId;
+            // 1. Resolve Master System User Token (SUAT) for the Partner call
+            // Meta guidelines: Partners must use a System User Access Token for the App to call the Intent API
+            let partnerAccessToken = accessToken; // Default to client token as fallback
+            try {
+                const systemSettings = await this.getSystemSettings();
+                if (systemSettings && systemSettings.meta_access_token) {
+                    partnerAccessToken = systemSettings.meta_access_token;
+                    console.log(`[MM Lite] Using Partner System User Token for onboarding call.`);
+                }
+            } catch (settingsError) {
+                console.warn(`[MM Lite] Could not fetch system settings: ${settingsError.message}. Falling back to client token.`);
             }
 
-            const response = await axios.post(url, {}, { params });
+            const params = {
+                access_token: partnerAccessToken
+            };
+            
+            const body = {};
+            if (solutionId) {
+                body.solution_id = solutionId;
+            }
+
+            // Meta documentation specifies the solution_id should be in the request BODY
+            const response = await axios.post(url, body, { params });
             
             logOnboardingEvent('MMLITE_PARTNER_ONBOARD_SUCCESS', { businessId, requestId: response.data.request_id });
             return response.data;
@@ -486,9 +501,22 @@ class MetaOnboardingService {
                 throw new Error('Could not resolve Meta Business ID. Ensure permissions are granted.');
             }
 
-            // 2. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)
+            // 2. Resolve Master System User Token (SUAT) for the Partner call
+            // Meta guidelines: Partners must use a System User Access Token for the App to call the Intent API
+            let partnerAccessToken = accessToken; // Default to client token as fallback
+            try {
+                const systemSettings = await this.getSystemSettings();
+                if (systemSettings && systemSettings.meta_access_token) {
+                    partnerAccessToken = systemSettings.meta_access_token;
+                    console.log(`[MM Lite] Using Partner System User Token for onboarding call.`);
+                }
+            } catch (settingsError) {
+                console.warn(`[MM Lite] Could not fetch system settings: ${settingsError.message}. Falling back to client token.`);
+            }
+
+            // 3. Call the official Partner Onboarding API (POST /{Business-ID}/onboard_partners_to_mm_lite)
             const url = `${this.graphApiUrl}/${businessId}/onboard_partners_to_mm_lite`;
-            const params = { access_token: accessToken };
+            const params = { access_token: partnerAccessToken };
             
             console.log(`[MM Lite] Calling Business Onboarding API: ${url}`);
             const response = await axios.post(url, {}, { params });
