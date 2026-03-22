@@ -1,5 +1,5 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData } from '../types';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData, NotifyData } from '../types';
 import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon, RobotIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
@@ -1656,6 +1656,137 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
                 )}
 
                 <ResponseHandlingFields data={data} onUpdate={handleUpdate} />
+            </div>
+        </SettingsModal>
+    );
+};
+
+const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+    const { data } = selectedNode;
+    const handleUpdate = (update: Partial<NotifyData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
+    const { showNotification } = React.useContext(SettingsContext);
+
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedTemplateObj, setSelectedTemplateObj] = useState<any>(null);
+    const [detectedVariables, setDetectedVariables] = useState<string[]>([]);
+
+    // Fetch Templates (Similar to TemplateMessageSettingsPanel)
+    React.useEffect(() => {
+        const fetchTemplates = async () => {
+            setLoading(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) return;
+                const res = await fetch('/api/whatsapp/templates', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    setTemplates(json.data || []);
+                }
+            } catch (e) {
+                console.error('Error fetching templates:', e);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchTemplates();
+    }, []);
+
+    React.useEffect(() => {
+        if (!data.templateId || templates.length === 0) return;
+        const tpl = templates.find(t => t.id === data.templateId);
+        if (tpl) {
+            setSelectedTemplateObj(tpl);
+            parseTemplate(tpl);
+        }
+    }, [data.templateId, templates]);
+
+    const parseTemplate = (tpl: any) => {
+        const variables: string[] = [];
+        tpl.components.forEach((comp: any) => {
+            if (comp.type === 'BODY') {
+                const text = comp.text || '';
+                const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
+                if (matches) matches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+            }
+        });
+        setDetectedVariables([...new Set(variables)]);
+    };
+
+    return (
+        <SettingsModal title="Notify Settings" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables}>
+            <div className="space-y-6">
+                <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notify Mobile Numbers</label>
+                    <PanelTextInput 
+                        value={data.mobileNumbers || ''} 
+                        onChange={val => handleUpdate({ mobileNumbers: val })} 
+                        placeholder="e.g. 919876543210, 918877665544" 
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Comma-separated phone numbers with country code.</p>
+                </div>
+
+                <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notification Type</label>
+                    <PanelSelect 
+                        value={data.notificationType || 'Text'} 
+                        onChange={val => handleUpdate({ notificationType: val as any })} 
+                        options={['Text', 'Template']} 
+                    />
+                </div>
+
+                {data.notificationType === 'Text' ? (
+                    <div className="animate-fade-in bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message Content</label>
+                        <PanelTextarea 
+                            value={data.message || ''} 
+                            onChange={val => handleUpdate({ message: val })} 
+                            placeholder="Type your notification message..." 
+                            rows={4} 
+                            availableVariables={availableVariables}
+                        />
+                    </div>
+                ) : (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Template</label>
+                            <PanelSelect
+                                value={data.templateId || ''}
+                                onChange={(val) => {
+                                    const tpl = templates.find(t => t.id === val);
+                                    if (tpl) {
+                                        handleUpdate({
+                                            templateId: tpl.id,
+                                            templateName: tpl.name,
+                                            language: tpl.language,
+                                            variableMapping: {},
+                                        });
+                                    }
+                                }}
+                                options={[{ label: 'Select a template...', value: '' }, ...templates.filter(t => t.status === 'APPROVED').map(t => ({ label: `${t.name} (${t.language})`, value: t.id }))]}
+                            />
+                        </div>
+
+                        {detectedVariables.length > 0 && (
+                            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 space-y-3">
+                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Variable Mapping</label>
+                                {detectedVariables.map(v => (
+                                    <div key={v}>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{`{{${v}}}`}</label>
+                                        <PanelTextInput
+                                            value={data.variableMapping?.[v] || ''}
+                                            onChange={(val) => handleUpdate({ variableMapping: { ...data.variableMapping, [v]: val } })}
+                                            placeholder={`Value for {{${v}}}`}
+                                            availableVariables={availableVariables}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </SettingsModal>
     );
@@ -4162,6 +4293,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.Code: return <CodeSettingsPanel {...commonProps} />;
             case NodeType.SheetTrigger: return <SheetTriggerSettingsPanel {...commonProps} />;
             case NodeType.AIAgent: return <AIAgentSettingsPanel {...commonProps} />;
+            case NodeType.Notify: return <NotifySettingsPanel {...commonProps} />;
             default: return <TextMessageSettingsPanel {...commonProps} />;
         }
     };

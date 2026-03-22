@@ -1,6 +1,6 @@
 
 import React, { useState, KeyboardEvent, ReactNode } from 'react';
-import { Node, NodeType, AnyNodeData, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, NewLeadData, ContactPipelineData, GmailData, AIAgentData, SmtpData } from '../types';
+import { Node, NodeType, AnyNodeData, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, NewLeadData, ContactPipelineData, GmailData, AIAgentData, SmtpData, NotifyData } from '../types';
 import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, UsersIcon, GmailIcon, RobotIcon } from './icons';
 
 interface NodeProps { node: Node; isConnecting: boolean; connectingSourceNodeId: string | null; onNodeDragStart: (e: React.MouseEvent, nodeId: string) => void; onNodeTouchStart: (e: React.TouchEvent, nodeId: string) => void; onUpdateNode: (nodeId: string, data: AnyNodeData) => void; onDeleteNode: (nodeId: string) => void; onDuplicateNode: (nodeId: string) => void; onSourceHandleMouseDown: (e: React.MouseEvent, nodeId: string, handleId: string) => void; onSourceHandleTouchStart: (e: React.TouchEvent, nodeId: string, handleId: string) => void; onNodeSettingsClick: (nodeId: string) => void; onNodeClick: (nodeId: string) => void; onNodeMouseUp: (nodeId: string) => void; }
@@ -285,7 +285,7 @@ const AskInputNodeUI: React.FC<InteractiveNodeUIProps<AskInputData>> = ({ node, 
 };
 
 
-const CUSTOM_HANDLE_NODES = [NodeType.ListMessage, NodeType.QuickReplyMessage, NodeType.AskAnything, NodeType.AskInput, NodeType.CheckCondition, NodeType.SendFlow, NodeType.Switch, NodeType.NewLead, NodeType.TemplateMessage, NodeType.Gmail, NodeType.Smtp];
+const CUSTOM_HANDLE_NODES = [NodeType.ListMessage, NodeType.QuickReplyMessage, NodeType.AskAnything, NodeType.AskInput, NodeType.CheckCondition, NodeType.SendFlow, NodeType.Switch, NodeType.NewLead, NodeType.TemplateMessage, NodeType.Gmail, NodeType.Smtp, NodeType.Notify];
 const CallApiNodeUI: React.FC<NodeUIProps<CallApiData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick }) => {
   const { data } = node;
   const handleDataChange = (key: keyof CallApiData, value: any) => onUpdateNode(node.id, { ...data, [key]: value });
@@ -596,11 +596,47 @@ const SmtpNodeUI: React.FC<InteractiveNodeUIProps<SmtpData>> = ({ node, onUpdate
   );
 };
 
+const NotifyNodeUI: React.FC<InteractiveNodeUIProps<NotifyData>> = ({ node, onUpdateNode, onDeleteNode, onDuplicateNode, onSettingsClick, onSourceHandleMouseDown, onSourceHandleTouchStart }) => {
+  const { data } = node;
+  const handleDataChange = (key: keyof NotifyData, value: any) => onUpdateNode(node.id, { ...data, [key]: value });
+
+  return (
+    <NodeContainer color="amber" className="group">
+      <NodeHeader color="amber" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<UsersIcon className="w-4 h-4" />} />
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+          <div className="space-y-1">
+            <span className="font-bold text-slate-500 uppercase block text-[10px]">Notify Numbers</span>
+            <div className="text-xs text-slate-300 truncate font-mono">{data.mobileNumbers || <span className="text-slate-600 italic">No numbers</span>}</div>
+          </div>
+          <div className="space-y-1">
+            <span className="font-bold text-slate-500 uppercase block text-[10px]">Type</span>
+            <div className="text-xs text-slate-300 font-medium">{data.notificationType || 'Text'}</div>
+          </div>
+          {data.notificationType === 'Template' && data.templateName && (
+            <div className="space-y-1 pt-1 border-t border-slate-800">
+              <span className="font-bold text-slate-500 uppercase block text-[10px]">Template</span>
+              <div className="text-xs text-slate-300 truncate font-medium">{data.templateName}</div>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
+            <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wide">Next Step</span>
+            <div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
+          </div>
+        </div>
+      </div>
+    </NodeContainer>
+  );
+};
+
 const NodeComponent: React.FC<NodeProps> = ({ node, isConnecting, connectingSourceNodeId, onNodeDragStart, onNodeTouchStart, onUpdateNode, onDeleteNode, onDuplicateNode, onSourceHandleMouseDown, onSourceHandleTouchStart, onNodeSettingsClick, onNodeClick, onNodeMouseUp }) => {
   const nodeStyles = { left: `${node.position.x}px`, top: `${node.position.y}px` };
   const renderNodeUI = () => {
     const props = { node: node as any, onUpdateNode: onUpdateNode as any, onDeleteNode, onDuplicateNode, onSettingsClick: () => onNodeSettingsClick(node.id), onSourceHandleMouseDown, onSourceHandleTouchStart };
-    switch (node.type) { case NodeType.OnMessage: return <OnMessageNodeUI {...props} />; case NodeType.MediaMessage: return <MediaMessageNodeUI {...props} />; case NodeType.SetWebhook: return <SetWebhookNodeUI {...props} />; case NodeType.WriteAttribute: return <WriteAttributeNodeUI {...props} />; case NodeType.AskAnything: return <AskAnythingNodeUI {...props} />; case NodeType.AskInput: return <AskInputNodeUI {...props} />; case NodeType.ListMessage: return <ListMessageNodeUI {...props} />; case NodeType.CTAMessage: return <CTAMessageNodeUI {...props} />; case NodeType.QuickReplyMessage: return <QuickReplyMessageNodeUI {...props} />; case NodeType.CheckCondition: return <CheckConditionNodeUI {...props} />; case NodeType.Switch: return <SwitchNodeUI {...props} />; case NodeType.SendFlow: return <SendFlowNodeUI {...props} />; case NodeType.CallApi: return <CallApiNodeUI {...props} />; case NodeType.TemplateMessage: return <TemplateMessageNodeUI {...props} />; case NodeType.ManageTags: return <ManageTagsNodeUI {...props} />; case NodeType.ManageGroups: return <ManageGroupsNodeUI {...props} />; case NodeType.NewLead: return <NewLeadNodeUI {...props} />; case NodeType.ContactPipeline: return <ContactPipelineNodeUI {...props} />; case NodeType.Gmail: return <GmailNodeUI {...props} />; case NodeType.Smtp: return <SmtpNodeUI {...props} />; default: return <GenericNodeUI {...props} />; }
+    switch (node.type) { case NodeType.OnMessage: return <OnMessageNodeUI {...props} />; case NodeType.MediaMessage: return <MediaMessageNodeUI {...props} />; case NodeType.SetWebhook: return <SetWebhookNodeUI {...props} />; case NodeType.WriteAttribute: return <WriteAttributeNodeUI {...props} />; case NodeType.AskAnything: return <AskAnythingNodeUI {...props} />; case NodeType.AskInput: return <AskInputNodeUI {...props} />; case NodeType.ListMessage: return <ListMessageNodeUI {...props} />; case NodeType.CTAMessage: return <CTAMessageNodeUI {...props} />; case NodeType.QuickReplyMessage: return <QuickReplyMessageNodeUI {...props} />; case NodeType.CheckCondition: return <CheckConditionNodeUI {...props} />; case NodeType.Switch: return <SwitchNodeUI {...props} />; case NodeType.SendFlow: return <SendFlowNodeUI {...props} />; case NodeType.CallApi: return <CallApiNodeUI {...props} />; case NodeType.TemplateMessage: return <TemplateMessageNodeUI {...props} />; case NodeType.ManageTags: return <ManageTagsNodeUI {...props} />; case NodeType.ManageGroups: return <ManageGroupsNodeUI {...props} />; case NodeType.NewLead: return <NewLeadNodeUI {...props} />; case NodeType.ContactPipeline: return <ContactPipelineNodeUI {...props} />; case NodeType.Gmail: return <GmailNodeUI {...props} />; case NodeType.Smtp: return <SmtpNodeUI {...props} />; case NodeType.Notify: return <NotifyNodeUI {...props} />; default: return <GenericNodeUI {...props} />; }
   }
   const isConnectionSource = connectingSourceNodeId === node.id;
   return (

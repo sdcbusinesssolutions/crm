@@ -28,6 +28,7 @@ const messageNodes = [
   { type: NodeType.QuickReplyMessage, label: 'Quick Reply', icon: <QuickReplyIcon /> },
   { type: NodeType.CTAMessage, label: 'CTA Button', icon: <CtaIcon /> },
   { type: NodeType.CarouselMessage, label: 'Carousel', icon: <CarouselIcon /> },
+  { type: NodeType.Notify, label: 'Notify', icon: <UsersIcon /> },
 ];
 
 const captureNodes = [

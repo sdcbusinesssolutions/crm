@@ -40,6 +40,7 @@ export enum NodeType {
   SheetTrigger = 'sheetTrigger',
   AIAgent = 'aiAgent',
   Smtp = 'smtp',
+  Notify = 'notify',
 }
 
 export interface SmtpData extends NodeData {
@@ -409,6 +410,16 @@ export interface TemplateMessageData extends NodeData {
   unresponsiveTimeout?: string;
 }
 
+export interface NotifyData extends NodeData {
+  notificationType: 'Text' | 'Template';
+  mobileNumbers: string; 
+  message?: string;
+  templateId?: string;
+  templateName?: string;
+  language?: string;
+  variableMapping?: Record<string, string>;
+}
+
 export interface ManageTagsData extends NodeData {
   action: 'add' | 'remove';
   tags: string[];
@@ -461,7 +472,8 @@ export type AnyNodeData =
   | SheetTriggerData
   | GmailData
   | CalendarData
-  | SmtpData;
+  | SmtpData
+  | NotifyData;
 
 export interface ContactPipelineData extends NodeData {
   name?: string;
