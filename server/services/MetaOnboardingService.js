@@ -462,32 +462,31 @@ class MetaOnboardingService {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
             // 1. Resolve Meta Business ID (Required for the correct Meta partner endpoint)
-            let businessId = null;
-            if (wabaId) {
-                console.log(`[MM Lite] Resolving Business ID for Transition (WABA: ${wabaId})`);
-                const wabaInfo = await this.getWabaInfo(wabaId, accessToken);
-                if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
-                    businessId = wabaInfo.owner_business_info.id;
-                    console.log(`[MM Lite] Resolved Business ID ${businessId} for transition.`);
+            let businessId = wabaId;
+            if (businessId) {
+                try {
+                    const wabaInfo = await this.getWabaInfo(businessId, accessToken);
+                    if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
+                        businessId = wabaInfo.owner_business_info.id;
+                    }
+                } catch (e) {
+                    console.warn(`[MM Lite] WABA resolution hint: ${e.message}`);
                 }
             }
 
-            if (!businessId) {
-                // FALLBACK: Try to find WABA ID from the phone number if not provided
-                console.log(`[MM Lite] WABA ID not provided, fetching from phone ID ${phoneNumberId}`);
-                const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
-                    params: { access_token: accessToken, fields: 'whatsapp_business_account' }
-                });
-                const resolvedWabaId = phoneRes.data.whatsapp_business_account?.id;
-                if (resolvedWabaId) {
-                    const wabaInfo = await this.getWabaInfo(resolvedWabaId, accessToken);
-                    businessId = wabaInfo.owner_business_info?.id;
+            if (!businessId && phoneNumberId) {
+                try {
+                    const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
+                        params: { access_token: accessToken, fields: 'whatsapp_business_account' }
+                    });
+                    const resWabaId = phoneRes.data.whatsapp_business_account?.id;
+                    if (resWabaId) {
+                        const wabaInfo = await this.getWabaInfo(resWabaId, accessToken);
+                        businessId = wabaInfo.owner_business_info?.id || resWabaId;
+                    }
+                } catch (e) {
+                    console.warn(`[MM Lite] Phone-based resolution failed: ${e.message}`);
                 }
-            }
-
-            if (!businessId) {
-                console.warn(`[MM Lite] Using provided WABA ID ${wabaId || resolvedWabaId} as fallback for Business ID.`);
-                businessId = wabaId || resolvedWabaId;
             }
 
             if (!businessId) {
@@ -520,6 +519,7 @@ class MetaOnboardingService {
             if (partnerAppId) body.solution_id = partnerAppId;
 
             console.log(`[MM Lite] Calling Business Onboarding API: ${url} with solution_id: ${partnerAppId}`);
+            throw new Error(`DEBUG: URL=${url}, solutionId=${partnerAppId}, tokenPresent=${!!partnerAccessToken}`);
             const response = await axios.post(url, body, { params });
             console.log(`[MM Lite] Business Onboarding Success (Request ID: ${response.data.request_id})`);
 

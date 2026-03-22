@@ -1228,11 +1228,24 @@ router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
         // --- Domain Detection (Multi-tenant Support) ---
         const targetDomain = getTargetDomain(req);
 
+        // --- AUTO-FIX: Resolve Meta Business ID (Required for MM Lite) ---
+        let businessId = config.whatsapp_business_account_id;
+        try {
+            console.log(`[MM Lite Transition] Resolving Business ID for WABA: ${businessId}`);
+            const wabaInfo = await MetaOnboardingService.getWabaInfo(businessId, accessToken);
+            if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
+                businessId = wabaInfo.owner_business_info.id;
+                console.log(`[MM Lite Transition] Corrected Business ID: ${businessId}`);
+            }
+        } catch (e) {
+            console.warn(`[MM Lite Transition] BM ID resolution failed: ${e.message}`);
+        }
+
         // 2. Transition Number via Service (Using Meta Partner Onboarding API)
         const result = await MetaOnboardingService.transitionNumberToMMLite(
             phone_id, 
             accessToken, 
-            config.whatsapp_business_account_id,
+            businessId,
             targetDomain,
             config.meta_app_id
         );
