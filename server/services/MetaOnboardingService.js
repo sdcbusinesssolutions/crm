@@ -331,7 +331,7 @@ class MetaOnboardingService {
             return null;
         }
     }
-    async initiateMMLitePartnerOnboarding(businessId, accessToken, solutionId = null) {
+    async initiateMMLitePartnerOnboarding(businessId, accessToken, solutionId = null, targetDomain = 'clickube.com') {
         try {
             logOnboardingEvent('MMLITE_PARTNER_ONBOARD_START', { businessId, solutionId });
             
@@ -341,7 +341,7 @@ class MetaOnboardingService {
             // Meta guidelines: Partners must use a System User Access Token for the App to call the Intent API
             let partnerAccessToken = accessToken; // Default to client token as fallback
             try {
-                const systemSettings = await this.getSystemSettings();
+                const systemSettings = await this.getSystemSettings(targetDomain);
                 if (systemSettings && systemSettings.meta_access_token) {
                     partnerAccessToken = systemSettings.meta_access_token;
                     console.log(`[MM Lite] Using Partner System User Token for onboarding call.`);
@@ -469,7 +469,7 @@ class MetaOnboardingService {
         }
     }
 
-    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null) {
+    async transitionNumberToMMLite(phoneNumberId, accessToken, wabaId = null, targetDomain = 'clickube.com') {
         try {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
@@ -505,7 +505,7 @@ class MetaOnboardingService {
             // Meta guidelines: Partners must use a System User Access Token for the App to call the Intent API
             let partnerAccessToken = accessToken; // Default to client token as fallback
             try {
-                const systemSettings = await this.getSystemSettings();
+                const systemSettings = await this.getSystemSettings(targetDomain);
                 if (systemSettings && systemSettings.meta_access_token) {
                     partnerAccessToken = systemSettings.meta_access_token;
                     console.log(`[MM Lite] Using Partner System User Token for onboarding call.`);

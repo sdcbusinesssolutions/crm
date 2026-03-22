@@ -9,6 +9,30 @@ const { logOnboardingEvent } = require('../utils/logger');
 // Helper to get user ID from request (populated by requireAuth middleware)
 const getUserId = (req) => req.user.id;
 
+// Helper to detect current domain for multi-tenant settings
+const getTargetDomain = (req) => {
+    const origin = req.headers.origin || req.headers.host || '';
+    let domain = 'clickube.com';
+    try {
+        if (origin.startsWith('http')) {
+            domain = new URL(origin).hostname;
+        } else {
+            domain = origin.split(':')[0];
+        }
+    } catch (e) {
+        // Fallback already set
+    }
+    
+    domain = domain.replace(/^www\./, '').toLowerCase();
+    
+    // Fallback for local development
+    if (domain.includes('localhost') || domain.includes('127.0.0.1')) {
+        return 'clickube.com';
+    }
+    
+    return domain;
+};
+
 // ==========================================
 // 1. WhatsApp Account Setup
 // ==========================================
@@ -582,11 +606,7 @@ router.get('/onboarding/config', async (req, res) => {
         const supabase = getAuthenticatedSupabase(req);
 
         // Domain Extraction
-        const origin = req.headers.origin || req.headers.host || '';
-        let domain = 'clickube.com';
-        try { if (origin.startsWith('http')) domain = new URL(origin).hostname; else domain = origin.split(':')[0]; } catch (e) { }
-        domain = domain.replace(/^www\./, '').toLowerCase();
-        if (domain.includes('localhost') || domain.includes('127.0.0.1')) domain = 'clickube.com';
+        const domain = getTargetDomain(req);
 
 
         // 1. Check for User-Specific Overrides (Allowing "Bring Your Own App")
@@ -638,11 +658,7 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
         const { code, setup_mode } = req.body; // setup_mode could be 'phone' or 'waba'
 
         // Domain Extraction
-        const origin = req.headers.origin || req.headers.host || '';
-        let domain = 'clickube.com';
-        try { if (origin.startsWith('http')) domain = new URL(origin).hostname; else domain = origin.split(':')[0]; } catch (e) { }
-        domain = domain.replace(/^www\./, '').toLowerCase();
-        if (domain.includes('localhost') || domain.includes('127.0.0.1')) domain = 'clickube.com';
+        const domain = getTargetDomain(req);
 
         if (!code) return res.status(400).json({ error: 'Authorization code is required.' });
 
@@ -965,11 +981,12 @@ router.get('/whatsapp/token-debug', async (req, res) => {
         }
 
         // 2. Fetch App ID/Secret to construct App Token
+        const targetDomain = getTargetDomain(req);
         let sysSettings = {};
         try {
-            sysSettings = await MetaOnboardingService.getSystemSettings();
+            sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
         } catch (e) {
-            console.warn('System settings not found for token debug, using fallback.');
+            console.warn(`System settings not found for token debug on ${targetDomain}, using fallback.`);
         }
 
         const appId = sysSettings.embedded_app_id || config.meta_app_id;
@@ -988,6 +1005,7 @@ router.get('/whatsapp/token-debug', async (req, res) => {
             isValid: debugInfo.is_valid,
             expiresAt: debugInfo.expires_at,
             scopes: debugInfo.scopes,
+            targetDomain: targetDomain, // Added for clarity
             appId: debugInfo.app_id || appId
         });
     } catch (err) {
@@ -1012,11 +1030,12 @@ router.post('/whatsapp/token-extend', async (req, res) => {
             return res.status(404).json({ error: 'Config not found' });
         }
 
+        const targetDomain = getTargetDomain(req);
         let sysSettings = {};
         try {
-            sysSettings = await MetaOnboardingService.getSystemSettings();
+            sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
         } catch (e) {
-            console.warn('System settings missing for token extend');
+            console.warn(`System settings missing for token extend on ${targetDomain}`);
         }
 
         if (!sysSettings.embedded_app_id || !sysSettings.embedded_app_secret) {
@@ -1095,10 +1114,14 @@ router.post('/whatsapp/mm-lite/partner-onboard/:id', async (req, res) => {
             console.warn(`[MM Lite] Business ID resolution failed (continuing with original):`, resolveErr.message);
         }
 
+        // --- Domain Detection (Multi-tenant Support) ---
+        const targetDomain = getTargetDomain(req);
+
         const result = await MetaOnboardingService.initiateMMLitePartnerOnboarding(
             businessId,
             config.meta_access_token,
-            config.meta_app_id // Use the App ID from DB as solution_id
+            config.meta_app_id, // Use the App ID from DB as solution_id
+            targetDomain
         );
 
         res.json({ 
@@ -1202,11 +1225,15 @@ router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
             return res.status(400).json({ error: 'Incomplete configuration' });
         }
 
+        // --- Domain Detection (Multi-tenant Support) ---
+        const targetDomain = getTargetDomain(req);
+
         // 2. Transition Number via Service (Using Meta Partner Onboarding API)
         const result = await MetaOnboardingService.transitionNumberToMMLite(
             phone_id, 
             accessToken, 
-            config.whatsapp_business_account_id
+            config.whatsapp_business_account_id,
+            targetDomain
         );
 
         res.json({
