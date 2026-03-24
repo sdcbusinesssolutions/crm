@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v19.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v21.0';
     }
 
     async getSystemSettings(targetDomain) {
@@ -461,73 +461,84 @@ class MetaOnboardingService {
         try {
             logOnboardingEvent('TRANSITION_MMLITE_START', { phoneNumberId, wabaId });
             
-            // 1. Resolve Meta Business ID (Required for the correct Meta partner endpoint)
-            let businessId = wabaId;
-            if (businessId) {
-                try {
-                    const wabaInfo = await this.getWabaInfo(businessId, accessToken);
-                    if (wabaInfo.owner_business_info && wabaInfo.owner_business_info.id) {
-                        businessId = wabaInfo.owner_business_info.id;
-                    }
-                } catch (e) {
-                    console.warn(`[MM Lite] WABA resolution hint: ${e.message}`);
-                }
-            }
-
-            if (!businessId && phoneNumberId) {
-                try {
-                    const phoneRes = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
-                        params: { access_token: accessToken, fields: 'whatsapp_business_account' }
-                    });
-                    const resWabaId = phoneRes.data.whatsapp_business_account?.id;
-                    if (resWabaId) {
-                        const wabaInfo = await this.getWabaInfo(resWabaId, accessToken);
-                        businessId = wabaInfo.owner_business_info?.id || resWabaId;
-                    }
-                } catch (e) {
-                    console.warn(`[MM Lite] Phone-based resolution failed: ${e.message}`);
-                }
-            }
-
-            if (!businessId) {
-                throw new Error('Could not resolve Meta Business ID. Ensure permissions are granted.');
+            if (!phoneNumberId) {
+                throw new Error('Phone Number ID is required for MM Lite transition.');
             }
 
             const systemSettings = await this.getSystemSettings(targetDomain).catch(() => null);
 
-            // 2. Resolve Master System User Token (SUAT) for the Partner call
-            // Meta guidelines: Partners must use a System User Access Token for the App to call the Intent API
-            let partnerAccessToken = accessToken; // Default to client token as fallback
-            if (systemSettings && systemSettings.meta_access_token) {
-                partnerAccessToken = systemSettings.meta_access_token;
-                console.log(`[MM Lite] Using Partner System User Token for domain: ${targetDomain}`);
-            }
-
-            // 3. Resolve Solution ID for the Transition
-            // Priority: System Settings for Domain -> Passed metaAppId -> Fallback
+            // 1. Resolve Solution ID for the Transition
             let partnerAppId = metaAppId;
             if (systemSettings && systemSettings.embedded_app_id) {
                 partnerAppId = systemSettings.embedded_app_id;
-                console.log(`[MM Lite] Using System Partner App ID: ${partnerAppId}`);
             }
 
-            // Final refined attempt: POST to Phone Number ID with the /marketing_messages edge
-            // This is the specific edge for activating MM Lite on a phone number via a partner.
-            const transitionUrl = `${this.graphApiUrl}/${phoneNumberId}/marketing_messages`; 
-            const transitionBody = {
-                messaging_product: 'whatsapp',
-                status: 'ONBOARDED'
-            };
-            if (partnerAppId) transitionBody.solution_id = partnerAppId;
-
-            console.log(`[MM Lite] Transitioning Phone Edge ${transitionUrl} with solution_id: ${partnerAppId}...`);
-            const response = await axios.post(transitionUrl, transitionBody, { 
-                params: { access_token: partnerAccessToken } // Prefer Partner SUAT for this edge
-            });
-            console.log(`[MM Lite] WABA Edge Transition Success (Request ID: ${response.data.request_id || 'N/A'}).`);
+            // --- STRATEGY: FIELD UPDATES (More robust for modern Graph API activation) ---
+            // Instead of targeting the /marketing_messages edge, we update the status field directly on the objects.
             
-            logOnboardingEvent('TRANSITION_MMLITE_SUCCESS', { phoneNumberId, requestId: response.data.request_id });
-            return response.data;
+            const commonParams = {
+                access_token: accessToken,
+                messaging_product: 'whatsapp',
+                solution_id: partnerAppId
+            };
+
+            const errors = [];
+
+            // Attempt 1: POST to Phone ID directly (Status field)
+            try {
+                console.log(`[MM Lite] Attempting Phone Field Update for ${phoneNumberId}...`);
+                const phoneRes = await axios.post(`${this.graphApiUrl}/${phoneNumberId}`, {
+                    marketing_messages_lite_api_status: 'ONBOARDED'
+                }, { params: commonParams });
+                
+                console.log(`[MM Lite] Phone Field Update Success:`, phoneRes.data);
+                logOnboardingEvent('TRANSITION_MMLITE_PHONE_FIELD_SUCCESS', { phoneNumberId });
+                return phoneRes.data;
+            } catch (e1) {
+                errors.push(`Phone Field: ${e1.response?.data?.error?.message || e1.message}`);
+            }
+
+            // Attempt 2: POST to Phone Edge (Status parameter)
+            try {
+                console.log(`[MM Lite] Attempting Phone Edge Transition for ${phoneNumberId}...`);
+                const edgeRes = await axios.post(`${this.graphApiUrl}/${phoneNumberId}/marketing_messages`, {}, { 
+                    params: { ...commonParams, status: 'ONBOARDED' }
+                });
+                console.log(`[MM Lite] Phone Edge Success:`, edgeRes.data);
+                return edgeRes.data;
+            } catch (e2) {
+                errors.push(`Phone Edge: ${e2.response?.data?.error?.message || e2.message}`);
+            }
+
+            if (wabaId) {
+                // Attempt 3: POST to WABA ID directly (Status field)
+                try {
+                    console.log(`[MM Lite] Attempting WABA Field Update for ${wabaId}...`);
+                    const wabaRes = await axios.post(`${this.graphApiUrl}/${wabaId}`, {
+                        marketing_messages_onboarding_status: 'ONBOARDED'
+                    }, { params: commonParams });
+                    
+                    console.log(`[MM Lite] WABA Field Update Success:`, wabaRes.data);
+                    return wabaRes.data;
+                } catch (e3) {
+                    errors.push(`WABA Field: ${e3.response?.data?.error?.message || e3.message}`);
+                }
+
+                // Attempt 4: POST to WABA Edge (Status parameter)
+                try {
+                    console.log(`[MM Lite] Attempting WABA Edge Transition for ${wabaId}...`);
+                    const edgeWabaRes = await axios.post(`${this.graphApiUrl}/${wabaId}/marketing_messages`, {}, {
+                        params: { ...commonParams, status: 'ONBOARDED' }
+                    });
+                    console.log(`[MM Lite] WABA Edge Success:`, edgeWabaRes.data);
+                    return edgeWabaRes.data;
+                } catch (e4) {
+                    errors.push(`WABA Edge: ${e4.response?.data?.error?.message || e4.message}`);
+                }
+            }
+
+            throw new Error('All transition attempts failed: ' + errors.join('; '));
+
         } catch (error) {
             const metaError = error.response?.data?.error;
             const metaMsg = metaError?.message || error.message;
