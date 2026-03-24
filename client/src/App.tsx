@@ -647,7 +647,7 @@ const MainApp: React.FC = () => {
         }
 
         if (activeMenuItem === 'Integrations') {
-            return <IntegrationsView onToggleSidebar={() => setSidebarOpen(true)} />;
+            return <IntegrationsView onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
         if (activeMenuItem === 'AI Buddy') {
