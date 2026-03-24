@@ -511,16 +511,16 @@ class MetaOnboardingService {
                 console.log(`[MM Lite] Using System Partner App ID: ${partnerAppId}`);
             }
 
-            // Final refined attempt: POST to WABA ID with the /marketing_messages edge
-            // This is the specific edge for activating MM Lite on a WABA via a partner.
-            const transitionUrl = `${this.graphApiUrl}/${wabaId}/marketing_messages`; 
+            // Final refined attempt: POST to Phone Number ID with the /marketing_messages edge
+            // This is the specific edge for activating MM Lite on a phone number via a partner.
+            const transitionUrl = `${this.graphApiUrl}/${phoneNumberId}/marketing_messages`; 
             const transitionBody = {
                 messaging_product: 'whatsapp',
                 status: 'ONBOARDED'
             };
             if (partnerAppId) transitionBody.solution_id = partnerAppId;
 
-            console.log(`[MM Lite] Transitioning WABA Edge ${transitionUrl} with solution_id: ${partnerAppId}...`);
+            console.log(`[MM Lite] Transitioning Phone Edge ${transitionUrl} with solution_id: ${partnerAppId}...`);
             const response = await axios.post(transitionUrl, transitionBody, { 
                 params: { access_token: partnerAccessToken } // Prefer Partner SUAT for this edge
             });
