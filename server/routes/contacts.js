@@ -29,6 +29,14 @@ router.get('/', async (req, res) => {
         }
       }
 
+      // --- DATE FILTERING ---
+      if (req.query.startDate) {
+        query = query.gte('created_at', req.query.startDate);
+      }
+      if (req.query.endDate) {
+        query = query.lte('created_at', req.query.endDate);
+      }
+
       const { data: rawData, count, error } = await query.range(from, to);
 
       if (error) throw error;
@@ -70,12 +78,22 @@ router.get('/', async (req, res) => {
       const from = pageIndex * chunkSize;
       const to = from + chunkSize - 1;
 
-      const { data: chunk, error } = await clientToUse
+      let chunkQuery = clientToUse
         .from('contacts')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .range(from, to);
+
+      // --- DATE FILTERING (Legacy Mode) ---
+      if (req.query.startDate) {
+        chunkQuery = chunkQuery.gte('created_at', req.query.startDate);
+      }
+      if (req.query.endDate) {
+        chunkQuery = chunkQuery.lte('created_at', req.query.endDate);
+      }
+
+      const { data: chunk, error } = await chunkQuery;
 
       if (error) throw error;
 
