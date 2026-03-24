@@ -7,7 +7,8 @@ import { Contact, ContactGroup, InputField } from '../types';
 import { tagService, Tag } from '../services/tagService';
 import {
     PlusIcon, EditIcon, TrashIcon, SearchIcon, UploadIcon, DownloadIcon,
-    CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon
+    CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon, CalendarIcon
+
 } from './icons';
 import Papa from 'papaparse';
 import Toast from './Toast';
@@ -25,6 +26,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+
 
     // Sync count with parent
     useEffect(() => {
@@ -113,7 +117,26 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         // Tag filter
         const matchesTag = !selectedTagFilter || (c.tags || []).includes(selectedTagFilter);
 
-        return matchesSearch && matchesGroup && matchesTag;
+        // Date filter
+        let matchesDate = true;
+        if (c.createdAt && (startDate || endDate)) {
+            const contactDate = new Date(c.createdAt);
+            contactDate.setHours(0, 0, 0, 0);
+
+            if (startDate) {
+                const sDate = new Date(startDate);
+                sDate.setHours(0, 0, 0, 0);
+                if (contactDate < sDate) matchesDate = false;
+            }
+            if (endDate) {
+                const eDate = new Date(endDate);
+                eDate.setHours(23, 59, 59, 999);
+                if (contactDate > eDate) matchesDate = false;
+            }
+        }
+
+        return matchesSearch && matchesGroup && matchesTag && matchesDate;
+
     });
     const totalPages = Math.ceil(filteredContacts.length / entriesPerPage);
     const currentEntries = filteredContacts.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
@@ -714,34 +737,89 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     return (
         <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 lg:max-w-2xl">
-                    <div className="relative group flex-1">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[var(--color-brand)] group-focus-within:text-[var(--color-brand)] transition-colors"><SearchIcon /></div>
-                        <input type="text" placeholder="Search by name, phone, email, status, tags, groups..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2.5 w-full bg-white border border-[var(--color-brand)] rounded-btn focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" />
+                <div className="flex flex-wrap items-center gap-3 flex-1 lg:max-w-4xl">
+                    {/* Compact Search Bar */}
+                    <div className="relative group w-full sm:w-64">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[var(--color-brand)] transition-colors">
+                            <SearchIcon className="w-4 h-4" />
+                        </div>
+                        <input 
+                            type="text" 
+                            placeholder="Search contacts..." 
+                            value={searchTerm} 
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
+                            className="pl-9 pr-3 py-2 w-full bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" 
+                        />
+
+
                     </div>
+                    
+                    {/* Proper Date Range Picker UI */}
+                    <div className="flex items-center gap-2 p-1.5 bg-[var(--color-brand)]/[0.03] rounded-2xl border border-[var(--color-brand)]/20 shadow-inner">
+                        <div className="flex items-center gap-2 bg-white border border-[var(--color-brand)] rounded-xl px-3 py-1.5 shadow-sm group focus-within:ring-2 focus-within:ring-[var(--color-brand)]/20 focus-within:border-[var(--color-brand)] transition-all">
+
+
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">From</span>
+                            <input 
+                                type="date" 
+                                value={startDate} 
+                                onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} 
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0 p-0 outline-none w-[110px] text-slate-700 cursor-pointer"
+                            />
+                        </div>
+                        <div className="w-3 h-px bg-[var(--color-brand)]/40"></div>
+                        <div className="flex items-center gap-2 bg-white border border-[var(--color-brand)] rounded-xl px-3 py-1.5 shadow-sm group focus-within:ring-2 focus-within:ring-[var(--color-brand)]/20 focus-within:border-[var(--color-brand)] transition-all">
+
+
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">To</span>
+                            <input 
+                                type="date" 
+                                value={endDate} 
+                                onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} 
+                                className="bg-transparent border-none text-xs font-bold focus:ring-0 p-0 outline-none w-[110px] text-slate-700 cursor-pointer"
+                            />
+                        </div>
+                    </div>
+
                     <div className="relative bulk-action-container">
-                        <button onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} disabled={selectedIds.size === 0} className={`w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-btn shadow-sm flex items-center justify-center gap-2 transition-all border ${selectedIds.size > 0 ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] hover:opacity-90 shadow-md shadow-brand-200' : 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] opacity-60 cursor-not-allowed'}`}><span>Bulk ({selectedIds.size})</span><ChevronDownIcon className="w-4 h-4" /></button>
+                        <button onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} disabled={selectedIds.size === 0} className={`px-4 py-2 text-sm font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all border ${selectedIds.size > 0 ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] hover:opacity-90 shadow-md' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}>
+                            <span>Bulk ({selectedIds.size})</span>
+                            <ChevronDownIcon className="w-4 h-4" />
+                        </button>
                         {isBulkDropdownOpen && selectedIds.size > 0 && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-btn shadow-xl z-30 overflow-hidden animate-fade-in">
+                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden animate-fade-in">
                                 <button onClick={handleBulkDelete} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"><TrashIcon className="w-4 h-4 mr-2" /> Delete Selected</button>
                             </div>
                         )}
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
-                    <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
+                    <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
                     <div className="flex gap-2">
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-btn transition-all shadow-md shadow-brand-200 font-bold"><UploadIcon /></button>
-                        <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-btn transition-all shadow-md shadow-brand-200 font-bold"><DownloadIcon /></button>
+                        <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
+                        <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
                     </div>
                 </div>
             </div>
 
             {/* Active Filters */}
-            {(selectedGroupFilter || selectedTagFilter) && (
+            {(selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Filters:</span>
+                    {startDate && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200">
+                            From: {new Date(startDate).toLocaleDateString()}
+                            <button onClick={() => { setStartDate(''); setCurrentPage(1); }} className="ml-1 hover:text-indigo-900"><CloseIcon className="w-3 h-3" /></button>
+                        </span>
+                    )}
+                    {endDate && (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200">
+                            To: {new Date(endDate).toLocaleDateString()}
+                            <button onClick={() => { setEndDate(''); setCurrentPage(1); }} className="ml-1 hover:text-indigo-900"><CloseIcon className="w-3 h-3" /></button>
+                        </span>
+                    )}
+
                     {selectedGroupFilter && (
                         <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-50 text-brand-700 rounded-lg text-xs font-bold border border-brand-200">
                             <UsersIcon className="w-3 h-3" />
@@ -767,11 +845,12 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         </span>
                     )}
                     <button
-                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setCurrentPage(1); }}
+                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
                         className="text-xs text-slate-500 hover:text-slate-700 font-medium underline"
                     >
                         Clear all
                     </button>
+
                 </div>
             )}
 
@@ -864,7 +943,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center justify-end space-x-2 transition-opacity">
                                                         <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
                                                         <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
                                                     </div>
