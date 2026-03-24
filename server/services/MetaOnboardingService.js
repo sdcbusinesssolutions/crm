@@ -511,17 +511,20 @@ class MetaOnboardingService {
                 console.log(`[MM Lite] Using System Partner App ID: ${partnerAppId}`);
             }
 
-            const params = { access_token: accessToken }; // Use client's token for WABA-level status update
-            // Official Meta Transition: POST to WABA ID with marketing_messages_onboarding_status=ONBOARDED
-            const wabaBody = {
-                marketing_messages_onboarding_status: 'ONBOARDED'
+            // Final refined attempt: POST to WABA ID with the /marketing_messages edge
+            // This is the specific edge for activating MM Lite on a WABA via a partner.
+            const transitionUrl = `${this.graphApiUrl}/${wabaId}/marketing_messages`; 
+            const transitionBody = {
+                messaging_product: 'whatsapp',
+                status: 'ONBOARDED'
             };
-            if (partnerAppId) wabaBody.solution_id = partnerAppId;
+            if (partnerAppId) transitionBody.solution_id = partnerAppId;
 
-            console.log(`[MM Lite] Transitioning WABA ${wabaId} to ONBOARDED with solution_id: ${partnerAppId} using client token...`);
-            const transitionUrl = `${this.graphApiUrl}/${wabaId}`; 
-            const response = await axios.post(transitionUrl, wabaBody, { params });
-            console.log(`[MM Lite] WABA Transition Success (Request ID: ${response.data.request_id || 'N/A'}).`);
+            console.log(`[MM Lite] Transitioning WABA Edge ${transitionUrl} with solution_id: ${partnerAppId}...`);
+            const response = await axios.post(transitionUrl, transitionBody, { 
+                params: { access_token: partnerAccessToken } // Prefer Partner SUAT for this edge
+            });
+            console.log(`[MM Lite] WABA Edge Transition Success (Request ID: ${response.data.request_id || 'N/A'}).`);
             
             logOnboardingEvent('TRANSITION_MMLITE_SUCCESS', { phoneNumberId, requestId: response.data.request_id });
             return response.data;
