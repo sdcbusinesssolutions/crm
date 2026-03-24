@@ -16,6 +16,7 @@ const axios = require('axios');
 const https = require('https');
 const { execFile } = require('child_process'); // curl subprocess for media download
 const flowEngine = require('../services/flowEngine');
+const DripTriggerService = require('../services/DripTriggerService');
 
 // --- CONCURRENCY & NETWORK AGENTS ---
 const FLOW_CONCURRENCY_LIMIT = 20;
@@ -1099,6 +1100,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
                         .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
                 }
+
+                // --- DRIP CAMPAIGN STOP ON REPLY ---
+                DripTriggerService.handleReply(userId, contactPhone).catch(e => console.error('Drip Reply Stop Error:', e));
 
                 // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact

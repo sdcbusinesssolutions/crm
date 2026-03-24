@@ -32,7 +32,7 @@ const DripTriggerService = {
 
             // 2. Enroll Contact in each campaign
             for (const campaign of campaigns) {
-                await this.enrollContact(userId, contact.id, campaign);
+                await DripTriggerService.enrollContact(userId, contact.id, campaign);
             }
 
         } catch (err) {
@@ -92,7 +92,7 @@ const DripTriggerService = {
 
             // 2. Enroll
             for (const campaign of campaigns) {
-                await this.enrollContact(userId, contactId, campaign);
+                await DripTriggerService.enrollContact(userId, contactId, campaign);
             }
 
         } catch (err) {
@@ -123,12 +123,16 @@ const DripTriggerService = {
             // If None -> Enroll
 
             if (existing) {
-                if (existing.status === 'ACTIVE' || existing.status === 'PAUSED') {
-                    console.log(`[DripTrigger] Contact ${contactId} already active in ${campaign.name}. Skipping.`);
+                // 1. If currently Active/Paused -> Never re-enroll (duplication guard)
+                if (['ACTIVE', 'PAUSED', 'PROCESSING'].includes(existing.status)) {
+                    console.log(`[DripTrigger] Contact ${contactId} already in progress for ${campaign.name}. Skipping.`);
                     return;
                 }
-                if (existing.status === 'COMPLETED' && !campaign.allow_reentry) {
-                    console.log(`[DripTrigger] Contact ${contactId} already completed ${campaign.name} and re-entry disabled. Skipping.`);
+
+                // 2. If finished/stopped -> Check Re-entry policy
+                // If allow_reentry is FALSE, we block even if they were completed/cancelled before.
+                if (!campaign.allow_reentry) {
+                    console.log(`[DripTrigger] Contact ${contactId} previously enrolled in ${campaign.name} and re-entry is disabled. Skipping.`);
                     return;
                 }
             }
@@ -151,7 +155,7 @@ const DripTriggerService = {
             const now = new Date();
             const delayValue = firstStep.delay_value || 0;
             const delayUnit = firstStep.delay_unit || 'HOURS';
-            const nextRun = this.calculateDelay(now, delayValue, delayUnit);
+            const nextRun = DripTriggerService.calculateDelay(now, delayValue, delayUnit);
 
             // Create Enrollment
             const { error: insertError } = await supabaseAdmin
@@ -190,6 +194,54 @@ const DripTriggerService = {
             default: break;
         }
         return date;
+    },
+
+    /**
+     * Stop campaigns if user replies (if stop_on_reply is enabled)
+     */
+    async handleReply(userId, contactPhone) {
+        try {
+            // Find all active enrollments for this contact where campaign has stop_on_reply=true
+            // We join with drip_campaigns to check the flag
+            const { data: toStop, error } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select(`
+                    id,
+                    drip_campaign:drip_campaigns(id, name, stop_on_reply)
+                `)
+                .eq('contact_phone_cached', contactPhone) // Using a cached phone or we'd need a join with contacts
+                .eq('status', 'ACTIVE'); // Only stop active ones
+
+            // Note: If contact_phone_cached doesn't exist, we might need to join contacts.
+            // Let's assume we can find them by contact_id through a subquery or join.
+            // Revised approach for safety:
+            const { data: enrollments, error: err } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select('id, drip_campaign_id, drip_campaigns!inner(stop_on_reply, name), contacts!inner(phone)')
+                .eq('contacts.phone', contactPhone)
+                .eq('contacts.user_id', userId)
+                .eq('status', 'ACTIVE')
+                .eq('drip_campaigns.stop_on_reply', true);
+
+            if (err) throw err;
+            if (!enrollments || enrollments.length === 0) return;
+
+            const idsToStop = enrollments.map(e => e.id);
+            await supabaseAdmin
+                .from('drip_enrollments')
+                .update({ 
+                    status: 'STOPPED_BY_REPLY', 
+                    completed_at: new Date() 
+                })
+                .in('id', idsToStop);
+
+            enrollments.forEach(e => {
+                console.log(`[DripTrigger] Stopped campaign '${e.drip_campaigns.name}' for ${contactPhone} due to reply.`);
+            });
+
+        } catch (e) {
+            console.error('[DripTrigger] Error in handleReply:', e.message);
+        }
     }
 };
 

@@ -239,7 +239,7 @@ router.put('/:id', async (req, res) => {
 
             if (payload.stage_id) {
                 // If stage changed, trigger drips
-                DripTriggerService.handleStageChanged(user.id, data, payload.stage_id).catch(err => console.error('Lead Update Drip Error:', err));
+                DripTriggerService.handleStageChanged(req.user.id, data, payload.stage_id).catch(err => console.error('Lead Update Drip Error:', err));
             }
         } catch (e) { }
 
@@ -293,7 +293,7 @@ router.put('/:id/move', async (req, res) => {
                 newStageId: stage_id
             });
 
-            DripTriggerService.handleStageChanged(user.id, data, stage_id).catch(err => console.error('Lead Move Drip Error:', err));
+            DripTriggerService.handleStageChanged(req.user.id, data, stage_id).catch(err => console.error('Lead Move Drip Error:', err));
         } catch (e) { }
 
         try {
