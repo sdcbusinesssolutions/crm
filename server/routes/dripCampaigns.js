@@ -283,13 +283,17 @@ router.post('/:id/enroll', async (req, res) => {
 
         if (!firstStep) return res.status(400).json({ error: 'Campaign has no steps' });
 
-        // Check for existing active enrollments to prevent duplicates
-        const { data: existing } = await supabase
+        // Check for existing enrollments
+        let existingQuery = supabase
             .from('drip_enrollments')
             .select('contact_id')
             .eq('drip_campaign_id', campaign.id)
-            .in('contact_id', contact_ids)
-            .in('status', ['ACTIVE', 'PAUSED', 'PROCESSING']);
+            .in('contact_id', contact_ids);
+
+        if (campaign.allow_reentry) {
+            existingQuery = existingQuery.in('status', ['ACTIVE', 'PAUSED', 'PROCESSING']);
+        }
+        const { data: existing } = await existingQuery;
 
         const existingContactIds = new Set((existing || []).map(e => e.contact_id));
         const newContacts = contact_ids.filter(id => !existingContactIds.has(id));
