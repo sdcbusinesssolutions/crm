@@ -10,9 +10,10 @@ import { themeService } from '../../services/themeService';
 
 interface IntegrationsViewProps {
     onToggleSidebar?: () => void;
+    onNavigate?: (item: any) => void;
 }
 
-const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) => {
+const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, onNavigate }) => {
     const [brandColor, setBrandColor] = useState('#ea580c'); // Default orange
 
     useEffect(() => {
@@ -142,7 +143,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) 
                                 Receive and send data via webhooks to connect with external systems
                             </p>
                             <button
-                                onClick={() => window.location.href = '/flows'}
+                                onClick={() => {
+                                    if (onNavigate) onNavigate('Flows');
+                                    else window.location.href = '?view=Flows';
+                                }}
                                 className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
                                 style={{ backgroundColor: brandColor, color: '#fff' }}>
                                 Configure
@@ -161,7 +165,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar }) 
                                 Access our REST API to build custom integrations and automations
                             </p>
                             <button
-                                onClick={() => window.location.href = '/flows'}
+                                onClick={() => {
+                                    if (onNavigate) onNavigate('Flows');
+                                    else window.location.href = '?view=Flows';
+                                }}
                                 className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
                                 style={{ backgroundColor: brandColor, color: '#fff' }}>
                                 View Documentation
