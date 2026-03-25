@@ -425,9 +425,9 @@ const MainApp: React.FC = () => {
         setActiveMenuItem('Flows');
     }, []);
 
-    const handleBackToDashboard = useCallback(() => {
+    const handleBackToFlows = useCallback(() => {
         setCurrentFlowId(null);
-        setActiveMenuItem('Dashboard');
+        setActiveMenuItem('Flows');
     }, []);
 
     const handleMenuNavigation = useCallback((item: MenuItem | 'CREATE_DRIP' | 'EDIT_DRIP', extraData?: any) => {
@@ -518,7 +518,7 @@ const MainApp: React.FC = () => {
     // The current application logic (Dashboard + Flow Editor)
     const renderFlowBuilderApp = () => {
         if (currentFlowId) {
-            return <FlowEditor flowId={currentFlowId} onBack={handleBackToDashboard} />;
+            return <FlowEditor flowId={currentFlowId} onBack={handleBackToFlows} />;
         }
         return <FlowList onNavigateToFlow={handleNavigateToFlow} onToggleSidebar={() => setSidebarOpen(true)} />;
     };
