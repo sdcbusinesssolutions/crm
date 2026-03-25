@@ -700,6 +700,17 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
                                             {selectedStep.step_type === 'WHATSAPP_MESSAGE' && (
                                                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                                                    {/* Delivery Helper Header */}
+                                                    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 space-y-2 mb-2">
+                                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                                                            <span className="text-slate-500">Recipient (To)</span>
+                                                            <span className="text-emerald-500 font-mono">Enrolled Contact</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                                                            <span className="text-slate-500">Sender (From)</span>
+                                                            <span className="text-emerald-500 font-mono">System Number</span>
+                                                        </div>
+                                                    </div>
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">WhatsApp Template</label>
                                                         <select
@@ -983,6 +994,17 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
 
                                             {selectedStep.step_type === 'EMAIL' && (
                                                 <div className="space-y-4">
+                                                    {/* Delivery Helper Header */}
+                                                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3 space-y-2 mb-2">
+                                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                                                            <span className="text-slate-500">Recipient (To)</span>
+                                                            <span className="text-blue-400 font-mono">Enrolled Contact</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
+                                                            <span className="text-slate-500">Sender (From)</span>
+                                                            <span className="text-blue-400 font-mono">Selected Connection</span>
+                                                        </div>
+                                                    </div>
                                                     <div className="flex gap-2">
                                                         <button onClick={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, provider: 'GMAIL', connectionId: '' } })}
                                                             className={`flex-1 py-2 text-xs font-bold rounded-lg border ${selectedStep.step_config?.provider === 'GMAIL' ? 'bg-blue-900/30 text-blue-400 border-blue-800' : 'bg-slate-800 border-slate-700'}`}>Gmail</button>
@@ -1002,20 +1024,37 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                                                         }
                                                     </select>
 
-                                                    <input
-                                                        type="text"
-                                                        value={selectedStep.step_config?.subject || ''}
-                                                        onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, subject: e.target.value } })}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
-                                                        placeholder="Subject"
-                                                    />
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">To (Recipient)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={selectedStep.step_config?.to || ''}
+                                                            onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, to: e.target.value } })}
+                                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                            placeholder="{{contact.email}}"
+                                                        />
+                                                    </div>
 
-                                                    <textarea
-                                                        value={selectedStep.step_config?.body || ''}
-                                                        onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, body: e.target.value } })}
-                                                        className="w-full h-32 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none resize-none"
-                                                        placeholder="Email body..."
-                                                    />
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Subject</label>
+                                                        <input
+                                                            type="text"
+                                                            value={selectedStep.step_config?.subject || ''}
+                                                            onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, subject: e.target.value } })}
+                                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                            placeholder="Subject"
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] text-slate-500 font-bold uppercase ml-1">Email Body</label>
+                                                        <textarea
+                                                            value={selectedStep.step_config?.body || ''}
+                                                            onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, body: e.target.value } })}
+                                                            className="w-full h-32 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none resize-none"
+                                                            placeholder="Email body..."
+                                                        />
+                                                    </div>
                                                 </div>
                                             )}
 

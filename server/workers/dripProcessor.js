@@ -408,40 +408,47 @@ async function processDrips() {
                         if (skipped) {
                             success = true;
                         } else {
-                            try {
-                                const config = step.step_config || {};
-                                const toEmail = enrollment.contact.email;
+                                try {
+                                    const config = step.step_config || {};
+                                    // Resolve Recipient: Config "To" (with vars) OR fallback to Contact Email
+                                    let toEmail = enrollment.contact.email;
+                                    if (config.to) {
+                                        toEmail = replaceVariables(config.to, enrollment);
+                                    }
 
-                                if (config.provider === 'GMAIL') {
-                                    if (!config.connectionId) throw new Error('No Gmail connection selected');
+                                    const resolvedSubject = replaceVariables(config.subject || '', enrollment);
+                                    const resolvedBody = replaceVariables(config.body || '', enrollment);
 
-                                    await GmailService.sendEmail(
-                                        enrollment.drip_campaign.user_id,
-                                        config.connectionId,
-                                        toEmail,
-                                        config.subject,
-                                        config.body
-                                    );
+                                    if (config.provider === 'GMAIL') {
+                                        if (!config.connectionId) throw new Error('No Gmail connection selected');
 
-                                } else if (config.provider === 'SMTP') {
-                                    if (!config.connectionId) throw new Error('No SMTP connection selected');
+                                        await GmailService.sendEmail(
+                                            enrollment.drip_campaign.user_id,
+                                            config.connectionId,
+                                            toEmail,
+                                            resolvedSubject,
+                                            resolvedBody
+                                        );
 
-                                    // Fetch connection manually for SMTP as Service needs raw config
-                                    const { data: conn } = await supabase
-                                        .from('user_integrations')
-                                        .select('credentials')
-                                        .eq('id', config.connectionId)
-                                        .single();
+                                    } else if (config.provider === 'SMTP') {
+                                        if (!config.connectionId) throw new Error('No SMTP connection selected');
 
-                                    if (!conn) throw new Error('SMTP Connection not found');
+                                        // Fetch connection manually for SMTP as Service needs raw config
+                                        const { data: conn } = await supabase
+                                            .from('user_integrations')
+                                            .select('credentials')
+                                            .eq('id', config.connectionId)
+                                            .single();
 
-                                    await SmtpService.sendEmail(
-                                        conn.credentials,
-                                        conn.credentials.fromEmail,
-                                        toEmail,
-                                        config.subject,
-                                        config.body
-                                    );
+                                        if (!conn) throw new Error('SMTP Connection not found');
+
+                                        await SmtpService.sendEmail(
+                                            conn.credentials,
+                                            conn.credentials.fromEmail,
+                                            toEmail,
+                                            resolvedSubject,
+                                            resolvedBody
+                                        );
                                 } else {
                                     throw new Error(`Unknown or missing Email provider: ${config.provider}`);
                                 }
