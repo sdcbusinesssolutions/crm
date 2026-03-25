@@ -143,10 +143,55 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
             return;
         }
 
-        // 2. STOP AT CHECK
+        // 2. OWNER NOTIFICATIONS & STOP AT CHECK
         if (enrollment.stop_at) {
             const stopTime = new Date(enrollment.stop_at).getTime();
-            if (stopTime <= now.getTime()) {
+            const nowTime = now.getTime();
+
+            if (stopTime > nowTime) {
+                // Check for owner notifications
+                const diffMs = stopTime - nowTime;
+                const sentAlerts = enrollment.notifications_sent || [];
+                const rules = enrollment.notification_rules || [];
+                const newSentAlerts = [...sentAlerts];
+                let alertsModified = false;
+
+                for (const rule of rules) {
+                    const ruleId = `${rule.phone}-${rule.value}-${rule.unit}`;
+                    if (sentAlerts.includes(ruleId)) continue;
+
+                    let checkMs = 0;
+                    if (rule.unit === 'MINUTES') checkMs = rule.value * 60 * 1000;
+                    else if (rule.unit === 'HOURS') checkMs = rule.value * 60 * 60 * 1000;
+                    else if (rule.unit === 'DAYS') checkMs = rule.value * 24 * 60 * 60 * 1000;
+
+                    if (diffMs <= checkMs && diffMs > 0) {
+                        const idempotencyKey = `NOTIFY-${enrollment.id}-${ruleId}`;
+                        const { skipped } = await logAction(enrollment, 'OWNER_NOTIFY', {
+                            phone: rule.phone,
+                            message: `Follow-up for ${enrollment.contact.name} due in ~${rule.value} ${rule.unit}`
+                        }, idempotencyKey);
+
+                        if (!skipped) {
+                            try {
+                                const notificationMessage = `⏰ *Follow-up Reminder*\n\nContact: ${enrollment.contact.name || 'Unknown'}\nPhone: ${enrollment.contact.phone || 'N/A'}\nCampaign: ${enrollment.drip_campaign?.name || 'Unknown'}\n\nDue in approximately *${rule.value} ${rule.unit}*`;
+                                await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, rule.phone, 'text', { body: notificationMessage });
+                                console.log(`[DripEngine] ✅ Owner notification sent to ${rule.phone}`);
+                                newSentAlerts.push(ruleId);
+                                alertsModified = true;
+                            } catch (notifyError) {
+                                console.error(`[DripEngine] ❌ Failed to send owner notification:`, notifyError.message);
+                                newSentAlerts.push(ruleId);
+                                alertsModified = true;
+                            }
+                        }
+                    }
+                }
+
+                if (alertsModified) {
+                    await supabase.from('drip_enrollments').update({ notifications_sent: newSentAlerts }).eq('id', enrollment.id);
+                }
+            } else {
                 console.log(`[DripEngine] Enrollment ${enrollment.id} expired. Cancelling.`);
                 await logAction(enrollment, 'STOP_AT_EXPIRED', { stop_at: enrollment.stop_at });
                 await supabase.from('drip_enrollments').update({ status: 'EXPIRED', completed_at: now }).eq('id', enrollment.id);

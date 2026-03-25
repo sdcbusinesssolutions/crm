@@ -288,6 +288,23 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
         } catch (e) { alert("Failed"); }
     };
 
+    const handleExportJSON = () => {
+        const exportData = {
+            ...campaign,
+            export_at: new Date().toISOString(),
+            version: '2.0'
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${campaign.name?.replace(/\s+/g, '_') || 'campaign'}_export.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     // --- Canvas Logic ---
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return; // Only left click
@@ -350,6 +367,17 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
                         className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'ENROLLMENTS' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
                     >
                         Enrollments
+                    </button>
+                    <div className="w-px h-4 bg-slate-700 mx-1"></div>
+                    <button
+                        onClick={handleExportJSON}
+                        className="px-4 py-1.5 text-slate-400 hover:text-white text-xs font-bold transition-all flex items-center gap-2"
+                        title="Export this campaign as a JSON file"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Export
                     </button>
                 </div>
 
