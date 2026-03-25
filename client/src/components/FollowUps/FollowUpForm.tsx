@@ -323,7 +323,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     const loadCampaigns = async () => {
         try {
             const all = await dripCampaignService.getCampaigns();
-            const manual = all.filter(c => c.status === 'ACTIVE' || c.status === 'DRAFT');
+            const manual = all.filter(c => c.status === 'ACTIVE' && c.trigger_type === 'MANUAL');
             setActiveCampaigns(manual);
             // Auto-select first campaign if none currently selected and not editing
             if (manual.length > 0 && !selectedCampaignId && !initialData?.id) {
