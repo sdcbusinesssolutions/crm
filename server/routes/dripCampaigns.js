@@ -32,23 +32,17 @@ router.get('/:id', async (req, res) => {
         // Fetch campaign details and steps in one go if possible, or separate queries
         const { data: campaign, error: campaignError } = await supabase
             .from('drip_campaigns')
-            .select('*')
+            .select('*, steps:drip_steps(*)')
             .eq('id', req.params.id)
             .eq('user_id', req.user.id)
+            .order('step_order', { foreignTable: 'drip_steps', ascending: true })
             .single();
 
-        if (campaignError) throw campaignError;
-        if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
-
-        const { data: steps, error: stepsError } = await supabase
-            .from('drip_steps')
-            .select('*')
-            .eq('drip_campaign_id', req.params.id)
-            .order('step_order', { ascending: true });
-
-        if (stepsError) throw stepsError;
-
-        res.json({ ...campaign, steps: steps || [] });
+        if (campaignError) {
+            console.error('Campaign retrieval error:', campaignError);
+            throw campaignError;
+        }
+        res.json(campaign);
     } catch (err) {
         console.error('Error fetching drip campaign details:', err);
         res.status(500).json({ error: err.message });

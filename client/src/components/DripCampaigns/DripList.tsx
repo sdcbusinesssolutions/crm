@@ -197,33 +197,34 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                 <div className="max-w-[1800px] mx-auto">
                     {/* Statistics Overview */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                        {(() => {
-                            const stats = {
-                                total: campaigns.length,
-                                active: campaigns.filter(c => c.status === 'ACTIVE').length,
-                                paused: campaigns.filter(c => c.status === 'PAUSED').length
-                            };
-
-                            return (
-                                <>
-                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Campaigns</div>
-                                        <div className="text-2xl font-black text-slate-900">{stats.total}</div>
-                                        <div className="text-xs text-slate-400 mt-1 font-medium">All sequences</div>
+                        {loading ? (
+                            <>
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm animate-pulse h-24">
+                                        <div className="h-4 bg-slate-100 rounded w-24 mb-3"></div>
+                                        <div className="h-8 bg-slate-100 rounded w-16"></div>
                                     </div>
-                                    <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Active</div>
-                                        <div className="text-2xl font-black text-emerald-700">{stats.active}</div>
-                                        <div className="text-xs text-emerald-600 mt-1 font-medium">Running now</div>
-                                    </div>
-                                    <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Paused</div>
-                                        <div className="text-2xl font-black text-amber-700">{stats.paused}</div>
-                                        <div className="text-xs text-amber-600 mt-1 font-medium">Temporarily stopped</div>
-                                    </div>
-                                </>
-                            );
-                        })()}
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Campaigns</div>
+                                    <div className="text-2xl font-black text-slate-900">{campaigns.length}</div>
+                                    <div className="text-xs text-slate-400 mt-1 font-medium">All sequences</div>
+                                </div>
+                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Active</div>
+                                    <div className="text-2xl font-black text-emerald-700">{campaigns.filter(c => c.status === 'ACTIVE').length}</div>
+                                    <div className="text-xs text-emerald-600 mt-1 font-medium">Running now</div>
+                                </div>
+                                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Paused</div>
+                                    <div className="text-2xl font-black text-amber-700">{campaigns.filter(c => c.status === 'PAUSED').length}</div>
+                                    <div className="text-xs text-amber-600 mt-1 font-medium">Temporarily stopped</div>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Filters */}
@@ -270,9 +271,19 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                     {/* Content Area */}
                     <div className="min-h-[400px]">
                         {loading ? (
-                            <div className="flex flex-col justify-center items-center h-64 text-slate-400 font-medium">
-                                <div className="w-10 h-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
-                                Loading campaigns...
+                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <div key={i} className="px-6 py-6 border-b border-slate-100 flex items-center justify-between animate-pulse">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-slate-100 rounded-xl"></div>
+                                            <div className="space-y-2">
+                                                <div className="h-4 bg-slate-100 rounded w-48"></div>
+                                                <div className="h-3 bg-slate-100 rounded w-32"></div>
+                                            </div>
+                                        </div>
+                                        <div className="h-8 bg-slate-100 rounded w-24"></div>
+                                    </div>
+                                ))}
                             </div>
                         ) : filteredCampaigns.length === 0 ? (
                             <div className="text-center py-24 px-4 bg-white rounded-2xl border border-slate-200 border-dashed shadow-sm">
