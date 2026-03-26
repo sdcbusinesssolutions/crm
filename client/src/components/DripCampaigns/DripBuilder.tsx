@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dripCampaignService, DripCampaign, DripStep } from '../../services/dripCampaignService';
 import { integrationsService } from '../../services/integrationsService';
 import { tagService } from '../../services/tagService';
@@ -20,13 +20,14 @@ import {
 // --- Types ---
 interface DripBuilderProps {
     campaignId: string | null;
+    initialCampaignName?: string;
     onBack: () => void;
 }
 
-const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
+const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignName, onBack }) => {
     // --- State: Data ---
     const [campaign, setCampaign] = useState<Partial<DripCampaign>>({
-        name: 'New Sequence',
+        name: initialCampaignName || (campaignId ? 'Loading Sequence...' : 'New Sequence'),
         description: '',
         trigger_type: 'MANUAL',
         trigger_value: '',
@@ -47,7 +48,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const [availableStages, setAvailableStages] = useState<any[]>([]);
 
     // --- State: UI ---
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(campaignId ? true : false);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [activeTab, setActiveTab] = useState<'BUILDER' | 'ENROLLMENTS'>('BUILDER');
     const [selectedStep, setSelectedStep] = useState<DripStep | null>(null);
@@ -62,32 +63,60 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const canvasRef = useRef<HTMLDivElement>(null);
 
     // --- Effects ---
+    // Effect 1: Campaign data (CRITICAL PATH - fires only when campaignId changes)
     useEffect(() => {
         if (campaignId) {
             loadCampaign(campaignId);
-            if (activeTab === 'ENROLLMENTS') loadEnrollments();
         }
-        loadTemplates();
-        loadEmailConnections();
-        loadMetadata();
-    }, [campaignId, activeTab]);
+    }, [campaignId]);
+
+    // Effect 2: Secondary data (NON-CRITICAL - loads after paint, not blocking UI)
+    useEffect(() => {
+        // Use requestIdleCallback to defer non-critical data loads
+        // so that the critical canvas path renders immediately
+        const load = () => {
+            loadTemplates();
+            loadEmailConnections();
+            loadMetadata();
+        };
+        if ('requestIdleCallback' in window) {
+            const id = (window as any).requestIdleCallback(load, { timeout: 1500 });
+            return () => (window as any).cancelIdleCallback(id);
+        } else {
+            // Fallback: defer with setTimeout
+            const t = setTimeout(load, 200);
+            return () => clearTimeout(t);
+        }
+    }, []); // Only once on mount
+
+    // Effect 3: Tab-specific data (only fires when tab changes to ENROLLMENTS)
+    useEffect(() => {
+        if (activeTab === 'ENROLLMENTS' && campaignId) {
+            loadEnrollments();
+        }
+    }, [activeTab, campaignId]);
 
     // --- Loaders ---
-    const loadMetadata = async () => {
+    const loadMetadata = useCallback(async () => {
         try {
-            const tags = await tagService.getTags();
-            setAvailableTags(tags.map(t => t.name));
+            // Fire tags and pipelines in parallel
+            const [tags, pipelines] = await Promise.all([
+                tagService.getTags().catch(() => []),
+                pipelineService.getPipelines().catch(() => [])
+            ]);
+            setAvailableTags(tags.map((t: any) => t.name));
 
-            const pipelines = await pipelineService.getPipelines();
-            let stages: any[] = [];
-            for (const p of pipelines) {
-                const pStages = await pipelineService.getPipelineStages(p.id);
-                // Simple sort by display order if available
-                stages.push(...pStages.map(s => ({ ...s, pipelineName: p.name })));
-            }
-            setAvailableStages(stages);
+            // Fetch ALL pipeline stages in parallel (fixes N+1 sequential loop)
+            const stageArrays = await Promise.all(
+                pipelines.map((p: any) =>
+                    pipelineService.getPipelineStages(p.id)
+                        .then((s: any[]) => s.map(stage => ({ ...stage, pipelineName: p.name })))
+                        .catch(() => [])
+                )
+            );
+            setAvailableStages(stageArrays.flat());
         } catch (e) { console.error('Failed to load metadata', e); }
-    };
+    }, []);
     const loadCampaign = async (id: string) => {
         setLoading(true);
         try {
@@ -120,7 +149,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
         } catch (e) { console.error(e); }
     };
 
-    const loadEmailConnections = async () => {
+    const loadEmailConnections = useCallback(async () => {
         try {
             const [gmail, smtp, openai] = await Promise.all([
                 integrationsService.getGmailConnections().catch(() => []),
@@ -131,7 +160,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
             setSmtpConnections(smtp || []);
             setOpenaiConnections(openai || []);
         } catch (e) { console.error(e); }
-    };
+    }, []);
 
     // --- Actions ---
     const handleSaveCampaign = async (exitAfterSave = true) => {
@@ -334,6 +363,27 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, onBack }) => {
     const daysMap = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     // --- Renderers ---
+    if (loading && !campaign.id) {
+        return (
+            <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 text-white font-sans">
+                <div className="relative w-24 h-24 mb-6">
+                    <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <PlayIcon className="w-8 h-8 text-brand-500 animate-pulse" />
+                    </div>
+                </div>
+                <h2 className="text-xl font-black tracking-tight mb-2">Loading Sequence</h2>
+                <p className="text-slate-500 text-sm font-bold tracking-widest uppercase animate-pulse">{campaign.name || 'Building Canvas...'}</p>
+                <div className="mt-12 flex gap-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce"></div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full w-full flex flex-col font-sans bg-slate-950 text-white overflow-hidden relative">
             {/* Header */}

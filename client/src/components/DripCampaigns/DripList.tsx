@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { dripCampaignService, DripCampaign } from '../../services/dripCampaignService';
 import { format } from 'date-fns';
 import {
@@ -14,13 +14,18 @@ import {
 } from '../icons';
 import Modal from '../Modal';
 
+// --- In-Memory Cache (survives re-mounts, invalidated after 30s) ---
+const CACHE_TTL_MS = 30_000;
+let _campaignCache: { data: DripCampaign[]; timestamp: number } | null = null;
+const invalidateCache = () => { _campaignCache = null; };
+
 interface DripListProps {
     onCreate: () => void;
-    onEdit: (id: string) => void;
+    onEdit: (id: string, name: string) => void;
     onToggleSidebar: () => void;
 }
 
-const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+const StatusBadge: React.FC<{ status: string }> = memo(({ status }) => {
     const s = (status || '').toUpperCase();
     let colorClass = 'bg-slate-100 text-slate-500 border-slate-200';
     let dotClass = 'bg-slate-400';
@@ -48,9 +53,9 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
             {label}
         </span>
     );
-};
+});
 
-const StatusToggle: React.FC<{ status: string; onClick: (e: React.MouseEvent) => void }> = ({ status, onClick }) => {
+const StatusToggle: React.FC<{ status: string; onClick: (e: React.MouseEvent) => void }> = memo(({ status, onClick }) => {
     const isActive = status === 'ACTIVE';
     return (
         <button
@@ -66,49 +71,62 @@ const StatusToggle: React.FC<{ status: string; onClick: (e: React.MouseEvent) =>
             />
         </button>
     );
-};
+});
 
 const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }) => {
-    const [campaigns, setCampaigns] = useState<DripCampaign[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Seed from cache immediately for instant perceived load
+    const [campaigns, setCampaigns] = useState<DripCampaign[]>(
+        () => _campaignCache?.data ?? []
+    );
+    const [loading, setLoading] = useState(() => !_campaignCache);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('All');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const itemsPerPage = 15; // Increased from 10
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
 
     useEffect(() => {
+        const now = Date.now();
+        // Stale-while-revalidate: if cache is fresh (<30s) skip fetch
+        if (_campaignCache && now - _campaignCache.timestamp < CACHE_TTL_MS) {
+            return;
+        }
         loadCampaigns();
     }, []);
 
-    const loadCampaigns = async () => {
-        setLoading(true);
+    const loadCampaigns = useCallback(async (silent = false) => {
+        if (!silent) setLoading(prev => prev === false ? false : true); // Only show spinner on first load
         try {
             const data = await dripCampaignService.getCampaigns();
+            _campaignCache = { data, timestamp: Date.now() };
             setCampaigns(data);
         } catch (error) {
             console.error('Failed to load campaigns', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    const handleDeleteClick = useCallback((e: React.MouseEvent, id: string) => {
         e.preventDefault();
         e.stopPropagation();
         setCampaignToDelete(id);
         setIsDeleteModalOpen(true);
-    };
+    }, []);
 
-    const confirmDelete = async () => {
+    const confirmDelete = useCallback(async () => {
         if (!campaignToDelete) return;
-
         try {
             await dripCampaignService.deleteCampaign(campaignToDelete);
-            setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete));
+            invalidateCache(); // Force fresh fetch next time
+            setCampaigns(prev => {
+                const updated = prev.filter(c => c.id !== campaignToDelete);
+                _campaignCache = { data: updated, timestamp: Date.now() };
+                return updated;
+            });
         } catch (error) {
             console.error('Failed to delete campaign', error);
             alert("Failed to delete campaign");
@@ -116,54 +134,55 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
             setIsDeleteModalOpen(false);
             setCampaignToDelete(null);
         }
-    };
+    }, [campaignToDelete]);
 
-    const handleToggleStatus = async (e: React.MouseEvent, campaign: DripCampaign) => {
+    const handleToggleStatus = useCallback(async (e: React.MouseEvent, campaign: DripCampaign) => {
         e.preventDefault();
         e.stopPropagation();
-
-        const newStatus = campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
-
+        const newStatus = (campaign.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE') as DripCampaign['status'];
         // Optimistic update
-        setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: newStatus } : c));
-
+        setCampaigns(prev => {
+            const updated = prev.map(c => c.id === campaign.id ? { ...c, status: newStatus } : c);
+            _campaignCache = { data: updated, timestamp: Date.now() };
+            return updated;
+        });
         try {
             await dripCampaignService.updateCampaign(campaign.id, { status: newStatus });
         } catch (error) {
             console.error('Failed to update status', error);
-            // Revert
-            setCampaigns(prev => prev.map(c => c.id === campaign.id ? { ...c, status: campaign.status } : c));
+            // Revert on failure
+            setCampaigns(prev => {
+                const reverted = prev.map(c => c.id === campaign.id ? { ...c, status: campaign.status } : c);
+                _campaignCache = { data: reverted, timestamp: Date.now() };
+                return reverted;
+            });
         }
-    };
+    }, []);
 
-    const filteredCampaigns = campaigns.filter(campaign => {
+    // All filtering & pagination memoized — only recomputes when deps change
+    const filteredCampaigns = useMemo(() => {
         const term = searchTerm.toLowerCase().trim();
+        return campaigns.filter(campaign => {
+            if (statusFilter !== 'All' && campaign.status !== statusFilter) return false;
+            if (!term) return true;
+            // Pre-build searchable string once per campaign
+            return `${campaign.name} ${campaign.description || ''} ${campaign.trigger_type} ${campaign.status}`
+                .toLowerCase().includes(term);
+        });
+    }, [campaigns, searchTerm, statusFilter]);
 
-        // 1. Status Filter
-        if (statusFilter !== 'All' && campaign.status !== statusFilter) {
-            return false;
-        }
+    const { currentItems, totalPages, indexOfFirstItem, indexOfLastItem } = useMemo(() => {
+        const indexOfLastItem = currentPage * itemsPerPage;
+        const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+        return {
+            currentItems: filteredCampaigns.slice(indexOfFirstItem, indexOfLastItem),
+            totalPages: Math.ceil(filteredCampaigns.length / itemsPerPage),
+            indexOfFirstItem,
+            indexOfLastItem
+        };
+    }, [filteredCampaigns, currentPage, itemsPerPage]);
 
-        // 2. Search Filter
-        if (!term) return true;
-
-        const searchable = [
-            campaign.name,
-            campaign.description || '',
-            campaign.trigger_type,
-            campaign.status
-        ].join(' ').toLowerCase();
-
-        return searchable.includes(term);
-    });
-
-    // Pagination
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredCampaigns.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredCampaigns.length / itemsPerPage);
-
-    const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+    const paginate = useCallback((pageNumber: number) => setCurrentPage(pageNumber), []);
 
     return (
         <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden container-mobile-fix">
@@ -322,7 +341,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                             ? 'bg-emerald-50/60 shadow-[inset_4px_0_0_0_#10b981]'
                                                             : 'bg-white hover:bg-slate-50 shadow-[inset_4px_0_0_0_transparent] hover:shadow-[inset_4px_0_0_0_#cbd5e1]'
                                                             }`}
-                                                        onClick={() => onEdit(campaign.id)}
+                                                        onClick={() => onEdit(campaign.id, campaign.name)}
                                                     >
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="flex items-center">
@@ -358,7 +377,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                                         onClick={(e) => handleToggleStatus(e, campaign)}
                                                                     />
                                                                 </div>
-                                                                <button onClick={() => onEdit(campaign.id)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
+                                                                <button onClick={() => onEdit(campaign.id, campaign.name)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
                                                                     <EditIcon className="w-4 h-4" />
                                                                 </button>
                                                                 <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
@@ -380,7 +399,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                         return (
                                             <div
                                                 key={campaign.id}
-                                                onClick={() => onEdit(campaign.id)}
+                                                onClick={() => onEdit(campaign.id, campaign.name)}
                                                 className={`rounded-2xl p-5 border shadow-sm hover:shadow-md transition-all active:scale-[0.99] relative overflow-hidden group ${isActive
                                                     ? 'bg-emerald-50 border-emerald-200/60 shadow-[inset_4px_0_0_0_#10b981]'
                                                     : 'bg-white border-slate-200 shadow-[inset_4px_0_0_0_transparent]'
@@ -421,7 +440,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
 
                                                         <div className="flex items-center gap-1">
                                                             <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                                                            <button onClick={() => onEdit(campaign.id)} className="ml-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md active:scale-95 transition-all flex items-center gap-1">
+                                                            <button onClick={() => onEdit(campaign.id, campaign.name)} className="ml-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md active:scale-95 transition-all flex items-center gap-1">
                                                                 Manage Steps
                                                             </button>
                                                         </div>

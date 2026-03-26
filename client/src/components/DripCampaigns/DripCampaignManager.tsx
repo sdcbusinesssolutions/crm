@@ -2,17 +2,20 @@ import React, { useState } from 'react';
 import DripList from './DripList';
 import DripBuilder from './DripBuilder';
 
-const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?: 'list' | 'builder', initialCampaignId?: string | null, onExit?: () => void }> = ({ onToggleSidebar, initialView = 'list', initialCampaignId = null, onExit }) => {
+const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?: 'list' | 'builder', initialCampaignId?: string | null, initialCampaignName?: string, onExit?: () => void }> = ({ onToggleSidebar, initialView = 'list', initialCampaignId = null, initialCampaignName = '', onExit }) => {
     const [view, setView] = useState<'list' | 'builder'>(initialCampaignId ? 'builder' : initialView);
     const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(initialCampaignId);
+    const [selectedCampaignName, setSelectedCampaignName] = useState<string>(initialCampaignName);
 
     const handleCreate = () => {
         setSelectedCampaignId(null);
+        setSelectedCampaignName('New Sequence');
         setView('builder');
     };
 
-    const handleEdit = (id: string) => {
+    const handleEdit = (id: string, name?: string) => {
         setSelectedCampaignId(id);
+        if (name) setSelectedCampaignName(name);
         setView('builder');
     };
 
@@ -39,6 +42,7 @@ const DripCampaignManager: React.FC<{ onToggleSidebar: () => void, initialView?:
                 <DripBuilder
                     key={selectedCampaignId || 'new-drip'}
                     campaignId={selectedCampaignId}
+                    initialCampaignName={selectedCampaignName}
                     onBack={handleBack}
                 />
             )}
