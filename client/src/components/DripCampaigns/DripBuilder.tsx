@@ -363,27 +363,6 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const daysMap = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     // --- Renderers ---
-    if (loading && !campaign.id) {
-        return (
-            <div className="h-full w-full flex flex-col items-center justify-center bg-slate-950 text-white font-sans">
-                <div className="relative w-24 h-24 mb-6">
-                    <div className="absolute inset-0 border-4 border-brand-500/20 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-t-brand-500 rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <PlayIcon className="w-8 h-8 text-brand-500 animate-pulse" />
-                    </div>
-                </div>
-                <h2 className="text-xl font-black tracking-tight mb-2">Loading Sequence</h2>
-                <p className="text-slate-500 text-sm font-bold tracking-widest uppercase animate-pulse">{campaign.name || 'Building Canvas...'}</p>
-                <div className="mt-12 flex gap-4">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-500/40 animate-bounce"></div>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="h-full w-full flex flex-col font-sans bg-slate-950 text-white overflow-hidden relative">
             {/* Header */}
@@ -463,6 +442,32 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
             {/* Main Workspace */}
             <div className="flex-1 relative overflow-hidden flex">
+                {/* === LOADING SKELETON: blocks canvas until data is ready (FlowEditor pattern) === */}
+                {loading && (
+                    <div className="absolute inset-0 z-20 bg-slate-950 flex flex-col items-center justify-start pt-24 pointer-events-none">
+                        {/* Animated shimmer nodes that mimic the canvas */}
+                        <div className="flex flex-col items-center gap-0">
+                            {/* Start node skeleton */}
+                            <div className="w-[220px] h-[60px] rounded-2xl bg-slate-800/80 border border-slate-700/50 animate-pulse" />
+                            <div className="w-px h-8 bg-slate-700/50" />
+                            {/* Step skeletons */}
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="flex flex-col items-center">
+                                    <div
+                                        className="w-[180px] h-[28px] rounded-full bg-slate-800/60 border border-slate-700/30 animate-pulse"
+                                        style={{ animationDelay: `${i * 0.12}s` }}
+                                    />
+                                    <div className="w-px h-4 bg-slate-700/40" />
+                                    <div
+                                        className="w-[220px] h-[60px] rounded-2xl bg-slate-800/80 border border-slate-700/50 animate-pulse"
+                                        style={{ animationDelay: `${i * 0.12}s` }}
+                                    />
+                                    {i < 3 && <div className="w-px h-4 bg-slate-700/40" />}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {activeTab === 'ENROLLMENTS' ? (
                     <div className="flex-1 overflow-y-auto p-8 bg-slate-950">
                         <div className="max-w-5xl mx-auto bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">

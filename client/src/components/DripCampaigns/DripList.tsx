@@ -74,15 +74,12 @@ const StatusToggle: React.FC<{ status: string; onClick: (e: React.MouseEvent) =>
 });
 
 const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }) => {
-    // Seed from cache immediately for instant perceived load
-    const [campaigns, setCampaigns] = useState<DripCampaign[]>(
-        () => _campaignCache?.data ?? []
-    );
-    const [loading, setLoading] = useState(() => !_campaignCache);
+    const [campaigns, setCampaigns] = useState<DripCampaign[]>([]);
+    const [loading, setLoading] = useState(true); // Always start loading — like FlowEditor
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('All');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 15; // Increased from 10
+    const itemsPerPage = 15;
 
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -90,15 +87,18 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
 
     useEffect(() => {
         const now = Date.now();
-        // Stale-while-revalidate: if cache is fresh (<30s) skip fetch
+        // If cache is fresh (<30s), use it directly — instant, no flash
         if (_campaignCache && now - _campaignCache.timestamp < CACHE_TTL_MS) {
+            setCampaigns(_campaignCache.data);
+            setLoading(false);
             return;
         }
+        // Otherwise fetch fresh data
         loadCampaigns();
     }, []);
 
-    const loadCampaigns = useCallback(async (silent = false) => {
-        if (!silent) setLoading(prev => prev === false ? false : true); // Only show spinner on first load
+    const loadCampaigns = useCallback(async () => {
+        setLoading(true);
         try {
             const data = await dripCampaignService.getCampaigns();
             _campaignCache = { data, timestamp: Date.now() };
