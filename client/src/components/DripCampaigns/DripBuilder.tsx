@@ -17,6 +17,10 @@ import {
     SparklesIcon
 } from '../icons';
 
+// --- Per-campaign in-memory cache (60s TTL) ---
+const BUILDER_CACHE_TTL_MS = 60_000;
+const _builderCache = new Map<string, { data: DripCampaign; timestamp: number }>();
+
 // --- Types ---
 interface DripBuilderProps {
     campaignId: string | null;
@@ -26,18 +30,26 @@ interface DripBuilderProps {
 
 const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignName, onBack }) => {
     // --- State: Data ---
-    const [campaign, setCampaign] = useState<Partial<DripCampaign>>({
-        name: initialCampaignName || (campaignId ? 'Loading Sequence...' : 'New Sequence'),
-        description: '',
-        trigger_type: 'MANUAL',
-        trigger_value: '',
-        status: 'DRAFT',
-        stop_on_reply: true,
-        steps: [],
-        // V2 Defaults
-        allowed_days: '0,1,2,3,4,5,6',
-        time_window_start: '09:00',
-        time_window_end: '18:00'
+    // Seed immediately from cache if available — single render, no flash, no skeleton
+    const [campaign, setCampaign] = useState<Partial<DripCampaign>>(() => {
+        if (campaignId) {
+            const cached = _builderCache.get(campaignId);
+            if (cached && Date.now() - cached.timestamp < BUILDER_CACHE_TTL_MS) {
+                return cached.data; // instant — no API call needed
+            }
+        }
+        return {
+            name: initialCampaignName || (campaignId ? '' : 'New Sequence'),
+            description: '',
+            trigger_type: 'MANUAL',
+            trigger_value: '',
+            status: 'DRAFT',
+            stop_on_reply: true,
+            steps: [],
+            allowed_days: '0,1,2,3,4,5,6',
+            time_window_start: '09:00',
+            time_window_end: '18:00'
+        };
     });
     const [enrollments, setEnrollments] = useState<any[]>([]);
     const [templates, setTemplates] = useState<any[]>([]);
@@ -48,7 +60,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const [availableStages, setAvailableStages] = useState<any[]>([]);
 
     // --- State: UI ---
-    const [loading, setLoading] = useState(campaignId ? true : false);
+    // If campaign is already in cache, skip loading state entirely
+    const isCacheHit = campaignId
+        ? (() => { const c = _builderCache.get(campaignId); return !!(c && Date.now() - c.timestamp < BUILDER_CACHE_TTL_MS); })()
+        : false;
+    const [loading, setLoading] = useState(campaignId ? !isCacheHit : false);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [activeTab, setActiveTab] = useState<'BUILDER' | 'ENROLLMENTS'>('BUILDER');
     const [selectedStep, setSelectedStep] = useState<DripStep | null>(null);
@@ -118,9 +134,17 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         } catch (e) { console.error('Failed to load metadata', e); }
     }, []);
     const loadCampaign = async (id: string) => {
+        // Check cache first
+        const cached = _builderCache.get(id);
+        if (cached && Date.now() - cached.timestamp < BUILDER_CACHE_TTL_MS) {
+            setCampaign(cached.data);
+            setLoading(false);
+            return; // instant — skip API
+        }
         setLoading(true);
         try {
             const data = await dripCampaignService.getCampaign(id);
+            _builderCache.set(id, { data, timestamp: Date.now() }); // cache it
             setCampaign(data);
         } catch (e) {
             console.error('Failed to load campaign', e);
@@ -199,6 +223,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     }
                 }
             }
+
+            // Invalidate cache so next open fetches fresh post-save data
+            if (currentCampaignId) _builderCache.delete(currentCampaignId);
 
             if (exitAfterSave) onBack();
         } catch (e) {
