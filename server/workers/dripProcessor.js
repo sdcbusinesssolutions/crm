@@ -15,6 +15,8 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+const BATCH_SIZE = parseInt(process.env.DRIP_BATCH_SIZE || '100');
+
 // --- HELPER: Logging & Idempotency ---
 async function logAction(enrollment, type, details = {}, idempotencyKey = null) {
     try {
@@ -88,7 +90,7 @@ async function processDrips() {
     const now = new Date();
 
     try {
-        const { data: lockedRows, error: rpcError } = await supabase.rpc('fetch_and_lock_drip_jobs', { batch_size: 10 });
+        const { data: lockedRows, error: rpcError } = await supabase.rpc('fetch_and_lock_drip_jobs', { batch_size: BATCH_SIZE });
         if (rpcError) {
             console.error('[DripEngine] RPC Error:', rpcError);
             return;
@@ -96,7 +98,7 @@ async function processDrips() {
 
         if (!lockedRows || lockedRows.length === 0) {
             console.log('[DripEngine] No due jobs found.');
-            return;
+            return 0;
         }
 
         const dueIds = lockedRows.map(e => e.id);
@@ -119,8 +121,10 @@ async function processDrips() {
                 console.error(`[DripEngine] Critical failure in enrollment ${enrollment.id}:`, err);
             }
         }
+        return enrollments.length;
     } catch (error) {
         console.error('[DripEngine] Critical loop failure:', error);
+        return 0;
     }
 }
 
@@ -238,14 +242,62 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                         let langCode = config.template_language?.code || config.template_language || 'en';
 
                         let components = [];
-                        if (config.template_type === 'CAROUSEL') {
-                            if (params.body && Array.isArray(params.body) && params.body.length > 0) {
+
+                        // 1. CAROUSEL SUPPORT (Advanced)
+                        // Detect if this is a carousel template (via config.template_type OR presence of carousel params)
+                        if (config.template_type === 'CAROUSEL' || params.carousel) {
+                            const carouselParams = params.carousel || {}; // { "0": "url", "1": "url" }
+                            const bodyParams = params.body || []; // Usually templates have bodies for cards too
+
+                            // We need to build cards. Many templates have matching card counts.
+                            // If user provided carousel URLs, we build cards for them.
+                            const cardIndices = Object.keys(carouselParams).sort((a, b) => parseInt(a) - parseInt(b));
+                            const cards = cardIndices.map(idx => {
+                                const cardComponents = [];
+                                
+                                // Card Header (Media)
+                                cardComponents.push({
+                                    type: 'header',
+                                    parameters: [{
+                                        type: 'image', // Most carousels use image, could be inferred/fixed if needed
+                                        image: { link: carouselParams[idx] }
+                                    }]
+                                });
+
+                                // Card Body (If provided specifically for cards, or use global body)
+                                // Standard Drip Builder might just send one body for all cards or a list.
+                                // If body is a list and matches index, use it. Otherwise use first element.
+                                const cardBodyText = (Array.isArray(bodyParams) && bodyParams[idx]) 
+                                    ? bodyParams[idx] 
+                                    : (bodyParams[0] || 'Hello!');
+
+                                cardComponents.push({
+                                    type: 'body',
+                                    parameters: [{
+                                        type: 'text',
+                                        text: replaceVariables(cardBodyText, enrollment)
+                                    }]
+                                });
+
+                                return {
+                                    card_index: parseInt(idx),
+                                    components: cardComponents
+                                };
+                            });
+
+                            if (cards.length > 0) {
                                 components.push({
                                     type: 'carousel',
-                                    cards: [{ card_index: 0, components: [{ type: 'body', parameters: params.body.map(v => ({ type: 'text', text: replaceVariables(v, enrollment) })) }] }]
+                                    cards: cards
                                 });
+                            } else {
+                                // Fallback if type was carousel but no cards defined
+                                if (params.body && Array.isArray(params.body)) {
+                                    components.push({ type: 'body', parameters: params.body.map(v => ({ type: 'text', text: replaceVariables(v, enrollment) })) });
+                                }
                             }
                         } else {
+                            // 2. STANDARD TEMPLATE SUPPORT (Header + Body)
                             if (params.header) {
                                 if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(params.header.type?.toUpperCase()) && params.header.url) {
                                     components.push({ type: 'header', parameters: [{ type: params.header.type.toLowerCase(), [params.header.type.toLowerCase()]: { link: params.header.url } }] });
@@ -358,10 +410,27 @@ function calculateDelay(startDate, value, unit) {
     return date;
 }
 
-function start() {
-    console.log('[DripEngine] Starting worker...');
-    processDrips();
-    setInterval(processDrips, 60000);
+async function start() {
+    console.log(`[DripEngine] Starting worker (Batch Size: ${BATCH_SIZE})...`);
+    
+    while (true) {
+        try {
+            const processedCount = await processDrips();
+            
+            if (processedCount >= BATCH_SIZE) {
+                // If we hit the batch limit, there are likely more jobs waiting.
+                // Re-run immediately (with a tiny 100ms jitter) to clear the queue as fast as possible.
+                console.log(`[DripEngine] High volume detected (${processedCount} processed). Momentum carry-over...`);
+                await new Promise(r => setTimeout(r, 100));
+            } else {
+                // No more immediate work, wait for the next heartbeat
+                await new Promise(r => setTimeout(r, 60000));
+            }
+        } catch (err) {
+            console.error('[DripEngine] Worker loop exception:', err);
+            await new Promise(r => setTimeout(r, 5000)); // Wait before retry
+        }
+    }
 }
 
 if (require.main === module) { start(); }
