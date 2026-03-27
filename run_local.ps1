@@ -96,20 +96,20 @@ else {
     Write-Warning "domains.csv not found! Using existing .env if present."
 }
 
+# 1. Kill Node.js and related processes to release locks
 # -----------------------------------------------------
-# 1. Kill ALL Node.js processes
-# -----------------------------------------------------
-Write-Host "Stopping existing Node.js processes..." -ForegroundColor Yellow
-Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Write-Host "Stopping existing Node.js & Tooling processes to release file locks..." -ForegroundColor Yellow
+$relatedProcesses = @("node", "nodemon", "vite", "npm")
+foreach ($proc in $relatedProcesses) {
+    Get-Process $proc -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+}
 
 # -----------------------------------------------------
-# 2. Kill ports 3000, 5000, 5001, 5173
+# 2. Release Ports (3000, 5000)
 # -----------------------------------------------------
 Write-Host "Releasing ports..." -ForegroundColor Yellow
-npx kill-port 3000 2>$null
-npx kill-port 5000 2>$null
-# npx kill-port 5001 2>$null
-# npx kill-port 5173 2>$null
+npx kill-port 3000 5000 2>$null
+Start-Sleep -Seconds 1 # Give OS time to release locks
 
 # -----------------------------------------------------
 # 3. Ensure Node.js is installed
@@ -145,14 +145,17 @@ function Repair-CorruptedNodeModules {
             
             # Rename corrupted folder
             $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            # $backupPath assignment is unused, removing to fix lint
             
             try {
-                Rename-Item -Path $nodeModulesPath -NewName "node_modules_corrupted_$timestamp" -ErrorAction SilentlyContinue
-                Write-Host "  Renamed corrupted folder to: node_modules_corrupted_$timestamp" -ForegroundColor Yellow
+                # Attempt to remove forcefully first if it's really corrupted
+                Remove-Item -Path $nodeModulesPath -Recurse -Force -ErrorAction SilentlyContinue
+                if (Test-Path $nodeModulesPath) {
+                    Rename-Item -Path $nodeModulesPath -NewName "node_modules_corrupted_$timestamp" -ErrorAction SilentlyContinue
+                    Write-Host "  Renamed corrupted folder to: node_modules_corrupted_$timestamp" -ForegroundColor Yellow
+                }
             }
             catch {
-                Write-Host "  Could not rename folder, will reinstall anyway..." -ForegroundColor Yellow
+                Write-Host "  Strict cleanup failed, will attempt reinstall anyway..." -ForegroundColor Yellow
             }
             
             return $true
@@ -180,9 +183,10 @@ elseif (Repair-CorruptedNodeModules -Path "server") {
 if ($serverNeedsInstall) {
     Write-Host "Installing Server dependencies..." -ForegroundColor Green
     Push-Location "server"
-    npm install
+    # Use --no-bin-links and disable workspaces behavior by cleaning root if needed
+    npm install --no-bin-links
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to install server dependencies!"
+        Write-Error "Failed to install server dependencies! If you see 'symlink' errors, try running this terminal as Administrator or Enable 'Developer Mode' in Windows Settings."
         Pop-Location
         exit 1
     }
@@ -203,9 +207,9 @@ elseif (Repair-CorruptedNodeModules -Path "client") {
 if ($clientNeedsInstall) {
     Write-Host "Installing Client dependencies..." -ForegroundColor Green
     Push-Location "client"
-    npm install
+    npm install --no-bin-links
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to install client dependencies!"
+        Write-Error "Failed to install client dependencies! If you see 'symlink' errors, try running this terminal as Administrator or Enable 'Developer Mode' in Windows Settings."
         Pop-Location
         exit 1
     }
