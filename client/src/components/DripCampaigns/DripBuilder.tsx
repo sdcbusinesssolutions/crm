@@ -391,7 +391,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
     // --- Renderers ---
     return (
-        <div className="h-full w-full flex flex-col font-sans bg-slate-950 text-white overflow-hidden relative">
+        <div className="h-full w-full flex flex-col font-sans bg-white text-slate-900 overflow-hidden relative">
             {/* Header */}
             <div className="z-30 px-4 py-3 shrink-0 bg-slate-900/50 backdrop-blur-md border-b border-white/5 flex justify-between items-center">
                 <div className="flex items-center gap-4">
@@ -405,7 +405,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             type="text"
                             value={campaign.name || ''}
                             onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
-                            className="bg-transparent border-none text-white font-bold text-lg focus:ring-0 p-0 placeholder-slate-600 w-64"
+                            className="bg-transparent border-none text-slate-900 font-bold text-lg focus:ring-0 p-0 placeholder-slate-400 w-64"
                             placeholder="Untitled Campaign"
                         />
                     </div>
@@ -414,13 +414,13 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                 <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
                     <button
                         onClick={() => setActiveTab('BUILDER')}
-                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'BUILDER' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'BUILDER' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         Graph
                     </button>
                     <button
                         onClick={() => setActiveTab('ENROLLMENTS')}
-                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'ENROLLMENTS' ? 'bg-slate-700 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'ENROLLMENTS' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         Enrollments
                     </button>
@@ -532,7 +532,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                         {/* Canvas Area */}
                         <div
                             ref={canvasRef}
-                            className="flex-1 bg-slate-950 relative cursor-grab active:cursor-grabbing"
+                            className="flex-1 bg-white relative cursor-grab active:cursor-grabbing"
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
@@ -540,10 +540,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             onWheel={handleWheel}
                         >
                             {/* Dot Background */}
-                            <div className="absolute inset-0 opacity-20 pointer-events-none"
+                            <div className="absolute inset-0 pointer-events-none"
                                 style={{
-                                    backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)',
-                                    backgroundSize: `${20 * viewport.zoom}px ${20 * viewport.zoom}px`,
+                                    backgroundImage: 'radial-gradient(circle, #D1D1D1 1px, transparent 1px)',
+                                    backgroundSize: `${25 * viewport.zoom}px ${25 * viewport.zoom}px`,
                                     backgroundPosition: `${viewport.x}px ${viewport.y}px`
                                 }}
                             />
