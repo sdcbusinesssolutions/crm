@@ -72,6 +72,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const [showCampaignSettings, setShowCampaignSettings] = useState(false);
     const [showAddMenu, setShowAddMenu] = useState(false);
     const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
+    const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
+    const templateDropdownRef = useRef<HTMLDivElement>(null);
 
     // --- State: Canvas ---
     const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
@@ -134,6 +136,20 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
             setAvailableStages(stageArrays.flat());
         } catch (e) { console.error('Failed to load metadata', e); }
     }, []);
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (templateDropdownRef.current && !templateDropdownRef.current.contains(event.target as Node)) {
+                setTemplateDropdownOpen(false);
+            }
+        };
+        if (templateDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [templateDropdownOpen]);
+
     const loadCampaign = async (id: string) => {
         // Check cache first
         const cached = _builderCache.get(id);
@@ -845,28 +861,81 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             <span className="text-emerald-600 font-mono">System Number</span>
                                                         </div>
                                                     </div>
-                                                    <div>
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">WhatsApp Template</label>
-                                                        <select
-                                                            value={selectedStep.step_config?.template_id || ''}
-                                                            onChange={(e) => {
-                                                                const tpl = templates.find(t => t.id === e.target.value);
-                                                                handleUpdateStep(selectedStep.id, {
-                                                                    step_config: {
-                                                                        ...selectedStep.step_config,
-                                                                        template_id: tpl?.id,
-                                                                        template_name: tpl?.name,
-                                                                        template_language: tpl?.language,
-                                                                        parameters: {} // Reset params on change
-                                                                    }
-                                                                });
-                                                            }}
-                                                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
-                                                        >
-                                                            <option value="">Select Template...</option>
-                                                            {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.language})</option>)}
-                                                        </select>
-                                                    </div>
+                                                        <div className="relative" ref={templateDropdownRef}>
+                                                            <div className="text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">WhatsApp Template</div>
+                                                            <button
+                                                                onClick={() => setTemplateDropdownOpen(!templateDropdownOpen)}
+                                                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm flex items-center justify-between hover:border-slate-300 transition-all text-left"
+                                                            >
+                                                                <span className="truncate">{selectedStep.step_config?.template_name || 'Select Template...'}</span>
+                                                                <ChevronDownIcon className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${templateDropdownOpen ? 'rotate-180' : ''}`} />
+                                                            </button>
+
+                                                            {templateDropdownOpen && (
+                                                                <div 
+                                                                    className="absolute z-50 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-fade-in"
+                                                                >
+                                                                    {/* Thick Scrollbar Utility CSS Injection */}
+                                                                    <style>{`
+                                                                        .custom-heavy-scroll::-webkit-scrollbar {
+                                                                            width: 12px !important;
+                                                                            height: 12px !important;
+                                                                            display: block !important;
+                                                                        }
+                                                                        .custom-heavy-scroll::-webkit-scrollbar-track {
+                                                                            background: #f1f5f9 !important;
+                                                                            border-radius: 6px;
+                                                                        }
+                                                                        .custom-heavy-scroll::-webkit-scrollbar-thumb {
+                                                                            background-color: #94a3b8 !important;
+                                                                            border-radius: 6px;
+                                                                            border: 3px solid #f1f5f9;
+                                                                        }
+                                                                        .custom-heavy-scroll::-webkit-scrollbar-thumb:hover {
+                                                                            background-color: #64748b !important;
+                                                                        }
+                                                                        .custom-heavy-scroll {
+                                                                            scrollbar-width: auto;
+                                                                            scrollbar-color: #94a3b8 #f1f5f9;
+                                                                        }
+                                                                    `}</style>
+                                                                    <div className="custom-heavy-scroll" style={{ maxHeight: '240px', overflowY: 'auto' }}>
+                                                                        <div className="p-1 space-y-1">
+                                                                            {templates.length === 0 && <div className="p-4 text-center text-xs text-slate-400">No templates found</div>}
+                                                                            {templates.map(t => (
+                                                                                <div
+                                                                                    key={t.id}
+                                                                                    onClick={() => {
+                                                                                        handleUpdateStep(selectedStep.id, {
+                                                                                            step_config: {
+                                                                                                ...selectedStep.step_config,
+                                                                                                template_id: t.id,
+                                                                                                template_name: t.name,
+                                                                                                template_language: t.language,
+                                                                                                parameters: {} 
+                                                                                            }
+                                                                                        });
+                                                                                        setTemplateDropdownOpen(false);
+                                                                                    }}
+                                                                                    className={`p-3 rounded-lg text-sm cursor-pointer transition-all flex items-center justify-between group ${
+                                                                                        selectedStep.step_config?.template_id === t.id 
+                                                                                        ? 'bg-brand-50 border border-brand-200 text-brand-600' 
+                                                                                        : 'text-slate-600 hover:bg-slate-50 border border-transparent'
+                                                                                    }`}
+                                                                                >
+                                                                                    <div className="truncate pr-2">
+                                                                                        <div className="font-bold truncate">{t.name}</div>
+                                                                                        <div className="text-[10px] opacity-70 uppercase tracking-tighter">{t.language}</div>
+                                                                                    </div>
+                                                                                    {selectedStep.step_config?.template_id === t.id && <CheckIcon className="w-3.5 h-3.5 flex-shrink-0" />}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            <p className="text-[9px] text-slate-400 mt-2 italic px-1">Tip: List is limited to 5 visible items. Scroll to see more.</p>
+                                                        </div>
 
                                                     {/* Template Variable Mapping */}
                                                     {(() => {
@@ -900,47 +969,51 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             <div className="space-y-4 animate-fade-in">
                                                                 {/* Header Mapping */}
                                                                 {header && (
-                                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                                                                        <div className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                                                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                                        <div className="text-[10px] font-bold text-slate-500 mb-2 uppercase flex items-center gap-2">
                                                                             <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
                                                                             Header ({header.format})
                                                                         </div>
                                                                         {['IMAGE', 'VIDEO', 'DOCUMENT'].includes((header.format || '').toUpperCase()) && (
-                                                                            <div>
-                                                                                <div className="flex gap-2 mb-2">
+                                                                            <div className="space-y-3">
+                                                                                <div>
+                                                                                    <div className="flex gap-2">
+                                                                                        <input
+                                                                                            type="file"
+                                                                                            accept={(header.format || '').toUpperCase() === 'IMAGE' ? 'image/*' : (header.format || '').toUpperCase() === 'VIDEO' ? 'video/*' : '.pdf,.doc,.docx'}
+                                                                                            onChange={(e) => handleFileUpload(e, selectedStep.id, 'HEADER')}
+                                                                                            className="block w-full text-[10px] text-slate-400
+                                                                                            file:mr-2 file:py-1 file:px-3
+                                                                                            file:rounded-full file:border-0
+                                                                                            file:text-[10px] file:font-bold
+                                                                                            file:bg-brand-50 file:text-brand-600
+                                                                                            hover:file:bg-brand-100
+                                                                                            cursor-pointer"
+                                                                                        />
+                                                                                    </div>
+                                                                                    {uploadingMedia && <p className="text-[10px] text-brand-500 font-bold animate-pulse mt-1">Uploading...</p>}
+                                                                                </div>
+                                                                                <div>
+                                                                                    <label className="text-[10px] font-bold text-slate-400 mb-1 block">Or Direct URL</label>
                                                                                     <input
-                                                                                        type="file"
-                                                                                        accept={(header.format || '').toUpperCase() === 'IMAGE' ? 'image/*' : (header.format || '').toUpperCase() === 'VIDEO' ? 'video/*' : '.pdf,.doc,.docx'}
-                                                                                        onChange={(e) => handleFileUpload(e, selectedStep.id, 'HEADER')}
-                                                                                        className="block w-full text-xs text-slate-400
-                                                                                        file:mr-2 file:py-1 file:px-2
-                                                                                        file:rounded-full file:border-0
-                                                                                        file:text-[10px] file:font-bold
-                                                                                        file:bg-brand-600 file:text-white
-                                                                                        hover:file:bg-brand-500
-                                                                                        cursor-pointer"
+                                                                                        type="text"
+                                                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:border-brand-500 outline-none shadow-sm"
+                                                                                        placeholder={`https://example.com/file.${(header.format || '').toUpperCase() === 'IMAGE' ? 'jpg' : (header.format || '').toUpperCase() === 'VIDEO' ? 'mp4' : 'pdf'}`}
+                                                                                        value={selectedStep.step_config?.parameters?.header?.url || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const currentParams = selectedStep.step_config?.parameters || {};
+                                                                                            handleUpdateStep(selectedStep.id, {
+                                                                                                step_config: {
+                                                                                                    ...selectedStep.step_config,
+                                                                                                    parameters: {
+                                                                                                        ...currentParams,
+                                                                                                        header: { type: header.format, url: e.target.value }
+                                                                                                    }
+                                                                                                }
+                                                                                            });
+                                                                                        }}
                                                                                     />
                                                                                 </div>
-                                                                                {uploadingMedia && <p className="text-[10px] text-brand-400 animate-pulse mb-2">Uploading...</p>}
-                                                                                <label className="text-[10px] text-slate-500 mb-1 block">Or Direct URL</label>
-                                                                                <input
-                                                                                    type="text"
-                                                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
-                                                                                    placeholder={`https://example.com/file.${(header.format || '').toUpperCase() === 'IMAGE' ? 'jpg' : (header.format || '').toUpperCase() === 'VIDEO' ? 'mp4' : 'pdf'}`}
-                                                                                    value={selectedStep.step_config?.parameters?.header?.url || ''}
-                                                                                    onChange={(e) => {
-                                                                                        const currentParams = selectedStep.step_config?.parameters || {};
-                                                                                        handleUpdateStep(selectedStep.id, {
-                                                                                            step_config: {
-                                                                                                ...selectedStep.step_config,
-                                                                                                parameters: {
-                                                                                                    ...currentParams,
-                                                                                                    header: { type: header.format, url: e.target.value }
-                                                                                                }
-                                                                                            }
-                                                                                        });
-                                                                                    }}
-                                                                                />
                                                                             </div>
                                                                         )}
                                                                         {(header.format || '').toUpperCase() === 'TEXT' && header.text?.includes('{{1}}') && (
@@ -948,7 +1021,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                                 <label className="text-[10px] text-slate-500 mb-1 block">Header Variable {'{{1}}'}</label>
                                                                                 <input
                                                                                     type="text"
-                                                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
+                                                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                                                     placeholder="Enter value or {{contact.name}}"
                                                                                     value={selectedStep.step_config?.parameters?.header?.text || ''}
                                                                                     onChange={(e) => {
@@ -1000,7 +1073,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                                     </div>
                                                                                     <input
                                                                                         type="text"
-                                                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none"
+                                                                                        className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                                                         value={selectedStep.step_config?.parameters?.carousel?.[idx] || ''}
                                                                                         onChange={(e) => {
                                                                                             const currentParams = selectedStep.step_config?.parameters || {};
@@ -1038,7 +1111,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                                     <div className="flex gap-1">
                                                                                         <input
                                                                                             type="text"
-                                                                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs focus:border-brand-500 outline-none font-mono text-slate-300"
+                                                                                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 focus:border-brand-500 outline-none font-mono shadow-sm"
                                                                                             placeholder="Value..."
                                                                                             value={selectedStep.step_config?.parameters?.body?.[i] || ''}
                                                                                             onChange={(e) => {
@@ -1058,7 +1131,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                                         />
                                                                                         {/* Quick Var Inserter */}
                                                                                         <button
-                                                                                            className="px-2 bg-slate-800 border border-slate-700 rounded-lg text-[10px] font-bold text-slate-400 hover:text-brand-400 hover:border-brand-500 whitespace-nowrap"
+                                                                                            className="px-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-brand-500 hover:border-brand-500 whitespace-nowrap shadow-sm"
                                                                                             onClick={() => {
                                                                                                 const currentParams = selectedStep.step_config?.parameters || {};
                                                                                                 const currentBody = [...(currentParams.body || [])];
@@ -1090,21 +1163,21 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     const buttons = components.find((c: any) => c.type === 'BUTTONS' || c.type === 'buttons');
                                                                     if (!footer && (!buttons || !buttons.buttons?.length)) return null;
                                                                     return (
-                                                                        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-700 space-y-3 opacity-80 pointer-events-none">
+                                                                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-3 opacity-90 pointer-events-none">
                                                                             {footer && (
                                                                                 <div>
-                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-1">Footer</div>
-                                                                                    <div className="text-xs text-slate-400 italic">{footer.text}</div>
+                                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 mb-1">Footer Preview</div>
+                                                                                    <div className="text-xs text-slate-500 italic">{footer.text}</div>
                                                                                 </div>
                                                                             )}
                                                                             {buttons && buttons.buttons?.length > 0 && (
                                                                                 <div>
-                                                                                    <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 mb-2">Buttons</div>
+                                                                                    <div className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1 mb-2">Buttons Preview</div>
                                                                                     <div className="flex flex-wrap gap-2">
                                                                                         {buttons.buttons.map((btn: any, bIdx: number) => (
-                                                                                            <div key={bIdx} className="px-3 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg border border-slate-600 flex items-center gap-1">
-                                                                                                {btn.type === 'URL' && <span className="text-brand-400">🔗</span>}
-                                                                                                {btn.type === 'QUICK_REPLY' && <span className="text-emerald-400">↩️</span>}
+                                                                                            <div key={bIdx} className="px-3 py-1 bg-white text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200 flex items-center gap-1 shadow-sm">
+                                                                                                {btn.type === 'URL' && <span className="text-blue-500">🔗</span>}
+                                                                                                {btn.type === 'QUICK_REPLY' && <span className="text-emerald-500">↩️</span>}
                                                                                                 {btn.text}
                                                                                             </div>
                                                                                         ))}
@@ -1194,12 +1267,12 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
                                             {selectedStep.step_type === 'AI_INTENT' && (
                                                 <div className="space-y-4">
-                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
-                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Analysis Engine</label>
-                                                        <div className="flex flex-col gap-2 mb-4">
+                                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
+                                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-3">Analysis Engine</label>
+                                                        <div className="flex flex-col gap-2 mb-2">
                                                             <label className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-all ${(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'OPENAI'
-                                                                ? 'bg-emerald-500/10 border-emerald-500/50'
-                                                                : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                                                                ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-300/20'
+                                                                : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
                                                                 }`}>
                                                                 <div className="flex items-start gap-3">
                                                                     <input
@@ -1208,33 +1281,30 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                         value="OPENAI"
                                                                         checked={selectedStep.step_config?.analysis_mode === 'OPENAI'}
                                                                         onChange={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, analysis_mode: 'OPENAI' } })}
-                                                                        className="mt-1"
+                                                                        className="mt-1 text-emerald-500 focus:ring-emerald-500"
                                                                     />
                                                                     <div>
-                                                                        <div className="text-sm font-bold text-slate-200">Smart AI (OpenAI)</div>
-                                                                        <div className="text-[10px] text-slate-400">Uses GPT to understand meaning. Requires API Key. Extremely accurate.</div>
+                                                                        <div className="text-[13px] font-bold text-slate-700">Smart AI (OpenAI)</div>
+                                                                        <div className="text-[10px] text-slate-500">Uses GPT to understand meaning. Extremely accurate.</div>
                                                                     </div>
                                                                 </div>
-
-                                                                {/* Connection Selector (visible only when checked) */}
+                                                                
                                                                 {selectedStep.step_config?.analysis_mode === 'OPENAI' && (
-                                                                    <div className="ml-7 mt-1">
+                                                                    <div className="ml-7 mt-1 border-t border-emerald-100 pt-2">
                                                                         {openaiConnections.length > 0 ? (
                                                                             <select
-                                                                                className="w-full bg-white border border-slate-200 rounded p-2 text-xs text-slate-700 shadow-sm focus:border-emerald-500 outline-none"
+                                                                                className="w-full bg-white border border-emerald-100 rounded px-2 py-1.5 text-xs text-slate-700 outline-none focus:ring-1 focus:ring-emerald-500"
                                                                                 value={selectedStep.step_config?.connection_id || ''}
                                                                                 onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, connection_id: e.target.value } })}
                                                                             >
-                                                                                <option value="">Use System Default / Any Available</option>
+                                                                                <option value="">Use System Default</option>
                                                                                 {openaiConnections.map(conn => (
-                                                                                    <option key={conn.id} value={conn.id}>
-                                                                                        {conn.name} ({conn.maskedKey})
-                                                                                    </option>
+                                                                                    <option key={conn.id} value={conn.id}>{conn.name}</option>
                                                                                 ))}
                                                                             </select>
                                                                         ) : (
-                                                                            <div className="text-xs text-amber-500 bg-amber-500/10 p-2 rounded border border-amber-500/20">
-                                                                                No OpenAI keys found. <a href="/settings" target="_blank" className="underline font-bold">Add one in Settings</a> or Keyword Mode will be used.
+                                                                            <div className="text-[9px] text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                                                                                No AI keys. Add one in Settings.
                                                                             </div>
                                                                         )}
                                                                     </div>
@@ -1242,8 +1312,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             </label>
 
                                                             <label className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'KEYWORD'
-                                                                ? 'bg-blue-500/10 border-blue-500/50'
-                                                                : 'bg-slate-800 border-slate-700 hover:border-slate-600'
+                                                                ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300/20'
+                                                                : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
                                                                 }`}>
                                                                 <input
                                                                     type="radio"
@@ -1251,24 +1321,24 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     value="KEYWORD"
                                                                     checked={(selectedStep.step_config?.analysis_mode || 'KEYWORD') === 'KEYWORD'}
                                                                     onChange={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, analysis_mode: 'KEYWORD' } })}
-                                                                    className="mt-1"
+                                                                    className="mt-1 text-blue-500 focus:ring-blue-500"
                                                                 />
                                                                 <div>
-                                                                    <div className="text-sm font-bold text-slate-200">Keyword Match (Free)</div>
-                                                                    <div className="text-[10px] text-slate-400">Checks for words like "yes", "stop", "later". Fast & Free but less smart.</div>
+                                                                    <div className="text-[13px] font-bold text-slate-700">Keyword Match (Free)</div>
+                                                                    <div className="text-[10px] text-slate-500">Checks for simple words. Fast & Free.</div>
                                                                 </div>
                                                             </label>
                                                         </div>
                                                     </div>
 
-                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm">
                                                         <label className="block text-xs font-bold text-slate-500 uppercase mb-4">Intent Routing</label>
 
                                                         {['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'].map(intent => (
                                                             <div key={intent} className="mb-4 last:mb-0">
                                                                 <div className="flex items-center justify-between mb-1">
-                                                                    <span className="text-xs font-bold text-slate-300 bg-slate-700 px-2 py-0.5 rounded border border-slate-600 font-mono">{intent}</span>
-                                                                    <span className="text-[10px] text-slate-500">Move to Stage</span>
+                                                                    <span className="text-[10px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 font-mono shadow-sm">{intent}</span>
+                                                                    <span className="text-[10px] text-slate-400 italic">Move to Stage</span>
                                                                 </div>
                                                                 <select
                                                                     value={selectedStep.step_config?.stage_mappings?.[intent] || ''}
@@ -1290,10 +1360,6 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                 </select>
                                                             </div>
                                                         ))}
-
-                                                        <p className="text-[10px] text-slate-500 mt-4 italic border-t border-slate-700 pt-2">
-                                                            Note: The contact will always be tagged with "AI_{'{INTENT}'}" regardless of stage change.
-                                                        </p>
                                                     </div>
                                                 </div>
                                             )}
@@ -1302,21 +1368,21 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         {/* Delivery Preferences */}
                                         <div>
                                             <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">3</div>
+                                                <div className="w-5 h-5 rounded-full bg-slate-400 flex items-center justify-center text-[10px] text-white font-bold">3</div>
                                                 <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500">Delivery Window</h4>
                                             </div>
 
-                                            <div className="bg-slate-800/30 rounded-xl p-4 border border-slate-700/50">
+                                            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 shadow-sm">
                                                 <label className="flex items-center gap-3 cursor-pointer mb-4">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedStep.use_custom_schedule || false}
                                                         onChange={(e) => handleUpdateStep(selectedStep.id, { use_custom_schedule: e.target.checked })}
-                                                        className="rounded bg-slate-800 border-slate-700 text-brand-500 focus:ring-0"
+                                                        className="rounded bg-white border-slate-300 text-brand-500 focus:ring-0"
                                                     />
                                                     <div>
-                                                        <span className="text-sm font-bold text-slate-300 block">Strict Schedule</span>
-                                                        <span className="text-xs text-slate-500">Override campaign window</span>
+                                                        <span className="text-sm font-bold text-slate-700 block">Strict Delivery Window</span>
+                                                        <span className="text-xs text-slate-500 font-medium">Override campaign-level timing</span>
                                                     </div>
                                                 </label>
 
