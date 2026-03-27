@@ -564,37 +564,37 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     {/* Campaign Settings Node */}
                                     <div
                                         onClick={() => { setShowCampaignSettings(true); setSelectedStep(null); }}
-                                        className={`group relative z-10 w-80 bg-slate-900 rounded-2xl p-5 border-2 transition-all cursor-pointer shadow-2xl ${showCampaignSettings ? 'border-brand-500 shadow-brand-500/20' : 'border-slate-800 hover:border-slate-700'}`}
+                                        className={`group relative z-10 w-80 bg-white rounded-2xl p-5 border-2 transition-all cursor-pointer shadow-xl ${showCampaignSettings ? 'border-brand-500 ring-4 ring-brand-500/10' : 'border-slate-100 hover:border-slate-200'}`}
                                     >
                                         <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 opacity-50">
-                                            <div className="w-1 h-32 bg-gradient-to-b from-transparent to-slate-800/0"></div>
+                                            <div className="w-1 h-32 bg-gradient-to-b from-transparent to-slate-200/0"></div>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 text-amber-500 flex items-center justify-center shrink-0">
+                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-amber-500 flex items-center justify-center shrink-0 shadow-sm">
                                                 <SettingsIcon className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <h3 className="font-bold text-white text-base">Start Campaign</h3>
-                                                <div className="text-xs text-slate-400 font-mono mt-0.5">
-                                                    {campaign.trigger_type}
+                                                <h3 className="font-bold text-slate-800 text-base">Start Campaign</h3>
+                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                                    {campaign.trigger_type?.replace(/_/g, ' ')}
                                                 </div>
                                             </div>
                                         </div>
                                         {/* Output Handle */}
-                                        <div className="absolute left-1/2 -bottom-3 -translate-x-1/2 w-4 h-4 bg-slate-900 border-2 border-slate-600 rounded-full z-20"></div>
+                                        <div className="absolute left-1/2 -bottom-3 -translate-x-1/2 w-4 h-4 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
                                     </div>
 
                                     {/* Connecting Line */}
-                                    <div className="w-0.5 h-12 bg-slate-700"></div>
+                                    <div className="w-0.5 h-12 bg-slate-200"></div>
 
                                     {/* Steps */}
                                     {campaign.steps?.sort((a, b) => a.step_order - b.step_order).map((step, index) => (
                                         <React.Fragment key={step.id}>
                                             {/* Delay Node */}
-                                            <div className="relative z-10 bg-slate-900 border border-slate-700 rounded-full px-4 py-1.5 text-xs font-bold text-slate-300 mb-0 shadow-lg flex items-center gap-2 hover:border-brand-500 transition-colors cursor-pointer"
+                                            <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-xs font-bold text-slate-600 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer"
                                                 onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
                                             >
-                                                <ClockIcon className="w-3 h-3 text-slate-500" />
+                                                <ClockIcon className="w-3.5 h-3.5 text-slate-400" />
                                                 <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
                                             </div>
 
@@ -604,39 +604,39 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             {/* Action Node */}
                                             <div
                                                 onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                                className={`relative z-10 w-80 bg-slate-900 rounded-2xl p-4 border-2 transition-all cursor-pointer shadow-xl group ${selectedStep?.id === step.id ? 'border-brand-500 shadow-brand-500/20' : 'border-slate-800 hover:border-slate-700'}`}
+                                                className={`relative z-10 w-80 bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer shadow-lg group ${selectedStep?.id === step.id ? 'border-brand-500 ring-4 ring-brand-500/10' : 'border-slate-100 hover:border-slate-200'}`}
                                             >
                                                 {/* Input Handle */}
-                                                <div className="absolute left-1/2 -top-2.5 -translate-x-1/2 w-3 h-3 bg-slate-800 border-2 border-slate-600 rounded-full z-20"></div>
+                                                <div className="absolute left-1/2 -top-2.5 -translate-x-1/2 w-3 h-3 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
 
                                                 <div className="flex items-start gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${step.step_type === 'WHATSAPP_MESSAGE'
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                                                         : step.step_type === 'EMAIL'
-                                                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                                                            : 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
+                                                            ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                                                            : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
                                                         }`}>
                                                         {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
-                                                            <h4 className="font-bold text-slate-200 text-sm">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 hover:text-red-400 rounded transition-all">
+                                                            <h4 className="font-bold text-slate-800 text-sm">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-red-500 rounded transition-all">
                                                                 <TrashIcon className="w-3.5 h-3.5" />
                                                             </button>
                                                         </div>
-                                                        <p className="text-xs text-slate-500 mt-1 truncate font-mono">
+                                                        <p className="text-xs text-slate-400 mt-1 truncate font-bold uppercase tracking-tight">
                                                             {step.step_config?.template_name || step.step_config?.subject || 'Configure...'}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 {/* Output Handle */}
-                                                <div className="absolute left-1/2 -bottom-2.5 -translate-x-1/2 w-3 h-3 bg-slate-800 border-2 border-slate-600 rounded-full z-20"></div>
+                                                <div className="absolute left-1/2 -bottom-2.5 -translate-x-1/2 w-3 h-3 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
                                             </div>
 
                                             {/* Connecting Line */}
-                                            <div className="w-0.5 h-12 bg-slate-700"></div>
+                                            <div className="w-0.5 h-12 bg-slate-200"></div>
                                         </React.Fragment>
                                     ))}
 
@@ -644,20 +644,20 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     <div className="relative z-10 group">
                                         <button
                                             onClick={() => setShowAddMenu(!showAddMenu)}
-                                            className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 hover:border-brand-500 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-all shadow-lg"
+                                            className="w-10 h-10 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-lg"
                                         >
                                             <PlusIcon className="w-5 h-5" />
                                         </button>
                                         {showAddMenu && (
-                                            <div className="absolute top-12 left-1/2 -translate-x-1/2 w-48 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-1 z-50">
-                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-700 text-sm font-bold text-slate-300 hover:text-white flex items-center gap-2">
+                                            <div className="absolute top-12 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
+                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
                                                     <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
                                                 </button>
-                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-700 text-sm font-bold text-slate-300 hover:text-white flex items-center gap-2">
+                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
                                                     <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                     Email
                                                 </button>
-                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-700 text-sm font-bold text-slate-300 hover:text-white flex items-center gap-2">
+                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
                                                     <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
                                                 </button>
                                             </div>
@@ -665,7 +665,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     </div>
 
                                     {/* End line fade */}
-                                    <div className="w-0.5 h-32 bg-gradient-to-b from-slate-700 to-transparent"></div>
+                                    <div className="w-0.5 h-32 bg-gradient-to-b from-slate-200 to-transparent"></div>
                                 </div>
                             </div>
 
@@ -956,7 +956,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                             const headerComp = card.components?.find((c: any) => c.type === 'HEADER' || c.type === 'header');
                                                                             const cardFormat = (headerComp?.format || 'IMAGE').toUpperCase();
                                                                             return (
-                                                                                <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                                                                <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 shadow-sm">
                                                                                     <div className="flex justify-between items-center mb-2">
                                                                                         <span className="text-[10px] font-bold text-slate-400">Card {idx + 1} ({cardFormat})</span>
                                                                                     </div>
@@ -1002,7 +1002,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
                                                                 {/* Body Mapping */}
                                                                 {bodyParamCount > 0 && (
-                                                                    <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                                                                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                                                                         <div className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
                                                                             <span className="w-1.5 h-1.5 rounded-full bg-brand-500"></span>
                                                                             Body Variables
@@ -1105,7 +1105,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             {selectedStep.step_type === 'EMAIL' && (
                                                 <div className="space-y-4">
                                                     {/* Delivery Helper Header */}
-                                                    <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-3 space-y-2 mb-2">
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 mb-2">
                                                         <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
                                                             <span className="text-slate-500">Recipient (To)</span>
                                                             <span className="text-blue-400 font-mono">Enrolled Contact</span>
@@ -1197,7 +1197,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     <div className="ml-7 mt-1">
                                                                         {openaiConnections.length > 0 ? (
                                                                             <select
-                                                                                className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-xs text-slate-300 focus:border-emerald-500 outline-none"
+                                                                                className="w-full bg-white border border-slate-200 rounded p-2 text-xs text-slate-700 shadow-sm focus:border-emerald-500 outline-none"
                                                                                 value={selectedStep.step_config?.connection_id || ''}
                                                                                 onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, connection_id: e.target.value } })}
                                                                             >
@@ -1257,7 +1257,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                             }
                                                                         });
                                                                     }}
-                                                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300 focus:border-brand-500 outline-none"
+                                                                    className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 shadow-sm focus:border-brand-500 outline-none"
                                                                 >
                                                                     <option value="">Do Nothing (Tag Only)</option>
                                                                     {availableStages.map(s => (
@@ -1303,14 +1303,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                 type="time"
                                                                 value={selectedStep.custom_time_start || '09:00'}
                                                                 onChange={(e) => handleUpdateStep(selectedStep.id, { custom_time_start: e.target.value })}
-                                                                className="flex-1 bg-slate-900 border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300"
+                                                                className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 shadow-sm focus:border-brand-500 outline-none"
                                                             />
                                                             <span className="text-slate-500 text-[10px] font-bold">TO</span>
                                                             <input
                                                                 type="time"
                                                                 value={selectedStep.custom_time_end || '18:00'}
                                                                 onChange={(e) => handleUpdateStep(selectedStep.id, { custom_time_end: e.target.value })}
-                                                                className="flex-1 bg-slate-900 border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-300"
+                                                                className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-700 shadow-sm focus:border-brand-500 outline-none"
                                                             />
                                                         </div>
                                                         <div>
