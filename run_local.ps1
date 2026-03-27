@@ -183,8 +183,13 @@ elseif (Repair-CorruptedNodeModules -Path "server") {
 if ($serverNeedsInstall) {
     Write-Host "Installing Server dependencies..." -ForegroundColor Green
     Push-Location "server"
-    # Use --no-bin-links and disable workspaces behavior by cleaning root if needed
-    npm install --no-bin-links
+    # Use 'npm ci' for faster, more reliable installs that match the lockfile
+    # Fallback to 'npm install' only if 'npm ci' fails (e.g. lockfile mismatch/missing)
+    npm ci --no-bin-links
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  npm ci failed, falling back to npm install..." -ForegroundColor Yellow
+        npm install --no-bin-links
+    }
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to install server dependencies! If you see 'symlink' errors, try running this terminal as Administrator or Enable 'Developer Mode' in Windows Settings."
         Pop-Location
@@ -207,7 +212,13 @@ elseif (Repair-CorruptedNodeModules -Path "client") {
 if ($clientNeedsInstall) {
     Write-Host "Installing Client dependencies..." -ForegroundColor Green
     Push-Location "client"
-    npm install --no-bin-links
+    # Use 'npm ci' for stability
+    npm ci --no-bin-links
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  npm ci failed, falling back to npm install..." -ForegroundColor Yellow
+        npm install --no-bin-links
+    }
+
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to install client dependencies! If you see 'symlink' errors, try running this terminal as Administrator or Enable 'Developer Mode' in Windows Settings."
         Pop-Location
