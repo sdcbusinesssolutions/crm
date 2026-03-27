@@ -393,9 +393,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     return (
         <div className="h-full w-full flex flex-col font-sans bg-white text-slate-900 overflow-hidden relative">
             {/* Header */}
-            <div className="z-30 px-4 py-3 shrink-0 bg-slate-900/50 backdrop-blur-md border-b border-white/5 flex justify-between items-center">
+            <div className="z-30 px-4 py-3 shrink-0 bg-white/80 backdrop-blur-md border-b border-slate-200 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-all border border-slate-700">
+                    <button onClick={onBack} className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all border border-slate-200">
                         <ArrowLeftIcon className="w-4 h-4" />
                         <span className="font-bold text-xs">Back</span>
                     </button>
@@ -411,7 +411,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700">
+                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200">
                     <button
                         onClick={() => setActiveTab('BUILDER')}
                         className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'BUILDER' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
@@ -420,14 +420,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     </button>
                     <button
                         onClick={() => setActiveTab('ENROLLMENTS')}
-                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'ENROLLMENTS' ? 'bg-slate-200 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${activeTab === 'ENROLLMENTS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                     >
                         Enrollments
                     </button>
-                    <div className="w-px h-4 bg-slate-700 mx-1"></div>
+                    <div className="w-px h-4 bg-slate-300 mx-1"></div>
                     <button
                         onClick={handleExportJSON}
-                        className="px-4 py-1.5 text-slate-400 hover:text-white text-xs font-bold transition-all flex items-center gap-2"
+                        className="px-4 py-1.5 text-slate-500 hover:text-slate-900 text-xs font-bold transition-all flex items-center gap-2"
                         title="Export this campaign as a JSON file"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -439,19 +439,19 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
                 <div className="flex items-center gap-4">
                     {/* Status Toggle */}
-                    <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700 mr-2">
+                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 mr-2">
                         <button
                             onClick={() => setCampaign({ ...campaign, status: 'DRAFT' })}
-                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'DRAFT' ? 'bg-slate-700 text-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'DRAFT' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'DRAFT' ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'DRAFT' ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></div>
                             Draft
                         </button>
                         <button
                             onClick={() => setCampaign({ ...campaign, status: 'ACTIVE' })}
-                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-slate-700 text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></div>
+                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                             Publish
                         </button>
                     </div>
@@ -496,14 +496,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     </div>
                 )}
                 {activeTab === 'ENROLLMENTS' ? (
-                    <div className="flex-1 overflow-y-auto p-8 bg-slate-950">
-                        <div className="max-w-5xl mx-auto bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-                            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
-                                <h3 className="font-bold text-slate-200">Active Enrollments ({enrollments.length})</h3>
-                                <button onClick={loadEnrollments} className="text-xs font-bold text-brand-400 hover:text-brand-300">Refresh</button>
+                    <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+                        <div className="max-w-5xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
+                                <h3 className="font-bold text-slate-800">Active Enrollments ({enrollments.length})</h3>
+                                <button onClick={loadEnrollments} className="text-xs font-bold text-brand-600 hover:text-brand-700">Refresh</button>
                             </div>
-                            <table className="w-full text-left text-sm text-slate-300">
-                                <thead className="bg-slate-900/50 text-slate-500 uppercase text-xs font-bold border-b border-slate-800">
+                            <table className="w-full text-left text-sm text-slate-600">
+                                <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-200">
                                     <tr>
                                         <th className="px-6 py-4">Contact</th>
                                         <th className="px-6 py-4">Status</th>
@@ -511,15 +511,15 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         <th className="px-6 py-4">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-800">
+                                <tbody className="divide-y divide-slate-200">
                                     {enrollments.map(en => (
-                                        <tr key={en.id} className="hover:bg-slate-800/50">
-                                            <td className="px-6 py-4 font-medium text-white">{en.contact?.name}<div className="text-xs text-slate-500">{en.contact?.phone}</div></td>
-                                            <td className="px-6 py-4"><span className={`px-2 py-0.5 rounded text-xs font-bold border ${en.status === 'ACTIVE' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>{en.status}</span></td>
+                                        <tr key={en.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4 font-medium text-slate-900">{en.contact?.name}<div className="text-xs text-slate-500">{en.contact?.phone}</div></td>
+                                            <td className="px-6 py-4"><span className={`px-2 py-0.5 rounded text-xs font-bold border ${en.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{en.status}</span></td>
                                             <td className="px-6 py-4">{en.current_step?.step_order || '-'}</td>
                                             <td className="px-6 py-4 flex gap-3">
-                                                <button onClick={() => handleStopEnrollment(en.id)} className="text-yellow-500 hover:text-yellow-400 text-xs font-bold">Stop</button>
-                                                <button onClick={() => handleDeleteEnrollment(en.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button>
+                                                <button onClick={() => handleStopEnrollment(en.id)} className="text-amber-600 hover:text-amber-700 text-xs font-bold">Stop</button>
+                                                <button onClick={() => handleDeleteEnrollment(en.id)} className="text-red-600 hover:text-red-700 text-xs font-bold">Delete</button>
                                             </td>
                                         </tr>
                                     ))}
@@ -679,23 +679,23 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                         </div>
 
                         {/* Settings Overlay Sidebar */}
-                        <div className={`w-96 border-l border-white/5 bg-slate-900 absolute right-0 top-0 bottom-0 h-full flex flex-col transition-transform duration-300 shadow-2xl z-40 ${selectedStep || showCampaignSettings ? 'translate-x-0' : 'translate-x-full'}`}>
-                            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
-                                <h3 className="font-bold text-white text-lg">{showCampaignSettings ? 'Campaign Settings' : 'Step Settings'}</h3>
-                                <button onClick={() => { setSelectedStep(null); setShowCampaignSettings(false); }} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all">
+                        <div className={`w-96 border-l border-slate-200 bg-white absolute right-0 top-0 bottom-0 h-full flex flex-col transition-transform duration-300 shadow-2xl z-40 ${selectedStep || showCampaignSettings ? 'translate-x-0' : 'translate-x-full'}`}>
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-200">
+                                <h3 className="font-bold text-slate-900 text-lg">{showCampaignSettings ? 'Campaign Settings' : 'Step Settings'}</h3>
+                                <button onClick={() => { setSelectedStep(null); setShowCampaignSettings(false); }} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-all">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/50">
                                 {showCampaignSettings && (
-                                    <div className="space-y-6 text-slate-300">
+                                    <div className="space-y-6 text-slate-700">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Trigger Event</label>
                                             <select
                                                 value={campaign.trigger_type}
                                                 onChange={(e) => setCampaign({ ...campaign, trigger_type: e.target.value as any })}
-                                                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none shadow-sm"
                                             >
                                                 <option value="TAG_ADDED">Tag Added</option>
                                                 <option value="pipeline_STAGE_CHANGED">Stage Changed</option>
@@ -709,7 +709,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                     <select
                                                         value={campaign.trigger_value || ''}
                                                         onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                     >
                                                         <option value="">Select Tag...</option>
                                                         {availableTags.map((t, i) => <option key={i} value={t}>{t}</option>)}
@@ -718,7 +718,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                     <select
                                                         value={campaign.trigger_value || ''}
                                                         onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                     >
                                                         <option value="">Select Stage...</option>
                                                         {availableStages.map(s => (
@@ -730,7 +730,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                         type="text"
                                                         value={campaign.trigger_value || ''}
                                                         onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                         placeholder="Trigger Value"
                                                     />
                                                 )}
@@ -739,9 +739,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Delivery Window</label>
                                             <div className="flex items-center gap-2 mb-2">
-                                                <input type="time" value={campaign.time_window_start} onChange={e => setCampaign({ ...campaign, time_window_start: e.target.value })} className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs" />
-                                                <span className="text-xs">to</span>
-                                                <input type="time" value={campaign.time_window_end} onChange={e => setCampaign({ ...campaign, time_window_end: e.target.value })} className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs" />
+                                                <input type="time" value={campaign.time_window_start} onChange={e => setCampaign({ ...campaign, time_window_start: e.target.value })} className="bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 shadow-sm" />
+                                                <span className="text-xs text-slate-500">to</span>
+                                                <input type="time" value={campaign.time_window_end} onChange={e => setCampaign({ ...campaign, time_window_end: e.target.value })} className="bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-700 shadow-sm" />
                                             </div>
                                             <div className="flex flex-wrap gap-1">
                                                 {daysMap.map((d, i) => (
@@ -753,21 +753,21 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             const n = exists ? arr.filter(x => x !== String(i)) : [...arr, String(i)];
                                                             setCampaign({ ...campaign, allowed_days: n.join(',') });
                                                         }}
-                                                        className={`w-6 h-6 rounded text-[10px] font-bold ${((campaign.allowed_days || '').includes(String(i))) ? 'bg-brand-600 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'}`}
+                                                        className={`w-6 h-6 rounded text-[10px] font-bold transition-all ${((campaign.allowed_days || '').includes(String(i))) ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                                                     >
                                                         {d}
                                                     </button>
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="space-y-4 pt-4 border-t border-white/5">
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input type="checkbox" checked={campaign.stop_on_reply} onChange={e => setCampaign({ ...campaign, stop_on_reply: e.target.checked })} className="rounded bg-slate-800 border-slate-700 text-brand-500 focus:ring-0" />
-                                                <span className="text-sm font-bold">Stop on Reply</span>
+                                        <div className="space-y-4 pt-4 border-t border-slate-200">
+                                            <label className="flex items-center gap-2 cursor-pointer group">
+                                                <input type="checkbox" checked={campaign.stop_on_reply} onChange={e => setCampaign({ ...campaign, stop_on_reply: e.target.checked })} className="rounded bg-white border-slate-200 text-brand-600 focus:ring-0" />
+                                                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Stop on Reply</span>
                                             </label>
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input type="checkbox" checked={campaign.allow_reentry} onChange={e => setCampaign({ ...campaign, allow_reentry: e.target.checked })} className="rounded bg-slate-800 border-slate-700 text-brand-500 focus:ring-0" />
-                                                <span className="text-sm font-bold">Allow Re-entry</span>
+                                            <label className="flex items-center gap-2 cursor-pointer group">
+                                                <input type="checkbox" checked={campaign.allow_reentry} onChange={e => setCampaign({ ...campaign, allow_reentry: e.target.checked })} className="rounded bg-white border-slate-200 text-brand-600 focus:ring-0" />
+                                                <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900">Allow Re-entry</span>
                                             </label>
                                         </div>
                                     </div>
@@ -778,20 +778,20 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         {/* Delay Section */}
                                         <div>
                                             <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">1</div>
-                                                <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500">Wait Duration</h4>
+                                                <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold">1</div>
+                                                <h4 className="font-bold text-xs uppercase tracking-wide text-slate-400">Wait Duration</h4>
                                             </div>
                                             <div className="flex gap-2">
                                                 <input
                                                     type="number"
                                                     value={selectedStep.delay_value || 0}
                                                     onChange={(e) => handleUpdateStep(selectedStep.id, { delay_value: parseInt(e.target.value) || 0 })}
-                                                    className="w-20 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-center font-bold focus:border-brand-500 outline-none"
+                                                    className="w-20 bg-white border border-slate-200 rounded-xl px-3 py-2 text-center font-bold text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                 />
                                                 <select
                                                     value={selectedStep.delay_unit || 'HOURS'}
                                                     onChange={(e) => handleUpdateStep(selectedStep.id, { delay_unit: e.target.value as any })}
-                                                    className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 font-bold text-sm focus:border-brand-500 outline-none"
+                                                    className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 font-bold text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                 >
                                                     <option value="MINUTES">Minutes</option>
                                                     <option value="HOURS">Hours</option>
@@ -809,16 +809,16 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             </div>
 
                                             {selectedStep.step_type === 'WHATSAPP_MESSAGE' && (
-                                                <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                                                <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4 shadow-sm">
                                                     {/* Delivery Helper Header */}
-                                                    <div className="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 space-y-2 mb-2">
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 mb-2">
                                                         <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
-                                                            <span className="text-slate-500">Recipient (To)</span>
-                                                            <span className="text-emerald-500 font-mono">Enrolled Contact</span>
+                                                            <span className="text-slate-400">Recipient (To)</span>
+                                                            <span className="text-emerald-600 font-mono">Enrolled Contact</span>
                                                         </div>
                                                         <div className="flex justify-between items-center text-[10px] uppercase tracking-wider font-bold">
-                                                            <span className="text-slate-500">Sender (From)</span>
-                                                            <span className="text-emerald-500 font-mono">System Number</span>
+                                                            <span className="text-slate-400">Sender (From)</span>
+                                                            <span className="text-emerald-600 font-mono">System Number</span>
                                                         </div>
                                                     </div>
                                                     <div>
@@ -837,7 +837,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     }
                                                                 });
                                                             }}
-                                                            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-3 text-sm focus:border-brand-500 outline-none"
+                                                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm text-slate-700 focus:border-brand-500 outline-none shadow-sm"
                                                         >
                                                             <option value="">Select Template...</option>
                                                             {templates.map(t => <option key={t.id} value={t.id}>{t.name} ({t.language})</option>)}
