@@ -555,35 +555,37 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
                                     transformOrigin: '0 0',
                                     width: '100%',
-                                    // Height needs to be large enough to contain the vertical stack
-                                    minHeight: '2000px'
+                                    minHeight: '100%'
                                 }}
-                                className="w-full relative flex justify-center py-20"
+                                className="w-full relative flex flex-col items-center py-32"
                             >
                                 <div className="flex flex-col items-center relative gap-0 w-[400px]">
 
                                     {/* Campaign Settings Node */}
                                     <div
                                         onClick={() => { setShowCampaignSettings(true); setSelectedStep(null); }}
-                                        className={`group relative z-10 w-80 bg-slate-950 rounded-xl overflow-hidden shadow-2xl transition-all cursor-pointer border border-slate-800 ${showCampaignSettings ? 'ring-4 ring-brand-500/10 scale-[1.02]' : 'hover:-translate-y-1 hover:border-slate-700'}`}
+                                        className={`group relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer border-2 ${showCampaignSettings ? 'ring-4 ring-brand-500/10 border-brand-500 scale-[1.02]' : 'border-slate-200 hover:border-amber-400 hover:shadow-2xl hover:-translate-y-1'}`}
                                     >
-                                        <div className="bg-amber-500 px-4 py-2 flex items-center gap-2">
-                                            <SettingsIcon className="w-4 h-4 text-white" />
-                                            <h3 className="font-bold text-white text-xs uppercase tracking-wider">Campaign Start</h3>
-                                        </div>
-                                        <div className="p-4 flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
-                                                <TriggerIcon className="w-4 h-4" />
+                                        <div className="bg-amber-500 px-4 py-2.5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <SettingsIcon className="w-3.5 h-3.5 text-white" />
+                                                <h3 className="font-black text-white text-[10px] uppercase tracking-widest">Campaign Start</h3>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Trigger Type</div>
-                                                <div className="text-xs text-white font-medium">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse"></div>
+                                        </div>
+                                        <div className="p-4 flex items-center gap-4 bg-white">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-100 shadow-inner">
+                                                <TriggerIcon className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Trigger Event</div>
+                                                <div className="text-[13px] text-slate-900 font-bold truncate">
                                                     {campaign.trigger_type?.replace(/_/g, ' ')}
                                                 </div>
                                             </div>
                                         </div>
                                         {/* Output Handle */}
-                                        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950"></div>
+                                        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300"></div>
                                     </div>
 
                                     {/* Connecting Line */}
@@ -609,48 +611,52 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             {/* Action Node */}
                                             <div
                                                 onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                                className={`relative z-10 w-80 bg-slate-950 rounded-xl overflow-hidden shadow-2xl transition-all cursor-pointer group border border-slate-800 ${selectedStep?.id === step.id
-                                                    ? 'ring-4 ring-brand-500/20 scale-[1.02] border-brand-500/50'
-                                                    : 'hover:-translate-y-1 hover:border-slate-700'
+                                                className={`relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer group border border-slate-200/60 border-l-4 ${selectedStep?.id === step.id
+                                                    ? 'ring-4 ring-brand-500/15 scale-[1.01] border-brand-500'
+                                                    : step.step_type === 'WHATSAPP_MESSAGE'
+                                                        ? 'border-l-emerald-500'
+                                                        : step.step_type === 'EMAIL'
+                                                            ? 'border-l-blue-500'
+                                                            : 'border-l-indigo-500'
                                                     }`}
                                             >
                                                 {/* Header Bar */}
-                                                <div className={`px-4 py-2 flex items-center justify-between border-b border-white/5 ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                    ? 'bg-emerald-600'
+                                                <div className={`px-4 py-2.5 flex items-center justify-between border-b ${step.step_type === 'WHATSAPP_MESSAGE'
+                                                    ? 'bg-emerald-500 border-emerald-600/10'
                                                     : step.step_type === 'EMAIL'
-                                                        ? 'bg-blue-600'
-                                                        : 'bg-indigo-600'
+                                                        ? 'bg-blue-500 border-blue-600/10'
+                                                        : 'bg-indigo-500 border-indigo-600/10'
                                                     }`}>
                                                     <div className="flex items-center gap-2 text-white">
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-4 h-4" /> : step.step_type === 'EMAIL' ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-4 h-4" />}
-                                                        <h4 className="font-bold text-[11px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
+                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-3.5 h-3.5" /> : step.step_type === 'EMAIL' ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-3.5 h-3.5" />}
+                                                        <h4 className="font-black text-[10px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
                                                     </div>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-black/20 text-white rounded transition-all">
-                                                        <TrashIcon className="w-3 h-3" />
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 text-white rounded transition-all">
+                                                        <TrashIcon className="w-3.5 h-3.5" />
                                                     </button>
                                                 </div>
 
-                                                <div className="p-4 flex items-center gap-3">
+                                                <div className="p-4 flex items-center gap-4 bg-white">
                                                     {/* Small Indicator */}
-                                                    <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center border ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                                    <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center border shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
+                                                        ? 'bg-emerald-50 text-emerald-500 border-emerald-100'
                                                         : step.step_type === 'EMAIL'
-                                                            ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
-                                                            : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                                            ? 'bg-blue-50 text-blue-500 border-blue-100'
+                                                            : 'bg-indigo-50 text-indigo-500 border-indigo-100'
                                                         }`}>
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-4 h-4" /> : step.step_type === 'EMAIL' ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-4 h-4" />}
+                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Content / Template</div>
-                                                        <p className="text-xs text-slate-200 font-medium truncate">
-                                                            {step.step_config?.template_name || step.step_config?.subject || 'Empty Step'}
+                                                        <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Content / Template</div>
+                                                        <p className="text-[13px] text-slate-900 font-bold truncate">
+                                                            {step.step_config?.template_name || step.step_config?.subject || 'Configure Context...'}
                                                         </p>
                                                     </div>
                                                 </div>
 
                                                 {/* Handles */}
-                                                <div className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950 transition-all group-hover:scale-110"></div>
-                                                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950 transition-all group-hover:scale-110"></div>
+                                                <div className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
+                                                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
                                             </div>
 
                                             {/* Final Connecting Line */}
