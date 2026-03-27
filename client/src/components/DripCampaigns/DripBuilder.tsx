@@ -14,7 +14,8 @@ import {
     CheckIcon,
     ChevronDownIcon,
     PlayIcon,
-    SparklesIcon
+    SparklesIcon,
+    TriggerIcon
 } from '../icons';
 
 // --- Per-campaign in-memory cache (60s TTL) ---
@@ -564,79 +565,96 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     {/* Campaign Settings Node */}
                                     <div
                                         onClick={() => { setShowCampaignSettings(true); setSelectedStep(null); }}
-                                        className={`group relative z-10 w-80 bg-white rounded-2xl p-5 border-2 transition-all cursor-pointer shadow-xl ${showCampaignSettings ? 'border-brand-500 ring-4 ring-brand-500/10' : 'border-slate-100 hover:border-slate-200'}`}
+                                        className={`group relative z-10 w-80 bg-slate-950 rounded-xl overflow-hidden shadow-2xl transition-all cursor-pointer border border-slate-800 ${showCampaignSettings ? 'ring-4 ring-brand-500/10 scale-[1.02]' : 'hover:-translate-y-1 hover:border-slate-700'}`}
                                     >
-                                        <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1 opacity-50">
-                                            <div className="w-1 h-32 bg-gradient-to-b from-transparent to-slate-200/0"></div>
+                                        <div className="bg-amber-500 px-4 py-2 flex items-center gap-2">
+                                            <SettingsIcon className="w-4 h-4 text-white" />
+                                            <h3 className="font-bold text-white text-xs uppercase tracking-wider">Campaign Start</h3>
                                         </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-amber-500 flex items-center justify-center shrink-0 shadow-sm">
-                                                <SettingsIcon className="w-5 h-5" />
+                                        <div className="p-4 flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                                                <TriggerIcon className="w-4 h-4" />
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-800 text-base">Start Campaign</h3>
-                                                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                                            <div className="flex-1">
+                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Trigger Type</div>
+                                                <div className="text-xs text-white font-medium">
                                                     {campaign.trigger_type?.replace(/_/g, ' ')}
                                                 </div>
                                             </div>
                                         </div>
                                         {/* Output Handle */}
-                                        <div className="absolute left-1/2 -bottom-3 -translate-x-1/2 w-4 h-4 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
+                                        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950"></div>
                                     </div>
 
                                     {/* Connecting Line */}
-                                    <div className="w-0.5 h-12 bg-slate-200"></div>
+                                    <div className="w-[1px] h-12 bg-slate-300"></div>
 
                                     {/* Steps */}
                                     {campaign.steps?.sort((a, b) => a.step_order - b.step_order).map((step, index) => (
                                         <React.Fragment key={step.id}>
-                                            {/* Delay Node */}
-                                            <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-xs font-bold text-slate-600 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer"
-                                                onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                            >
-                                                <ClockIcon className="w-3.5 h-3.5 text-slate-400" />
-                                                <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
+                                            {/* Delay Connector */}
+                                            <div className="flex flex-col items-center">
+                                                <div className="flex items-center justify-center">
+                                                    {/* Delay Node */}
+                                                    <div className="relative z-10 bg-slate-900 border border-slate-800 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0 shadow-lg flex items-center gap-2 hover:border-brand-500 hover:text-white transition-all cursor-pointer group/delay"
+                                                        onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
+                                                    >
+                                                        <ClockIcon className="w-3 h-3 text-slate-500 group-hover/delay:text-brand-500" />
+                                                        <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="w-[1px] h-12 bg-slate-300"></div>
                                             </div>
-
-                                            {/* Connecting Line */}
-                                            <div className="w-0.5 h-12 bg-slate-700"></div>
 
                                             {/* Action Node */}
                                             <div
                                                 onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                                className={`relative z-10 w-80 bg-white rounded-2xl p-4 border-2 transition-all cursor-pointer shadow-lg group ${selectedStep?.id === step.id ? 'border-brand-500 ring-4 ring-brand-500/10' : 'border-slate-100 hover:border-slate-200'}`}
+                                                className={`relative z-10 w-80 bg-slate-950 rounded-xl overflow-hidden shadow-2xl transition-all cursor-pointer group border border-slate-800 ${selectedStep?.id === step.id
+                                                    ? 'ring-4 ring-brand-500/20 scale-[1.02] border-brand-500/50'
+                                                    : 'hover:-translate-y-1 hover:border-slate-700'
+                                                    }`}
                                             >
-                                                {/* Input Handle */}
-                                                <div className="absolute left-1/2 -top-2.5 -translate-x-1/2 w-3 h-3 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
+                                                {/* Header Bar */}
+                                                <div className={`px-4 py-2 flex items-center justify-between border-b border-white/5 ${step.step_type === 'WHATSAPP_MESSAGE'
+                                                    ? 'bg-emerald-600'
+                                                    : step.step_type === 'EMAIL'
+                                                        ? 'bg-blue-600'
+                                                        : 'bg-indigo-600'
+                                                    }`}>
+                                                    <div className="flex items-center gap-2 text-white">
+                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-4 h-4" /> : step.step_type === 'EMAIL' ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-4 h-4" />}
+                                                        <h4 className="font-bold text-[11px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
+                                                    </div>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-black/20 text-white rounded transition-all">
+                                                        <TrashIcon className="w-3 h-3" />
+                                                    </button>
+                                                </div>
 
-                                                <div className="flex items-start gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                <div className="p-4 flex items-center gap-3">
+                                                    {/* Small Indicator */}
+                                                    <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center border ${step.step_type === 'WHATSAPP_MESSAGE'
+                                                        ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                                         : step.step_type === 'EMAIL'
-                                                            ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                                                            : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                                            ? 'bg-blue-500/10 text-blue-500 border-blue-500/20'
+                                                            : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
                                                         }`}>
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
+                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-4 h-4" /> : step.step_type === 'EMAIL' ? <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-4 h-4" />}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex justify-between items-start">
-                                                            <h4 className="font-bold text-slate-800 text-sm">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 text-red-500 rounded transition-all">
-                                                                <TrashIcon className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        </div>
-                                                        <p className="text-xs text-slate-400 mt-1 truncate font-bold uppercase tracking-tight">
-                                                            {step.step_config?.template_name || step.step_config?.subject || 'Configure...'}
+                                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Content / Template</div>
+                                                        <p className="text-xs text-slate-200 font-medium truncate">
+                                                            {step.step_config?.template_name || step.step_config?.subject || 'Empty Step'}
                                                         </p>
                                                     </div>
                                                 </div>
 
-                                                {/* Output Handle */}
-                                                <div className="absolute left-1/2 -bottom-2.5 -translate-x-1/2 w-3 h-3 bg-white border-2 border-slate-300 rounded-full z-20 shadow-sm"></div>
+                                                {/* Handles */}
+                                                <div className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950 transition-all group-hover:scale-110"></div>
+                                                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-slate-400 rounded-full z-20 shadow-sm border-2 border-slate-950 transition-all group-hover:scale-110"></div>
                                             </div>
 
-                                            {/* Connecting Line */}
-                                            <div className="w-0.5 h-12 bg-slate-200"></div>
+                                            {/* Final Connecting Line */}
+                                            <div className="w-[1px] h-12 bg-slate-300"></div>
                                         </React.Fragment>
                                     ))}
 
@@ -644,20 +662,20 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     <div className="relative z-10 group">
                                         <button
                                             onClick={() => setShowAddMenu(!showAddMenu)}
-                                            className="w-10 h-10 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-lg"
+                                            className="w-12 h-12 rounded-full bg-slate-950 border border-slate-800 hover:border-brand-500 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all shadow-2xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
                                         >
-                                            <PlusIcon className="w-5 h-5" />
+                                            <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
                                         </button>
                                         {showAddMenu && (
-                                            <div className="absolute top-12 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
-                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
+                                            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-1 z-50">
+                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-400 flex items-center gap-3 transition-colors">
                                                     <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
                                                 </button>
-                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
+                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-400 flex items-center gap-3 transition-colors">
                                                     <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                     Email
                                                 </button>
-                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-2 transition-colors">
+                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 flex items-center gap-3 transition-colors">
                                                     <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
                                                 </button>
                                             </div>
@@ -665,7 +683,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     </div>
 
                                     {/* End line fade */}
-                                    <div className="w-0.5 h-32 bg-gradient-to-b from-slate-200 to-transparent"></div>
+                                    <div className="w-[1px] h-32 bg-gradient-to-b from-slate-300 to-transparent"></div>
                                 </div>
                             </div>
 
