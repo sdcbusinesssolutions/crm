@@ -1141,15 +1141,15 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                     </div>
                                                     <div className="flex gap-2">
                                                         <button onClick={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, provider: 'GMAIL', connectionId: '' } })}
-                                                            className={`flex-1 py-2 text-xs font-bold rounded-lg border ${selectedStep.step_config?.provider === 'GMAIL' ? 'bg-blue-900/30 text-blue-400 border-blue-800' : 'bg-slate-800 border-slate-700'}`}>Gmail</button>
+                                                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${selectedStep.step_config?.provider === 'GMAIL' ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>Gmail</button>
                                                         <button onClick={() => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, provider: 'SMTP', connectionId: '' } })}
-                                                            className={`flex-1 py-2 text-xs font-bold rounded-lg border ${selectedStep.step_config?.provider === 'SMTP' ? 'bg-blue-900/30 text-blue-400 border-blue-800' : 'bg-slate-800 border-slate-700'}`}>SMTP</button>
+                                                            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition-all ${selectedStep.step_config?.provider === 'SMTP' ? 'bg-blue-50 text-blue-600 border-blue-200 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>SMTP</button>
                                                     </div>
 
                                                     <select
                                                         value={selectedStep.step_config?.connectionId || ''}
                                                         onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, connectionId: e.target.value } })}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none shadow-sm text-slate-700"
                                                     >
                                                         <option value="">Select Connection...</option>
                                                         {selectedStep.step_config?.provider === 'GMAIL'
@@ -1164,7 +1164,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             type="text"
                                                             value={selectedStep.step_config?.to || ''}
                                                             onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, to: e.target.value } })}
-                                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none shadow-sm text-slate-700 font-mono"
                                                             placeholder="{{contact.email}}"
                                                         />
                                                     </div>
@@ -1175,7 +1175,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             type="text"
                                                             value={selectedStep.step_config?.subject || ''}
                                                             onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, subject: e.target.value } })}
-                                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none"
+                                                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none shadow-sm text-slate-700"
                                                             placeholder="Subject"
                                                         />
                                                     </div>
@@ -1185,7 +1185,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                         <textarea
                                                             value={selectedStep.step_config?.body || ''}
                                                             onChange={(e) => handleUpdateStep(selectedStep.id, { step_config: { ...selectedStep.step_config, body: e.target.value } })}
-                                                            className="w-full h-32 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none resize-none"
+                                                            className="w-full h-32 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none resize-none shadow-sm text-slate-700"
                                                             placeholder="Email body..."
                                                         />
                                                     </div>
