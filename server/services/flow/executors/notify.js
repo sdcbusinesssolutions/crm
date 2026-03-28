@@ -38,12 +38,13 @@ module.exports = {
 
         if (numbers.length === 0) {
             console.warn(`[NotifyExecutor] No valid mobile numbers found after parsing: "${resolvedInput}" (Original: "${mobileNumbers}")`);
-            return { status: 'skipped', reason: 'invalid_numbers' };
+            return { status: 'skipped', outcome: 'false', reason: 'invalid_numbers' };
         }
 
         console.log(`[NotifyExecutor] Sending notification to ${numbers.length} numbers:`, numbers);
 
         const results = [];
+        let anySuccess = false;
 
         for (const to of numbers) {
             try {
@@ -178,12 +179,14 @@ module.exports = {
                     console.log(`[NotifyExecutor] Sending Template Payload to ${to}:`, JSON.stringify(content, null, 2));
                     const response = await whatsappService.sendMessage(user_id, to, 'template', content);
                     results.push({ to, status: 'sent', messageId: response?.messages?.[0]?.id });
+                    anySuccess = true;
                 } else {
                     // Text Message
                     const resolvedMessage = contextManager.resolve(message || '', context);
                     console.log(`[NotifyExecutor] Sending Text to ${to}: "${resolvedMessage}"`);
                     const response = await whatsappService.sendMessage(user_id, to, 'text', { body: resolvedMessage });
                     results.push({ to, status: 'sent', messageId: response?.messages?.[0]?.id });
+                    anySuccess = true;
                 }
             } catch (err) {
                 console.error(`[NotifyExecutor] Failed to send to ${to}:`, err.message);
@@ -193,6 +196,7 @@ module.exports = {
 
         return {
             status: 'completed',
+            outcome: anySuccess ? 'true' : 'false',
             results,
             timestamp: new Date().toISOString()
         };

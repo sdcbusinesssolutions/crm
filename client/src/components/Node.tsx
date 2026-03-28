@@ -623,8 +623,13 @@ const NotifyNodeUI: React.FC<InteractiveNodeUIProps<NotifyData>> = ({ node, onUp
 
         <div className="space-y-2 pt-2">
           <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
-            <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wide">Next Step</span>
-            <div id={`h-${node.id}-default`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
+            <span className="text-emerald-500 text-[10px] font-bold uppercase tracking-wide">On Sent</span>
+            <div id={`h-${node.id}-true`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'true')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'true')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-emerald-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(16,185,129,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
+          </div>
+
+          <div className="relative flex items-center justify-between bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-800 group/handle">
+            <span className="text-rose-500 text-[10px] font-bold uppercase tracking-wide">On Failure</span>
+            <div id={`h-${node.id}-false`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'false')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'false')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-rose-500 rounded-full cursor-pointer hover:scale-125 transition-all shadow-[0_0_8px_rgba(244,63,94,0.6)] touch-none absolute -right-1.5 top-1/2 -translate-y-1/2 ring-2 ring-slate-900" />
           </div>
         </div>
       </div>
