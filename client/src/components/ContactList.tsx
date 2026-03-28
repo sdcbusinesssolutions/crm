@@ -345,18 +345,29 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         setDeleteModal({ isOpen: true, type: 'bulk', count: selectedIds.size });
     };
 
+    const handleDeleteAllFiltered = () => {
+        setIsBulkDropdownOpen(false);
+        if (filteredContacts.length === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: filteredContacts.length, id: 'filtered' });
+    };
+
+    const handleDeleteEntireCRM = () => {
+        setIsBulkDropdownOpen(false);
+        if (contacts.length === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'all' });
+    };
+
     const proceedDelete = async () => {
         setIsLoading(true);
         try {
-            // Contextual Delete: If filtering by group, just remove from that group
-            if (selectedGroupFilter) {
+            // Contextual Delete: If filtering by group AND it's not a 'real delete all' from database
+            if (selectedGroupFilter && deleteModal.id !== 'filtered' && deleteModal.id !== 'all') {
                 const groupName = availableGroups.find(g => g.id === selectedGroupFilter)?.name || 'Group';
 
                 if (deleteModal.type === 'single' && deleteModal.id) {
                     const contact = contacts.find(c => c.id === deleteModal.id);
                     if (contact) {
                         const newGroupIds = (contact.groupIds || []).filter(gid => gid !== selectedGroupFilter);
-                        // Update contact with new group list
                         await contactService.saveContact({ ...contact, groupIds: newGroupIds });
                         setToast({ type: 'success', title: 'Removed', message: `Removed from ${groupName}` });
                     }
@@ -385,9 +396,25 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     }
                     setToast({ type: 'success', title: 'Deleted', message: 'Contact deleted successfully' });
                 } else if (deleteModal.type === 'bulk') {
-                    await contactService.bulkDeleteContacts(Array.from(selectedIds));
-                    setSelectedIds(new Set());
-                    setToast({ type: 'success', title: 'Deleted', message: `${selectedIds.size} contacts deleted successfully` });
+                    let idsToDelete: string[] = [];
+                    
+                    if (deleteModal.id === 'filtered') {
+                        idsToDelete = filteredContacts.map(c => c.id);
+                    } else if (deleteModal.id === 'all') {
+                        idsToDelete = contacts.map(c => c.id);
+                    } else {
+                        idsToDelete = Array.from(selectedIds);
+                    }
+
+                    if (idsToDelete.length > 0) {
+                        await contactService.bulkDeleteContacts(idsToDelete);
+                        setSelectedIds(new Set());
+                        setToast({ 
+                            type: 'success', 
+                            title: 'Deleted', 
+                            message: `${idsToDelete.length} contacts deleted successfully` 
+                        });
+                    }
                 }
             }
 
@@ -782,13 +809,46 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     </div>
 
                     <div className="relative bulk-action-container">
-                        <button onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} disabled={selectedIds.size === 0} className={`px-4 py-2 text-sm font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all border ${selectedIds.size > 0 ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)] hover:opacity-90 shadow-md' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}>
-                            <span>Bulk ({selectedIds.size})</span>
+                        <button 
+                            onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} 
+                            disabled={contacts.length === 0}
+                            className={`px-4 py-2 text-sm font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 transition-all border ${contacts.length > 0 ? 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'}`}
+                        >
+                            <span>Bulk Actions {selectedIds.size > 0 && `(${selectedIds.size})`}</span>
                             <ChevronDownIcon className="w-4 h-4" />
                         </button>
-                        {isBulkDropdownOpen && selectedIds.size > 0 && (
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden animate-fade-in">
-                                <button onClick={handleBulkDelete} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"><TrashIcon className="w-4 h-4 mr-2" /> Delete Selected</button>
+                        {isBulkDropdownOpen && (
+                            <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
+                                {/* Delete Selection */}
+                                <button 
+                                    onClick={handleBulkDelete} 
+                                    disabled={selectedIds.size === 0}
+                                    className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center transition-colors ${selectedIds.size > 0 ? 'text-red-600 hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
+                                >
+                                    <TrashIcon className="w-4 h-4 mr-2" /> Delete Selected ({selectedIds.size})
+                                </button>
+
+                                <div className="h-px bg-slate-100 my-1"></div>
+
+                                {/* Delete by Filter (Contextual) */}
+                                {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
+                                    <button 
+                                        onClick={handleDeleteAllFiltered}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
+                                    >
+                                        <TrashIcon className="w-4 h-4 mr-2" /> 
+                                        Delete All Matching Filters ({filteredContacts.length})
+                                    </button>
+                                )}
+
+                                {/* Clear CRM */}
+                                <button 
+                                    onClick={handleDeleteEntireCRM}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
+                                >
+                                    <TrashIcon className="w-4 h-4 mr-2" /> 
+                                    Wipe Entire CRM ({contacts.length})
+                                </button>
                             </div>
                         )}
                     </div>
