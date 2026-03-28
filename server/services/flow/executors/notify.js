@@ -26,23 +26,22 @@ module.exports = {
             return { status: 'skipped', reason: 'no_numbers' };
         }
 
-        // Parse numbers: split by comma, remove whitespace, ensure country code (remove non-digits)
-        const rawNumbers = String(mobileNumbers).split(',');
-        const numbers = [];
+        // Resolve variables in numbers (handles both literal comma-separated lists and resolved variables containing commas)
+        const resolvedInput = contextManager.resolve(String(mobileNumbers).trim(), context);
+        console.log(`[NotifyExecutor] Resolved Mobile Numbers Input: "${resolvedInput}"`);
 
-        for (const raw of rawNumbers) {
-            // Resolve variables in number (e.g. {{contact.phone}})
-            const resolved = contextManager.resolve(raw.trim(), context);
-            const clean = resolved.replace(/\D/g, '');
-            if (clean.length >= 10) {
-                numbers.push(clean);
-            }
-        }
+        // Parse numbers: split by comma, remove whitespace, ensure country code (remove non-digits)
+        const numbers = resolvedInput.split(',')
+            .map(n => n.trim().replace(/\D/g, ''))
+            .filter(n => n.length >= 10)
+            .slice(0, 4); // ABSOLUTE LIMIT: MAX 4 NUMBERS
 
         if (numbers.length === 0) {
-            console.warn(`[NotifyExecutor] No valid mobile numbers after parsing/resolution: ${mobileNumbers}`);
+            console.warn(`[NotifyExecutor] No valid mobile numbers found after parsing: "${resolvedInput}" (Original: "${mobileNumbers}")`);
             return { status: 'skipped', reason: 'invalid_numbers' };
         }
+
+        console.log(`[NotifyExecutor] Sending notification to ${numbers.length} numbers:`, numbers);
 
         const results = [];
 

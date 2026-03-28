@@ -1786,13 +1786,23 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
         <SettingsModal title="Notify Settings" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables}>
             <div className="space-y-6">
                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notify Mobile Numbers</label>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Notify Mobile Numbers</label>
+                        <span className="text-[10px] font-bold text-amber-500/80 uppercase">Max 4 Numbers</span>
+                    </div>
                     <PanelTextInput 
                         value={data.mobileNumbers || ''} 
-                        onChange={val => handleUpdate({ mobileNumbers: val })} 
-                        placeholder="e.g. 919876543210, 918877665544" 
+                        onChange={val => {
+                            // Truncate to max 4 if it's a literal list (don't break variables)
+                            const parts = val.split(',');
+                            if (parts.length > 4) {
+                                return; // Stop adding more in UI
+                            }
+                            handleUpdate({ mobileNumbers: val });
+                        }} 
+                        placeholder="919876543210, 918877665544..." 
                     />
-                    <p className="text-[10px] text-slate-500 mt-1">Comma-separated phone numbers with country code.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Comma-separated phone numbers with country code. Max 4 numbers allowed.</p>
                 </div>
 
                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
