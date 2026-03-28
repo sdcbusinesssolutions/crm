@@ -1024,6 +1024,13 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                     console.error('Error reconstructing preview actions:', e);
                                 }
 
+                                const variableSamples = detectedVariables.map(v => {
+                                    const val = variableMapping[v] || '';
+                                    if (!val) return '';
+                                    const field = availableFields.find(f => f.value === val);
+                                    return field ? `[${field.label}]` : val;
+                                });
+
                                 return (
                                     <TemplatePreview
                                         type={selectedTemplate.template_type || 'TEXT'}
@@ -1037,6 +1044,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         mediaUrl={mediaUrl}
                                         carouselMediaUrls={carouselMediaUrls}
                                         locationHeader={locationHeader}
+                                        variableSamples={variableSamples}
                                     />
                                 );
                             })()

@@ -21,8 +21,8 @@ interface TemplatePreviewProps {
 }
 
 const TemplatePreview: React.FC<TemplatePreviewProps> = ({ type, header, body, footer, actions, language, companyName = 'Business Name', logoUrl, mediaUrl, variableSamples, locationHeader, carouselMediaUrls }) => {
-    // Helper to format body text with WhatsApp markdown
-    const formatBody = (text: string) => {
+    // Helper to format text with WhatsApp markdown and variables
+    const formatText = (text: string) => {
         if (!text) return '';
         let formatted = text;
 
@@ -35,7 +35,7 @@ const TemplatePreview: React.FC<TemplatePreviewProps> = ({ type, header, body, f
                 // Positional replacement {{1}}, {{2}}...
                 variableSamples.forEach((sample, index) => {
                     const sampleText = sample || `{{${index + 1}}}`; // Fallback to placeholder if empty
-                    const regex = new RegExp(`{{${index + 1}}}`, 'g');
+                    const regex = new RegExp(`\\{\\{${index + 1}\\}\\}`, 'g');
                     formatted = formatted.replace(regex, `<span class="bg-blue-100 text-blue-800 px-1 rounded mx-0.5 font-medium text-xs">${sampleText}</span>`);
                 });
             } else {
@@ -43,7 +43,7 @@ const TemplatePreview: React.FC<TemplatePreviewProps> = ({ type, header, body, f
                 variableSamples.forEach(sample => {
                     if (sample && sample.param_name) {
                         const sampleText = sample.example || `{{${sample.param_name}}}`;
-                        const regex = new RegExp(`{{${sample.param_name}}}`, 'g');
+                        const regex = new RegExp(`\\{\\{${sample.param_name}\\}\\}`, 'g');
                         formatted = formatted.replace(regex, `<span class="bg-blue-100 text-blue-800 px-1 rounded mx-0.5 font-medium text-xs">${sampleText}</span>`);
                     }
                 });
@@ -67,7 +67,12 @@ const TemplatePreview: React.FC<TemplatePreviewProps> = ({ type, header, body, f
         if (!header && type === 'TEXT') return null;
 
         if (type === 'TEXT' && header) {
-            return <div className="font-bold text-slate-900 mb-2 text-base">{header}</div>;
+            return (
+                <div 
+                    className="font-bold text-slate-900 mb-2 text-base whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{ __html: formatText(header) }}
+                />
+            );
         }
 
         if (['IMAGE', 'VIDEO', 'DOCUMENT', 'LOCATION'].includes(type)) {
@@ -257,7 +262,7 @@ const TemplatePreview: React.FC<TemplatePreviewProps> = ({ type, header, body, f
                                     {renderHeader()}
                                     <div
                                         className="text-slate-800 text-sm whitespace-pre-wrap leading-relaxed"
-                                        dangerouslySetInnerHTML={{ __html: formatBody(body) || '<span class="text-slate-300 italic">Your message...</span>' }}
+                                        dangerouslySetInnerHTML={{ __html: formatText(body) || '<span class="text-slate-300 italic">Your message...</span>' }}
                                     />
                                     {footer && (
                                         <div className="text-[11px] text-slate-400 mt-2 pt-1 border-t border-slate-50 font-medium">
