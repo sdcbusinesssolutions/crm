@@ -3,6 +3,25 @@ import { supabase } from '../../lib/supabase';
 import { ChevronLeftIcon, UsersIcon, CheckIcon, DoubleCheckIcon, EyeIcon, CloseIcon } from '../icons';
 import Toast from '../Toast';
 
+// Custom Animations for the Dashboard
+const dashboardStyles = `
+    @keyframes chart-pop {
+        0% { transform: scale(0.9); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes item-slide {
+        0% { transform: translateY(8px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+    }
+    .animate-chart-pop {
+        animation: chart-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .animate-item-slide {
+        animation: item-slide 0.5s ease-out forwards;
+        opacity: 0;
+    }
+`;
+
 interface CampaignDetailsProps {
     campaignId: string;
     onBack: () => void;
@@ -146,6 +165,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
 
     return (
         <div className="flex flex-col h-full overflow-hidden bg-slate-50">
+            <style>{dashboardStyles}</style>
             {/* Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-4">
@@ -283,31 +303,15 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         </div>
                     </div>
 
-                    {/* Unified Right Corner Card (Processing + Analytics) */}
-                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col order-last lg:order-none">
-                        {/* Top: Processing Section */}
-                        <div className="p-5 border-b border-slate-50">
-                            <div className="flex justify-between items-start">
+                    {/* Unified Right Corner Card (Analytics Only - Improved) */}
+                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col order-last lg:order-none h-full">
+                        <div className="p-5 flex-1 flex flex-col items-center justify-between">
+                            <div className="w-full flex justify-between items-start mb-2">
                                 <div>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Current Processing</p>
-                                    <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{processingPct}%</h3>
-                                    <p className="text-xs text-slate-400 mt-1">{processing} Messages</p>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
+                                    <h3 className="text-sm font-bold text-slate-800">Campaign Health</h3>
                                 </div>
-                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full text-green-600">
-                                    <span className="text-[10px] font-bold whitespace-nowrap">Live update</span>
-                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Bottom: Analytics Section */}
-                        <div className="p-5 flex-1 flex flex-col justify-between">
-                            <div className="flex justify-between items-start mb-4">
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
-                                <div className="p-1.5 bg-indigo-50 rounded-full text-indigo-600">
+                                <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
@@ -315,41 +319,54 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 </div>
                             </div>
 
-                            <div className="flex flex-col items-center gap-6">
-                                {/* Pie Chart */}
-                                <div className="relative w-28 h-28 rounded-full flex-shrink-0 shadow-inner" style={{
+                            {/* Balanced Pie Chart with Animation */}
+                            <div 
+                                className="relative w-36 h-36 rounded-full shadow-md border-2 border-white mb-4 animate-chart-pop group cursor-pointer transition-transform duration-300 hover:scale-105" 
+                                style={{
                                     background: `conic-gradient(
                                         #3b82f6 0% ${readPct}%, 
                                         #22c55e ${readPct}% ${readPct + deliveredPct}%, 
                                         #93c5fd ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
                                         #ef4444 ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
-                                        #eab308 ${readPct + deliveredPct + sentPct + failedPct}% ${readPct + deliveredPct + sentPct + failedPct + processingPct}%,
-                                        #f3f4f6 ${readPct + deliveredPct + sentPct + failedPct + processingPct}% 100%
+                                        #f1f5f9 ${readPct + deliveredPct + sentPct + failedPct}% 100%
                                     )`
-                                }}>
-                                    <div className="absolute inset-0 m-[15%] bg-white rounded-full flex items-center justify-center shadow-sm">
-                                        <span className="text-xs font-bold text-slate-600">{overallSuccessPct}%</span>
-                                    </div>
+                                }}
+                            >
+                                <div className="absolute inset-0 m-[18%] bg-white rounded-full flex flex-col items-center justify-center shadow-inner text-center">
+                                    <span className="text-xl font-black text-slate-800 leading-none">{overallSuccessPct}%</span>
+                                    <span className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Success</span>
                                 </div>
+                            </div>
 
-                                {/* Legend */}
-                                <div className="w-full grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
-                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                            {/* Compact Legend List with Staggered Animation */}
+                            <div className="w-full space-y-1.5">
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.1s' }}>
+                                    <div className="flex items-center gap-2.5">
                                         <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                        <span className="text-slate-600">Read ({read})</span>
+                                        <span className="text-[10px] text-slate-600 font-semibold">Total Read</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                    <span className="text-[10px] font-bold text-slate-800">{read}</span>
+                                </div>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.2s' }}>
+                                    <div className="flex items-center gap-2.5">
                                         <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                        <span className="text-slate-600">Deliv ({delivered})</span>
+                                        <span className="text-[10px] text-slate-600 font-semibold">Delivered</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                    <span className="text-[10px] font-bold text-slate-800">{delivered}</span>
+                                </div>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.3s' }}>
+                                    <div className="flex items-center gap-2.5">
                                         <span className="w-2 h-2 rounded-full bg-blue-300"></span>
-                                        <span className="text-slate-600">Sent ({sent})</span>
+                                        <span className="text-[10px] text-slate-600 font-semibold">Sent</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                    <span className="text-[10px] font-bold text-slate-800">{sent}</span>
+                                </div>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.4s' }}>
+                                    <div className="flex items-center gap-2.5">
                                         <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                        <span className="text-slate-600">Fail ({failed})</span>
+                                        <span className="text-[10px] text-slate-600 font-semibold">Failed</span>
                                     </div>
+                                    <span className="text-[10px] font-bold text-slate-800">{failed}</span>
                                 </div>
                             </div>
                         </div>
