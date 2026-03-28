@@ -5,11 +5,17 @@ module.exports = {
         try {
             logger.info(`[TimingExecutor] Executing Timing Node ${node.id}`);
 
-            const { delayValue, delayUnit } = node.data;
+            const { delayValue, delayUnit, delaySeconds } = node.data;
             let finalValue = parseFloat(delayValue);
 
+            // Support delaySeconds as fallback
+            if (isNaN(finalValue) && delaySeconds) {
+                finalValue = parseFloat(delaySeconds);
+                node.data.delayUnit = 'Seconds'; // Overwrite unit for logic below
+            }
+
             // Default to 'Minutes' if missing
-            let rawUnit = delayUnit || 'Minutes';
+            let rawUnit = String(node.data.delayUnit || delayUnit || 'Minutes');
             let unit = rawUnit.toLowerCase().trim();
 
             if (isNaN(finalValue)) {

@@ -45,24 +45,26 @@ class SendFlowExecutor {
             // Calculate Timeout if enabled
             let timeoutAt = undefined;
             if (ifUnresponsive && unresponsiveTimeout) {
-                // Robust parsing of timeout string (e.g. "30 Minutes" or just "30")
-                const parts = unresponsiveTimeout.trim().split(/\s+/);
-                const valStr = parts[0];
-                const unit = parts.length > 1 ? parts[1] : 'min'; // Default to minutes if unit missing
+                const str = unresponsiveTimeout.toLowerCase().trim();
+                const match = str.match(/^([\d.]+)\s*([a-z]*)$/);
+                
+                if (match) {
+                    const val = parseFloat(match[1]);
+                    let unit = match[2] || 'min';
+                    let ms = 0;
 
-                const val = parseFloat(valStr);
-                let ms = 0;
+                    if (!isNaN(val)) {
+                        if (unit.startsWith('sec')) ms = val * 1000;
+                        else if (unit.startsWith('min')) ms = val * 60 * 1000;
+                        else if (unit.startsWith('hour') || unit.startsWith('hr')) ms = val * 60 * 60 * 1000;
+                        else if (unit.startsWith('day')) ms = val * 24 * 60 * 60 * 1000;
+                        else ms = val * 60 * 1000; // Default to min
+                    }
 
-                if (!isNaN(val)) {
-                    if (unit.toLowerCase().includes('min')) ms = val * 60 * 1000;
-                    else if (unit.toLowerCase().includes('hr')) ms = val * 60 * 60 * 1000;
-                    else if (unit.toLowerCase().includes('day')) ms = val * 24 * 60 * 60 * 1000;
-                    else ms = val * 60 * 1000; // Fallback to minutes
-                }
-
-                if (ms > 0) {
-                    timeoutAt = new Date(Date.now() + ms).toISOString();
-                    console.log(`[SendFlowExecutor] Timeout set for ${ms}ms. Expires at: ${timeoutAt}`);
+                    if (ms > 0) {
+                        timeoutAt = new Date(Date.now() + ms).toISOString();
+                        console.log(`[SendFlowExecutor] Timeout set for ${ms}ms. Expires at: ${timeoutAt}`);
+                    }
                 }
             }
 

@@ -191,6 +191,9 @@ class FlowEngine {
                 }
 
                 // 2. Handle WAITING_INPUT sessions with Timeout (Unresponsive)
+                // We add a 15-second grace buffer to account for server clock skew.
+                const checkTime = new Date(now.getTime() + 15000); 
+
                 const { data: waitingSessions, error: waitingError } = await rpcClient
                     .from('flow_sessions')
                     .select('id, status, current_node_id, variables, flow_id, user_id')
@@ -203,36 +206,33 @@ class FlowEngine {
                         const nodeOutput = variables[currentNodeId];
 
                         if (nodeOutput && nodeOutput.timeoutAt) {
-                            if (new Date(nodeOutput.timeoutAt) <= now) {
-                                // OPTIMISTIC LOCK for Timeout
+                            const timeoutTime = new Date(nodeOutput.timeoutAt);
+                            
+                            if (!isNaN(timeoutTime.getTime()) && timeoutTime <= checkTime) {
+                                // Mark as timeout in variables AND Claim in one go
+                                const newVariables = { ...variables };
+                                if (newVariables[currentNodeId] && typeof newVariables[currentNodeId] === 'object') {
+                                    newVariables[currentNodeId] = {
+                                        ...newVariables[currentNodeId],
+                                        status: 'timeout',
+                                        isFilled: false,
+                                        response: null
+                                    };
+                                }
+
+                                // ATOMIC OPTIMISTIC LOCK: Transition to 'resuming' while updating vars
                                 const { data: claimed, error: claimError } = await rpcClient
                                     .from('flow_sessions')
-                                    .update({ status: 'timeout_processing' })
+                                    .update({ 
+                                        status: 'resuming',
+                                        variables: newVariables 
+                                    })
                                     .eq('id', session.id)
                                     .eq('status', 'waiting_input')
                                     .select();
 
                                 if (!claimError && claimed && claimed.length > 0) {
-                                    console.log(`[FlowEngine Scheduler] Session ${session.id} timed out (Unresponsive)`);
-
-                                    // Mark as timeout in variables
-                                    const newVariables = { ...variables };
-                                    if (newVariables[currentNodeId]) {
-                                        newVariables[currentNodeId] = {
-                                            ...newVariables[currentNodeId],
-                                            status: 'timeout',
-                                            isFilled: false,
-                                            response: null
-                                        };
-                                    }
-
-                                    // Just update variables (status is already timeout_processing)
-                                    await rpcClient.rpc('update_session_variables', {
-                                        p_session_id: session.id,
-                                        p_variables: newVariables
-                                    });
-
-                                    // Resume Flow with 'unresponsive' trigger
+                                    console.log(`[FlowEngine Scheduler] Session ${session.id} timed out (Unresponsive trigger)`);
                                     await this.resumeSession({ ...session, variables: newVariables }, 'unresponsive');
                                 }
                             }
@@ -282,6 +282,9 @@ class FlowEngine {
 
             // Execute Next Step
             await this.executeNextStep(session, flow, session.current_node_id, interactionId);
+        } else {
+            console.error(`[FlowEngine] Failed to resume session ${session.id}: Flow ${session.flow_id} not found.`);
+            await rpcClient.from('flow_sessions').update({ status: 'error' }).eq('id', session.id);
         }
     }
     /**
@@ -1013,6 +1016,10 @@ class FlowEngine {
      */
     async executeNode(session, flow, node) {
         console.log(`[FlowEngine] Executing Node: ${node.type} (${node.id})`);
+
+        // IMPORTANT FIX: Sync the session's current node ID in-memory so executors 
+        // and future resumptions (RAM timers) use the correct context.
+        session.current_node_id = node.id;
 
         const executor = EXECUTORS[node.type];
 

@@ -15,28 +15,28 @@ class AskAnythingExecutor {
         const { ifUnresponsive, unresponsiveTimeout } = node.data;
 
         if (ifUnresponsive) {
-            // Default: 15 minutes if missing or malformed
-            let val = 15;
-            let unit = 'min';
-
             if (unresponsiveTimeout) {
-                const parts = unresponsiveTimeout.trim().split(/\s+/);
-                val = parseFloat(parts[0]) || 15;
-                unit = parts[parts.length - 1] || 'min';
-            }
+                const str = unresponsiveTimeout.toLowerCase().trim();
+                const match = str.match(/^([\d.]+)\s*([a-z]*)$/);
+                
+                if (match) {
+                    const val = parseFloat(match[1]);
+                    let unit = match[2] || 'min';
+                    let ms = 0;
 
-            let ms = 0;
-            const unitLower = (unit || 'min').toLowerCase();
-            
-            if (unitLower.includes('min')) ms = val * 60 * 1000;
-            else if (unitLower.includes('hr') || unitLower.includes('hour')) ms = val * 60 * 60 * 1000;
-            else if (unitLower.includes('day')) ms = val * 24 * 60 * 60 * 1000;
-            else if (unitLower.includes('sec')) ms = val * 1000;
-            else ms = val * 60 * 1000; // Default to min
+                    if (!isNaN(val)) {
+                        if (unit.startsWith('sec')) ms = val * 1000;
+                        else if (unit.startsWith('min')) ms = val * 60 * 1000;
+                        else if (unit.startsWith('hour') || unit.startsWith('hr')) ms = val * 60 * 60 * 1000;
+                        else if (unit.startsWith('day')) ms = val * 24 * 60 * 60 * 1000;
+                        else ms = val * 60 * 1000; // Default to min
+                    }
 
-            if (ms > 0) {
-                timeoutAt = new Date(Date.now() + ms).toISOString();
-                console.log(`[AskAnythingExecutor] Timeout set for ${ms}ms (${val} ${unitLower}). Expires at: ${timeoutAt}`);
+                    if (ms > 0) {
+                        timeoutAt = new Date(Date.now() + ms).toISOString();
+                        console.log(`[AskAnythingExecutor] Timeout set for ${ms}ms. Expires at: ${timeoutAt}`);
+                    }
+                }
             }
         }
 

@@ -38,9 +38,11 @@ class AskInputExecutor {
             let duration = parseInt(timeout) || 15;
             let multiplier = 60 * 1000; // Minutes
 
-            if (timeoutUnit === 'Seconds') multiplier = 1000;
-            if (timeoutUnit === 'Hours') multiplier = 60 * 60 * 1000;
-            if (timeoutUnit === 'Days') multiplier = 24 * 60 * 60 * 1000;
+            const unit = (timeoutUnit || 'Minutes').toLowerCase().trim();
+            if (unit.startsWith('second')) multiplier = 1000;
+            if (unit.startsWith('minute')) multiplier = 60 * 1000;
+            if (unit.startsWith('hour')) multiplier = 60 * 60 * 1000;
+            if (unit.startsWith('day')) multiplier = 24 * 60 * 60 * 1000;
 
             ms = duration * multiplier;
             if (ms > 0) {
