@@ -62,7 +62,7 @@ const VariableInput = ({ variable, value, onChange, options, disabled }: { varia
                 )}
 
                 {showDropdown && (
-                    <div ref={dropdownRef} className="absolute top-full right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col">
+                    <div ref={dropdownRef} className="absolute bottom-full right-0 mb-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col">
                         <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-500 uppercase sticky top-0">
                             Insert Contact Field
                         </div>
