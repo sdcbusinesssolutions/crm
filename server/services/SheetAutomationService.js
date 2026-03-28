@@ -1049,7 +1049,7 @@ class SheetAutomationService {
         // Since sheet dates (e.g. 21/01/2026) are usually "date only", we should treat them as "Target Date"
         // We compare this "Target Date" against "IST Today".
 
-        if (['is_today', 'is_yesterday', 'is_tomorrow', 'in_last_x_days', 'in_next_x_days', 'date_equals', 'date_before', 'date_after', 'date_between', 'day_month_equal', 'day_month_after', 'day_month_before'].includes(op)) {
+        if (['is_today', 'is_yesterday', 'is_tomorrow', 'in_last_x_days', 'in_next_x_days', 'date_equals', 'date_before', 'date_after', 'date_between', 'day_month_equal', 'day_month_after', 'day_month_before', 'month_equals', 'is_current_month', 'is_next_month', 'year_equals', 'is_current_year'].includes(op)) {
             if (!dateVal) {
                 // Console log is noisy, maybe limit it
                 // console.log(`Condition '${op}' invalid date: ${val}`);
@@ -1135,6 +1135,25 @@ class SheetAutomationService {
             if (op === 'day_month_before') return valMMDD < istMMDD;
         }
 
+        // --- NEW: Month & Year Logic ---
+        const valYear = dateVal.getFullYear();
+        const valMonth = dateVal.getMonth() + 1; // 1-12
+
+        if (op === 'month_equals') return valMonth === parseInt(targetVal);
+        if (op === 'is_current_month') return valMonth === (istNow.month + 1) && valYear === istNow.year;
+        if (op === 'is_next_month') {
+            let nextMonth = istNow.month + 2;
+            let nextYear = istNow.year;
+            if (nextMonth > 12) {
+                nextMonth = 1;
+                nextYear++;
+            }
+            return valMonth === nextMonth && valYear === nextYear;
+        }
+
+        if (op === 'year_equals') return valYear === parseInt(targetVal);
+        if (op === 'is_current_year') return valYear === istNow.year;
+
         return false;
     }
 
@@ -1144,7 +1163,14 @@ class SheetAutomationService {
 
     parseDate(val) {
         if (!val) return null;
-        // 1. Try standard Date constructor
+
+        // 1. Try numeric (Excel/Google Serial Date)
+        const numVal = parseFloat(val);
+        if (!isNaN(numVal) && numVal > 30000 && numVal < 60000) {
+            return new Date(Math.round((numVal - 25569) * 864e5));
+        }
+
+        // 2. Original Constructors
         let d = new Date(val);
         if (!isNaN(d.getTime())) return d;
 

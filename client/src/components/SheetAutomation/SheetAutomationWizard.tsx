@@ -40,75 +40,72 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
     useEffect(() => {
         themeService.getTheme().then(t => setBrandColor(t.colors?.brand || '#ea580c'));
         const init = async () => {
-            await fetchConnections();
-            const tmpls = await fetchTemplates(); // Return templates to use immediately
+            setIsLoading(true);
+            try {
+                // Parallelize initial critical data
+                const promises: [Promise<any>, Promise<any[]>, Promise<any> | null] = [
+                    fetchConnections(),
+                    fetchTemplates(),
+                    editId ? fetchAutomationRecord(editId) : Promise.resolve(null)
+                ];
 
-            if (editId) {
-                fetchAutomationDetails(editId, tmpls);
-            } else if (initialData) {
-                setFormData(initialData);
+                const [conns, tmpls, record] = await Promise.all(promises);
+                
+                if (record) {
+                    processAutomationRecord(record, tmpls);
+                } else if (initialData) {
+                    setFormData(prev => ({ ...prev, ...initialData }));
+                }
+            } catch (e) {
+                console.error("Initialization failed", e);
+            } finally {
+                setIsLoading(false);
             }
         };
         init();
     }, [editId]);
 
-    const fetchAutomationDetails = async (id: string, loadedTemplates: any[]) => {
-        setIsLoading(true);
-        try {
-            const { data: session } = await supabase.auth.getSession();
-            const token = session.session?.access_token;
-            const res = await fetch(`/api/sheet-automations/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                // Map DB to Form
-                const sched = data.schedule_config || {};
-                const tmplConfig = data.template_config || {};
+    // Separate fetch from processing for parallel load
+    const fetchAutomationRecord = async (id: string) => {
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
+        const res = await fetch(`/api/sheet-automations/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (res.ok) return await res.json();
+        return null;
+    };
 
-                // Find Template ID by Name
-                const matchedTemplate = loadedTemplates?.find(t => t.name === tmplConfig.template_name);
+    const processAutomationRecord = (data: any, loadedTemplates: any[]) => {
+        const sched = data.schedule_config || {};
+        const tmplConfig = data.template_config || {};
+        const matchedTemplate = loadedTemplates?.find(t => t.name === tmplConfig.template_name);
 
-                // Initialize Form Data
-                setFormData({
-                    name: data.name,
-                    connection_id: data.connection_id,
-                    spreadsheet_id: data.spreadsheet_id,
-                    sheet_name: data.sheet_name, // Set initially
-
-                    schedule_type: sched.frequency || 'daily',
-                    schedule_time: sched.time || '09:00',
-                    schedule_days: sched.days || [],
-                    schedule_day_of_month: sched.day_of_month || 1,
-                    recurring: sched.recurring || false,
-
-                    triggers: data.trigger_condition || [],
-
-                    template_id: matchedTemplate ? matchedTemplate.id : '',
-                    mapping: {
-                        ...(data.mapping_config?.params || {}),
-                        phone: { type: 'column', value: data.mapping_config?.phone_col || '' }
-                    }
-                });
-
-                // Trigger dependent fetches (Sheets, Columns, Template Params)
-                if (data.connection_id && data.spreadsheet_id) {
-                    // Fetch Sheets List for Dropdown (Await to ensure consistency)
-                    // Pass preSelectedSheet so it doesn't get cleared
-                    await handleSheetSelect(data.spreadsheet_id, data.sheet_name, data.connection_id);
-
-                    // Fetch Columns for Mapping
-                    fetchColumnsForEdit(data.connection_id, data.spreadsheet_id, data.sheet_name);
-                }
-
-                if (matchedTemplate) {
-                    extractTemplateParams(matchedTemplate);
-                }
-            } else {
-                console.error("Failed to fetch automation details");
+        setFormData(prev => ({
+            ...prev,
+            name: data.name,
+            connection_id: data.connection_id,
+            spreadsheet_id: data.spreadsheet_id,
+            sheet_name: data.sheet_name,
+            schedule_type: sched.frequency || 'daily',
+            schedule_time: sched.time || '09:00',
+            schedule_days: sched.days || [],
+            schedule_day_of_month: sched.day_of_month || 1,
+            recurring: sched.recurring || false,
+            triggers: data.trigger_condition || [],
+            template_id: matchedTemplate ? matchedTemplate.id : '',
+            mapping: {
+                ...(data.mapping_config?.params || {}),
+                phone: { type: 'column', value: data.mapping_config?.phone_col || '' }
             }
-        } catch (e) {
-            console.error('Error fetching details', e);
-        } finally {
-            setIsLoading(false);
+        }));
+
+        // Fire background fetches in parallel (DON'T AWAIT THEM)
+        if (data.connection_id && data.spreadsheet_id) {
+            handleSheetSelect(data.spreadsheet_id, data.sheet_name, data.connection_id);
+            fetchColumnsForEdit(data.connection_id, data.spreadsheet_id, data.sheet_name);
+        }
+
+        if (matchedTemplate) {
+            extractTemplateParams(matchedTemplate);
         }
     };
 
@@ -425,7 +422,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 type="text"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all" placeholder="e.g. Birthday Wishes"
+                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all" placeholder="e.g. Monthly Reminder"
                             />
                         </div>
                         <div>
@@ -630,7 +627,16 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 {step === 3 && (
                     <div className="max-w-3xl mx-auto space-y-4">
                         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800 mb-4">
-                            Define the conditions that must be met for a message to be sent. All conditions must be true (AND logic).
+                            <h4 className="font-bold flex items-center gap-2 mb-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                Condition Logic & Date Formats
+                            </h4>
+                            <ul className="list-disc pl-5 space-y-1 opacity-90">
+                                <li>All conditions in this list must be met (AND logic).</li>
+                                <li><b>Supported Dates:</b> DD/MM/YYYY (21/01/2026), YYYY-MM-DD or numeric values from Sheet.</li>
+                                <li><b>Day & Month (Annual):</b> Compares only Day and Month (Year is ignored).</li>
+                                <li><b>Month/Year:</b> System automatically extracts Month (1-12) or Year (YYYY) from your dates.</li>
+                            </ul>
                         </div>
 
                         {formData.triggers.map((trigger, index) => (
@@ -686,10 +692,17 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         <option value="date_after">Date After</option>
                                         <option value="date_between">Date Between</option>
                                     </optgroup>
-                                    <optgroup label="Anniversary (Ignore Year)">
-                                        <option value="day_month_equal">Birthday/Anniv. is Today</option>
-                                        <option value="day_month_before">Birthday has passed</option>
-                                        <option value="day_month_after">Birthday is coming</option>
+                                    <optgroup label="Day & Month (Annual)">
+                                        <option value="day_month_equal">Day & Month is Today</option>
+                                        <option value="day_month_before">Day & Month has passed</option>
+                                        <option value="day_month_after">Day & Month is coming</option>
+                                    </optgroup>
+                                    <optgroup label="Month & Year">
+                                        <option value="month_equals">Month Equals (1-12)</option>
+                                        <option value="is_current_month">Is Current Month</option>
+                                        <option value="is_next_month">Is Next Month</option>
+                                        <option value="year_equals">Year Equals (YYYY)</option>
+                                        <option value="is_current_year">Is Current Year</option>
                                     </optgroup>
                                     <optgroup label="Number">
                                         <option value="greater_than">Greater Than</option>
@@ -700,7 +713,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 </select>
 
                                 {/* Value Input - Dynamic based on operator */}
-                                {!['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal'].includes(trigger.operator) && (
+                                {!['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'is_current_month', 'is_next_month', 'is_current_year'].includes(trigger.operator) && (
                                     <div className="w-1/3">
                                         {['date_equals', 'date_before', 'date_after'].includes(trigger.operator) ? (
                                             <input
@@ -756,12 +769,14 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         )}
                                         {/* Helper Text Hint */}
                                         <p className="text-[10px] text-slate-400 mt-1 pl-1">
-                                            {trigger.operator.includes('date') ? 'Format: YYYY-MM-DD (or Excel Date)' :
-                                                trigger.operator.includes('equals') ? 'Matches exact text (case-insensitive)' :
-                                                    trigger.operator.includes('contains') ? 'Matches partial text' :
-                                                        trigger.operator.includes('greater') || trigger.operator.includes('less') ? 'Compares numeric values' :
-                                                            ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? 'Enter number of days' :
-                                                                'Enter value to match'}
+                                            {trigger.operator.includes('month') ? 'Compares month (1-12) extracted from date' :
+                                                trigger.operator.includes('year') ? 'Compares year (YYYY) extracted from date' :
+                                                    trigger.operator.includes('date') ? 'Format: DD/MM/YYYY or YYYY-MM-DD' :
+                                                        trigger.operator.includes('day_month') ? 'Ignores year: matches if the day and month match today' :
+                                                            trigger.operator.includes('equals') ? 'Exact match (case-insensitive)' :
+                                                                trigger.operator.includes('contains') ? 'Partial text match' :
+                                                                    ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? 'Enter number of days (e.g. 7)' :
+                                                                        'Enter value to match'}
                                         </p>
                                     </div>
                                 )}
