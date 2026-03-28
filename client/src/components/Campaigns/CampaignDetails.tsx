@@ -283,25 +283,78 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         </div>
                     </div>
 
-                    {/* Processing */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Processing</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{processingPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{processing} Messages</p>
+                    {/* Unified Right Corner Card (Processing + Analytics) */}
+                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col order-last lg:order-none">
+                        {/* Top: Processing Section */}
+                        <div className="p-5 border-b border-slate-50">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Current Processing</p>
+                                    <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{processingPct}%</h3>
+                                    <p className="text-xs text-slate-400 mt-1">{processing} Messages</p>
+                                </div>
+                                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full text-green-600">
+                                    <span className="text-[10px] font-bold whitespace-nowrap">Live update</span>
+                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-full text-green-600">
-                                <span className="text-[10px] font-bold whitespace-nowrap">Live update</span>
-                                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
+                        </div>
+
+                        {/* Bottom: Analytics Section */}
+                        <div className="p-5 flex-1 flex flex-col justify-between">
+                            <div className="flex justify-between items-start mb-4">
+                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
+                                <div className="p-1.5 bg-indigo-50 rounded-full text-indigo-600">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-6">
+                                {/* Pie Chart */}
+                                <div className="relative w-28 h-28 rounded-full flex-shrink-0 shadow-inner" style={{
+                                    background: `conic-gradient(
+                                        #3b82f6 0% ${readPct}%, 
+                                        #22c55e ${readPct}% ${readPct + deliveredPct}%, 
+                                        #93c5fd ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
+                                        #ef4444 ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
+                                        #eab308 ${readPct + deliveredPct + sentPct + failedPct}% ${readPct + deliveredPct + sentPct + failedPct + processingPct}%,
+                                        #f3f4f6 ${readPct + deliveredPct + sentPct + failedPct + processingPct}% 100%
+                                    )`
+                                }}>
+                                    <div className="absolute inset-0 m-[15%] bg-white rounded-full flex items-center justify-center shadow-sm">
+                                        <span className="text-xs font-bold text-slate-600">{overallSuccessPct}%</span>
+                                    </div>
+                                </div>
+
+                                {/* Legend */}
+                                <div className="w-full grid grid-cols-2 gap-x-3 gap-y-2 text-[10px]">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                        <span className="text-slate-600">Read ({read})</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                        <span className="text-slate-600">Deliv ({delivered})</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                        <span className="w-2 h-2 rounded-full bg-blue-300"></span>
+                                        <span className="text-slate-600">Sent ({sent})</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded-lg">
+                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                        <span className="text-slate-600">Fail ({failed})</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Row 2 */}
                     {/* Read (Blue Tick) */}
                     <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
                         <div className="flex justify-between items-start">
@@ -316,6 +369,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         </div>
                     </div>
 
+                    {/* Row 2 */}
                     {/* Meta Accepted */}
                     <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
                         <div className="flex justify-between items-start">
@@ -344,64 +398,6 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         </div>
                     </div>
 
-                    {/* Analytics Overview (Pie Chart) */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col justify-between">
-                        <div className="flex justify-between items-start mb-4">
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
-                            <div className="p-1.5 bg-indigo-50 rounded-full text-indigo-600">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            {/* Pie Chart */}
-                            <div className="relative w-20 h-20 rounded-full flex-shrink-0 shadow-inner" style={{
-                                background: `conic-gradient(
-                                    #3b82f6 0% ${readPct}%, 
-                                    #22c55e ${readPct}% ${readPct + deliveredPct}%, 
-                                    #93c5fd ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
-                                    #ef4444 ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
-                                    #eab308 ${readPct + deliveredPct + sentPct + failedPct}% ${readPct + deliveredPct + sentPct + failedPct + processingPct}%,
-                                    #f3f4f6 ${readPct + deliveredPct + sentPct + failedPct + processingPct}% 100%
-                                )`
-                            }}>
-                                <div className="absolute inset-0 m-[15%] bg-white rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-[10px] font-bold text-slate-600">{overallSuccessPct}%</span>
-                                </div>
-                            </div>
-
-                            {/* Legend */}
-                            <div className="flex-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px]">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                    <span className="text-slate-600">Read ({read})</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                    <span className="text-slate-600">Deliv ({delivered})</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-blue-300"></span>
-                                    <span className="text-slate-600">Sent ({sent})</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                    <span className="text-slate-600">Fail ({failed})</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                                    <span className="text-slate-600">Proc ({processing})</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="w-2 h-2 rounded-full bg-gray-100 border border-gray-200"></span>
-                                    <span className="text-slate-400">Pend ({total - (read + delivered + sent + failed + processing)})</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 {/* Queue / List Section */}
