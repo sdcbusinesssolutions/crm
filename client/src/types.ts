@@ -418,6 +418,9 @@ export interface NotifyData extends NodeData {
   templateName?: string;
   language?: string;
   variableMapping?: Record<string, string>;
+  mediaUrl?: string; // For media header templates
+  carouselMediaUrls?: Record<number, string>; // For carousel templates
+  components?: any[]; // Snapshot of template components
 }
 
 export interface ManageTagsData extends NodeData {

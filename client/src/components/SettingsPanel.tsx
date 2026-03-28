@@ -1670,6 +1670,9 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
     const [loading, setLoading] = useState(false);
     const [selectedTemplateObj, setSelectedTemplateObj] = useState<any>(null);
     const [detectedVariables, setDetectedVariables] = useState<string[]>([]);
+    const [headerType, setHeaderType] = useState<string | null>(null);
+    const [carouselCards, setCarouselCards] = useState<any[]>([]);
+    const [uploading, setUploading] = useState(false);
 
     // Fetch Templates (Similar to TemplateMessageSettingsPanel)
     React.useEffect(() => {
@@ -1695,7 +1698,13 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
     }, []);
 
     React.useEffect(() => {
-        if (!data.templateId || templates.length === 0) return;
+        if (!data.templateId || templates.length === 0) {
+            setDetectedVariables([]);
+            setHeaderType(null);
+            setCarouselCards([]);
+            setSelectedTemplateObj(null);
+            return;
+        }
         const tpl = templates.find(t => t.id === data.templateId);
         if (tpl) {
             setSelectedTemplateObj(tpl);
@@ -1705,14 +1714,72 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
 
     const parseTemplate = (tpl: any) => {
         const variables: string[] = [];
+        let hType: string | null = null;
+        let cCards: any[] = [];
+
         tpl.components.forEach((comp: any) => {
             if (comp.type === 'BODY') {
                 const text = comp.text || '';
                 const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
                 if (matches) matches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
             }
+            if (comp.type === 'HEADER') {
+                hType = comp.format;
+                if (comp.text && comp.text.match(/{{/)) {
+                    const hMatches = comp.text.match(/{{([a-zA-Z0-9_]+)}}/g);
+                    if (hMatches) hMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+                }
+            }
+            if (comp.type === 'CAROUSEL' && comp.cards) {
+                cCards = comp.cards;
+            }
+            if (comp.type === 'BUTTONS') {
+                comp.buttons.forEach((btn: any) => {
+                    if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
+                        const bMatches = btn.url.match(/{{([a-zA-Z0-9_]+)}}/g);
+                        if (bMatches) bMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+                    }
+                });
+            }
         });
         setDetectedVariables([...new Set(variables)]);
+        setHeaderType(hType);
+        setCarouselCards(cCards);
+    };
+
+    // File Upload Handler (Mirror standard template)
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, cardIndex?: number) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        setUploading(true);
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+                body: formData
+            });
+            const resData = await res.json();
+            if (resData.success) {
+                if (cardIndex !== undefined) {
+                    const newUrls = { ...(data.carouselMediaUrls || {}) };
+                    newUrls[cardIndex] = resData.url;
+                    handleUpdate({ carouselMediaUrls: newUrls });
+                } else {
+                    handleUpdate({ mediaUrl: resData.url });
+                }
+            } else {
+                showNotification('Upload failed: ' + resData.error, 'error');
+            }
+        } catch (err: any) {
+            showNotification('Upload error: ' + err.message, 'error');
+        } finally {
+            setUploading(false);
+        }
     };
 
     return (
@@ -1732,12 +1799,12 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Notification Type</label>
                     <PanelSelect 
                         value={data.notificationType || 'Text'} 
-                        onChange={val => handleUpdate({ notificationType: val as any })} 
+                        onChange={val => handleUpdate({ notificationType: val as any, message: '', templateId: '', mediaUrl: '', carouselMediaUrls: {}, components: [] })} 
                         options={['Text', 'Template']} 
                     />
                 </div>
 
-                {data.notificationType === 'Text' ? (
+                {(data.notificationType === 'Text' || !data.notificationType) ? (
                     <div className="animate-fade-in bg-slate-800/30 p-4 rounded-xl border border-slate-700">
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message Content</label>
                         <PanelTextarea 
@@ -1762,6 +1829,9 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
                                             templateName: tpl.name,
                                             language: tpl.language,
                                             variableMapping: {},
+                                            mediaUrl: '',
+                                            carouselMediaUrls: {},
+                                            components: tpl.components || []
                                         });
                                     }
                                 }}
@@ -1769,20 +1839,80 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
                             />
                         </div>
 
-                        {detectedVariables.length > 0 && (
-                            <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 space-y-3">
-                                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Variable Mapping</label>
-                                {detectedVariables.map(v => (
-                                    <div key={v}>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{`{{${v}}}`}</label>
+                        {selectedTemplateObj && (
+                            <div className="space-y-6 animate-fade-in">
+                                {/* Header Media */}
+                                {headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) && (
+                                    <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Header Media ({headerType})</label>
+                                        <div className="flex gap-2 mb-2">
+                                            <input
+                                                type="file"
+                                                accept={headerType === 'IMAGE' ? 'image/*' : headerType === 'VIDEO' ? 'video/*' : '.pdf,.doc,.docx'}
+                                                onChange={(e) => handleFileUpload(e)}
+                                                className="block w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-brand-600 file:text-white hover:file:bg-brand-500 cursor-pointer"
+                                            />
+                                        </div>
+                                        {uploading && <p className="text-[10px] text-brand-400 animate-pulse">Uploading...</p>}
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 mt-2">Or Direct URL</label>
                                         <PanelTextInput
-                                            value={data.variableMapping?.[v] || ''}
-                                            onChange={(val) => handleUpdate({ variableMapping: { ...data.variableMapping, [v]: val } })}
-                                            placeholder={`Value for {{${v}}}`}
+                                            value={data.mediaUrl || ''}
+                                            onChange={val => handleUpdate({ mediaUrl: val })}
+                                            placeholder="https://..."
                                             availableVariables={availableVariables}
                                         />
                                     </div>
-                                ))}
+                                )}
+
+                                {/* Carousel Media */}
+                                {carouselCards.length > 0 && (
+                                    <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 space-y-4">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Carousel Cards Media</label>
+                                        {carouselCards.map((card, idx) => {
+                                            const headerComp = card.components?.find((c: any) => c.type === 'HEADER');
+                                            const cardFormat = headerComp?.format || 'IMAGE';
+                                            return (
+                                                <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                                                    <span className="block text-[10px] font-bold text-slate-400 mb-2">Card {idx + 1} ({cardFormat})</span>
+                                                    <input
+                                                        type="file"
+                                                        accept={cardFormat === 'VIDEO' ? 'video/*' : 'image/*'}
+                                                        onChange={(e) => handleFileUpload(e, idx)}
+                                                        className="w-full text-[10px] text-slate-500 mb-2"
+                                                    />
+                                                    <PanelTextInput
+                                                        value={(data.carouselMediaUrls && data.carouselMediaUrls[idx]) || ''}
+                                                        onChange={(val) => {
+                                                            const newUrls = { ...(data.carouselMediaUrls || {}) };
+                                                            newUrls[idx] = val;
+                                                            handleUpdate({ carouselMediaUrls: newUrls });
+                                                        }}
+                                                        placeholder="Media URL"
+                                                        availableVariables={availableVariables}
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Variables */}
+                                {detectedVariables.length > 0 && (
+                                    <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700 space-y-3">
+                                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Variable Mapping</label>
+                                        {detectedVariables.map(v => (
+                                            <div key={v}>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{`{{${v}}}`}</label>
+                                                <PanelTextInput
+                                                    value={data.variableMapping?.[v] || ''}
+                                                    onChange={(val) => handleUpdate({ variableMapping: { ...data.variableMapping, [v]: val } })}
+                                                    placeholder={`Value for {{${v}}}`}
+                                                    availableVariables={availableVariables}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

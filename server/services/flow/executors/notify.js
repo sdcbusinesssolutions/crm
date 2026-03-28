@@ -49,45 +49,125 @@ module.exports = {
         for (const to of numbers) {
             try {
                 if (notificationType === 'Template') {
-                    // Logic to build template payload
+                    const {
+                        mediaUrl,
+                        carouselMediaUrls,
+                        variableMapping,
+                        templateName,
+                        language,
+                        components: nodeComponents
+                    } = node.data;
+
                     const components = [];
-                    const resolvedMapping = {};
-                    
-                    if (variableMapping) {
-                        for (const [key, val] of Object.entries(variableMapping)) {
-                            resolvedMapping[key] = contextManager.resolve(String(val || ''), context);
+                    const templateComponents = nodeComponents || [];
+
+                    // --- HEADER ---
+                    const headerComp = templateComponents.find(c => c.type === 'HEADER');
+                    if (headerComp) {
+                        if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format)) {
+                            const mediaType = headerComp.format.toLowerCase();
+                            const param = { type: mediaType };
+                            if (mediaUrl) {
+                                param[mediaType] = { link: mediaUrl };
+                            }
+                            components.push({
+                                type: 'header',
+                                parameters: [param]
+                            });
+                        } else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.match(/{{/)) {
+                            // Text Header with Variables
+                            const hText = headerComp.text;
+                            const hParams = [];
+                            const hMatches = hText.match(/{{([a-zA-Z0-9_]+)}}/g);
+                            if (hMatches) {
+                                hMatches.forEach(match => {
+                                    const varName = match.replace(/{{|}}/g, '');
+                                    const rawVal = variableMapping ? variableMapping[varName] : '';
+                                    const resolvedVal = contextManager.resolve(String(rawVal || ''), context);
+                                    hParams.push({ type: 'text', text: resolvedVal });
+                                });
+                            }
+                            if (hParams.length > 0) {
+                                components.push({ type: 'header', parameters: hParams });
+                            }
                         }
                     }
 
-                    const params = [];
-                    // WhatsApp Template Variables are usually {{1}}, {{2}}, etc.
-                    // We check for numeric keys first.
-                    const numericKeys = Object.keys(resolvedMapping).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
-                    
-                    if (numericKeys.length > 0) {
-                        // Fill parameters based on numeric order
-                        const maxIndex = Math.max(...numericKeys);
-                        for (let i = 1; i <= maxIndex; i++) {
-                            params.push({
-                                type: 'text',
-                                text: resolvedMapping[String(i)] || ''
+                    // --- BODY ---
+                    const bodyComp = templateComponents.find(c => c.type === 'BODY');
+                    if (bodyComp && bodyComp.text) {
+                        const bodyText = bodyComp.text;
+                        const params = [];
+                        const matches = bodyText.match(/{{([0-9]+)}}/g);
+                        let maxIndex = 0;
+                        if (matches) {
+                            matches.forEach(m => {
+                                const num = parseInt(m.replace(/{{|}}/g, ''));
+                                if (num > maxIndex) maxIndex = num;
                             });
                         }
-                    } else {
-                        // Fallback to named variables if no numbers found
-                        for (const [key, val] of Object.entries(resolvedMapping)) {
-                            params.push({
-                                type: 'text',
-                                text: String(val || '')
-                            });
+
+                        if (maxIndex > 0 && variableMapping) {
+                            for (let i = 1; i <= maxIndex; i++) {
+                                const rawVal = variableMapping[String(i)];
+                                const resolvedVal = contextManager.resolve(String(rawVal !== undefined && rawVal !== null ? rawVal : ''), context);
+                                params.push({ type: 'text', text: resolvedVal });
+                            }
+                        } else {
+                            // Fallback for named variables
+                            const namedMatches = bodyText.match(/{{([a-zA-Z_]+)}}/g);
+                            if (namedMatches) {
+                                namedMatches.forEach(match => {
+                                    const varName = match.replace(/{{|}}/g, '');
+                                    const rawVal = variableMapping ? variableMapping[varName] : '';
+                                    const resolvedVal = contextManager.resolve(String(rawVal || ''), context);
+                                    params.push({ type: 'text', text: resolvedVal });
+                                });
+                            }
+                        }
+                        if (params.length > 0) {
+                            components.push({ type: 'body', parameters: params });
                         }
                     }
 
-                    if (params.length > 0) {
-                        components.push({
-                            type: 'body',
-                            parameters: params
+                    // --- BUTTONS ---
+                    const buttonsComp = templateComponents.find(c => c.type === 'BUTTONS');
+                    if (buttonsComp && buttonsComp.buttons) {
+                        buttonsComp.buttons.forEach((btn, idx) => {
+                            if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
+                                const uMatches = btn.url.match(/{{([a-zA-Z0-9_]+)}}/g);
+                                if (uMatches) {
+                                    const bParams = [];
+                                    uMatches.forEach(m => {
+                                        const vName = m.replace(/{{|}}/g, '');
+                                        const val = variableMapping ? variableMapping[vName] : '';
+                                        const resolvedVal = contextManager.resolve(String(val || ''), context);
+                                        bParams.push({ type: 'text', text: resolvedVal });
+                                    });
+                                    if (bParams.length > 0) {
+                                        components.push({ type: 'button', sub_type: 'url', index: idx, parameters: bParams });
+                                    }
+                                }
+                            }
                         });
+                    }
+
+                    // --- CAROUSEL ---
+                    const carouselComp = templateComponents.find(c => c.type === 'CAROUSEL');
+                    if (carouselComp && carouselComp.cards) {
+                        const cards = carouselComp.cards.map((card, index) => {
+                            const cardComponents = [];
+                            const cardHeader = card.components.find(c => c.type === 'HEADER');
+                            if (cardHeader && (cardHeader.format === 'IMAGE' || cardHeader.format === 'VIDEO')) {
+                                const mediaType = cardHeader.format.toLowerCase();
+                                const url = carouselMediaUrls && carouselMediaUrls[index];
+                                if (url) {
+                                    cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link: url } }] });
+                                }
+                            }
+                            return { card_index: index, components: cardComponents };
+                        });
+                        components.push({ type: 'carousel', cards: cards });
                     }
 
                     const content = {
@@ -96,10 +176,9 @@ module.exports = {
                         components: components
                     };
 
-                    console.log(`[NotifyExecutor] Sending Template '${templateName}' to ${to}`);
+                    console.log(`[NotifyExecutor] Sending Template Payload to ${to}:`, JSON.stringify(content, null, 2));
                     const response = await whatsappService.sendMessage(user_id, to, 'template', content);
                     results.push({ to, status: 'sent', messageId: response?.messages?.[0]?.id });
-
                 } else {
                     // Text Message
                     const resolvedMessage = contextManager.resolve(message || '', context);
