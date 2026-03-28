@@ -53,7 +53,8 @@ class AskInputExecutor {
             status: 'waiting_input',
             question: messageToSend,
             timestamp: new Date().toISOString(),
-            timeoutAt: timeoutAt
+            timeoutAt: timeoutAt,
+            timeoutMessage: node.data.timeoutMessage || ''
         };
     }
 

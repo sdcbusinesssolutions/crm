@@ -1198,7 +1198,21 @@ class FlowEngine {
             return;
         }
 
-        // 3. Execute Next Step with special trigger
+        // 3. Send Timeout Message if defined (e.g. for AskInput)
+        const nodeId = session.current_node_id;
+        const nodeState = session.variables ? session.variables[nodeId] : null;
+
+        if (nodeState && nodeState.timeoutMessage) {
+            console.log(`[FlowEngine] Sending Timeout Message for Node ${nodeId}: ${nodeState.timeoutMessage}`);
+            try {
+                const whatsappService = require('./whatsappService');
+                await whatsappService.sendMessage(session.user_id, session.contact_phone, 'text', { body: nodeState.timeoutMessage });
+            } catch (msgError) {
+                console.error(`[FlowEngine] Failed to send timeout message:`, msgError.message);
+            }
+        }
+
+        // 4. Execute Next Step with special trigger
         // triggerType is usually 'unresponsive' or 'default' (for delay resume)
         // For delays, we usually just want to proceed, so 'default' works if no specific handle needed?
         // Actually, delays usually connect via default handle.

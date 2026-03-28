@@ -13,8 +13,8 @@ class Scheduler {
         if (this.isRunning) return;
         this.isRunning = true;
         console.log('⏰ Scheduler Started (Task Reminders)');
-        // Run every 60 seconds
-        this.interval = setInterval(() => this.checkAllReminders(), 60000);
+        // Run every 15 seconds for more responsive timeouts
+        this.interval = setInterval(() => this.checkAllReminders(), 15000);
         this.checkAllReminders(); // Run immediately on start
     }
 
@@ -171,22 +171,34 @@ class Scheduler {
                 .select('*')
                 .in('status', ['waiting_input', 'delayed']);
 
-            if (error || !sessions || sessions.length === 0) return;
+            if (error) {
+                console.error('[Scheduler] Error fetching waiting sessions:', error.message);
+                return;
+            }
+
+            if (!sessions || sessions.length === 0) return;
+
+            const nowTime = now.getTime();
+            const buffer = 5000; // 5 second buffer
 
             for (const session of sessions) {
                 if (!session.variables) continue;
 
                 // 1. Unresponsive Timeout
                 if (session.status === 'waiting_input') {
-                    // Check if the current node has a timeoutAt set
                     const nodeId = session.current_node_id;
-                    const nodeData = session.variables[nodeId];
-                    if (nodeData && nodeData.timeoutAt) {
-                        const timeoutTime = new Date(nodeData.timeoutAt).getTime();
-                        // Add buffer of say 5 seconds to be safe or just exact check
-                        if (now.getTime() >= timeoutTime) {
-                            console.log(`[Scheduler] Session ${session.id} unresponsive timeout reached.`);
-                            // Trigger 'unresponsive' handle
+                    const nodeState = session.variables[nodeId];
+
+                    if (nodeState && nodeState.timeoutAt) {
+                        const timeoutTime = new Date(nodeState.timeoutAt).getTime();
+                        
+                        // LOGGING for debugging
+                        if (process.env.DEBUG_TIMEOUTS || true) { // Force on for now to help user see it in logs
+                            console.log(`[Scheduler] Checking Session ${session.id}: TimeoutAt ${nodeState.timeoutAt}, Now ${now.toISOString()}`);
+                        }
+
+                        if (nowTime >= (timeoutTime - buffer)) {
+                            console.log(`[Scheduler] Session ${session.id} unresponsive timeout reached (${timeoutTime} <= ${nowTime})`);
                             await flowEngine.handleSessionTimeout(session.id, 'unresponsive');
                         }
                     }
