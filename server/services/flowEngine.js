@@ -32,6 +32,7 @@ const notifyExecutor = require('./flow/executors/notify');
 const EXECUTORS = {
     'textMessage': textMessageExecutor,
     'askAnything': askAnythingExecutor,
+    'askLocation': askAnythingExecutor,
     'mediaMessage': mediaMessageExecutor,
     'ctaMessage': ctaMessageExecutor,
     'quickReplyMessage': quickReplyMessageExecutor,
