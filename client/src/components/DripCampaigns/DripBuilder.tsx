@@ -435,36 +435,36 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     };
 
     const handleAddStep = useCallback((type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
-        setCampaign(prev => {
-            const steps = prev.steps || [];
-            const newStep: DripStep = {
-                id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-                campaign_id: campaignId || '',
-                step_order: steps.length + 1,
-                step_type: type,
-                step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
-                delay_value: 1,
-                delay_unit: 'DAYS'
-            };
-            return {
-                ...prev,
-                steps: [...steps, newStep]
-            };
-        });
-        setShowAddMenu(false);
-    }, [campaignId]);
+        const newId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const newStep: DripStep = {
+            id: newId,
+            campaign_id: campaignId || '',
+            step_order: Math.max(...(campaign.steps || []).map(s => s.step_order || 0), 0) + 1,
+            step_type: type,
+            step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
+            delay_value: 1,
+            delay_unit: 'DAYS'
+        };
 
-    const handleUpdateStep = (stepId: string, updates: Partial<DripStep>) => {
-        // MANUAL MODE: Just update local state
+        setCampaign(prev => ({
+            ...prev,
+            steps: [...(prev.steps || []), newStep]
+        }));
+        
+        setSelectedStep(newStep);
+        setShowCampaignSettings(false);
+        setShowAddMenu(false);
+    }, [campaignId, campaign.steps]);
+
+    const handleUpdateStep = useCallback((stepId: string, updates: Partial<DripStep>) => {
         setCampaign(prev => {
             const updatedSteps = prev.steps?.map(s => s.id === stepId ? { ...s, ...updates } : s);
             return { ...prev, steps: updatedSteps };
         });
-
-        if (selectedStep?.id === stepId) {
-            setSelectedStep(prev => prev ? { ...prev, ...updates } : null);
-        }
-    };
+        
+        // Also update selectedStep if it's the one being modified to keep sidebar in sync
+        setSelectedStep(prev => (prev?.id === stepId ? { ...prev, ...updates } : prev));
+    }, []);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, stepId: string, location: 'HEADER' | 'CAROUSEL', cardIndex?: number) => {
         if (!e.target.files || !e.target.files[0]) return;
