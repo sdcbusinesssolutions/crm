@@ -76,7 +76,7 @@ const DripCanvas = React.memo(({
     return (
         <div
             ref={canvasRef}
-            className="flex-1 bg-white relative cursor-grab active:cursor-grabbing"
+            className="flex-1 bg-slate-50/10 relative cursor-grab active:cursor-grabbing border-r border-[#00684a]"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -141,10 +141,10 @@ const DripCanvas = React.memo(({
                             <div className="flex flex-col items-center">
                                 <div className="flex items-center justify-center">
                                     {/* Delay Node */}
-                                    <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer group/delay"
+                                    <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0 shadow-sm flex items-center gap-2 hover:border-[#00684a] hover:text-[#00684a] transition-all cursor-pointer group/delay"
                                         onClick={() => onSelectStep(step)}
                                     >
-                                        <ClockIcon className="w-3 h-3 text-slate-400 group-hover/delay:text-brand-500" />
+                                        <ClockIcon className="w-3 h-3 text-slate-400 group-hover/delay:text-[#00684a]" />
                                         <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
                                     </div>
                                 </div>
@@ -168,7 +168,7 @@ const DripCanvas = React.memo(({
                     <div className="relative z-10 group">
                         <button
                             onClick={onToggleAddMenu}
-                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
+                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-[#00684a] hover:bg-slate-50 text-slate-400 hover:text-[#00684a] flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-[#00684a]/10"
                         >
                             <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
                         </button>
@@ -177,9 +177,9 @@ const DripCanvas = React.memo(({
                                 <button 
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onClick={(e) => { e.stopPropagation(); onAddStep('WHATSAPP_MESSAGE'); }} 
-                                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 flex items-center gap-3 transition-colors"
+                                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#00684a] flex items-center gap-3 transition-colors"
                                 >
-                                    <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
+                                    <MessageIcon className="w-4 h-4 text-[#00684a]" /> WhatsApp
                                 </button>
                                 <button 
                                     onMouseDown={(e) => e.stopPropagation()}
@@ -564,9 +564,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         <div
             onClick={onClick}
             className={`relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer group border border-slate-200/60 border-l-4 ${isSelected
-                ? 'ring-4 ring-brand-500/15 scale-[1.01] border-brand-500'
+                ? 'ring-4 ring-[#00684a]/15 scale-[1.01] border-[#00684a]'
                 : step.step_type === 'WHATSAPP_MESSAGE'
-                    ? 'border-l-emerald-500'
+                    ? 'border-l-[#00684a]'
                     : step.step_type === 'EMAIL'
                         ? 'border-l-blue-500'
                         : 'border-l-indigo-500'
@@ -574,7 +574,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         >
             {/* Header Bar */}
             <div className={`px-4 py-2.5 flex items-center justify-between border-b ${step.step_type === 'WHATSAPP_MESSAGE'
-                ? 'bg-emerald-500 border-emerald-600/10'
+                ? 'bg-[#00684a] border-emerald-600/10'
                 : step.step_type === 'EMAIL'
                     ? 'bg-blue-500 border-blue-600/10'
                     : 'bg-indigo-500 border-indigo-600/10'
@@ -590,7 +590,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
             <div className="p-4 flex items-center gap-4 bg-white">
                 <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center border shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
-                    ? 'bg-emerald-50 text-emerald-500 border-emerald-100'
+                    ? 'bg-emerald-50 text-[#00684a] border-emerald-100'
                     : step.step_type === 'EMAIL'
                         ? 'bg-blue-50 text-blue-500 border-blue-100'
                         : 'bg-indigo-50 text-indigo-500 border-indigo-100'
@@ -673,9 +673,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                         </button>
                         <button
                             onClick={() => setCampaign({ ...campaign, status: 'ACTIVE' })}
-                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-white text-[#00684a] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                         >
-                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-[#00684a] animate-pulse' : 'bg-slate-300'}`}></div>
                             Publish
                         </button>
                     </div>
@@ -683,7 +683,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     <button
                         onClick={() => handleSaveCampaign(true)}
                         disabled={loading}
-                        className="px-6 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all active:scale-95 disabled:opacity-50 border border-brand-500"
+                        className="px-6 py-2.5 bg-[#00684a] hover:bg-[#005c42] text-white rounded-xl font-bold shadow-lg shadow-[#00684a]/20 transform active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                         {loading ? 'Saving...' : (campaign.status === 'ACTIVE' ? 'Publish & Exit' : 'Save & Exit')}
                     </button>
