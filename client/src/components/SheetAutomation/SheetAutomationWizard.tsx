@@ -128,26 +128,52 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
     };
 
     const extractTemplateParams = (tpl: any) => {
-        // Logic same as handleTemplateSelect but standalone
+        if (!tpl || !tpl.components) return [];
         const params: string[] = [];
-        const headerComp = tpl.components.find((c: any) => c.type === 'HEADER');
-        if (headerComp) {
-            if (headerComp.format === 'IMAGE') params.push('HEADER_IMAGE');
-            else if (headerComp.format === 'VIDEO') params.push('HEADER_VIDEO');
-            else if (headerComp.format === 'DOCUMENT') params.push('HEADER_DOCUMENT');
-            else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.includes('{{1}}')) {
-                params.push('header_variable_1');
+
+        tpl.components.forEach((c: any) => {
+            if (c.type === 'HEADER') {
+                if (c.format === 'IMAGE') params.push('HEADER_IMAGE');
+                else if (c.format === 'VIDEO') params.push('HEADER_VIDEO');
+                else if (c.format === 'DOCUMENT') params.push('HEADER_DOCUMENT');
+                else if (c.format === 'TEXT' && c.text && c.text.includes('{{1}}')) {
+                    params.push('header_variable_1');
+                }
+            } else if (c.type === 'BODY' && c.text) {
+                const matches = c.text.match(/{{(\d+)}}/g);
+                if (matches) {
+                    const unique = Array.from(new Set(matches));
+                    unique.forEach((m: any) => {
+                        const num = m.replace(/[^\d]/g, '');
+                        params.push(`body_variable_${num}`);
+                    });
+                }
+            } else if (c.type === 'CAROUSEL' && c.cards) {
+                // WhatsApp Carousel: Multiple Cards
+                c.cards.forEach((card: any, cardIdx: number) => {
+                    const cardNum = cardIdx + 1;
+                    if (card.components) {
+                        card.components.forEach((cardComp: any) => {
+                            if (cardComp.type === 'HEADER') {
+                                if (cardComp.format === 'IMAGE') params.push(`card_${cardNum}_image`);
+                                else if (cardComp.format === 'VIDEO') params.push(`card_${cardNum}_video`);
+                            } else if (cardComp.type === 'BODY' && cardComp.text) {
+                                const cardMatches = cardComp.text.match(/{{(\d+)}}/g);
+                                if (cardMatches) {
+                                    const cardUnique = Array.from(new Set(cardMatches));
+                                    cardUnique.forEach((m: any) => {
+                                        const varNum = m.replace(/[^\d]/g, '');
+                                        params.push(`card_${cardNum}_body_variable_${varNum}`);
+                                    });
+                                }
+                            }
+                        });
+                    }
+                });
             }
-        }
-        const bodyComp = tpl.components.find((c: any) => c.type === 'BODY');
-        if (bodyComp && bodyComp.text) {
-            const matches = bodyComp.text.match(/{{(\d+)}}/g);
-            if (matches) {
-                const unique = Array.from(new Set(matches)) as string[];
-                unique.forEach(m => params.push(`body_variable_${m.replace(/{|}/g, '')}`));
-            }
-        }
-        setTemplateParams(params);
+        });
+
+        return Array.from(new Set(params));
     };
 
 
@@ -315,33 +341,13 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         if (tpl) {
             setFormData({ ...formData, template_id: templateId });
 
-            // Extract Params
-            const params: string[] = [];
-
-            // 1. Header Components (Images, Video, Text Vars)
-            const headerComp = tpl.components.find((c: any) => c.type === 'HEADER');
-            if (headerComp) {
-                if (headerComp.format === 'IMAGE') params.push('HEADER_IMAGE');
-                else if (headerComp.format === 'VIDEO') params.push('HEADER_VIDEO');
-                else if (headerComp.format === 'DOCUMENT') params.push('HEADER_DOCUMENT');
-                else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.includes('{{1}}')) {
-                    params.push('header_variable_1');
-                }
-            }
-
-            // 2. Body Components
-            const bodyComp = tpl.components.find((c: any) => c.type === 'BODY');
-            if (bodyComp && bodyComp.text) {
-                // Match {{1}}, {{2}} etc.
-                const matches = bodyComp.text.match(/{{(\d+)}}/g);
-                if (matches) {
-                    const unique = Array.from(new Set(matches)) as string[];
-                    unique.forEach(m => params.push(`body_variable_${m.replace(/{|}/g, '')}`));
-                }
-            }
-
+            // Extract Params using unified helper
+            const params = extractTemplateParams(tpl);
             console.log('Extracted Params:', params);
             setTemplateParams(params);
+        } else {
+            setFormData({ ...formData, template_id: '' });
+            setTemplateParams([]);
         }
     };
 
@@ -834,7 +840,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 {templates.find(t => t.id === formData.template_id)?.components.map((c: any, i: number) => (
                                     <div key={i}>
                                         <span className="text-xs font-semibold text-slate-500 block uppercase">{c.type}</span>
-                                        <p className="whitespace-pre-wrap text-slate-700">{c.text || `[${c.format} Content]`}</p>
+                                        <p className="whitespace-pre-wrap text-slate-700">
+                                            {c.text ? c.text : (c.type === 'CAROUSEL' ? '[Carousel - Multiple Cards]' : `[${c.format || 'Media'} Content]`)}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -876,6 +884,11 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         <span className="text-sm font-medium text-slate-700 block mb-1">
                                             {param.replace(/_/g, ' ').toUpperCase()}
                                         </span>
+                                        {(param.includes('IMAGE') || param.includes('VIDEO') || param.includes('DOCUMENT')) && (
+                                            <p className="text-[10px] text-brand-600 font-medium mb-2 leading-tight">
+                                                * Requires a public URL
+                                            </p>
+                                        )}
                                         <div className="flex text-xs border border-slate-200 rounded overflow-hidden w-fit">
                                             <button
                                                 onClick={() => setFormData(p => ({
@@ -915,9 +928,14 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                             </select>
                                         ) : (
                                             <input
-                                                type={param.includes('IMAGE') || param.includes('VIDEO') ? 'url' : 'text'}
+                                                type={param.includes('IMAGE') || param.includes('VIDEO') || param.includes('DOCUMENT') ? 'url' : 'text'}
                                                 className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
-                                                placeholder={param.includes('IMAGE') ? "Paste Image URL..." : "Type custom value..."}
+                                                placeholder={
+                                                    param.includes('IMAGE') ? "Paste Public Image URL..." :
+                                                        param.includes('VIDEO') ? "Paste Public Video URL..." :
+                                                            param.includes('DOCUMENT') ? "Paste Public Document URL..." :
+                                                                "Type custom value..."
+                                                }
                                                 value={currentMap.value}
                                                 onChange={e => setFormData(p => ({
                                                     ...p,

@@ -1350,6 +1350,72 @@ class SheetAutomationService {
                 console.log('[DEBUG] No BODY config found in template');
             }
 
+            // C. Carousel
+            const carouselConfig = auto.template_config.components.find(c => c.type && c.type.toUpperCase() === 'CAROUSEL');
+            if (carouselConfig && carouselConfig.cards) {
+                const carouselCards = [];
+
+                carouselConfig.cards.forEach((card, cardIdx) => {
+                    const cardNum = cardIdx + 1;
+                    const cardParams = [];
+
+                    if (card.components) {
+                        card.components.forEach(cardComp => {
+                            if (cardComp.type.toUpperCase() === 'HEADER') {
+                                if (cardComp.format === 'IMAGE') {
+                                    const mapVal = this.getMappedValue(auto.mapping_config.params[`card_${cardNum}_image`], rowObj);
+                                    if (mapVal) cardParams.push({ type: 'image', image: { link: mapVal } });
+                                } else if (cardComp.format === 'VIDEO') {
+                                    const mapVal = this.getMappedValue(auto.mapping_config.params[`card_${cardNum}_video`], rowObj);
+                                    if (mapVal) cardParams.push({ type: 'video', video: { link: mapVal } });
+                                }
+                            } else if (cardComp.type.toUpperCase() === 'BODY') {
+                                const matches = cardComp.text.match(/{{(\d+)}}/g);
+                                if (matches) {
+                                    const unique = Array.from(new Set(matches)).sort();
+                                    let maxIdx = 0;
+                                    unique.forEach(v => {
+                                        const idx = parseInt(v.replace(/[^\d]/g, ''));
+                                        if (idx > maxIdx) maxIdx = idx;
+                                    });
+                                    for (let vIdx = 1; vIdx <= maxIdx; vIdx++) {
+                                        const pKey = `card_${cardNum}_body_variable_${vIdx}`;
+                                        let val = this.getMappedValue(auto.mapping_config.params[pKey], rowObj);
+                                        cardParams.push({ type: 'text', text: val || '-' });
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    carouselCards.push({
+                        card_index: cardIdx,
+                        components: [{ type: 'button', sub_type: 'quick_reply', index: 0, parameters: [] }, { type: 'header', parameters: cardParams.filter(p => p.type !== 'text') }, { type: 'body', parameters: cardParams.filter(p => p.type === 'text') }].filter(c => c.parameters.length > 0)
+                    });
+                });
+
+                apiComponents.push({
+                    type: 'carousel',
+                    cards: carouselCards.map(c => ({
+                        card_index: c.card_index,
+                        components: carouselConfig.cards[c.card_index].components.map(comp => {
+                            if (comp.type === 'HEADER') {
+                                return {
+                                    type: 'header',
+                                    parameters: c.components.find(cc => cc.type === 'header')?.parameters || []
+                                };
+                            } else if (comp.type === 'BODY') {
+                                return {
+                                    type: 'body',
+                                    parameters: c.components.find(cc => cc.type === 'body')?.parameters || []
+                                };
+                            }
+                            return null;
+                        }).filter(x => x)
+                    }))
+                });
+            }
+
             // Overwrite components with built ones
             templateObject.components = apiComponents;
         }
