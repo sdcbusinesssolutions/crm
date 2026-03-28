@@ -189,8 +189,8 @@ class FlowEngine {
                     }
 
                     // 2. Handle WAITING_INPUT sessions (Unresponsive)
-                    // We use now - 2s for strictness to avoid "earlier" triggers.
-                    const checkTime = new Date(now.getTime() - 2000); 
+                    // Trigger exactly when time passes (now)
+                    const checkTime = now; 
 
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
@@ -211,7 +211,7 @@ class FlowEngine {
                                 if (!isNaN(timeoutTime.getTime()) && timeoutTime <= checkTime) {
                                     // PREPARE TIMEOUT STATE
                                     const updatedVariables = { ...variables };
-                                    if (updatedVariables[currentNodeId]) {
+                                    if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
                                         updatedVariables[currentNodeId] = {
                                             ...updatedVariables[currentNodeId],
                                             status: 'timeout',
@@ -220,8 +220,7 @@ class FlowEngine {
                                         };
                                     }
 
-                                    // ATOMIC CLAIM: Update status AND Variables in one single atomic transaction!
-                                    // Only the "winner" will get one row back.
+                                    // ATOMIC CLAIM: Single transaction update to claim AND persist variables
                                     const { data: claimed, error: claimError } = await rpcClient
                                         .from('flow_sessions')
                                         .update({ 
@@ -234,8 +233,8 @@ class FlowEngine {
                                         .select();
 
                                     if (!claimError && claimed && claimed.length > 0) {
-                                        console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Claimed Timeout Session ${session.id}`);
-                                        // Pass the verified claimed data (with fresh status/variables) directly
+                                        console.log(`[FlowEngine] Instance ${this.instanceId} Successfully Claimed Unresponsive Session ${session.id} (Now Triggering Flow)`);
+                                        // Pass the verified claimed data directly
                                         await this.handleSessionTimeout(session.id, 'unresponsive', updatedVariables, claimed[0]);
                                     }
                                 }
@@ -243,7 +242,7 @@ class FlowEngine {
                         }
                     }
 
-                    // 3. Handle STUCK sessions (> 10 mins processing)
+                    // 3. Handle STUCK sessions (> 10 mins processing/resuming/active)
                     const stuckThreshold = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
                     const { data: stuckSessions, error: stuckError } = await rpcClient
                         .from('flow_sessions')
@@ -257,6 +256,7 @@ class FlowEngine {
                             await rpcClient.from('flow_sessions')
                                 .update({ status: 'error', last_interaction_at: nowIso })
                                 .eq('id', stuck.id);
+                            console.log(`[FlowEngine] Reset stuck session ${stuck.id} across cluster.`);
                         }
                     }
 
