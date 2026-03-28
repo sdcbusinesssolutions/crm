@@ -835,14 +835,10 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                     Body Message <span className={`ml-1 font-normal ${body.length > 1024 ? "text-red-500" : "text-slate-400"}`}>({body.length}/1024)</span>
                                 </label>
-                                <div className="flex gap-2">
+                                <div className="hidden">
                                     <label className="flex items-center gap-1 cursor-pointer">
                                         <input type="radio" name="paramFormat" value="positional" checked={paramFormat === 'positional'} onChange={() => setParamFormat('positional')} className="text-brand-600 focus:ring-brand-500 h-3 w-3" />
                                         <span className="text-[10px] font-medium text-slate-600">Positional</span>
-                                    </label>
-                                    <label className="flex items-center gap-1 cursor-pointer">
-                                        <input type="radio" name="paramFormat" value="named" checked={paramFormat === 'named'} onChange={() => setParamFormat('named')} className="text-brand-600 focus:ring-brand-500 h-3 w-3" />
-                                        <span className="text-[10px] font-medium text-slate-600">Named</span>
                                     </label>
                                 </div>
                             </div>
