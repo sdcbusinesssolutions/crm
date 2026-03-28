@@ -1195,16 +1195,9 @@ class FlowEngine {
         const flow = await this.getCachedFlow(session.flow_id);
         if (!flow) return;
 
-        // 3. Send Timeout Message (e.g. for AskInputs)
-        const nodeState = session.variables ? session.variables[session.current_node_id] : null;
-        if (nodeState && nodeState.timeoutMessage) {
-            try {
-                const whatsappService = require('./whatsappService');
-                await whatsappService.sendMessage(session.user_id, session.contact_phone, 'text', { body: nodeState.timeoutMessage });
-            } catch (err) { console.error('[TimeoutMsg] Send Error:', err.message); }
-        }
-
-        // 4. Advance Flow
+        // 3. Advance Flow (Strictly follow Unresponsive handle)
+        // Note: Removed the built-in 'timeoutMessage' logic to prevent double messaging 
+        // in 8-container clusters. Content is now 100% controlled by the next node.
         await this.executeNextStep(session, flow, session.current_node_id, triggerType);
     }
 }
