@@ -140,18 +140,21 @@ class FlowEngine {
     }
 
     startScheduler() {
-        console.log(`[FlowEngine] Starting Scheduler (Instance: ${this.instanceId}) (Delay & Timeout)...`);
+        console.log(`[FlowEngine] Starting Distributed Scheduler (Instance: ${this.instanceId}) (Check every 30s)...`);
         setInterval(async () => {
             try {
-                // console.log(`[FlowEngine] Scheduler Tick (${this.instanceId})`);
                 const now = new Date();
+                const nowIso = now.toISOString();
                 const rpcClient = supabaseAdmin;
 
                 // 1. Handle DELAYED sessions
+                // Fetching with limit and ordering to prioritize oldest and avoid memory issues
                 const { data: delayedSessions, error } = await rpcClient
                     .from('flow_sessions')
                     .select('id, status, current_node_id, variables, flow_id, user_id')
-                    .eq('status', 'delayed');
+                    .eq('status', 'delayed')
+                    .order('last_interaction_at', { ascending: true })
+                    .limit(50);
 
                 if (!error && delayedSessions && delayedSessions.length > 0) {
                     for (const session of delayedSessions) {
@@ -162,44 +165,40 @@ class FlowEngine {
                         if (nodeOutput && nodeOutput.resumeAt) {
                             const resumeTime = new Date(nodeOutput.resumeAt);
 
-                            // Check for invalid date
-                            if (isNaN(resumeTime.getTime())) {
-                                console.error(`[FlowEngine] Invalid resumeAt date for session ${session.id}: ${nodeOutput.resumeAt}`);
-                                continue;
-                            }
-
-                            if (resumeTime <= now) {
+                            if (!isNaN(resumeTime.getTime()) && resumeTime <= now) {
                                 // OPTIMISTIC LOCK: Try to claim this session
                                 const { data: claimed, error: claimError } = await rpcClient
                                     .from('flow_sessions')
-                                    .update({ status: 'resuming' }) // Intermediate status
+                                    .update({ 
+                                        status: 'resuming',
+                                        last_interaction_at: nowIso 
+                                    })
                                     .eq('id', session.id)
-                                    .eq('status', 'delayed') // Ensure it is still delayed
+                                    .eq('status', 'delayed')
                                     .select();
 
                                 if (!claimError && claimed && claimed.length > 0) {
-                                    console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Session ${session.id}. Waited until ${nodeOutput.resumeAt}`);
+                                    console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Claimed Session ${session.id} (Delayed).`);
                                     await this.resumeSession(session);
                                 }
                             }
-                        } else {
-                            // If a session is marked 'delayed' but has no resume info, it's stuck. 
-                            // We could auto-resume or mark error, but for now just log.
-                            console.warn(`[FlowEngine] Session ${session.id} is 'delayed' but missing resumeAt/nodeOutput. CurrentNode: ${currentNodeId}`);
                         }
                     }
                 }
 
                 // 2. Handle WAITING_INPUT sessions with Timeout (Unresponsive)
-                // We add a 15-second grace buffer to account for server clock skew.
+                // We add a 15-second grace buffer to account for clock skew across the 8 containers.
                 const checkTime = new Date(now.getTime() + 15000); 
 
                 const { data: waitingSessions, error: waitingError } = await rpcClient
                     .from('flow_sessions')
                     .select('id, status, current_node_id, variables, flow_id, user_id')
-                    .eq('status', 'waiting_input');
+                    .eq('status', 'waiting_input')
+                    .order('last_interaction_at', { ascending: true })
+                    .limit(50);
 
                 if (!waitingError && waitingSessions && waitingSessions.length > 0) {
+                    // console.log(`[FlowEngine Scheduler] Checking ${waitingSessions.length} waiting sessions for timeouts (Now: ${nowIso})`);
                     for (const session of waitingSessions) {
                         const variables = session.variables || {};
                         const currentNodeId = session.current_node_id;
@@ -209,62 +208,60 @@ class FlowEngine {
                             const timeoutTime = new Date(nodeOutput.timeoutAt);
                             
                             if (!isNaN(timeoutTime.getTime()) && timeoutTime <= checkTime) {
-                                // Mark as timeout in variables AND Claim in one go
-                                const newVariables = { ...variables };
-                                if (newVariables[currentNodeId] && typeof newVariables[currentNodeId] === 'object') {
-                                    newVariables[currentNodeId] = {
-                                        ...newVariables[currentNodeId],
-                                        status: 'timeout',
-                                        isFilled: false,
-                                        response: null
-                                    };
-                                }
-
-                                // ATOMIC OPTIMISTIC LOCK: Transition to 'resuming' while updating vars
+                                // ATOMIC OPTIMISTIC LOCK: Try to claim session via status change
                                 const { data: claimed, error: claimError } = await rpcClient
                                     .from('flow_sessions')
                                     .update({ 
                                         status: 'resuming',
-                                        variables: newVariables 
+                                        last_interaction_at: nowIso
                                     })
                                     .eq('id', session.id)
                                     .eq('status', 'waiting_input')
                                     .select();
 
                                 if (!claimError && claimed && claimed.length > 0) {
-                                    console.log(`[FlowEngine Scheduler] Session ${session.id} timed out (Unresponsive trigger)`);
-                                    await this.resumeSession({ ...session, variables: newVariables }, 'unresponsive');
+                                    console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Claimed Session ${session.id} (Timeout)`);
+                                    
+                                    // Set timeout state in variables before proceeding
+                                    const updatedVariables = { ...variables };
+                                    if (updatedVariables[currentNodeId]) {
+                                        updatedVariables[currentNodeId] = {
+                                            ...updatedVariables[currentNodeId],
+                                            status: 'timeout',
+                                            isFilled: false
+                                        };
+                                    }
+
+                                    // Use unified timeout handler to send messages and advance flow
+                                    await this.handleSessionTimeout(session.id, 'unresponsive', updatedVariables);
                                 }
                             }
                         }
                     }
                 }
 
-                // 3. Handle STUCK sessions (Active/Processing for > 5 mins)
-                // This cleans up sessions that crashed or got stuck in a race condition lock
-                const stuckThreshold = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+                // 3. Handle STUCK sessions (Active/Processing for > 10 mins)
+                const stuckThreshold = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
                 const { data: stuckSessions, error: stuckError } = await rpcClient
                     .from('flow_sessions')
-                    .select('*')
-                    .in('status', ['active', 'processing'])
-                    .lt('last_interaction_at', stuckThreshold);
+                    .select('id')
+                    .in('status', ['active', 'processing', 'resuming'])
+                    .lt('last_interaction_at', stuckThreshold)
+                    .limit(10);
 
                 if (!stuckError && stuckSessions && stuckSessions.length > 0) {
-                    console.log(`[FlowEngine Scheduler] Found ${stuckSessions.length} STUCK sessions (Active/Processing > 5m). Cleaning up...`);
                     for (const session of stuckSessions) {
-                        // Mark as timeout/error
-                        await rpcClient.rpc('update_session_status', {
-                            p_session_id: session.id,
-                            p_status: 'timeout'
-                        });
-                        console.log(`[FlowEngine Scheduler] Session ${session.id} marked as timeout (Stuck).`);
+                        await rpcClient.from('flow_sessions')
+                            .update({ status: 'error', last_interaction_at: nowIso })
+                            .eq('id', session.id);
+                        console.log(`[FlowEngine Scheduler] Reset STUCK session ${session.id}.`);
                     }
                 }
 
             } catch (err) {
-                console.error('[FlowEngine Scheduler] Critical Loop Error:', err);
+                console.error('[FlowEngine Scheduler] Tick Error:', err);
             }
-        }, 30000); // Check every 30 seconds
+        }, 30000);
     }
 
     async resumeSession(session, interactionId = null) {
@@ -1175,55 +1172,40 @@ class FlowEngine {
 
 
     /**
-     * Handle Session Timeout (Unresponsive or Delay)
-     * Called by Scheduler
+     * Handle Session Timeout (Unresponsive)
+     * Called by Scheduler or RAM timers
      */
-    async handleSessionTimeout(sessionId, triggerType) {
+    async handleSessionTimeout(sessionId, triggerType, updatedVariables = null) {
         console.log(`[FlowEngine] Handling Timeout for Session ${sessionId} (Type: ${triggerType})`);
-        const rpcClient = supabaseAdmin || supabase;
+        const rpcClient = supabaseAdmin;
 
-        // 1. Fetch Session
-        const { data: session, error: sessionError } = await rpcClient
-            .from('flow_sessions')
-            .select('*')
-            .eq('id', sessionId)
-            .single();
-
-        if (sessionError || !session) {
-            console.error(`[FlowEngine] Session ${sessionId} not found for timeout.`);
-            return;
+        // 1. Fetch Session (if variables not provided)
+        let session;
+        if (!updatedVariables) {
+            const { data } = await rpcClient.from('flow_sessions').select('*').eq('id', sessionId).single();
+            session = data;
+        } else {
+            // Partial session from scheduler
+            const { data } = await rpcClient.from('flow_sessions').select('*').eq('id', sessionId).single();
+            session = { ...data, variables: updatedVariables };
         }
 
-        // 2. Fetch Flow
-        const { data: flow, error: flowError } = await rpcClient
-            .from('flows')
-            .select('*')
-            .eq('id', session.flow_id)
-            .single();
+        if (!session) return;
 
-        if (flowError || !flow) {
-            console.error(`[FlowEngine] Flow ${session.flow_id} not found for session ${sessionId}.`);
-            return;
-        }
+        // 2. Fetch Flow (Cached)
+        const flow = await this.getCachedFlow(session.flow_id);
+        if (!flow) return;
 
-        // 3. Send Timeout Message if defined (e.g. for AskInput)
-        const nodeId = session.current_node_id;
-        const nodeState = session.variables ? session.variables[nodeId] : null;
-
+        // 3. Send Timeout Message (e.g. for AskInputs)
+        const nodeState = session.variables ? session.variables[session.current_node_id] : null;
         if (nodeState && nodeState.timeoutMessage) {
-            console.log(`[FlowEngine] Sending Timeout Message for Node ${nodeId}: ${nodeState.timeoutMessage}`);
             try {
                 const whatsappService = require('./whatsappService');
                 await whatsappService.sendMessage(session.user_id, session.contact_phone, 'text', { body: nodeState.timeoutMessage });
-            } catch (msgError) {
-                console.error(`[FlowEngine] Failed to send timeout message:`, msgError.message);
-            }
+            } catch (err) { console.error('[TimeoutMsg] Send Error:', err.message); }
         }
 
-        // 4. Execute Next Step with special trigger
-        // triggerType is usually 'unresponsive' or 'default' (for delay resume)
-        // For delays, we usually just want to proceed, so 'default' works if no specific handle needed?
-        // Actually, delays usually connect via default handle.
+        // 4. Advance Flow
         await this.executeNextStep(session, flow, session.current_node_id, triggerType);
     }
 }
