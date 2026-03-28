@@ -81,7 +81,7 @@ router.post('/create', async (req, res) => {
 
         logCampaignRequest('Create Request', req.body);
 
-        let { title, templateId, templateName, languageCode, contactGroupId, scheduledAt, sendNow, variableMapping, mediaUrl, mediaType, locationHeader, carouselMediaUrls, recipientType } = req.body;
+        let { title, templateId, templateName, languageCode, contactGroupId, scheduledAt, sendNow, variableMapping, mediaUrl, mediaType, locationHeader, carouselMediaUrls, recipientType, restrictLanguageCode } = req.body;
 
         // Persist Carousel Media in Mapping
         if (carouselMediaUrls?.length) {
@@ -89,9 +89,8 @@ router.post('/create', async (req, res) => {
             variableMapping._carousel_media = carouselMediaUrls;
         }
 
-        // Fetch Contacts
-        let validContacts = [];
-
+        // Fetch Contacts - Robust Looping Strategy
+        let allContacts = [];
         if (recipientType === 'manual') {
             const manualNumbers = req.body.manualNumbers || [];
             if (!manualNumbers.length) return res.status(400).json({ error: 'No numbers provided.' });
@@ -99,7 +98,7 @@ router.post('/create', async (req, res) => {
             // 1. Normalize Numbers
             const normalized = manualNumbers.map(num => {
                 const clean = num.toString().trim().replace(/\D/g, '');
-                return clean.startsWith('+') ? clean : `+${clean}`;
+                return `+${clean}`;
             }).filter(isValidE164);
 
             if (!normalized.length) return res.status(400).json({ error: 'No valid manual numbers found.' });
@@ -116,12 +115,8 @@ router.post('/create', async (req, res) => {
 
             if (fetchErr) throw fetchErr;
 
-            // 4. Build Valid Contacts (Mix of Existing + Virtual)
-            // We consciously DO NOT insert new contacts yet, based on user request.
-            // We will attempt to queue them with ID=null. If DB fails, we handle it later.
             const existingMap = new Map(existingContacts.map(c => [c.phone, c]));
-
-            validContacts = uniquePhones.map(phone => {
+            allContacts = uniquePhones.map(phone => {
                 if (existingMap.has(phone)) return existingMap.get(phone);
                 return {
                     id: null, // Virtual Contact
@@ -129,54 +124,70 @@ router.post('/create', async (req, res) => {
                     phone: phone,
                     name: 'Guest',
                     email: null,
-                    is_virtual: true // Flag for later fallback
+                    is_virtual: true
                 };
             });
-
-        } else if (recipientType === 'tags') {
-            // Fetch contacts by tags
-            const selectedTags = req.body.selectedTags || [];
-            if (!selectedTags.length) {
-                return res.status(400).json({ error: 'No tags selected.' });
-            }
-
-            // Query contacts that have ANY of the selected tags
-            const { data: contacts, error: tagsErr } = await supabase
-                .from('contacts')
-                .select('id, phone, name, email, tags')
-                .eq('user_id', user.id);
-
-            if (tagsErr) throw tagsErr;
-            if (!contacts?.length) return res.status(400).json({ error: 'No contacts found.' });
-
-            // Filter contacts that have at least one of the selected tags
-            validContacts = contacts.filter(contact => {
-                if (!contact.tags || !Array.isArray(contact.tags)) return false;
-                return selectedTags.some(tag => contact.tags.includes(tag));
-            });
-
-            if (!validContacts.length) {
-                return res.status(400).json({ error: 'No contacts found with the selected tags.' });
-            }
-
         } else {
-            // Existing Group Logic
-            if (!contactGroupId) {
-                return res.status(400).json({ error: 'Audience Group is required when not using manual numbers.' });
+            // Group, Tags or All
+            let pageIndex = 0;
+            const chunkSize = 1000;
+            let hasMore = true;
+
+            while (hasMore) {
+                const from = pageIndex * chunkSize;
+                const to = from + chunkSize - 1;
+
+                let query = supabase.from('contacts').select('*').eq('user_id', user.id).range(from, to);
+                
+                // If specific group, we can filter in DB
+                if (recipientType === 'group' && contactGroupId && contactGroupId !== 'all') {
+                    query = query.contains('group_ids', [contactGroupId]);
+                }
+
+                const { data: chunk, error: chunkErr } = await query;
+                if (chunkErr) throw chunkErr;
+
+                if (chunk && chunk.length > 0) {
+                    allContacts = allContacts.concat(chunk);
+                    if (chunk.length < chunkSize) hasMore = false;
+                    else pageIndex++;
+                } else {
+                    hasMore = false;
+                }
+                if (allContacts.length > 250000) break; // Hard safety break
             }
 
-            let query = supabase.from('contacts').select('id, phone, name, email').eq('user_id', user.id);
-            if (contactGroupId !== 'all') query = query.contains('group_ids', [contactGroupId]);
+            // In-Memory Filtering for Tags & Language
+            if (recipientType === 'tags') {
+                const selectedTags = req.body.selectedTags || [];
+                allContacts = allContacts.filter(c => {
+                    if (!c.tags || !Array.isArray(c.tags)) return false;
+                    return selectedTags.some(tag => c.tags.includes(tag));
+                });
+            }
 
-            const { data: contacts } = await query;
-            if (!contacts?.length) return res.status(400).json({ error: 'No contacts found.' });
-            validContacts = contacts;
+            // Exclude Blocked/Opted-Out Contacts
+            allContacts = allContacts.filter(c => !c.is_blocked && !c.opted_out);
+
+            // Refuse Language Restriction if enabled
+            if (restrictLanguageCode && languageCode) {
+                allContacts = allContacts.filter(c => {
+                    const contactLang = c.language_code || c.custom_data?.language_code;
+                    if (!contactLang) return true; // Allow if unknown? Or restrict? 
+                    // To be safe, usually restriction only applies if we KNOW it's different.
+                    return contactLang.toLowerCase().split('_')[0] === languageCode.toLowerCase().split('_')[0];
+                });
+            }
         }
 
-        // Validate E.164 (Double check for group contacts, though we did it for manual above too)
-        validContacts = validContacts.map(c => ({ ...c, phone: c.phone.trim().replace(/\D/g, '') }))
-            .map(c => ({ ...c, phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}` }))
-            .filter(c => isValidE164(c.phone));
+        // Final normalization and deduplication
+        let validContacts = allContacts.map(c => ({
+            ...c,
+            phone: c.phone.toString().trim().replace(/\D/g, '')
+        })).map(c => ({
+            ...c,
+            phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}`
+        })).filter(c => isValidE164(c.phone));
 
         // Deduplicate Contacts (Keep unique phones)
         const uniqueContactsMap = new Map();
@@ -210,7 +221,8 @@ router.post('/create', async (req, res) => {
 
         if (cErr) throw cErr;
 
-        // Add to Queue (With Fallback for Schema Constraints)
+        // Add to Queue (With Fallback for Chunking & Performance)
+        const QUEUE_BATCH_SIZE = 2000;
         let queue = uniqueContacts.map(c => ({
             campaign_id: campaign.id,
             contact_id: c.id,
@@ -218,42 +230,63 @@ router.post('/create', async (req, res) => {
             status: 'PENDING'
         }));
 
-        const { error: qInitialErr } = await supabase.from('campaign_queue').insert(queue);
+        let insertError = null;
 
-        if (qInitialErr) {
+        // Try Chunked Insert
+        for (let i = 0; i < queue.length; i += QUEUE_BATCH_SIZE) {
+            const batch = queue.slice(i, i + QUEUE_BATCH_SIZE);
+            const { error: batchErr } = await supabase.from('campaign_queue').insert(batch);
+            
+            if (batchErr) {
+                // If it's a contact_id missing error for manual entries, we handle it below
+                if (batchErr.code === '23502' || batchErr.message?.includes('contact_id')) {
+                    insertError = batchErr;
+                    break; 
+                } else {
+                    throw batchErr;
+                }
+            }
+        }
+
+        if (insertError) {
             // Handle Not-Null Constraint on contact_id (Postgres Code 23502)
-            if (qInitialErr.code === '23502' || qInitialErr.message?.includes('contact_id')) {
-                console.warn('[Campaign] contact_id constraint detected. Creating auto-contacts for manual entries...');
+            // Creating auto-contacts for manual entries before retrying queue
+            const virtuals = uniqueContacts.filter(c => !c.id);
+            if (virtuals.length > 0) {
+                console.log(`[Campaign] Creating ${virtuals.length} auto-contacts for manual entries...`);
+                
+                const CONTACT_BATCH_SIZE = 1000;
+                const phoneToId = new Map();
 
-                const virtuals = uniqueContacts.filter(c => !c.id);
-                if (virtuals.length > 0) {
-                    const contactsToCreate = virtuals.map(c => ({
+                for (let i = 0; i < virtuals.length; i += CONTACT_BATCH_SIZE) {
+                    const chunk = virtuals.slice(i, i + CONTACT_BATCH_SIZE).map(c => ({
                         user_id: user.id,
                         phone: c.phone,
-                        name: `Manual ${new Date().toISOString().split('T')[0]}`,
+                        name: `Manual Contact`,
                         group_ids: []
                     }));
 
-                    const { data: created, error: fallbackErr } = await supabase
+                    const { data: created, error: chunkErr } = await supabase
                         .from('contacts')
-                        .insert(contactsToCreate)
+                        .insert(chunk)
                         .select('id, phone');
 
-                    if (fallbackErr) throw fallbackErr;
+                    if (chunkErr) throw chunkErr;
+                    created.forEach(c => phoneToId.set(c.phone, c.id));
+                }
 
-                    // Update Queue Items with new IDs
-                    const phoneToId = new Map(created.map(c => [c.phone, c.id]));
-                    queue = queue.map(q => {
-                        if (q.contact_id) return q;
-                        return { ...q, contact_id: phoneToId.get(q.phone_number) };
-                    });
+                // Update Queue Items with new IDs
+                queue = queue.map(q => {
+                    if (q.contact_id) return q;
+                    return { ...q, contact_id: phoneToId.get(q.phone_number) };
+                });
 
-                    // Retry
-                    const { error: retryErr } = await supabase.from('campaign_queue').insert(queue);
+                // Re-attempt Whole Queue Insert in Batches
+                for (let i = 0; i < queue.length; i += QUEUE_BATCH_SIZE) {
+                    const batch = queue.slice(i, i + QUEUE_BATCH_SIZE);
+                    const { error: retryErr } = await supabase.from('campaign_queue').insert(batch);
                     if (retryErr) throw retryErr;
                 }
-            } else {
-                throw qInitialErr;
             }
         }
 

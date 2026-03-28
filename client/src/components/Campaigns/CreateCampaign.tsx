@@ -478,6 +478,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 phoneNumberId: selectedPhoneNumber,
 
                 variableMapping,
+                restrictLanguageCode: restrictLanguage, // Send language restriction flag
                 mediaUrl: headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) ? mediaUrl : null,
                 carouselMediaUrls: carouselCards.length > 0 ? carouselMediaUrls : null,
                 mediaType: headerType,
