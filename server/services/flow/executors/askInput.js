@@ -40,7 +40,7 @@ class AskInputExecutor {
 
             if (timeoutUnit === 'Seconds') multiplier = 1000;
             if (timeoutUnit === 'Hours') multiplier = 60 * 60 * 1000;
-            // Days not in spec but in generic
+            if (timeoutUnit === 'Days') multiplier = 24 * 60 * 60 * 1000;
 
             ms = duration * multiplier;
             if (ms > 0) {

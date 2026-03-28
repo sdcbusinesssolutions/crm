@@ -152,7 +152,7 @@ export interface WriteAttributeData extends NodeData {
 export interface TimingData extends NodeData {
   delaySeconds?: number;
   delayValue: number;
-  delayUnit: 'Seconds' | 'Minutes' | 'Hours' | 'Days' | 'Weeks' | 'Custom Date';
+  delayUnit: 'Minutes' | 'Hours' | 'Days' | 'Weeks' | 'Custom Date';
   customDate?: string;
 }
 
@@ -309,7 +309,7 @@ export interface AskInputData extends NodeData {
   retryCount: number;
   retryMessage: string;
   timeout: number; // in seconds or minutes (value)
-  timeoutUnit: 'Seconds' | 'Minutes' | 'Hours';
+  timeoutUnit: 'Minutes' | 'Hours' | 'Days';
   timeoutMessage: string;
   validationRegex?: string;
   errorMessage: string; // Generic invalid error

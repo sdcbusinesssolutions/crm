@@ -2079,11 +2079,11 @@ const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData };
                         </div>
                         <div className={data.delayUnit === 'Custom Date' ? 'col-span-2' : ''}>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit</label>
-                            <PanelSelect
-                                value={data.delayUnit || 'Minutes'}
-                                onChange={val => handleUpdate({ delayUnit: val as any })}
-                                options={['Seconds', 'Minutes', 'Hours', 'Days', 'Weeks', 'Custom Date']}
-                            />
+                                <PanelSelect
+                                    value={data.delayUnit || 'Minutes'}
+                                    onChange={val => handleUpdate({ delayUnit: val as any })}
+                                    options={['Minutes', 'Hours', 'Days', 'Weeks', 'Custom Date']}
+                                />
                         </div>
                         {data.delayUnit === 'Custom Date' && (
                             <div className="col-span-2">
@@ -2617,7 +2617,7 @@ const AskInputSettingsPanel: React.FC<{ selectedNode: Node & { data: AskInputDat
                                 </div>
                                 <div className="w-32">
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unit</label>
-                                    <PanelSelect value={data.timeoutUnit || 'Minutes'} onChange={val => handleUpdate({ timeoutUnit: val as any })} options={['Seconds', 'Minutes', 'Hours']} />
+                                    <PanelSelect value={data.timeoutUnit || 'Minutes'} onChange={val => handleUpdate({ timeoutUnit: val as any })} options={['Minutes', 'Hours', 'Days']} />
                                 </div>
                             </div>
                             <div>
