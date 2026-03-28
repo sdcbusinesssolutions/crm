@@ -29,6 +29,193 @@ interface DripBuilderProps {
     onBack: () => void;
 }
 
+// --- Sub-components for Performance (Isolated State) ---
+
+const DripCanvas = React.memo(({
+    campaign,
+    selectedStep,
+    showCampaignSettings,
+    showAddMenu,
+    onSelectStep,
+    onSelectCampaignSettings,
+    onToggleAddMenu,
+    onAddStep,
+    onDeleteStep,
+    DripNode
+}: any) => {
+    const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
+    const isPanning = useRef(false);
+    const lastMousePos = useRef({ x: 0, y: 0 });
+    const canvasRef = useRef<HTMLDivElement>(null);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        isPanning.current = true;
+        lastMousePos.current = { x: e.clientX, y: e.clientY };
+    }, []);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isPanning.current) return;
+        const dx = e.clientX - lastMousePos.current.x;
+        const dy = e.clientY - lastMousePos.current.y;
+        lastMousePos.current = { x: e.clientX, y: e.clientY };
+        setViewport(p => ({ ...p, x: p.x + dx, y: p.y + dy }));
+    }, []);
+
+    const handleMouseUp = useCallback(() => { isPanning.current = false; }, []);
+
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+            const zoomDelta = -e.deltaY * 0.001;
+            setViewport(p => ({ ...p, zoom: Math.min(Math.max(p.zoom + zoomDelta, 0.1), 3) }));
+        } else {
+            setViewport(p => ({ ...p, x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        }
+    }, []);
+
+    return (
+        <div
+            ref={canvasRef}
+            className="flex-1 bg-white relative cursor-grab active:cursor-grabbing"
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+        >
+            {/* Dot Background */}
+            <div className="absolute inset-0 pointer-events-none"
+                style={{
+                    backgroundImage: 'radial-gradient(circle, #D1D1D1 1px, transparent 1px)',
+                    backgroundSize: `${25 * viewport.zoom}px ${25 * viewport.zoom}px`,
+                    backgroundPosition: `${viewport.x}px ${viewport.y}px`
+                }}
+            />
+
+            {/* Transform Layer */}
+            <div
+                style={{
+                    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+                    transformOrigin: '0 0',
+                    width: '100%',
+                    minHeight: '100%'
+                }}
+                className="w-full relative flex flex-col items-center py-32"
+            >
+                <div className="flex flex-col items-center relative gap-0 w-[400px]">
+
+                    {/* Campaign Settings Node */}
+                    <div
+                        onClick={onSelectCampaignSettings}
+                        className={`group relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer border-2 ${showCampaignSettings ? 'ring-4 ring-brand-500/10 border-brand-500 scale-[1.02]' : 'border-slate-200 hover:border-amber-400 hover:shadow-2xl hover:-translate-y-1'}`}
+                    >
+                        <div className="bg-amber-500 px-4 py-2.5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <SettingsIcon className="w-3.5 h-3.5 text-white" />
+                                <h3 className="font-black text-white text-[10px] uppercase tracking-widest">Campaign Start</h3>
+                            </div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse"></div>
+                        </div>
+                        <div className="p-4 flex items-center gap-4 bg-white">
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-100 shadow-inner">
+                                <TriggerIcon className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Trigger Event</div>
+                                <div className="text-[13px] text-slate-900 font-bold truncate">
+                                    {campaign.trigger_type?.replace(/_/g, ' ')}
+                                </div>
+                            </div>
+                        </div>
+                        {/* Output Handle */}
+                        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300"></div>
+                    </div>
+
+                    {/* Connecting Line */}
+                    <div className="w-[1px] h-12 bg-slate-300"></div>
+
+                    {/* Steps */}
+                    {[...(campaign.steps || [])].sort((a: any, b: any) => a.step_order - b.step_order).map((step: any) => (
+                        <React.Fragment key={step.id}>
+                            {/* Delay Connector */}
+                            <div className="flex flex-col items-center">
+                                <div className="flex items-center justify-center">
+                                    {/* Delay Node */}
+                                    <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer group/delay"
+                                        onClick={() => onSelectStep(step)}
+                                    >
+                                        <ClockIcon className="w-3 h-3 text-slate-400 group-hover/delay:text-brand-500" />
+                                        <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
+                                    </div>
+                                </div>
+                                <div className="w-[1px] h-12 bg-slate-300"></div>
+                            </div>
+
+                            {/* Action Node */}
+                            <DripNode 
+                                step={step} 
+                                isSelected={selectedStep?.id === step.id} 
+                                onClick={() => onSelectStep(step)}
+                                onDelete={onDeleteStep}
+                            />
+
+                            {/* Final Connecting Line */}
+                            <div className="w-[1px] h-12 bg-slate-300"></div>
+                        </React.Fragment>
+                    ))}
+
+                    {/* Add Button */}
+                    <div className="relative z-10 group">
+                        <button
+                            onClick={onToggleAddMenu}
+                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
+                        >
+                            <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
+                        </button>
+                        {showAddMenu && (
+                            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
+                                <button 
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); onAddStep('WHATSAPP_MESSAGE'); }} 
+                                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 flex items-center gap-3 transition-colors"
+                                >
+                                    <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
+                                </button>
+                                <button 
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); onAddStep('EMAIL'); }} 
+                                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-3 transition-colors"
+                                >
+                                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                    Email
+                                </button>
+                                <button 
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={(e) => { e.stopPropagation(); onAddStep('AI_INTENT'); }} 
+                                    className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center gap-3 transition-colors"
+                                >
+                                    <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* End line fade */}
+                    <div className="w-[1px] h-32 bg-gradient-to-b from-slate-300 to-transparent"></div>
+                </div>
+            </div>
+
+            {/* Navigation Controls */}
+            <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-1 shadow-xl z-30">
+                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + 0.1, 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom In">+</button>
+                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(Math.max(v.zoom - 0.1, 0.1), 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom Out">-</button>
+                <div className="h-px bg-slate-200 my-0.5"></div>
+                <button onClick={() => setViewport({ x: 0, y: 50, zoom: 1 })} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all text-[10px] uppercase border border-slate-100" title="Reset View">Fit</button>
+            </div>
+        </div>
+    );
+});
+
 const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignName, onBack }) => {
     // --- State: Data ---
     // Seed immediately from cache if available — single render, no flash, no skeleton
@@ -74,12 +261,6 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
     const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
     const templateDropdownRef = useRef<HTMLDivElement>(null);
-
-    // --- State: Canvas ---
-    const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
-    const isPanning = useRef(false);
-    const lastMousePos = useRef({ x: 0, y: 0 });
-    const canvasRef = useRef<HTMLDivElement>(null);
 
     // --- Effects ---
     // Effect 1: Campaign data (CRITICAL PATH - fires only when campaignId changes)
@@ -253,24 +434,25 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         }
     };
 
-    const handleAddStep = (type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
-        // MANUAL MODE: Just update local state. IDs for new steps are temporary
-        const newStep: DripStep = {
-            id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-            campaign_id: campaignId || '',
-            step_order: (campaign.steps?.length || 0) + 1,
-            step_type: type,
-            step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
-            delay_value: 1,
-            delay_unit: 'DAYS'
-        };
-
-        setCampaign(prev => ({
-            ...prev,
-            steps: [...(prev.steps || []), newStep]
-        }));
+    const handleAddStep = useCallback((type: 'WHATSAPP_MESSAGE' | 'EMAIL' | 'AI_INTENT') => {
+        setCampaign(prev => {
+            const steps = prev.steps || [];
+            const newStep: DripStep = {
+                id: `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+                campaign_id: campaignId || '',
+                step_order: steps.length + 1,
+                step_type: type,
+                step_config: type === 'EMAIL' ? { provider: 'GMAIL' } : type === 'AI_INTENT' ? { intents: ['INTERESTED', 'NOT_INTERESTED', 'LATER', 'QUESTION'] } : {},
+                delay_value: 1,
+                delay_unit: 'DAYS'
+            };
+            return {
+                ...prev,
+                steps: [...steps, newStep]
+            };
+        });
         setShowAddMenu(false);
-    };
+    }, [campaignId]);
 
     const handleUpdateStep = (stepId: string, updates: Partial<DripStep>) => {
         // MANUAL MODE: Just update local state
@@ -327,8 +509,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         }
     };
 
-    const handleDeleteStep = (stepId: string) => {
-        if (!window.confirm('Delete step from your sequence?')) return;
+    const handleDeleteStep = useCallback((stepId: string) => {
 
         // MANUAL MODE: Remove from local state and track if it was a DB record
         const stepToDelete = campaign.steps?.find(s => s.id === stepId);
@@ -343,7 +524,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         });
 
         setSelectedStep(null);
-    };
+    }, [campaign.steps]);
 
     const handleStopEnrollment = async (id: string) => {
         if (!window.confirm("Stop this sequence?")) return;
@@ -378,31 +559,57 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         URL.revokeObjectURL(url);
     };
 
-    // --- Canvas Logic ---
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (e.button !== 0) return; // Only left click
-        isPanning.current = true;
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-    };
+    // --- Internal Memoized Components ---
+    const MemoizedDripNode = React.useMemo(() => React.memo(({ step, isSelected, onClick, onDelete }: any) => (
+        <div
+            onClick={onClick}
+            className={`relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer group border border-slate-200/60 border-l-4 ${isSelected
+                ? 'ring-4 ring-brand-500/15 scale-[1.01] border-brand-500'
+                : step.step_type === 'WHATSAPP_MESSAGE'
+                    ? 'border-l-emerald-500'
+                    : step.step_type === 'EMAIL'
+                        ? 'border-l-blue-500'
+                        : 'border-l-indigo-500'
+                }`}
+        >
+            {/* Header Bar */}
+            <div className={`px-4 py-2.5 flex items-center justify-between border-b ${step.step_type === 'WHATSAPP_MESSAGE'
+                ? 'bg-emerald-500 border-emerald-600/10'
+                : step.step_type === 'EMAIL'
+                    ? 'bg-blue-500 border-blue-600/10'
+                    : 'bg-indigo-500 border-indigo-600/10'
+                }`}>
+                <div className="flex items-center gap-2 text-white">
+                    {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-3.5 h-3.5" /> : step.step_type === 'EMAIL' ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-3.5 h-3.5" />}
+                    <h4 className="font-black text-[10px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 text-white rounded transition-all">
+                    <TrashIcon className="w-3.5 h-3.5" />
+                </button>
+            </div>
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isPanning.current) return;
-        const dx = e.clientX - lastMousePos.current.x;
-        const dy = e.clientY - lastMousePos.current.y;
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
-        setViewport(p => ({ ...p, x: p.x + dx, y: p.y + dy }));
-    };
+            <div className="p-4 flex items-center gap-4 bg-white">
+                <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center border shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
+                    ? 'bg-emerald-50 text-emerald-500 border-emerald-100'
+                    : step.step_type === 'EMAIL'
+                        ? 'bg-blue-50 text-blue-500 border-blue-100'
+                        : 'bg-indigo-50 text-indigo-500 border-indigo-100'
+                    }`}>
+                    {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Content / Template</div>
+                    <p className="text-[13px] text-slate-900 font-bold truncate">
+                        {step.step_config?.template_name || step.step_config?.subject || 'Configure Context...'}
+                    </p>
+                </div>
+            </div>
 
-    const handleMouseUp = () => { isPanning.current = false; };
-
-    const handleWheel = (e: React.WheelEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-            const zoomDelta = -e.deltaY * 0.001;
-            setViewport(p => ({ ...p, zoom: Math.min(Math.max(p.zoom + zoomDelta, 0.1), 3) }));
-        } else {
-            setViewport(p => ({ ...p, x: p.x - e.deltaX, y: p.y - e.deltaY }));
-        }
-    };
+            {/* Handles */}
+            <div className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
+            <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
+        </div>
+    )), []);
 
     const daysMap = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -547,176 +754,18 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                 ) : (
                     <>
                         {/* Canvas Area */}
-                        <div
-                            ref={canvasRef}
-                            className="flex-1 bg-white relative cursor-grab active:cursor-grabbing"
-                            onMouseDown={handleMouseDown}
-                            onMouseMove={handleMouseMove}
-                            onMouseUp={handleMouseUp}
-                            onMouseLeave={handleMouseUp}
-                            onWheel={handleWheel}
-                        >
-                            {/* Dot Background */}
-                            <div className="absolute inset-0 pointer-events-none"
-                                style={{
-                                    backgroundImage: 'radial-gradient(circle, #D1D1D1 1px, transparent 1px)',
-                                    backgroundSize: `${25 * viewport.zoom}px ${25 * viewport.zoom}px`,
-                                    backgroundPosition: `${viewport.x}px ${viewport.y}px`
-                                }}
-                            />
-
-                            {/* Transform Layer */}
-                            <div
-                                style={{
-                                    transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
-                                    transformOrigin: '0 0',
-                                    width: '100%',
-                                    minHeight: '100%'
-                                }}
-                                className="w-full relative flex flex-col items-center py-32"
-                            >
-                                <div className="flex flex-col items-center relative gap-0 w-[400px]">
-
-                                    {/* Campaign Settings Node */}
-                                    <div
-                                        onClick={() => { setShowCampaignSettings(true); setSelectedStep(null); }}
-                                        className={`group relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer border-2 ${showCampaignSettings ? 'ring-4 ring-brand-500/10 border-brand-500 scale-[1.02]' : 'border-slate-200 hover:border-amber-400 hover:shadow-2xl hover:-translate-y-1'}`}
-                                    >
-                                        <div className="bg-amber-500 px-4 py-2.5 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <SettingsIcon className="w-3.5 h-3.5 text-white" />
-                                                <h3 className="font-black text-white text-[10px] uppercase tracking-widest">Campaign Start</h3>
-                                            </div>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-white/50 animate-pulse"></div>
-                                        </div>
-                                        <div className="p-4 flex items-center gap-4 bg-white">
-                                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-100 shadow-inner">
-                                                <TriggerIcon className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Trigger Event</div>
-                                                <div className="text-[13px] text-slate-900 font-bold truncate">
-                                                    {campaign.trigger_type?.replace(/_/g, ' ')}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {/* Output Handle */}
-                                        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300"></div>
-                                    </div>
-
-                                    {/* Connecting Line */}
-                                    <div className="w-[1px] h-12 bg-slate-300"></div>
-
-                                    {/* Steps */}
-                                    {campaign.steps?.sort((a, b) => a.step_order - b.step_order).map((step, index) => (
-                                        <React.Fragment key={step.id}>
-                                            {/* Delay Connector */}
-                                            <div className="flex flex-col items-center">
-                                                <div className="flex items-center justify-center">
-                                                    {/* Delay Node */}
-                                                    <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer group/delay"
-                                                        onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                                    >
-                                                        <ClockIcon className="w-3 h-3 text-slate-400 group-hover/delay:text-brand-500" />
-                                                        <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="w-[1px] h-12 bg-slate-300"></div>
-                                            </div>
-
-                                            {/* Action Node */}
-                                            <div
-                                                onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
-                                                className={`relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer group border border-slate-200/60 border-l-4 ${selectedStep?.id === step.id
-                                                    ? 'ring-4 ring-brand-500/15 scale-[1.01] border-brand-500'
-                                                    : step.step_type === 'WHATSAPP_MESSAGE'
-                                                        ? 'border-l-emerald-500'
-                                                        : step.step_type === 'EMAIL'
-                                                            ? 'border-l-blue-500'
-                                                            : 'border-l-indigo-500'
-                                                    }`}
-                                            >
-                                                {/* Header Bar */}
-                                                <div className={`px-4 py-2.5 flex items-center justify-between border-b ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                    ? 'bg-emerald-500 border-emerald-600/10'
-                                                    : step.step_type === 'EMAIL'
-                                                        ? 'bg-blue-500 border-blue-600/10'
-                                                        : 'bg-indigo-500 border-indigo-600/10'
-                                                    }`}>
-                                                    <div className="flex items-center gap-2 text-white">
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-3.5 h-3.5" /> : step.step_type === 'EMAIL' ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-3.5 h-3.5" />}
-                                                        <h4 className="font-black text-[10px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
-                                                    </div>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteStep(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 text-white rounded transition-all">
-                                                        <TrashIcon className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-
-                                                <div className="p-4 flex items-center gap-4 bg-white">
-                                                    {/* Small Indicator */}
-                                                    <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center border shadow-inner ${step.step_type === 'WHATSAPP_MESSAGE'
-                                                        ? 'bg-emerald-50 text-emerald-500 border-emerald-100'
-                                                        : step.step_type === 'EMAIL'
-                                                            ? 'bg-blue-50 text-blue-500 border-blue-100'
-                                                            : 'bg-indigo-50 text-indigo-500 border-indigo-100'
-                                                        }`}>
-                                                        {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-5 h-5" /> : step.step_type === 'EMAIL' ? <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-5 h-5" />}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="text-[10px] text-slate-400 font-black uppercase mb-0.5 tracking-tighter">Content / Template</div>
-                                                        <p className="text-[13px] text-slate-900 font-bold truncate">
-                                                            {step.step_config?.template_name || step.step_config?.subject || 'Configure Context...'}
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                {/* Handles */}
-                                                <div className="absolute left-1/2 -top-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
-                                                <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full z-20 shadow-md border-2 border-slate-300 transition-all group-hover:scale-110"></div>
-                                            </div>
-
-                                            {/* Final Connecting Line */}
-                                            <div className="w-[1px] h-12 bg-slate-300"></div>
-                                        </React.Fragment>
-                                    ))}
-
-                                    {/* Add Button */}
-                                    <div className="relative z-10 group">
-                                        <button
-                                            onClick={() => setShowAddMenu(!showAddMenu)}
-                                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
-                                        >
-                                            <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
-                                        </button>
-                                        {showAddMenu && (
-                                            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
-                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                                                    <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
-                                                </button>
-                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-3 transition-colors">
-                                                    <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                                    Email
-                                                </button>
-                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center gap-3 transition-colors">
-                                                    <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* End line fade */}
-                                    <div className="w-[1px] h-32 bg-gradient-to-b from-slate-300 to-transparent"></div>
-                                </div>
-                            </div>
-
-                            {/* Navigation Controls */}
-                            <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-1 shadow-xl z-30">
-                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + 0.1, 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom In">+</button>
-                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(Math.max(v.zoom - 0.1, 0.1), 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom Out">-</button>
-                                <div className="h-px bg-slate-200 my-0.5"></div>
-                                <button onClick={() => setViewport({ x: 0, y: 50, zoom: 1 })} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all text-[10px] uppercase border border-slate-100" title="Reset View">Fit</button>
-                            </div>
-                        </div>
+                        <DripCanvas
+                            campaign={campaign}
+                            selectedStep={selectedStep}
+                            showCampaignSettings={showCampaignSettings}
+                            showAddMenu={showAddMenu}
+                            onSelectStep={(step: any) => { setSelectedStep(step); setShowCampaignSettings(false); }}
+                            onSelectCampaignSettings={() => { setShowCampaignSettings(true); setSelectedStep(null); }}
+                            onToggleAddMenu={() => setShowAddMenu(prev => !prev)}
+                            onAddStep={handleAddStep}
+                            onDeleteStep={handleDeleteStep}
+                            DripNode={MemoizedDripNode}
+                        />
 
                         {/* Settings Overlay Sidebar */}
                         <div className={`w-96 border-l border-slate-200 bg-white absolute right-0 top-0 bottom-0 h-full flex flex-col transition-transform duration-300 shadow-2xl z-40 ${selectedStep || showCampaignSettings ? 'translate-x-0' : 'translate-x-full'}`}>
