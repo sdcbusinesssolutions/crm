@@ -488,25 +488,25 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
             <div className="flex-1 relative overflow-hidden flex">
                 {/* === LOADING SKELETON: blocks canvas until data is ready (FlowEditor pattern) === */}
                 {loading && (
-                    <div className="absolute inset-0 z-20 bg-slate-950 flex flex-col items-center justify-start pt-24 pointer-events-none">
+                    <div className="absolute inset-0 z-20 bg-white flex flex-col items-center justify-start pt-24 pointer-events-none">
                         {/* Animated shimmer nodes that mimic the canvas */}
                         <div className="flex flex-col items-center gap-0">
                             {/* Start node skeleton */}
-                            <div className="w-[220px] h-[60px] rounded-2xl bg-slate-800/80 border border-slate-700/50 animate-pulse" />
-                            <div className="w-px h-8 bg-slate-700/50" />
+                            <div className="w-[220px] h-[60px] rounded-2xl bg-slate-100 animate-pulse border border-slate-200" />
+                            <div className="w-px h-8 bg-slate-200" />
                             {/* Step skeletons */}
                             {[1, 2, 3].map(i => (
                                 <div key={i} className="flex flex-col items-center">
                                     <div
-                                        className="w-[180px] h-[28px] rounded-full bg-slate-800/60 border border-slate-700/30 animate-pulse"
+                                        className="w-[180px] h-[28px] rounded-full bg-slate-50 border border-slate-200 animate-pulse"
                                         style={{ animationDelay: `${i * 0.12}s` }}
                                     />
-                                    <div className="w-px h-4 bg-slate-700/40" />
+                                    <div className="w-px h-4 bg-slate-200" />
                                     <div
-                                        className="w-[220px] h-[60px] rounded-2xl bg-slate-800/80 border border-slate-700/50 animate-pulse"
+                                        className="w-[220px] h-[60px] rounded-2xl bg-slate-100 animate-pulse border border-slate-200"
                                         style={{ animationDelay: `${i * 0.12}s` }}
                                     />
-                                    {i < 3 && <div className="w-px h-4 bg-slate-700/40" />}
+                                    {i < 3 && <div className="w-px h-4 bg-slate-200" />}
                                 </div>
                             ))}
                         </div>
@@ -614,10 +614,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             <div className="flex flex-col items-center">
                                                 <div className="flex items-center justify-center">
                                                     {/* Delay Node */}
-                                                    <div className="relative z-10 bg-slate-900 border border-slate-800 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0 shadow-lg flex items-center gap-2 hover:border-brand-500 hover:text-white transition-all cursor-pointer group/delay"
+                                                    <div className="relative z-10 bg-white border border-slate-200 rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0 shadow-sm flex items-center gap-2 hover:border-brand-500 hover:text-brand-600 transition-all cursor-pointer group/delay"
                                                         onClick={() => { setSelectedStep(step); setShowCampaignSettings(false); }}
                                                     >
-                                                        <ClockIcon className="w-3 h-3 text-slate-500 group-hover/delay:text-brand-500" />
+                                                        <ClockIcon className="w-3 h-3 text-slate-400 group-hover/delay:text-brand-500" />
                                                         <span>Wait {step.delay_value} {step.delay_unit?.toLowerCase()}</span>
                                                     </div>
                                                 </div>
@@ -684,20 +684,20 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     <div className="relative z-10 group">
                                         <button
                                             onClick={() => setShowAddMenu(!showAddMenu)}
-                                            className="w-12 h-12 rounded-full bg-slate-950 border border-slate-800 hover:border-brand-500 hover:bg-slate-900 text-slate-400 hover:text-white flex items-center justify-center transition-all shadow-2xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
+                                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-brand-500 hover:bg-slate-50 text-slate-400 hover:text-brand-600 flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-brand-500/10"
                                         >
                                             <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
                                         </button>
                                         {showAddMenu && (
-                                            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-slate-950 border border-slate-800 rounded-xl shadow-2xl p-1 z-50">
-                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-400 flex items-center gap-3 transition-colors">
+                                            <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
+                                                <button onClick={() => { handleAddStep('WHATSAPP_MESSAGE'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                                                     <MessageIcon className="w-4 h-4 text-emerald-500" /> WhatsApp
                                                 </button>
-                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-400 flex items-center gap-3 transition-colors">
+                                                <button onClick={() => { handleAddStep('EMAIL'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-3 transition-colors">
                                                     <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                     Email
                                                 </button>
-                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 flex items-center gap-3 transition-colors">
+                                                <button onClick={() => { handleAddStep('AI_INTENT'); setShowAddMenu(false); }} className="w-full text-left p-2.5 rounded-lg hover:bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-600 flex items-center gap-3 transition-colors">
                                                     <SparklesIcon className="w-4 h-4 text-indigo-500" /> AI Intent
                                                 </button>
                                             </div>
@@ -710,11 +710,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             </div>
 
                             {/* Navigation Controls */}
-                            <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-slate-800 rounded-lg border border-slate-700 p-1 shadow-xl z-30">
-                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + 0.1, 3) }))} className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-bold w-9 h-9 flex items-center justify-center transition-all" title="Zoom In">+</button>
-                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(Math.max(v.zoom - 0.1, 0.1), 3) }))} className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-bold w-9 h-9 flex items-center justify-center transition-all" title="Zoom Out">-</button>
-                                <div className="h-px bg-slate-700 my-0.5"></div>
-                                <button onClick={() => setViewport({ x: 0, y: 50, zoom: 1 })} className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-bold w-9 h-9 flex items-center justify-center transition-all text-[10px] uppercase" title="Reset View">Fit</button>
+                            <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-white rounded-lg border border-slate-200 p-1 shadow-xl z-30">
+                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(v.zoom + 0.1, 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom In">+</button>
+                                <button onClick={() => setViewport(v => ({ ...v, zoom: Math.min(Math.max(v.zoom - 0.1, 0.1), 3) }))} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all border border-slate-100" title="Zoom Out">-</button>
+                                <div className="h-px bg-slate-200 my-0.5"></div>
+                                <button onClick={() => setViewport({ x: 0, y: 50, zoom: 1 })} className="p-2 bg-white hover:bg-slate-50 text-slate-600 rounded font-bold w-9 h-9 flex items-center justify-center transition-all text-[10px] uppercase border border-slate-100" title="Reset View">Fit</button>
                             </div>
                         </div>
 
@@ -814,7 +814,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                 )}
 
                                 {selectedStep && (
-                                    <div className="space-y-8 text-slate-300">
+                                    <div className="space-y-8 text-slate-600">
                                         {/* Delay Section */}
                                         <div>
                                             <div className="flex items-center gap-2 mb-3">
@@ -844,7 +844,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         {/* Content Section */}
                                         <div>
                                             <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold">2</div>
+                                                <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px] font-bold">2</div>
                                                 <h4 className="font-bold text-xs uppercase tracking-wide text-slate-500">Message Content</h4>
                                             </div>
 
@@ -1044,7 +1044,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
                                                                 {/* Carousel Display */}
                                                                 {carousel && carousel.cards && (
-                                                                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-4">
+                                                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4 shadow-sm mt-4">
                                                                         <div className="text-xs font-bold text-slate-400 mb-1 flex items-center gap-2 uppercase">
                                                                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                                                                             Carousel Cards Media
@@ -1411,15 +1411,15 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     const arr = str.split(',').map(n => n.trim()).filter(Boolean).map(Number);
                                                                     const isSelected = arr.includes(i);
                                                                     return (
-                                                                        <button
+                                                                            <button
                                                                             key={i}
                                                                             onClick={() => {
                                                                                 const newDays = isSelected ? arr.filter(day => day !== i) : [...arr, i].sort((a, b) => a - b);
                                                                                 handleUpdateStep(selectedStep.id, { custom_allowed_days: newDays.join(',') });
                                                                             }}
                                                                             className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold transition-all ${isSelected
-                                                                                ? 'bg-brand-600 text-white'
-                                                                                : 'bg-slate-800 text-slate-600 hover:bg-slate-700'
+                                                                                ? 'bg-brand-600 text-white shadow-md'
+                                                                                : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
                                                                                 }`}
                                                                         >
                                                                             {d}
