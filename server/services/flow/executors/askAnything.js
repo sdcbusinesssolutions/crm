@@ -14,20 +14,29 @@ class AskAnythingExecutor {
         let timeoutAt = undefined;
         const { ifUnresponsive, unresponsiveTimeout } = node.data;
 
-        if (ifUnresponsive && unresponsiveTimeout) {
-            const [valStr, unit] = unresponsiveTimeout.split(' ');
-            const val = parseFloat(valStr);
-            let ms = 0;
-            if (!isNaN(val)) {
-                if (unit.toLowerCase().includes('min')) ms = val * 60 * 1000;
-                else if (unit.toLowerCase().includes('hr')) ms = val * 60 * 60 * 1000;
-                else if (unit.toLowerCase().includes('day')) ms = val * 24 * 60 * 60 * 1000;
-                else ms = val * 60 * 1000; // Default to min
+        if (ifUnresponsive) {
+            // Default: 15 minutes if missing or malformed
+            let val = 15;
+            let unit = 'min';
+
+            if (unresponsiveTimeout) {
+                const parts = unresponsiveTimeout.trim().split(/\s+/);
+                val = parseFloat(parts[0]) || 15;
+                unit = parts[parts.length - 1] || 'min';
             }
+
+            let ms = 0;
+            const unitLower = (unit || 'min').toLowerCase();
+            
+            if (unitLower.includes('min')) ms = val * 60 * 1000;
+            else if (unitLower.includes('hr') || unitLower.includes('hour')) ms = val * 60 * 60 * 1000;
+            else if (unitLower.includes('day')) ms = val * 24 * 60 * 60 * 1000;
+            else if (unitLower.includes('sec')) ms = val * 1000;
+            else ms = val * 60 * 1000; // Default to min
 
             if (ms > 0) {
                 timeoutAt = new Date(Date.now() + ms).toISOString();
-                console.log(`[AskAnythingExecutor] Timeout set for ${ms}ms. Expires at: ${timeoutAt}`);
+                console.log(`[AskAnythingExecutor] Timeout set for ${ms}ms (${val} ${unitLower}). Expires at: ${timeoutAt}`);
             }
         }
 
