@@ -690,11 +690,23 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                 </div>
             </div>
 
-
             {/* Main Workspace */}
             <div className="flex-1 relative overflow-hidden flex">
-                {/* === LOADING SKELETON: blocks canvas until data is ready (FlowEditor pattern) === */}
+                {/* === LOADING OVERLAY: Semi-transparent to keep context === */}
                 {loading && (
+                    <div className="absolute inset-0 z-50 bg-white/40 backdrop-blur-[1px] flex items-center justify-center transition-all duration-300">
+                        <div className="bg-white px-6 py-4 rounded-2xl shadow-2xl border border-slate-200 flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-300">
+                            <div className="w-12 h-12 rounded-full border-4 border-slate-100 border-t-[#00684a] animate-spin"></div>
+                            <div className="flex flex-col items-center">
+                                <h3 className="text-sm font-bold text-slate-900">{campaign.id ? 'Saving Changes...' : 'Initializing Builder...'}</h3>
+                                <p className="text-[11px] text-slate-500 font-medium">Please wait a moment</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                
+                {/* === INITIAL LOAD SKELETON: Only when no data exists === */}
+                {!campaign.id && loading && (
                     <div className="absolute inset-0 z-20 bg-white flex flex-col items-center justify-start pt-24 pointer-events-none">
                         {/* Animated shimmer nodes that mimic the canvas */}
                         <div className="flex flex-col items-center gap-0">
