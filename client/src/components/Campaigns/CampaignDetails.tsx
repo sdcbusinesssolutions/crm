@@ -318,10 +318,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                     </svg>
                                 </div>
                             </div>
-
-                            {/* Balanced Pie Chart with Animation */}
+ 
+                            {/* Balanced Pie Chart with Animation - Made Larger but safe */}
                             <div 
-                                className="relative w-36 h-36 rounded-full shadow-md border-2 border-white mb-4 animate-chart-pop group cursor-pointer transition-transform duration-300 hover:scale-105" 
+                                className="relative w-40 h-40 md:w-44 md:h-44 rounded-full shadow-lg border-4 border-white mb-6 animate-chart-pop group cursor-pointer transition-transform duration-300 hover:scale-105" 
                                 style={{
                                     background: `conic-gradient(
                                         #3b82f6 0% ${readPct}%, 
@@ -333,40 +333,52 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 }}
                             >
                                 <div className="absolute inset-0 m-[18%] bg-white rounded-full flex flex-col items-center justify-center shadow-inner text-center">
-                                    <span className="text-xl font-black text-slate-800 leading-none">{overallSuccessPct}%</span>
-                                    <span className="text-[8px] text-slate-400 font-bold uppercase mt-0.5">Success</span>
+                                    <span className="text-3xl font-black text-slate-800 leading-none">{overallSuccessPct}%</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase mt-1">Success</span>
                                 </div>
                             </div>
-
-                            {/* Compact Legend List with Staggered Animation */}
-                            <div className="w-full space-y-1.5">
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.1s' }}>
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                                        <span className="text-[10px] text-slate-600 font-semibold">Total Read</span>
+ 
+                            {/* Compact Legend Grid (2 columns, 2 rows) - Same Row Values */}
+                            <div className="w-full grid grid-cols-2 gap-2 mt-auto">
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.1s' }}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
+                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Read</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-800">{read}</span>
+                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                        <span className="text-xs font-black text-slate-800">{read}</span>
+                                        <span className="text-[9px] font-bold text-blue-500">({readPct}%)</span>
+                                    </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.2s' }}>
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                        <span className="text-[10px] text-slate-600 font-semibold">Delivered</span>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.2s' }}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
+                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Deliver</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-800">{delivered}</span>
+                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                        <span className="text-xs font-black text-slate-800">{delivered}</span>
+                                        <span className="text-[9px] font-bold text-green-500">({deliveredPct}%)</span>
+                                    </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.3s' }}>
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="w-2 h-2 rounded-full bg-blue-300"></span>
-                                        <span className="text-[10px] text-slate-600 font-semibold">Sent</span>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.3s' }}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0"></span>
+                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Sent</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-800">{sent}</span>
+                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                        <span className="text-xs font-black text-slate-800">{sent}</span>
+                                        <span className="text-[9px] font-bold text-blue-400">({sentPct}%)</span>
+                                    </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100/50" style={{ animationDelay: '0.4s' }}>
-                                    <div className="flex items-center gap-2.5">
-                                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                        <span className="text-[10px] text-slate-600 font-semibold">Failed</span>
+                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.4s' }}>
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
+                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Failed</span>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-800">{failed}</span>
+                                    <div className="flex items-center gap-1 shrink-0 ml-1">
+                                        <span className="text-xs font-black text-slate-800">{failed}</span>
+                                        <span className="text-[9px] font-bold text-red-500">({failedPct}%)</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
