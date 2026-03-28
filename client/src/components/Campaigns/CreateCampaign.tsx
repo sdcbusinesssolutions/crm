@@ -25,7 +25,7 @@ const DEFAULT_CONTACT_FIELDS = [
 ];
 
 // Helper component for variable input
-const VariableInput = ({ variable, value, onChange, options }: { variable: string, value: string, onChange: (val: string) => void, options: { label: string, value: string }[] }) => {
+const VariableInput = ({ variable, value, onChange, options, disabled }: { variable: string, value: string, onChange: (val: string) => void, options: { label: string, value: string }[], disabled?: boolean }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -52,12 +52,14 @@ const VariableInput = ({ variable, value, onChange, options }: { variable: strin
                     placeholder="Type value or select field..."
                     className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)] text-[var(--color-text)] pr-8"
                 />
-                <button
-                    onClick={() => setShowDropdown(!showDropdown)}
-                    className="absolute right-2 text-[var(--color-text)] opacity-50 hover:opacity-100 p-1"
-                >
-                    <ChevronDownIcon className="w-4 h-4" />
-                </button>
+                {!disabled && (
+                    <button
+                        onClick={() => setShowDropdown(!showDropdown)}
+                        className="absolute right-2 text-[var(--color-text)] opacity-50 hover:opacity-100 p-1"
+                    >
+                        <ChevronDownIcon className="w-4 h-4" />
+                    </button>
+                )}
 
                 {showDropdown && (
                     <div ref={dropdownRef} className="absolute top-full right-0 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden flex flex-col">
@@ -540,224 +542,10 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                     ${activeTab === 'form' ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
                 `}>
 
-                    {/* Step 1: Template */}
+                    {/* Step 1: Contacts & Schedule */}
                     <div className="space-y-4 animate-fade-in">
                         <div className="flex items-center gap-2">
                             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-brand)] text-white text-xs font-bold">1</span>
-                            <h2 className="text-lg font-bold text-[var(--color-text)]">Select Template</h2>
-                        </div>
-
-                        <div className="bg-[var(--color-surface)] p-6 rounded-[var(--radius-btn)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow">
-                            <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
-                                <div className="flex-1">
-                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-2">Template</label>
-                                    {selectedTemplate ? (
-                                        <div className="bg-[var(--color-bg)] p-3 rounded-lg border border-[var(--color-border)]">
-                                            <p className="font-bold text-[var(--color-text)] text-lg">{selectedTemplate.name}</p>
-                                            <div className="flex gap-4 mt-1">
-                                                <p className="text-xs text-[var(--color-text)] opacity-60">Lang: <span className="font-mono">{selectedTemplate.language}</span></p>
-                                                <p className="text-xs text-[var(--color-text)] opacity-60">Cat: <span className="font-bold">{selectedTemplate.category}</span></p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <p className="text-[var(--color-text)] opacity-40 italic py-2">No template selected</p>
-                                    )}
-                                </div>
-                                <div className="w-full md:w-auto">
-                                    <select
-                                        className="w-full md:w-auto px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-bold rounded-[var(--radius-btn)] hover:border-[var(--color-brand)] transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20"
-                                        onChange={(e) => {
-                                            const tpl = templates.find(t => t.id === e.target.value);
-                                            setSelectedTemplate(tpl);
-                                        }}
-                                        value={selectedTemplate?.id || ''}
-                                    >
-                                        <option value="">Change Template</option>
-                                        {templates.filter(t => t.status === 'APPROVED').map(t => (
-                                            <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Variable Mapping */}
-                            {detectedVariables.length > 0 && (
-                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">Map Variables</label>
-                                    <div className="grid grid-cols-1 gap-3">
-                                        {detectedVariables.map(v => (
-                                            <VariableInput
-                                                key={v}
-                                                variable={v}
-                                                value={variableMapping[v] || ''}
-                                                onChange={(val) => setVariableMapping(prev => ({ ...prev, [v]: val }))}
-                                                options={availableFields}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Media Header & Carousel Card Inputs */}
-                            {((headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType)) || carouselCards.length > 0) && (
-                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">
-                                        Media Configuration
-                                    </label>
-                                    <div className="space-y-4">
-                                        {/* Main Template Header Media */}
-                                        {headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) && (
-                                            <div className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)]">
-                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-2">
-                                                    Header {headerType} <span className="text-red-500">*</span>
-                                                </label>
-
-                                                <div className="flex gap-2 mb-2">
-                                                    <input
-                                                        type="file"
-                                                        accept={headerType === 'IMAGE' ? 'image/*' : headerType === 'VIDEO' ? 'video/*' : '.pdf'}
-                                                        onChange={(e) => handleFileUpload(e)}
-                                                        className="block w-full text-sm text-[var(--color-text)]
-                                                        file:mr-4 file:py-2 file:px-4
-                                                        file:rounded-full file:border-0
-                                                        file:text-xs file:font-semibold
-                                                        file:bg-[var(--color-brand)] file:text-white
-                                                        hover:file:bg-[var(--color-brand)]/90
-                                                        cursor-pointer"
-                                                    />
-                                                </div>
-                                                {uploading && <p className="text-xs text-[var(--color-brand)] animate-pulse">Uploading...</p>}
-
-                                                <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        value={mediaUrl}
-                                                        onChange={(e) => setMediaUrl(e.target.value)}
-                                                        className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)] text-[var(--color-text)]"
-                                                        placeholder={`Or enter direct URL...`}
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Carousel Cards Media */}
-                                        {carouselCards.length > 0 && (
-                                            <div className="space-y-3">
-                                                <p className="text-xs font-bold text-[var(--color-text)] opacity-70">Carousel Cards Media</p>
-                                                {carouselCards.map((card, idx) => {
-                                                    const headerComp = card.components?.find((c: any) => c.type === 'HEADER');
-                                                    const cardFormat = headerComp?.format || card.header?.format || card.header?.type || 'IMAGE';
-
-                                                    return (
-                                                        <div key={idx} className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)]">
-                                                            <div className="flex justify-between items-center mb-2">
-                                                                <label className="block text-xs font-bold text-[var(--color-text)]">
-                                                                    Card {idx + 1} Media <span className="text-red-500">*</span>
-                                                                </label>
-                                                                <span className="text-[10px] uppercase font-bold text-[var(--color-text)] opacity-50 bg-[var(--color-surface)] px-2 py-0.5 rounded">
-                                                                    {cardFormat}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="flex gap-2 mb-2">
-                                                                <input
-                                                                    type="file"
-                                                                    accept={cardFormat === 'VIDEO' ? 'video/*' : 'image/*'}
-                                                                    onChange={(e) => handleFileUpload(e, idx)}
-                                                                    className="block w-full text-sm text-[var(--color-text)]
-                                                                    file:mr-4 file:py-2 file:px-4
-                                                                    file:rounded-full file:border-0
-                                                                    file:text-xs file:font-semibold
-                                                                    file:bg-[var(--color-brand)] file:text-white
-                                                                    hover:file:bg-[var(--color-brand)]/90
-                                                                    cursor-pointer"
-                                                                />
-                                                            </div>
-
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="text"
-                                                                    value={carouselMediaUrls[idx] || ''}
-                                                                    onChange={(e) => {
-                                                                        const val = e.target.value;
-                                                                        setCarouselMediaUrls(prev => {
-                                                                            const newUrls = [...prev];
-                                                                            newUrls[idx] = val;
-                                                                            return newUrls;
-                                                                        });
-                                                                    }}
-                                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)] text-[var(--color-text)]"
-                                                                    placeholder={`Or enter direct URL for Card ${idx + 1}...`}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Location Header Input */}
-                            {headerType === 'LOCATION' && (
-                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
-                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">
-                                        Location Header
-                                    </label>
-                                    <div className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)] space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Latitude</label>
-                                                <input
-                                                    type="text"
-                                                    value={locationHeader.latitude}
-                                                    onChange={(e) => setLocationHeader(prev => ({ ...prev, latitude: e.target.value }))}
-                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
-                                                    placeholder="e.g. 37.7749"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Longitude</label>
-                                                <input
-                                                    type="text"
-                                                    value={locationHeader.longitude}
-                                                    onChange={(e) => setLocationHeader(prev => ({ ...prev, longitude: e.target.value }))}
-                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
-                                                    placeholder="e.g. -122.4194"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Location Name</label>
-                                            <input
-                                                type="text"
-                                                value={locationHeader.name}
-                                                onChange={(e) => setLocationHeader(prev => ({ ...prev, name: e.target.value }))}
-                                                className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
-                                                placeholder="e.g. Meta HQ"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Address</label>
-                                            <input
-                                                type="text"
-                                                value={locationHeader.address}
-                                                onChange={(e) => setLocationHeader(prev => ({ ...prev, address: e.target.value }))}
-                                                className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
-                                                placeholder="e.g. 1 Hacker Way, Menlo Park, CA"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Step 2: Contacts & Schedule */}
-                    <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                        <div className="flex items-center gap-2">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-brand)] text-white text-xs font-bold">2</span>
                             <h2 className="text-lg font-bold text-[var(--color-text)]">Campaign Details</h2>
                         </div>
 
@@ -941,11 +729,226 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                     {phoneNumbers.length === 0 && <option value="">No connected numbers</option>}
                                 </select>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* Step 2: Template Selection */}
+                    <div className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                        <div className="flex items-center gap-2">
+                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--color-brand)] text-white text-xs font-bold">2</span>
+                            <h2 className="text-lg font-bold text-[var(--color-text)]">Select Template</h2>
+                        </div>
+
+                        <div className="bg-[var(--color-surface)] p-6 rounded-[var(--radius-btn)] border border-[var(--color-border)] shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                                <div className="flex-1">
+                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-2">Template</label>
+                                    {selectedTemplate ? (
+                                        <div className="bg-[var(--color-bg)] p-3 rounded-lg border border-[var(--color-border)]">
+                                            <p className="font-bold text-[var(--color-text)] text-lg">{selectedTemplate.name}</p>
+                                            <div className="flex gap-4 mt-1">
+                                                <p className="text-xs text-[var(--color-text)] opacity-60">Lang: <span className="font-mono">{selectedTemplate.language}</span></p>
+                                                <p className="text-xs text-[var(--color-text)] opacity-60">Cat: <span className="font-bold">{selectedTemplate.category}</span></p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-[var(--color-text)] opacity-40 italic py-2">No template selected</p>
+                                    )}
+                                </div>
+                                <div className="w-full md:w-auto">
+                                    <select
+                                        className="w-full md:w-auto px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-sm font-bold rounded-[var(--radius-btn)] hover:border-[var(--color-brand)] transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-[var(--color-brand)]/20"
+                                        onChange={(e) => {
+                                            const tpl = templates.find(t => t.id === e.target.value);
+                                            setSelectedTemplate(tpl);
+                                        }}
+                                        value={selectedTemplate?.id || ''}
+                                    >
+                                        <option value="">Change Template</option>
+                                        {templates.filter(t => t.status === 'APPROVED').map(t => (
+                                            <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Variable Mapping */}
+                            {detectedVariables.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">Map Variables</label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {detectedVariables.map(v => (
+                                            <VariableInput
+                                                key={v}
+                                                variable={v}
+                                                value={variableMapping[v] || ''}
+                                                onChange={(val) => setVariableMapping(prev => ({ ...prev, [v]: val }))}
+                                                options={availableFields}
+                                                disabled={recipientType === 'manual'}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Media Header & Carousel Card Inputs */}
+                            {((headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType)) || carouselCards.length > 0) && (
+                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">
+                                        Media Configuration
+                                    </label>
+                                    <div className="space-y-4">
+                                        {/* Main Template Header Media */}
+                                        {headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) && (
+                                            <div className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)]">
+                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-2">
+                                                    Header {headerType} <span className="text-red-500">*</span>
+                                                </label>
+
+                                                <div className="flex gap-2 mb-2">
+                                                    <input
+                                                        type="file"
+                                                        accept={headerType === 'IMAGE' ? 'image/*' : headerType === 'VIDEO' ? 'video/*' : '.pdf'}
+                                                        onChange={(e) => handleFileUpload(e)}
+                                                        className="block w-full text-sm text-[var(--color-text)]
+                                                        file:mr-4 file:py-2 file:px-4
+                                                        file:rounded-full file:border-0
+                                                        file:text-xs file:font-semibold
+                                                        file:bg-[var(--color-brand)] file:text-white
+                                                        hover:file:bg-[var(--color-brand)]/90
+                                                        cursor-pointer"
+                                                    />
+                                                </div>
+                                                {uploading && <p className="text-xs text-[var(--color-brand)] animate-pulse">Uploading...</p>}
+
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={mediaUrl}
+                                                        onChange={(e) => setMediaUrl(e.target.value)}
+                                                        className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)] text-[var(--color-text)]"
+                                                        placeholder={`Or enter direct URL...`}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Carousel Cards Media */}
+                                        {carouselCards.length > 0 && (
+                                            <div className="space-y-3">
+                                                <p className="text-xs font-bold text-[var(--color-text)] opacity-70">Carousel Cards Media</p>
+                                                {carouselCards.map((card, idx) => {
+                                                    const headerComp = card.components?.find((c: any) => c.type === 'HEADER');
+                                                    const cardFormat = headerComp?.format || card.header?.format || card.header?.type || 'IMAGE';
+
+                                                    return (
+                                                        <div key={idx} className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)]">
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <label className="block text-xs font-bold text-[var(--color-text)]">
+                                                                    Card {idx + 1} Media <span className="text-red-500">*</span>
+                                                                </label>
+                                                                <span className="text-[10px] uppercase font-bold text-[var(--color-text)] opacity-50 bg-[var(--color-surface)] px-2 py-0.5 rounded">
+                                                                    {cardFormat}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="flex gap-2 mb-2">
+                                                                <input
+                                                                    type="file"
+                                                                    accept={cardFormat === 'VIDEO' ? 'video/*' : 'image/*'}
+                                                                    onChange={(e) => handleFileUpload(e, idx)}
+                                                                    className="block w-full text-sm text-[var(--color-text)]
+                                                                    file:mr-4 file:py-2 file:px-4
+                                                                    file:rounded-full file:border-0
+                                                                    file:text-xs file:font-semibold
+                                                                    file:bg-[var(--color-brand)] file:text-white
+                                                                    hover:file:bg-[var(--color-brand)]/90
+                                                                    cursor-pointer"
+                                                                />
+                                                            </div>
+
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="text"
+                                                                    value={carouselMediaUrls[idx] || ''}
+                                                                    onChange={(e) => {
+                                                                        const val = e.target.value;
+                                                                        setCarouselMediaUrls(prev => {
+                                                                            const newUrls = [...prev];
+                                                                            newUrls[idx] = val;
+                                                                            return newUrls;
+                                                                        });
+                                                                    }}
+                                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)] text-[var(--color-text)]"
+                                                                    placeholder={`Or enter direct URL for Card ${idx + 1}...`}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Location Header Input */}
+                            {headerType === 'LOCATION' && (
+                                <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                                    <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mb-4">
+                                        Location Header
+                                    </label>
+                                    <div className="bg-[var(--color-bg)] p-4 rounded-lg border border-[var(--color-border)] space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Latitude</label>
+                                                <input
+                                                    type="text"
+                                                    value={locationHeader.latitude}
+                                                    onChange={(e) => setLocationHeader(prev => ({ ...prev, latitude: e.target.value }))}
+                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
+                                                    placeholder="e.g. 37.7749"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Longitude</label>
+                                                <input
+                                                    type="text"
+                                                    value={locationHeader.longitude}
+                                                    onChange={(e) => setLocationHeader(prev => ({ ...prev, longitude: e.target.value }))}
+                                                    className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
+                                                    placeholder="e.g. -122.4194"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Location Name</label>
+                                            <input
+                                                type="text"
+                                                value={locationHeader.name}
+                                                onChange={(e) => setLocationHeader(prev => ({ ...prev, name: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
+                                                placeholder="e.g. Meta HQ"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[var(--color-text)] mb-1">Address</label>
+                                            <input
+                                                type="text"
+                                                value={locationHeader.address}
+                                                onChange={(e) => setLocationHeader(prev => ({ ...prev, address: e.target.value }))}
+                                                className="w-full px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm outline-none focus:border-[var(--color-brand)]"
+                                                placeholder="e.g. 1 Hacker Way, Menlo Park, CA"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
-                                className={`w-full py-4 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-[var(--radius-btn)] font-bold shadow-lg shadow-[var(--color-brand)]/30 transition-all transform hover:-translate-y-0.5 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                                className={`w-full mt-8 py-4 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-[var(--radius-btn)] font-bold shadow-lg shadow-[var(--color-brand)]/30 transition-all transform hover:-translate-y-0.5 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                             >
                                 {isSubmitting ? 'Processing...' : (sendNow ? '🚀 Launch Campaign' : '📅 Schedule Campaign')}
                             </button>
