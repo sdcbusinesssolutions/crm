@@ -185,10 +185,10 @@ if ($serverNeedsInstall) {
     Push-Location "server"
     # Use 'npm ci' for faster, more reliable installs that match the lockfile
     # Fallback to 'npm install' only if 'npm ci' fails (e.g. lockfile mismatch/missing)
-    npm ci --no-bin-links
+    npm ci
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  npm ci failed, falling back to npm install..." -ForegroundColor Yellow
-        npm install --no-bin-links
+        npm install
     }
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Failed to install server dependencies! If you see 'symlink' errors, try running this terminal as Administrator or Enable 'Developer Mode' in Windows Settings."
@@ -213,10 +213,10 @@ if ($clientNeedsInstall) {
     Write-Host "Installing Client dependencies..." -ForegroundColor Green
     Push-Location "client"
     # Use 'npm ci' for stability
-    npm ci --no-bin-links
+    npm ci
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  npm ci failed, falling back to npm install..." -ForegroundColor Yellow
-        npm install --no-bin-links
+        npm install
     }
 
     if ($LASTEXITCODE -ne 0) {
