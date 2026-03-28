@@ -304,24 +304,24 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     </div>
 
                     {/* Unified Right Corner Card (Analytics Only - Improved) */}
-                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200 flex flex-col order-last lg:order-none h-full">
-                        <div className="p-5 flex-1 flex flex-col items-center justify-between">
-                            <div className="w-full flex justify-between items-start mb-2">
+                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden flex flex-col order-last lg:order-none h-full">
+                        <div className="p-4 flex-1 flex flex-col items-center justify-between h-full">
+                            <div className="w-full flex justify-between items-start">
                                 <div>
-                                    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Analytics Overview</p>
-                                    <h3 className="text-sm font-bold text-slate-800">Campaign Health</h3>
+                                    <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">Analytics Overview</p>
+                                    <h3 className="text-xs font-bold text-slate-800">Campaign Health</h3>
                                 </div>
-                                <div className="p-1.5 bg-indigo-50 rounded-lg text-indigo-600">
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <div className="p-1 bg-indigo-50 rounded-lg text-indigo-600">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                                     </svg>
                                 </div>
                             </div>
  
-                            {/* Balanced Pie Chart with Animation - Made Larger but safe */}
+                            {/* Balanced Pie Chart with Animation - Safe Big Size */}
                             <div 
-                                className="relative w-40 h-40 md:w-44 md:h-44 rounded-full shadow-lg border-4 border-white mb-6 animate-chart-pop group cursor-pointer transition-transform duration-300 hover:scale-105" 
+                                className="relative w-44 h-44 md:w-52 md:h-52 rounded-full shadow-lg border-4 border-white my-2 animate-chart-pop group cursor-pointer" 
                                 style={{
                                     background: `conic-gradient(
                                         #3b82f6 0% ${readPct}%, 
@@ -334,7 +334,7 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                             >
                                 <div className="absolute inset-0 m-[18%] bg-white rounded-full flex flex-col items-center justify-center shadow-inner text-center">
                                     <span className="text-3xl font-black text-slate-800 leading-none">{overallSuccessPct}%</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase mt-1">Success</span>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Success</span>
                                 </div>
                             </div>
  
