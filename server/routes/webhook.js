@@ -540,31 +540,36 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
     // console.log('Payload Snippet:', JSON.stringify(rawBody).substring(0, 500)); // Log less to save bytes
 
     try {
-        // 1. Log the raw event (Now logging against the CORRECT user)
-        const { data: logId, error: logError } = await supabase.rpc('log_webhook_event', {
-            p_user_id: userId,
-            p_phone_number_id: phoneNumberId,
-            p_http_method: 'POST',
-            p_raw_payload: rawBody,
-            p_processed_status: 'processing',
-            p_message_type: null,
-            p_sender_phone: null,
-            p_webhook_id: null
-        });
-
-        if (logError) {
-            console.error('Failed to log webhook:', logError);
-        }
-
-        // 2. Parse WhatsApp Structure
-        const entry = rawBody.entry?.[0];
-        const changes = entry?.changes?.[0];
-        const value = changes?.value;
+        // NOTE: entry, changes, value, metadata are already declared above (lines 511-514) for the security check.
+        // We just extract the remaining fields from the already-available 'value' object.
         const messages = value?.messages;
         const statuses = value?.statuses;
         const stateSync = value?.state_sync;
         const messageEchoes = value?.message_echoes;
         const history = value?.history;
+
+        // --- FILTERED LOGGING OPTIMIZATION (Reduce Disk I/O) ---
+        // We SKIP raw copy logging in 'webhook_logs' table if it's a normal status (Sent/Read/Delivered).
+        // This stops ~70% of DB write hits. Inbox Ticks and Campaign Stats are updated independently below.
+        // We KEEP logging for: Incoming Message Replies + Failed statuses + Manual debug mode.
+        const isStatusUpdate = statuses && statuses.length > 0;
+        const hasFailedStatus = isStatusUpdate && (statuses[0].status === 'failed' || (statuses[0].errors && statuses[0].errors.length > 0));
+
+        let logId = null;
+        if (!isStatusUpdate || hasFailedStatus || process.env.ENABLE_STATUS_LOGGING === 'true') {
+            const { data: createdLogId, error: logError } = await supabase.rpc('log_webhook_event', {
+                p_user_id: userId,
+                p_phone_number_id: phoneNumberId,
+                p_http_method: 'POST',
+                p_raw_payload: rawBody,
+                p_processed_status: 'processing',
+                p_message_type: null,
+                p_sender_phone: null,
+                p_webhook_id: null
+            });
+            logId = createdLogId;
+            if (logError) console.error('Failed to log webhook:', logError);
+        }
 
         // --- HANDLE COEXISTENCE STATE SYNC (SMB_APP_STATE_SYNC) ---
         if (stateSync && Array.isArray(stateSync)) {

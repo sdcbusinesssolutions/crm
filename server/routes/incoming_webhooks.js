@@ -22,17 +22,20 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
         const rpcClient = supabaseAdmin || supabase;
 
         // 0. Log the incoming webhook immediately for debugging/capture
-        // We use a separate try-catch so logging failure doesn't block the flow
+        // ONLY log if it is explicitly a debug request OR if global status logging is ON.
+        // We keep it on for 'flow_trigger' message type to support the 'Capture Response' UI.
         try {
-            await rpcClient.rpc('log_webhook_event', {
-                p_phone_number_id: phoneNumberId,
-                p_webhook_id: webhookId,
-                p_http_method: 'POST',
-                p_raw_payload: payload,
-                p_processed_status: 'pending',
-                p_message_type: 'flow_trigger',
-                p_sender_phone: payload.contact_phone || payload.phone || payload.mobile || payload.from
-            });
+            if (process.env.ENABLE_STATUS_LOGGING === 'true' || req.query.debug === 'true' || true) { // Defaulting 'true' for now to protect UI
+                await rpcClient.rpc('log_webhook_event', {
+                    p_phone_number_id: phoneNumberId,
+                    p_webhook_id: webhookId,
+                    p_http_method: 'POST',
+                    p_raw_payload: payload,
+                    p_processed_status: 'pending',
+                    p_message_type: 'flow_trigger',
+                    p_sender_phone: payload.contact_phone || payload.phone || payload.mobile || payload.from
+                });
+            }
         } catch (logError) {
             console.error('[IncomingWebhook] Failed to log webhook:', logError);
         }
