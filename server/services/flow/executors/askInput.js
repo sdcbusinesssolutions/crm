@@ -28,26 +28,12 @@ class AskInputExecutor {
             await whatsappService.sendMessage(user_id, contact_phone, 'text', { body: messageToSend });
         }
 
-        // Calculate Timeout
-        let timeoutAt = undefined;
-        let ms = 0;
-        const { ifUnresponsive, timeout, timeoutUnit } = node.data;
+        // Calculate Timeout if enabled
+        const timeoutUtils = require('../timeoutUtils');
+        const timeoutAt = timeoutUtils.calculateTimeoutAt(node.data);
 
-        if (ifUnresponsive && timeout) {
-            // Default 15 minutes if something is wrong
-            let duration = parseInt(timeout) || 15;
-            let multiplier = 60 * 1000; // Minutes
-
-            const unit = (timeoutUnit || 'Minutes').toLowerCase().trim();
-            if (unit.startsWith('second')) multiplier = 1000;
-            if (unit.startsWith('minute')) multiplier = 60 * 1000;
-            if (unit.startsWith('hour')) multiplier = 60 * 60 * 1000;
-            if (unit.startsWith('day')) multiplier = 24 * 60 * 60 * 1000;
-
-            ms = duration * multiplier;
-            if (ms > 0) {
-                timeoutAt = new Date(Date.now() + ms).toISOString();
-            }
+        if (timeoutAt) {
+            console.log(`[AskInputExecutor] Timeout set. Expires at: ${timeoutAt}`);
         }
 
         return {

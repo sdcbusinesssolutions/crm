@@ -168,15 +168,26 @@ class FlowEngine {
                                 const resumeTime = new Date(nodeOutput.resumeAt);
 
                                 if (!isNaN(resumeTime.getTime()) && resumeTime <= now) {
-                                    // ATOMIC CLAIM: Update status only if still delayed
+                                    // PREPARE STATE
+                                    const updatedVariables = { ...variables };
+                                    if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
+                                        updatedVariables[currentNodeId] = {
+                                            ...updatedVariables[currentNodeId],
+                                            resumeAt: null // Clear so it doesn't trigger again
+                                        };
+                                    }
+
+                                    // ATOMIC CLAIM: Update status AND variables to ensure single processing
                                     const { data: claimed, error: claimError } = await rpcClient
                                         .from('flow_sessions')
                                         .update({ 
-                                            status: 'active', // Direct to active for delayed
+                                            status: 'active', 
+                                            variables: updatedVariables,
                                             last_interaction_at: nowIso 
                                         })
                                         .eq('id', session.id)
                                         .eq('status', 'delayed')
+                                        .eq('current_node_id', currentNodeId)
                                         .select();
 
                                     if (!claimError && claimed && claimed.length > 0) {
@@ -216,7 +227,8 @@ class FlowEngine {
                                             ...updatedVariables[currentNodeId],
                                             status: 'timeout',
                                             isFilled: false,
-                                            response: null 
+                                            response: null,
+                                            timeoutAt: null // Clear timeout so it doesn't trigger again
                                         };
                                     }
 
@@ -230,6 +242,7 @@ class FlowEngine {
                                         })
                                         .eq('id', session.id)
                                         .eq('status', 'waiting_input')
+                                        .eq('current_node_id', currentNodeId)
                                         .select();
 
                                     if (!claimError && claimed && claimed.length > 0) {
@@ -1121,18 +1134,28 @@ class FlowEngine {
                     console.log(`[FlowEngine] Short delay detected. Scheduling exact RAM trigger in ${output.delayMs}ms.`);
                     setTimeout(async () => {
                         try {
+                            // Prepare updated variables to clear resumeAt
+                            const updatedVars = { ...newContext };
+                            if (updatedVars[node.id]) {
+                                updatedVars[node.id] = { ...updatedVars[node.id], resumeAt: null };
+                            }
+
                             // Optimistic Lock: Check if another server instance already grabbed it
                             const { data: claimed, error: claimError } = await rpcClient
                                 .from('flow_sessions')
-                                .update({ status: 'resuming' })
+                                .update({ 
+                                    status: 'resuming',
+                                    variables: updatedVars 
+                                })
                                 .eq('id', session.id)
                                 .eq('status', 'delayed')
+                                .eq('current_node_id', node.id)
                                 .select();
 
                             if (!claimError && claimed && claimed.length > 0) {
                                 console.log(`[FlowEngine] RAM Timer Fired Exactly for Session ${session.id}!`);
-                                // Execute perfectly on time
-                                await this.resumeSession({ ...session, variables: newContext });
+                                // Execute perfectly on time with fresh claimed data
+                                await this.resumeSession(claimed[0]);
                             }
                         } catch (e) {
                             console.error('RAM Delay Timer Error:', e);

@@ -53,31 +53,11 @@ module.exports = {
         await whatsappService.sendMessage(user_id, contact_phone, 'interactive', interactive);
 
         // Calculate Timeout if enabled
-        let timeoutAt = undefined;
-        const { ifUnresponsive, unresponsiveTimeout } = node.data;
+        const timeoutUtils = require('../timeoutUtils');
+        const timeoutAt = timeoutUtils.calculateTimeoutAt(node.data);
 
-        if (ifUnresponsive && unresponsiveTimeout) {
-            const str = unresponsiveTimeout.toLowerCase().trim();
-            const match = str.match(/^([\d.]+)\s*([a-z]*)$/);
-            
-            if (match) {
-                const val = parseFloat(match[1]);
-                let unit = match[2] || 'min';
-                let ms = 0;
-
-                if (!isNaN(val)) {
-                    if (unit.startsWith('sec')) ms = val * 1000;
-                    else if (unit.startsWith('min')) ms = val * 60 * 1000;
-                    else if (unit.startsWith('hour') || unit.startsWith('hr')) ms = val * 60 * 60 * 1000;
-                    else if (unit.startsWith('day')) ms = val * 24 * 60 * 60 * 1000;
-                    else ms = val * 60 * 1000; // Default to min
-                }
-
-                if (ms > 0) {
-                    timeoutAt = new Date(Date.now() + ms).toISOString();
-                    console.log(`[QuickReplyExecutor] Timeout set for ${ms}ms. Expires at: ${timeoutAt}`);
-                }
-            }
+        if (timeoutAt) {
+            console.log(`[QuickReplyExecutor] Timeout set. Expires at: ${timeoutAt}`);
         }
 
         return {
