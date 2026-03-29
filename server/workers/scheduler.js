@@ -30,9 +30,6 @@ class Scheduler {
 
         // 3. Check Overdue Tasks (Dynamic Scan)
         await this.checkDynamicOverdue(now);
-
-        // 4. Check Flow Timeouts (Unresponsive / Delays)
-        await this.checkFlowTimeouts(now);
     }
 
     async checkDueTasks(now) {
@@ -160,67 +157,6 @@ class Scheduler {
             }
         } catch (e) {
             console.error('❌ [Scheduler] Dynamic Overdue Error:', e);
-        }
-    }
-
-    async checkFlowTimeouts(now) {
-        try {
-            // Fetch sessions that are 'waiting_input' or 'delayed'
-            const { data: sessions, error } = await this.supabase
-                .from('flow_sessions')
-                .select('*')
-                .in('status', ['waiting_input', 'delayed']);
-
-            if (error) {
-                console.error('[Scheduler] Error fetching waiting sessions:', error.message);
-                return;
-            }
-
-            if (!sessions || sessions.length === 0) return;
-
-            const nowTime = now.getTime();
-            const buffer = 5000; // 5 second buffer
-
-            for (const session of sessions) {
-                if (!session.variables) continue;
-
-                // 1. Unresponsive Timeout
-                if (session.status === 'waiting_input') {
-                    const nodeId = session.current_node_id;
-                    const nodeState = session.variables[nodeId];
-
-                    if (nodeState && nodeState.timeoutAt) {
-                        const timeoutTime = new Date(nodeState.timeoutAt).getTime();
-                        
-                        // LOGGING for debugging
-                        if (process.env.DEBUG_TIMEOUTS || true) { // Force on for now to help user see it in logs
-                            console.log(`[Scheduler] Checking Session ${session.id}: TimeoutAt ${nodeState.timeoutAt}, Now ${now.toISOString()}`);
-                        }
-
-                        if (nowTime >= (timeoutTime - buffer)) {
-                            console.log(`[Scheduler] Session ${session.id} unresponsive timeout reached (${timeoutTime} <= ${nowTime})`);
-                            await flowEngine.handleSessionTimeout(session.id, 'unresponsive');
-                        }
-                    }
-                }
-
-                // 2. Delay Resume
-                if (session.status === 'delayed') {
-                    const nodeId = session.current_node_id;
-                    const nodeData = session.variables[nodeId];
-                    // 'resumeAt' is standard for Delay node
-                    if (nodeData && nodeData.resumeAt) {
-                        const resumeTime = new Date(nodeData.resumeAt).getTime();
-                        if (now.getTime() >= resumeTime) {
-                            console.log(`[Scheduler] Session ${session.id} delay completed.`);
-                            // 'default' handle usually for continuation after delay
-                            await flowEngine.handleSessionTimeout(session.id, 'default');
-                        }
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('❌ [Scheduler] Flow Timeout Check Error:', e);
         }
     }
 

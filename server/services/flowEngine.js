@@ -1089,7 +1089,7 @@ class FlowEngine {
 
             // 3. Handle Output
             if (output && output.__action === 'PAUSE') {
-                console.log('[FlowEngine] Flow Paused.');
+                console.log(`[FlowEngine] Instance ${this.instanceId} Flow Paused for Node: ${node.id}`);
 
                 // CRITICAL FIX: Merge output with existing node state to preserve properties (like retryAttempts)
                 const newContext = {
@@ -1105,6 +1105,54 @@ class FlowEngine {
                         last_interaction_at: new Date().toISOString()
                     })
                     .eq('id', session.id);
+
+                // 🚀 HIGH-PERFORMANCE UNRESPONSIVE OPTIMIZATION:
+                // Global DB Scheduler runs every 30s. If user sets a "10s timeout", they shouldn't 
+                // have to wait up to 30s for the next DB sweep.
+                if (output.timeoutAt) {
+                    const timeoutTime = new Date(output.timeoutAt).getTime();
+                    const delayMs = timeoutTime - Date.now();
+
+                    // Scheduling exact RAM trigger for any timeout up to 15 minutes
+                    if (delayMs > 0 && delayMs <= 15 * 60 * 1000) {
+                        console.log(`[FlowEngine] Short unresponsive timeout detected. Scheduling RAM trigger in ${delayMs}ms for session ${session.id}.`);
+                        setTimeout(async () => {
+                            try {
+                                // Prepare fresh state for claim
+                                const updatedVars = { ...newContext };
+                                if (updatedVars[node.id]) {
+                                    updatedVars[node.id] = { 
+                                        ...updatedVars[node.id],
+                                        status: 'timeout',
+                                        isFilled: false,
+                                        response: null,
+                                        timeoutAt: null // Clear timeout so it doesn't trigger again
+                                    };
+                                }
+
+                                // ATOMIC CLAIM: Only trigger if session is still WAITING_INPUT on THIS node
+                                const { data: claimed, error: claimError } = await rpcClient
+                                    .from('flow_sessions')
+                                    .update({ 
+                                        status: 'resuming',
+                                        variables: updatedVars,
+                                        last_interaction_at: new Date().toISOString()
+                                    })
+                                    .eq('id', session.id)
+                                    .eq('status', 'waiting_input')
+                                    .eq('current_node_id', node.id)
+                                    .select();
+
+                                if (!claimError && claimed && claimed.length > 0) {
+                                    console.log(`[FlowEngine] Instance ${this.instanceId} RAM Unresponsive Timer Fired Successfully for Session ${session.id}!`);
+                                    await this.handleSessionTimeout(session.id, 'unresponsive', updatedVars, claimed[0]);
+                                }
+                            } catch (e) {
+                                console.error('RAM Unresponsive Timer Error:', e);
+                            }
+                        }, delayMs);
+                    }
+                }
 
                 return; // Stop execution here
             }
