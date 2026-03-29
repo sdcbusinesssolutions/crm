@@ -119,347 +119,144 @@ router.get('/', async (req, res) => {
 
         if (error) throw error;
 
-        // 2. Sync with Meta
-        try {
-            const config = await getWhatsAppConfig(supabase, user.id);
-            const { whatsapp_business_account_id: wabaId, meta_access_token: accessToken } = config;
+        // 2. Sync with Meta (Smart Sync: Only if last_synced_at is > 10 mins or forced)
+        const lastSyncedAt = localTemplates[0]?.last_synced_at;
+        const needsSync = req.query.sync === 'true' || !lastSyncedAt || (new Date() - new Date(lastSyncedAt) > 10 * 60 * 1000);
 
-            // Fetch live templates from Meta (with pagination)
-            let metaTemplates = [];
-            let nextUrl = `${GRAPH_API_URL}/${wabaId}/message_templates?fields=name,language,status,id,category,components,quality_score&limit=200`;
+        if (needsSync) {
+            try {
+                const config = await getWhatsAppConfig(supabase, user.id);
+                const { whatsapp_business_account_id: wabaId, meta_access_token: accessToken } = config;
 
-            while (nextUrl) {
-                try {
-                    const metaRes = await axios.get(nextUrl, {
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
+                // Fetch live templates from Meta (with pagination)
+                let metaTemplates = [];
+                let nextUrl = `${GRAPH_API_URL}/${wabaId}/message_templates?fields=name,language,status,id,category,components,quality_score&limit=200`;
 
-                    if (metaRes.data.data) {
-                        metaTemplates = metaTemplates.concat(metaRes.data.data);
-                    }
+                while (nextUrl) {
+                    try {
+                        const metaRes = await axios.get(nextUrl, {
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
 
-                    nextUrl = metaRes.data.paging && metaRes.data.paging.next ? metaRes.data.paging.next : null;
-                } catch (err) {
-                    console.error('Error fetching template page:', err.message);
-                    break; // Stop fetching on error, process what we have
-                }
-            }
-
-            const updates = [];
-
-            // Map for faster lookup
-            const metaMap = new Map();
-            metaTemplates.forEach(t => {
-                metaMap.set(`${t.name}_${t.language}`, t);
-            });
-
-            // 1. Update status of existing templates
-            for (const local of localTemplates) {
-                const metaMatch = metaMap.get(`${local.name}_${local.language}`);
-
-                if (metaMatch) {
-                    const updatesPayload = {};
-                    if (metaMatch.status !== local.status) updatesPayload.status = metaMatch.status;
-                    if (metaMatch.category !== local.category) updatesPayload.category = metaMatch.category;
-                    if (metaMatch.quality_score !== local.quality_score) updatesPayload.quality_score = metaMatch.quality_score;
-
-                    // Sync Text Components (Body, Header, Footer) to ensure parameter counts match Meta
-                    let metaBody = null;
-                    let metaHeader = null;
-                    let metaFooter = null;
-
-                    (metaMatch.components || []).forEach(c => {
-                        if (c.type === 'BODY') metaBody = c.text;
-                        if (c.type === 'HEADER' && c.format === 'TEXT') metaHeader = c.text;
-                        if (c.type === 'FOOTER') metaFooter = c.text;
-                    });
-
-                    // Update Body Text
-                    if (metaBody !== null && metaBody !== local.body_text) {
-                        updatesPayload.body_text = metaBody;
-                    }
-
-                    // Update Header Text (only if local expects text or Meta has text)
-                    if (metaHeader !== null && metaHeader !== local.header_text) {
-                        updatesPayload.header_text = metaHeader;
-                    }
-
-                    // Update Footer Text
-                    if (metaFooter !== null && metaFooter !== local.footer_text) {
-                        updatesPayload.footer_text = metaFooter;
-                    }
-
-                    // Sync Buttons
-                    let metaButtons = { type: 'NONE' };
-                    (metaMatch.components || []).forEach(c => {
-                        if (c.type === 'BUTTONS') {
-                            const btns = c.buttons || [];
-                            if (btns.length > 0) {
-                                const firstType = btns[0].type;
-                                const hasQuickReply = btns.some(b => b.type === 'QUICK_REPLY');
-                                const hasCta = btns.some(b => b.type === 'URL' || b.type === 'PHONE_NUMBER');
-
-                                if (hasQuickReply && hasCta) {
-                                    metaButtons = {
-                                        type: 'ALL',
-                                        buttons: btns.map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number
-                                        }))
-                                    };
-                                } else if (hasQuickReply) {
-                                    metaButtons = { type: 'QUICK_REPLY', buttons: btns.map(b => ({ type: 'QUICK_REPLY', text: b.text })) };
-                                } else if (hasCta) {
-                                    metaButtons = {
-                                        type: 'CALL_TO_ACTION',
-                                        buttons: btns.map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number
-                                        }))
-                                    };
-                                } else if (firstType === 'FLOW') {
-                                    metaButtons = {
-                                        type: 'FORM',
-                                        buttons: btns.map(b => ({
-                                            type: 'FLOW',
-                                            text: b.text,
-                                            flow_id: b.flow_id,
-                                            flow_action: b.flow_action,
-                                            navigate_screen: b.navigate_screen
-                                        }))
-                                    };
-                                }
-                            }
-                        } else if (c.type === 'CAROUSEL') {
-                            // Parse cards to match local structure
-                            const parsedCards = (c.cards || []).map(card => {
-                                let cardHeader = null;
-                                let cardBody = null;
-                                let cardButtons = [];
-
-                                (card.components || []).forEach(cc => {
-                                    if (cc.type === 'HEADER') cardHeader = cc;
-                                    if (cc.type === 'BODY') cardBody = cc.text;
-                                    if (cc.type === 'BUTTONS') {
-                                        cardButtons = (cc.buttons || []).map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number,
-                                            flow_id: b.flow_id,
-                                            flow_action: b.flow_action,
-                                            navigate_screen: b.navigate_screen
-                                        }));
-                                    }
-                                });
-
-                                return {
-                                    header: cardHeader,
-                                    body: cardBody,
-                                    buttons: cardButtons
-                                };
-                            });
-
-                            metaButtons = {
-                                type: 'MEDIA_CARD_CAROUSEL',
-                                cards: parsedCards
-                            };
+                        if (metaRes.data.data) {
+                            metaTemplates = metaTemplates.concat(metaRes.data.data);
                         }
-                    });
 
-                    // Compare Buttons (Deep comparison for Carousels to preserve media)
-                    if (JSON.stringify(metaButtons) !== JSON.stringify(local.buttons)) {
-                        if (metaButtons.type === 'MEDIA_CARD_CAROUSEL') {
-                            // Deep merge for Carousel to preserve local media/examples
-                            const mergedCards = metaButtons.cards.map((metaCard, index) => {
-                                // Try to find matching local card
-                                const localCard = (local.buttons && local.buttons.cards && local.buttons.cards[index]) || null;
+                        nextUrl = metaRes.data.paging && metaRes.data.paging.next ? metaRes.data.paging.next : null;
+                    } catch (err) {
+                        console.error('Error fetching template page:', err.message);
+                        break; // Stop fetching on error, process what we have
+                    }
+                }
 
-                                // If local card exists and header types match, preserve local media/example
-                                if (localCard && localCard.header && metaCard.header && localCard.header.format === metaCard.header.format) {
-                                    // Preserve 'example' (media handle) if present in local but missing/different in Meta (Meta usually doesn't send example back in all cases)
-                                    if (localCard.header.example) {
-                                        metaCard.header.example = localCard.header.example;
+                const updates = [];
+
+                // Map for faster lookup
+                const metaMap = new Map();
+                metaTemplates.forEach(t => {
+                    metaMap.set(`${t.name}_${t.language}`, t);
+                });
+
+                // 1. Update status of existing templates
+                for (const local of localTemplates) {
+                    const metaMatch = metaMap.get(`${local.name}_${local.language}`);
+
+                    if (metaMatch) {
+                        const updatesPayload = {};
+                        if (metaMatch.status !== local.status) updatesPayload.status = metaMatch.status;
+                        if (metaMatch.category !== local.category) updatesPayload.category = metaMatch.category;
+                        if (metaMatch.quality_score !== local.quality_score) updatesPayload.quality_score = metaMatch.quality_score;
+
+                        // Sync Text Components (Body, Header, Footer)
+                        let metaBody = null; let metaHeader = null; let metaFooter = null;
+                        (metaMatch.components || []).forEach(c => {
+                            if (c.type === 'BODY') metaBody = c.text;
+                            if (c.type === 'HEADER' && c.format === 'TEXT') metaHeader = c.text;
+                            if (c.type === 'FOOTER') metaFooter = c.text;
+                        });
+
+                        if (metaBody !== null && metaBody !== local.body_text) updatesPayload.body_text = metaBody;
+                        if (metaHeader !== null && metaHeader !== local.header_text) updatesPayload.header_text = metaHeader;
+                        if (metaFooter !== null && metaFooter !== local.footer_text) updatesPayload.footer_text = metaFooter;
+
+                        // Sync Buttons
+                        let metaButtons = { type: 'NONE' };
+                        (metaMatch.components || []).forEach(c => {
+                            if (c.type === 'BUTTONS') {
+                                const btns = c.buttons || [];
+                                if (btns.length > 0) {
+                                    const hasQuickReply = btns.some(b => b.type === 'QUICK_REPLY');
+                                    const hasCta = btns.some(b => b.type === 'URL' || b.type === 'PHONE_NUMBER');
+                                    if (hasQuickReply && hasCta) {
+                                        metaButtons = { type: 'ALL', buttons: btns.map(b => ({ type: b.type, text: b.text, url: b.url, phone_number: b.phone_number })) };
+                                    } else if (hasQuickReply) {
+                                        metaButtons = { type: 'QUICK_REPLY', buttons: btns.map(b => ({ type: 'QUICK_REPLY', text: b.text })) };
+                                    } else if (hasCta) {
+                                        metaButtons = { type: 'CALL_TO_ACTION', buttons: btns.map(b => ({ type: b.type, text: b.text, url: b.url, phone_number: b.phone_number })) };
+                                    } else if (btns[0].type === 'FLOW') {
+                                        metaButtons = { type: 'FORM', buttons: btns.map(b => ({ type: 'FLOW', text: b.text, flow_id: b.flow_id, flow_action: b.flow_action, navigate_screen: b.navigate_screen })) };
                                     }
                                 }
-                                return metaCard;
-                            });
-                            metaButtons.cards = mergedCards;
-                            updatesPayload.buttons = metaButtons;
-                        } else {
-                            // Standard overwrite for non-carousel or type change
+                            } else if (c.type === 'CAROUSEL') {
+                                metaButtons = { type: 'MEDIA_CARD_CAROUSEL', cards: (c.cards || []).map(card => {
+                                    let cHeader = null; let cBody = null; let cBtns = [];
+                                    (card.components || []).forEach(cc => { if (cc.type==='HEADER') cHeader=cc; if (cc.type==='BODY') cBody=cc.text; if (cc.type==='BUTTONS') cBtns=cc.buttons.map(b=>({type:b.type,text:b.text,url:b.url,phone_number:b.phone_number,flow_id:b.flow_id,flow_action:b.flow_action,navigate_screen:b.navigate_screen})); });
+                                    return { header: cHeader, body: cBody, buttons: cBtns };
+                                })};
+                            }
+                        });
+
+                        if (JSON.stringify(metaButtons) !== JSON.stringify(local.buttons)) {
+                            if (metaButtons.type === 'MEDIA_CARD_CAROUSEL') {
+                                metaButtons.cards = metaButtons.cards.map((metaCard, index) => {
+                                    const localCard = local.buttons?.cards?.[index];
+                                    if (localCard?.header?.example && metaCard.header?.format === localCard.header.format) metaCard.header.example = localCard.header.example;
+                                    return metaCard;
+                                });
+                            }
                             updatesPayload.buttons = metaButtons;
                         }
-                    }
 
-                    if (Object.keys(updatesPayload).length > 0) {
-                        updates.push(
-                            supabase
-                                .from('whatsapp_templates')
-                                .update(updatesPayload)
-                                .eq('id', local.id)
-                        );
-                        // Update local object for immediate response
-                        if (updatesPayload.status) local.status = updatesPayload.status;
-                        if (updatesPayload.category) local.category = updatesPayload.category;
-                        if (updatesPayload.body_text) local.body_text = updatesPayload.body_text;
-                        if (updatesPayload.header_text) local.header_text = updatesPayload.header_text;
-                        if (updatesPayload.footer_text) local.footer_text = updatesPayload.footer_text;
-                        if (updatesPayload.quality_score) local.quality_score = updatesPayload.quality_score;
-                        if (updatesPayload.buttons) local.buttons = updatesPayload.buttons;
-                    }
-                }
-
-                // Always attach live components from Meta to ensure frontend has latest structure (e.g. for Carousel cards)
-                if (metaMatch && metaMatch.components) {
-                    local.components = metaMatch.components;
-                }
-            }
-
-            // 2. Insert missing templates from Meta
-            const localMap = new Map();
-            localTemplates.forEach(t => localMap.set(`${t.name}_${t.language}`, true));
-
-            const newTemplates = [];
-            for (const metaT of metaTemplates) {
-                if (!localMap.has(`${metaT.name}_${metaT.language}`)) {
-                    // Parse components to reconstruct local format
-                    let headerText = null;
-                    let bodyText = null;
-                    let footerText = null;
-                    let buttons = { type: 'NONE' };
-                    let templateType = 'TEXT';
-
-                    (metaT.components || []).forEach(c => {
-                        if (c.type === 'HEADER') {
-                            if (c.format === 'TEXT') {
-                                headerText = c.text;
-                            } else {
-                                templateType = c.format; // IMAGE, VIDEO, DOCUMENT, LOCATION
-                            }
-                        } else if (c.type === 'BODY') {
-                            bodyText = c.text;
-                        } else if (c.type === 'FOOTER') {
-                            footerText = c.text;
-                        } else if (c.type === 'BUTTONS') {
-                            const btns = c.buttons || [];
-                            if (btns.length > 0) {
-                                const firstType = btns[0].type;
-                                const hasQuickReply = btns.some(b => b.type === 'QUICK_REPLY');
-                                const hasCta = btns.some(b => b.type === 'URL' || b.type === 'PHONE_NUMBER');
-
-                                if (hasQuickReply && hasCta) {
-                                    buttons = {
-                                        type: 'ALL',
-                                        buttons: btns.map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number
-                                        }))
-                                    };
-                                } else if (hasQuickReply) {
-                                    buttons = { type: 'QUICK_REPLY', buttons: btns.map(b => ({ type: 'QUICK_REPLY', text: b.text })) };
-                                } else if (hasCta) {
-                                    buttons = {
-                                        type: 'CALL_TO_ACTION',
-                                        buttons: btns.map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number
-                                        }))
-                                    };
-                                } else if (firstType === 'FLOW') {
-                                    buttons = {
-                                        type: 'FORM',
-                                        buttons: btns.map(b => ({
-                                            type: 'FLOW',
-                                            text: b.text,
-                                            flow_id: b.flow_id,
-                                            flow_action: b.flow_action,
-                                            navigate_screen: b.navigate_screen
-                                        }))
-                                    };
-                                }
-                            }
-                        } else if (c.type === 'CAROUSEL') {
-                            templateType = 'CAROUSEL';
-                            const cards = (c.cards || []).map(card => {
-                                let cardHeader = null;
-                                let cardBody = null;
-                                let cardButtons = [];
-                                (card.components || []).forEach(cc => {
-                                    if (cc.type === 'HEADER') cardHeader = cc; // keep format/type
-                                    if (cc.type === 'BODY') cardBody = cc.text;
-                                    if (cc.type === 'BUTTONS') {
-                                        cardButtons = (cc.buttons || []).map(b => ({
-                                            type: b.type,
-                                            text: b.text,
-                                            url: b.url,
-                                            phone_number: b.phone_number
-                                            // Add flow if needed
-                                        }));
-                                    }
-                                });
-                                return {
-                                    header: cardHeader,
-                                    body: cardBody,
-                                    buttons: cardButtons
-                                };
-                            });
-
-                            buttons = {
-                                type: 'MEDIA_CARD_CAROUSEL',
-                                cards: cards
-                            };
+                        if (Object.keys(updatesPayload).length > 0) {
+                            updates.push(supabase.from('whatsapp_templates').update(updatesPayload).eq('id', local.id));
+                            Object.assign(local, updatesPayload);
                         }
-                    });
-
-                    newTemplates.push({
-                        user_id: user.id,
-                        name: metaT.name,
-                        language: metaT.language,
-                        category: metaT.category,
-                        template_type: templateType,
-                        header_text: headerText,
-                        body_text: bodyText,
-                        footer_text: footerText,
-                        buttons: buttons,
-                        status: metaT.status,
-                        quality_score: metaT.quality_score,
-                        meta_template_id: metaT.id
-                    });
+                    }
+                    if (metaMatch?.components) local.components = metaMatch.components;
                 }
-            }
 
-            if (updates.length > 0) {
-                await Promise.all(updates);
-                console.log(`Synced ${updates.length} template statuses from Meta.`);
-            }
-
-            if (newTemplates.length > 0) {
-                const { data: inserted, error: insertError } = await supabase
-                    .from('whatsapp_templates')
-                    .insert(newTemplates)
-                    .select();
-
-                if (insertError) {
-                    console.error('Error inserting synced templates:', insertError);
-                } else if (inserted) {
-                    console.log(`Imported ${inserted.length} new templates from Meta.`);
-                    localTemplates.push(...inserted);
+                // 2. Insert missing templates
+                const localMap = new Map();
+                localTemplates.forEach(t => localMap.set(`${t.name}_${t.language}`, true));
+                const newTemplates = [];
+                for (const metaT of metaTemplates) {
+                    if (!localMap.has(`${metaT.name}_${metaT.language}`)) {
+                        let hText = null; let bText = null; let fText = null; let btns = { type: 'NONE' }; let tType = 'TEXT';
+                        (metaT.components || []).forEach(c => {
+                            if (c.type==='HEADER') { if (c.format==='TEXT') hText=c.text; else tType=c.format; }
+                            else if (c.type==='BODY') bText=c.text;
+                            else if (c.type==='FOOTER') fText=c.text;
+                            else if (c.type==='CAROUSEL') { tType='CAROUSEL'; btns={type:'MEDIA_CARD_CAROUSEL', cards:(c.cards||[]).map(card=>{let ch=null;let cb=null;let cbts=[]; (card.components||[]).forEach(cc=>{if(cc.type==='HEADER')ch=cc;if(cc.type==='BODY')cb=cc.text;if(cc.type==='BUTTONS')cbts=cc.buttons.map(b=>({type:b.type,text:b.text,url:b.url,phone_number:b.phone_number}));}); return {header:ch,body:cb,buttons:cbts};})};}
+                        });
+                        newTemplates.push({ user_id: user.id, name: metaT.name, language: metaT.language, category: metaT.category, template_type: tType, header_text: hText, body_text: bText, footer_text: fText, buttons: btns, status: metaT.status, quality_score: metaT.quality_score, meta_template_id: metaT.id });
+                    }
                 }
-            }
 
-        } catch (syncError) {
-            console.warn('Failed to sync with Meta (returning local data):', syncError.message);
-            // Continue to return local data even if sync fails
+                if (updates.length > 0) await Promise.all(updates);
+                if (newTemplates.length > 0) {
+                    const { data: inserted, error: insertError } = await supabase.from('whatsapp_templates').insert(newTemplates).select();
+                    if (inserted) localTemplates.push(...inserted);
+                }
+
+                // Update last_synced_at timestamp for the user
+                await supabase.from('whatsapp_templates').update({ last_synced_at: new Date() }).eq('user_id', user.id);
+                console.log(`Smart Sync complete for user ${user.id}.`);
+
+            } catch (syncError) {
+                console.warn('Failed to sync with Meta (returning local data):', syncError.message);
+            }
         }
+
 
         // Return with column definitions for dynamic table
         res.json({
