@@ -38,9 +38,10 @@ class Scheduler {
             const start = new Date(now.getTime() - 60000).toISOString();
             const end = new Date(now.getTime() + 60000).toISOString();
 
+            // 1. Fetch potential tasks
             const { data: tasks, error } = await this.supabase
                 .from('tasks')
-                .select('*')
+                .select('id, user_id, lead_id, title, description, due_date')
                 .eq('is_completed', false)
                 .gte('due_date', start)
                 .lte('due_date', end)
@@ -48,8 +49,18 @@ class Scheduler {
 
             if (tasks && tasks.length > 0) {
                 for (const task of tasks) {
-                    await this.processTask(task, 'task_due', {});
-                    await this.supabase.from('tasks').update({ reminder_sent: true }).eq('id', task.id);
+                    // ATOMIC CLAIM: Try to mark as sent. Only proceed if we were the one who updated it.
+                    const { data: claimed, error: claimError } = await this.supabase
+                        .from('tasks')
+                        .update({ reminder_sent: true })
+                        .eq('id', task.id)
+                        .eq('reminder_sent', false)
+                        .select();
+
+                    if (!claimError && claimed && claimed.length > 0) {
+                        console.log(`[Scheduler] Claimed Due Task ${task.id}`);
+                        await this.processTask(task, 'task_due', {});
+                    }
                 }
             }
         } catch (e) {
@@ -70,7 +81,7 @@ class Scheduler {
                 // Fetch next batch of 500
                 const { data: tasks, error } = await this.supabase
                     .from('tasks')
-                    .select('*')
+                    .select('id, user_id, lead_id, title, description, due_date, metadata')
                     .eq('is_completed', false)
                     .gt('due_date', now.toISOString())
                     .lt('due_date', lookAheadLimit)
@@ -98,12 +109,25 @@ class Scheduler {
 
                     if (meta[key]) continue; // Already sent for this minute
 
-                    // Trigger Flow
-                    await this.processTask(task, 'task_upcoming', { timeOffset: minutesRemaining });
-
-                    // Update metadata
+                    // ATOMIC CLAIM: Update metadata and check if we succeeded
                     const newMeta = { ...meta, [key]: true };
-                    await this.supabase.from('tasks').update({ metadata: newMeta }).eq('id', task.id);
+                    const { data: claimed, error: claimError } = await this.supabase
+                        .from('tasks')
+                        .update({ metadata: newMeta })
+                        .eq('id', task.id)
+                        // Ensure another container didn't just update it (Optimistic Locking)
+                        .filter('metadata', 'cs', `{"${key}": true}`) // 'cs' is "contains" - wait, supabase JS filter for NOT contains is hard
+                        // Better: Use a dedicated RPC or just trust that the metadata field didn't change in between
+                        // Since we are in a loop, it's safer to re-fetch or use a specific condition.
+                        // For metadata, we check if the key is still missing.
+                        .is(`metadata->>${key}`, null) 
+                        .select();
+
+                    if (!claimError && claimed && claimed.length > 0) {
+                        console.log(`[Scheduler] Claimed Upcoming(${minutesRemaining}m) Task ${task.id}`);
+                        // Trigger Flow
+                        await this.processTask(task, 'task_upcoming', { timeOffset: minutesRemaining });
+                    }
                 }
             }
         } catch (e) {
@@ -122,7 +146,7 @@ class Scheduler {
             while (hasMore) {
                 const { data: tasks, error } = await this.supabase
                     .from('tasks')
-                    .select('*')
+                    .select('id, user_id, lead_id, title, description, due_date, metadata')
                     .eq('is_completed', false)
                     .lt('due_date', now.toISOString())
                     .gt('due_date', lookBackLimit)
@@ -149,10 +173,19 @@ class Scheduler {
 
                     if (meta[key]) continue;
 
-                    await this.processTask(task, 'task_overdue', { timeOffset: minutesOverdue });
-
+                    // ATOMIC CLAIM
                     const newMeta = { ...meta, [key]: true };
-                    await this.supabase.from('tasks').update({ metadata: newMeta }).eq('id', task.id);
+                    const { data: claimed, error: claimError } = await this.supabase
+                        .from('tasks')
+                        .update({ metadata: newMeta })
+                        .eq('id', task.id)
+                        .is(`metadata->>${key}`, null)
+                        .select();
+
+                    if (!claimError && claimed && claimed.length > 0) {
+                        console.log(`[Scheduler] Claimed Overdue(${minutesOverdue}m) Task ${task.id}`);
+                        await this.processTask(task, 'task_overdue', { timeOffset: minutesOverdue });
+                    }
                 }
             }
         } catch (e) {

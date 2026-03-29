@@ -145,8 +145,27 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
             console.log(`[IncomingWebhook] Found Trigger Flow: ${flow.name}, Node: ${currentNode.id}`);
 
             // 3. Create New Session
-            // Cancel any old sessions first just in case
+            // ATOMIC SAFEGUARD: In a multi-container environment, two identical webhooks
+            // might arrive at the exact same millisecond. 
+            
+            // A. Cancel any old sessions first
             await rpcClient.rpc('cancel_active_sessions', { p_contact_phone: contactPhone });
+
+            // B. Wait a tiny amount (50ms) to let DB settle across nodes
+            await new Promise(r => setTimeout(r, 50));
+
+            // C. Final check: Did another container just start a session?
+            const { data: doubleCheck } = await rpcClient
+                .from('flow_sessions')
+                .select('id')
+                .eq('contact_phone', contactPhone)
+                .in('status', ['waiting_input', 'active', 'processing'])
+                .single();
+
+            if (doubleCheck) {
+                console.warn(`[IncomingWebhook] Race Condition Avoided: Session already created via other container for ${contactPhone}.`);
+                return res.json({ status: 'success', message: 'Flow already processing.' });
+            }
 
             // Flatten payload to ensure nested fields are accessible
             const flattenedPayload = flattenObject(payload);
@@ -165,7 +184,7 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
             });
 
             if (createError) {
-                console.error('[IncomingWebhook] Failed to create session:', createError);
+                console.error('[IncomingWebhook] Failed to create session (might be concurrent block):', createError);
                 return res.status(500).json({ error: 'Failed to create flow session.' });
             }
 
