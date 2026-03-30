@@ -939,26 +939,26 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
-                                                                status === 'COMPLETED' 
-                                                                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' 
-                                                                    : (status === 'FAILED' || status === 'ERROR')
-                                                                        ? 'bg-red-600 border-red-600 text-white shadow-sm'
-                                                                        : 'bg-emerald-50 border-emerald-100 text-emerald-600 shadow-sm'
-                                                            }`}>
-                                                                <span className="text-xs font-bold">
-                                                                    {status === 'COMPLETED' ? '✓' : currentOrder}
+                                                    <td className="px-6 py-4 min-w-[200px]">
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">
+                                                                    {status === 'COMPLETED' ? 'Campaign Finished' : (status === 'FAILED' || status === 'ERROR') ? 'Failure Report' : 'Active Progress'}
+                                                                </span>
+                                                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 tabular-nums">
+                                                                    {status === 'COMPLETED' ? totalSteps : currentOrder} OF {totalSteps}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex flex-col">
-                                                                <span className={`text-xs font-bold leading-none ${status === 'COMPLETED' ? 'text-emerald-700' : 'text-slate-700'}`}>
-                                                                    {status === 'COMPLETED' ? 'Campaign Finished' : `Progress: Step ${currentOrder} of ${totalSteps}`}
-                                                                </span>
-                                                                <span className="text-[10px] text-slate-400 mt-1 font-medium italic">
-                                                                    Last change: {format(new Date(en.updated_at || en.started_at), 'MMM d, h:mm a')}
-                                                                </span>
+                                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                                                <div 
+                                                                    className={`h-full transition-all duration-1000 ease-out ${
+                                                                        status === 'COMPLETED' ? 'bg-emerald-500' : status === 'FAILED' ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'
+                                                                    }`}
+                                                                    style={{ width: `${Math.min(100, ((status === 'COMPLETED' ? totalSteps : currentOrder) / totalSteps) * 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-[9px] font-medium text-slate-400 capitalize tabular-nums">
+                                                                <span>Last change: {new Date(en.updated_at || en.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} {new Date(en.updated_at || en.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -1769,6 +1769,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 };
 
 export default DripBuilder;
+
 
 
 
