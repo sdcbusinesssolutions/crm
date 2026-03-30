@@ -16,7 +16,7 @@ const DripTriggerService = {
             // 1. Find matching VALID campaigns
             // We search for campaigns where trigger_type = 'TAG_ADDED' 
             // AND trigger_value is in the list of addedTags
-            const { data: campaigns, error } = await supabaseAdmin
+            let { data: campaigns, error } = await supabaseAdmin
                 .from('drip_campaigns')
                 .select('id, name, allow_reentry, trigger_value')
                 .eq('user_id', userId)

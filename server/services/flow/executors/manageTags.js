@@ -33,8 +33,11 @@ module.exports = {
                 throw fetchError;
             }
 
+            let activeContacts = [...(contacts || [])];
+            let finalTags = [];
+
             // 2. If NO contact exists, create it (only if adding tags)
-            if (!contacts || contacts.length === 0) {
+            if (activeContacts.length === 0) {
                 if (action === 'remove') {
                     return { success: true, message: 'Contact not found, nothing to remove' };
                 }
@@ -58,60 +61,57 @@ module.exports = {
                     console.error('[ManageTags] Error creating contact:', createError);
                     throw createError;
                 }
-                console.log('[ManageTags] Created contact with tags:', newContact.tags);
-                return { success: true, tags: newContact.tags };
-            }
+                console.log('[ManageTags] Created contact with IDs:', newContact.id);
+                activeContacts = [newContact];
+                finalTags = newContact.tags || [];
+            } else {
+                // 3. Update ALL found contacts (in case of duplicates)
+                for (const contact of activeContacts) {
+                    let currentTags = contact.tags || [];
+                    let newTags = [...currentTags];
 
-            // 3. Update ALL found contacts (in case of duplicates)
-            // We iterate through all matching records to ensure consistency
-            let finalTags = [];
-            let atLeastOneUpdated = false;
+                    if (action === 'add') {
+                        tags.forEach(t => {
+                            if (!newTags.includes(t)) newTags.push(t);
+                        });
+                    } else if (action === 'remove') {
+                        newTags = newTags.filter(t => !tags.includes(t));
+                    }
 
-            for (const contact of contacts) {
-                let currentTags = contact.tags || [];
-                let newTags = [...currentTags];
+                    if (JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())) {
+                        finalTags = newTags;
+                        continue;
+                    }
 
-                if (action === 'add') {
-                    // Add unique tags
-                    tags.forEach(t => {
-                        if (!newTags.includes(t)) newTags.push(t);
-                    });
-                } else if (action === 'remove') {
-                    // Remove tags
-                    newTags = newTags.filter(t => !tags.includes(t));
-                }
+                    const { data: updatedContact, error: updateError } = await rpcClient
+                        .from('contacts')
+                        .update({ tags: newTags })
+                        .eq('id', contact.id)
+                        .select()
+                        .single();
 
-                // Don't update if nothing changed
-                if (JSON.stringify(currentTags.sort()) === JSON.stringify(newTags.sort())) {
-                    finalTags = newTags; // Capture current state even if no change
-                    continue;
-                }
-
-                // Update this specific contact record
-                const { data: updatedContact, error: updateError } = await rpcClient
-                    .from('contacts')
-                    .update({ tags: newTags })
-                    .eq('id', contact.id)
-                    .select()
-                    .single();
-
-                if (updateError) {
-                    console.error(`[ManageTags] Failed to update contact ${contact.id}:`, updateError);
-                } else {
-                    console.log(`[ManageTags] Updated contact ${contact.id} tags:`, newTags);
-                    finalTags = newTags; // Keep track of latest state for return
-                    atLeastOneUpdated = true;
+                    if (updateError) {
+                        console.error(`[ManageTags] Failed to update contact ${contact.id}:`, updateError);
+                    } else {
+                        console.log(`[ManageTags] Updated contact ${contact.id} tags:`, newTags);
+                        finalTags = newTags;
+                    }
                 }
             }
 
-            // 5. Trigger Drip Campaigns (TAG_ADDED / TAG_REMOVED)
-            const DripTriggerService = require('../../DripTriggerService');
-            const triggerContact = contacts[0] || (contacts.length === 0 ? { id: phone, phone: phone } : contacts[0]); 
-
-            if (action === 'add' && tags.length > 0) {
-                DripTriggerService.handleTagAdded(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Trigger Error:', e));
-            } else if (action === 'remove' && tags.length > 0) {
-                DripTriggerService.handleTagRemoved(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Removal Error:', e));
+            // 4. Trigger Drip Campaigns (TAG_ADDED / TAG_REMOVED)
+            // Use the first active contact as the trigger source
+            const triggerContact = activeContacts[0];
+            if (triggerContact && triggerContact.id) {
+                const DripTriggerService = require('../../DripTriggerService');
+                
+                if (action === 'add' && tags.length > 0) {
+                    console.log(`[ManageTags] Triggering TAG_ADDED for contact ${triggerContact.id}`);
+                    DripTriggerService.handleTagAdded(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Trigger Error:', e));
+                } else if (action === 'remove' && tags.length > 0) {
+                    console.log(`[ManageTags] Triggering TAG_REMOVED for contact ${triggerContact.id}`);
+                    DripTriggerService.handleTagRemoved(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Removal Error:', e));
+                }
             }
 
             return { success: true, tags: finalTags };
