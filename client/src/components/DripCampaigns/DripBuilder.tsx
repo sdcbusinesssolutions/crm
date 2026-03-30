@@ -777,7 +777,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
                                         {enrollments.map(en => {
-                                            const contactName = en.contact?.name || 'Unknown';
+                                            const rawName = en.contact?.name || ''; const contactName = (rawName && rawName !== '~') ? rawName : en.contact?.phone || 'Unknown';
                                             const initial = contactName.charAt(0).toUpperCase();
                                             const totalSteps = campaign.steps?.length || 1;
                                             const currentOrder = Array.isArray(en.current_step) ? en.current_step[0]?.step_order : en.current_step?.step_order || 1;
@@ -824,6 +824,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                             <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
                                                             {status.replace(/_/g, ' ')}
                                                         </span>
+                                                        {status === 'ACTIVE' && en.next_run_at && (
+                                                            <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold ml-1 uppercase">
+                                                                Next: {new Date(en.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3">
