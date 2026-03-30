@@ -22,6 +22,8 @@ import {
 // --- Per-campaign in-memory cache (60s TTL) ---
 const BUILDER_CACHE_TTL_MS = 60_000;
 const _builderCache = new Map<string, { data: DripCampaign; timestamp: number }>();
+// Global Enrollment Cache (campaignId -> { data, timestamp })
+const _enrollmentCache = new Map<string, { data: any[]; timestamp: number }>();
 
 // --- Types ---
 interface DripBuilderProps {
@@ -356,23 +358,49 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
     const loadEnrollments = async (force = false) => {
         if (!campaignId) return;
-        if (!force && Date.now() - lastEnrollmentFetch < 60000 && enrollments.length > 0) return;
-
+        const cached = _enrollmentCache.get(campaignId);
+        if (!force && cached && Date.now() - cached.timestamp < BUILDER_CACHE_TTL_MS && enrollments.length > 0) {
+            setEnrollments(cached.data);
+            return;
+        }
         setIsLoadingEnrollments(true);
         try {
-            // Auto-Sync only if forced or initial load
-            if (force && campaign.trigger_type === 'TAG_ADDED') {
-                await dripCampaignService.syncCampaign(campaignId).catch(e => console.warn('Sync failed:', e));
+            if (force && campaign.trigger_type === "TAG_ADDED") {
+                await dripCampaignService.syncCampaign(campaignId).catch(v => console.warn("Sync failed:", v));
             }
             const data = await dripCampaignService.getEnrollments(campaignId);
+            _enrollmentCache.set(campaignId, { data: data || [], timestamp: Date.now() });
             setEnrollments(data || []);
-            setLastEnrollmentFetch(Date.now());
-        } catch (e) { 
-            console.error('Failed to load enrollments:', e); 
+            setEnrollmentPage(1);
+        } catch (e) {
+            console.error("Failed to load enrollments", e);
         } finally {
             setIsLoadingEnrollments(false);
         }
     };
+
+    const filteredEnrollments = React.useMemo(() => {
+        const search = enrollmentSearch.toLowerCase().trim();
+        return enrollments.filter(en => {
+            if (enrollmentStatusFilter !== "ALL") {
+                const status = (en.status || "").toUpperCase();
+                if (enrollmentStatusFilter === "IN_PROGRESS") {
+                    if (!["ACTIVE", "PROCESSING", "WAITING"].includes(status)) return false;
+                } else if (status !== enrollmentStatusFilter) return false;
+            }
+            if (!search) return true;
+            const contactName = (en.contact?.name || "").toLowerCase();
+            const contactPhone = (en.contact?.phone || "").toLowerCase();
+            return contactName.includes(search) || contactPhone.includes(search);
+        });
+    }, [enrollments, enrollmentSearch, enrollmentStatusFilter]);
+
+    const paginatedEnrollments = React.useMemo(() => {
+        const start = (enrollmentPage - 1) * enrollmentsPerPage;
+        return filteredEnrollments.slice(start, start + enrollmentsPerPage);
+    }, [filteredEnrollments, enrollmentPage]);
+
+    const totalEnrollmentPages = Math.ceil(filteredEnrollments.length / enrollmentsPerPage);
 
     const loadTemplates = async () => {
         try {
@@ -778,28 +806,58 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white px-6">
                             <div className="flex items-center gap-4">
                                 <h3 className="font-bold text-slate-800 text-base">Detailed Enrollment List</h3>
-                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">ENGINE v2.2 ACTIVE</span>
-                                {campaign.trigger_type === 'TAG_ADDED' && (
-                                    <button 
-                                        onClick={async () => {
-                                            if (!campaignId) return;
-                                            try {
-                                                const res = await dripCampaignService.syncCampaign(campaignId);
-                                                alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
-                                                loadEnrollments(true);
-                                            } catch (e) { alert("Sync failed."); }
-                                        }}
-                                        className="px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-xs font-bold hover:bg-brand-100 transition-all flex items-center gap-2"
-                                    >
-                                        <TriggerIcon className="w-3.5 h-3.5" />
-                                        Sync Now
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">ENGINE v2.2 ACTIVE</span>
+                                    <span className="text-[10px] font-bold text-slate-400 font-mono">{filteredEnrollments.length} matching records</span>
+                                    {campaign.trigger_type === 'TAG_ADDED' && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (!campaignId) return;
+                                                try {
+                                                    const res = await dripCampaignService.syncCampaign(campaignId);
+                                                    alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
+                                                    loadEnrollments(true);
+                                                } catch (e) { alert("Sync failed."); }
+                                            }}
+                                            className="ml-2 px-2 py-1 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-brand-100 transition-all flex items-center gap-1.5"
+                                        >
+                                            <TriggerIcon className="w-2.5 h-2.5" />
+                                            Sync Now
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                            <button onClick={() => loadEnrollments(true)} className="text-xs font-bold text-slate-400 hover:text-brand-600 flex items-center gap-1.5 transition-colors group">
-                                <svg className={`w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 ${isLoadingEnrollments ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                {isLoadingEnrollments ? 'Loading...' : 'Refresh'}
-                            </button>
+                            <div className="flex flex-1 items-center gap-3 w-full md:w-auto md:max-w-xl md:ml-8">
+                                <div className="relative flex-1">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name or phone..."
+                                        className="pl-9 pr-4 py-2 w-full bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/10 focus:border-brand-500 outline-none transition-all font-medium"
+                                        value={enrollmentSearch}
+                                        onChange={(e) => { setEnrollmentSearch(e.target.value); setEnrollmentPage(1); }}
+                                    />
+                                </div>
+                                <select
+                                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-600 outline-none focus:border-brand-500 cursor-pointer"
+                                    value={enrollmentStatusFilter}
+                                    onChange={(e) => { setEnrollmentStatusFilter(e.target.value); setEnrollmentPage(1); }}
+                                >
+                                    <option value="ALL">All Status</option>
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="IN_PROGRESS">In Progress</option>
+                                    <option value="COMPLETED">Completed</option>
+                                    <option value="FAILED">Failed</option>
+                                    <option value="STOPPED_BY_REPLY">Stopped (Reply)</option>
+                                </select>
+                                <div className="h-4 w-px bg-slate-200 hidden md:block"></div>
+                                <button onClick={() => loadEnrollments(true)} className="text-xs font-bold text-slate-400 hover:text-brand-600 flex items-center gap-1.5 transition-colors group whitespace-nowrap">
+                                    <svg className={`w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 ${isLoadingEnrollments ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    {isLoadingEnrollments ? "Loading..." : "Refresh"}
+                                </button>
+                            </div>
                         </div>
                         <div className="w-full min-w-full overflow-x-auto min-h-[400px]">
                             {isLoadingEnrollments ? (
@@ -808,13 +866,13 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse border border-slate-100"></div>
                                     ))}
                                 </div>
-                            ) : enrollments.length === 0 ? (
+                            ) : filteredEnrollments.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-24 px-6 bg-slate-50/30">
                                     <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 text-emerald-100 animate-pulse">
                                         <TriggerIcon className="w-10 h-10" />
                                     </div>
-                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-widest mb-1">No active enrollments</h4>
-                                    <p className="text-xs text-slate-400 max-w-xs mx-auto font-medium">Sync your tagged contacts or wait for new triggers to start the campaign automatically.</p>
+                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-widest mb-1">No matching enrollments</h4>
+                                    <p className="text-xs text-slate-400 max-w-xs mx-auto font-medium">Try adjusting your filter or search term to find specific contacts.</p>
                                 </div>
                             ) : (
                                 <table className="w-full min-w-full text-left text-sm border-collapse">
@@ -827,7 +885,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
-                                        {enrollments.map(en => {
+                                        {paginatedEnrollments.map(en => {
                                             const rawName = en.contact?.name || ''; const contactName = (rawName && rawName !== '~') ? rawName : en.contact?.phone || 'Unknown';
                                             const initial = contactName.charAt(0).toUpperCase();
                                             const totalSteps = campaign.steps?.length || 1;
@@ -1711,3 +1769,5 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 };
 
 export default DripBuilder;
+
+
