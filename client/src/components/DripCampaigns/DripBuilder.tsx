@@ -244,7 +244,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     });
     const [enrollments, setEnrollments] = useState<any[]>([]);
     const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
-    const [lastEnrollmentFetch, setLastEnrollmentFetch] = useState(0);
+    const [enrollmentSearch, setEnrollmentSearch] = useState(''); const [enrollmentStatusFilter, setEnrollmentStatusFilter] = useState('ALL'); const [enrollmentPage, setEnrollmentPage] = useState(1); const enrollmentsPerPage = 25;
     const [templates, setTemplates] = useState<any[]>([]);
     const [gmailConnections, setGmailConnections] = useState<any[]>([]);
     const [smtpConnections, setSmtpConnections] = useState<any[]>([]);
@@ -1769,5 +1769,6 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 };
 
 export default DripBuilder;
+
 
 
