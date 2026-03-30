@@ -231,10 +231,14 @@ router.post('/', async (req, res) => {
       const oldTags = existing?.tags || [];
       const newTags = payload.tags || [];
       const addedTags = newTags.filter(t => !oldTags.includes(t));
+      const removedTags = oldTags.filter(t => !newTags.includes(t));
 
       if (addedTags.length > 0) {
         // Run async (fire and forget)
         DripTriggerService.handleTagAdded(user.id, data, addedTags).catch(err => console.error('Trigger Error:', err));
+      }
+      if (removedTags.length > 0) {
+        DripTriggerService.handleTagRemoved(user.id, data, removedTags).catch(err => console.error('Removal Trigger Error:', err));
       }
 
       result = data;
@@ -469,6 +473,13 @@ router.post('/bulk', async (req, res) => {
       } else if (data) {
         stats.inserted += data.length;
         chunkedResults.push(...data);
+
+        // TRIGGER DRIP CAMPAIGNS for Bulk Inserted Contacts
+        data.forEach(c => {
+          if (c.tags && c.tags.length > 0) {
+            DripTriggerService.handleTagAdded(user.id, c, c.tags).catch(err => console.error('Bulk Trigger Error:', err));
+          }
+        });
       }
     }
 

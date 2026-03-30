@@ -1,0 +1,62 @@
+﻿[dotenv@17.3.1] injecting env (16) from .env -- tip: ≡ƒñû agentic secret storage: https://dotenvx.com/as2
+
+==============================
+ DRIP TAG ENROLLMENT DEBUGGER
+==============================
+
+--- [1] Campaign State ---
+Campaign: {
+  "id": "bd3d2bc8-69ba-4c96-a783-78597504f103",
+  "name": "tagtrigger",
+  "status": "ACTIVE",
+  "trigger_type": "TAG_ADDED",
+  "trigger_value": "abc",
+  "allow_reentry": false
+}
+
+--- [2] Campaign Steps ---
+Steps: [
+  {
+    "id": "e8a6458d-225e-4497-befb-968de82ebf6c",
+    "step_order": 1,
+    "step_type": "WHATSAPP_MESSAGE",
+    "delay_value": 3,
+    "delay_unit": "MINUTES"
+  }
+]
+
+--- [3] Scanning ALL contacts for user ---
+  Fetched chunk 1: 1000 contacts (total so far: 1000)
+  Fetched chunk 2: 1000 contacts (total so far: 2000)
+  Fetched chunk 3: 154 contacts (total so far: 2154)
+Total contacts for user: 2154
+
+--- [4] Contacts whose tags[] contain 'abc' ---
+Matches: 4
+  Γ£à koshik Marketing | 917857836481 | tags: ["abc"]
+  Γ£à koshik Marketing | 917857836481 | tags: ["abc"]
+  Γ£à dev | 918408907516 | tags: ["abc"]
+  Γ£à dev | 918408907516 | tags: ["abc"]
+
+--- [5] Sample tags from first 20 contacts (format check) ---
+  koshik Marketing | tags: ["abc"] | types: string
+  koshik Marketing | tags: ["abc"] | types: string
+  kk-1 | tags: ["in"] | types: string
+
+--- [6] Existing enrollments for campaign ---
+Total enrollments: 1
+  - Mr Singh (919780917613) | status: COMPLETED | step: null (completed) | enrollment_id: 3b330ded-c628-450e-b8de-028b462748c2
+
+--- [7] Who is NOT yet enrolled (should be synced) ---
+Contacts with tag but NOT enrolled: 4
+  ΓÜá∩╕Å  koshik Marketing | 917857836481 | id: fe9c4acd-5b42-4fd9-b309-9857a8630fe4
+  ΓÜá∩╕Å  koshik Marketing | 917857836481 | id: 65794b5a-9ff6-4a64-a3a5-8ea067030117
+  ΓÜá∩╕Å  dev | 918408907516 | id: 7d6551ba-bda3-4e93-bb8d-563a90f62263
+  ΓÜá∩╕Å  dev | 918408907516 | id: 1553877b-639d-4115-8c39-13c611cefd69
+
+--- [8] CONCLUSION ---
+Γ£à Found 4 contacts to enroll. Sync logic should pick these up.
+   ΓåÆ Possible bug: sync endpoint not being hit, or error thrown silently.
+
+Γ£à Diagnostic complete.
+

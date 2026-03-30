@@ -13,6 +13,15 @@ import {
     PauseIcon
 } from '../icons';
 import Modal from '../Modal';
+import { 
+    UsersIcon, 
+    CalendarIcon, 
+    ClockIcon, 
+    BadgeIcon, 
+    CloseIcon, 
+    InfoIcon,
+    ChevronRightIcon
+} from '../icons';
 
 // --- In-Memory Cache (survives re-mounts, invalidated after 30s) ---
 const CACHE_TTL_MS = 30_000;
@@ -85,6 +94,12 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
 
+    // Enrollment Modal State
+    const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
+    const [selectedCampaign, setSelectedCampaign] = useState<DripCampaign | null>(null);
+    const [enrollments, setEnrollments] = useState<any[]>([]);
+    const [loadingEnrollments, setLoadingEnrollments] = useState(false);
+
     useEffect(() => {
         const now = Date.now();
         // If cache is fresh (<30s), use it directly — instant, no flash
@@ -135,6 +150,52 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
             setCampaignToDelete(null);
         }
     }, [campaignToDelete]);
+
+    const handleViewEnrollments = useCallback(async (e: React.MouseEvent, campaign: DripCampaign) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedCampaign(campaign);
+        setIsEnrollmentModalOpen(true);
+        setLoadingEnrollments(true);
+        try {
+            const data = await dripCampaignService.getEnrollments(campaign.id);
+            setEnrollments(data);
+        } catch (error) {
+            console.error('Failed to load enrollments', error);
+        } finally {
+            setLoadingEnrollments(false);
+        }
+    }, []);
+
+    const handleStopEnrollment = useCallback(async (e: React.MouseEvent, enrollmentId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to STOP this campaign for this contact? They will not receive any more messages.")) return;
+        
+        try {
+            await dripCampaignService.stopEnrollment(enrollmentId);
+            // Refresh list
+            setEnrollments(prev => prev.map(enr => enr.id === enrollmentId ? { ...enr, status: 'CANCELLED' } : enr));
+        } catch (error) {
+            console.error('Failed to stop enrollment', error);
+            alert("Failed to stop enrollment");
+        }
+    }, []);
+
+    const handleDeleteEnrollment = useCallback(async (e: React.MouseEvent, enrollmentId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to DELETE this enrollment record? This cannot be undone.")) return;
+
+        try {
+            await dripCampaignService.deleteEnrollment(enrollmentId);
+            // Refresh list
+            setEnrollments(prev => prev.filter(enr => enr.id !== enrollmentId));
+        } catch (error) {
+            console.error('Failed to delete enrollment', error);
+            alert("Failed to delete enrollment");
+        }
+    }, []);
 
     const handleToggleStatus = useCallback(async (e: React.MouseEvent, campaign: DripCampaign) => {
         e.preventDefault();
@@ -358,9 +419,23 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 font-mono">
-                                                                {campaign.trigger_type}
-                                                            </span>
+                                                            <div 
+                                                                className="inline-flex flex-col cursor-pointer group/trigger"
+                                                                onClick={(e) => handleViewEnrollments(e, campaign)}
+                                                            >
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 group-hover/trigger:text-brand-500 transition-colors">
+                                                                    {campaign.trigger_type.replace(/_/g, ' ')}
+                                                                </span>
+                                                                <div className="flex items-center gap-1.5 bg-slate-100 group-hover/trigger:bg-brand-50 border border-slate-200 group-hover/trigger:border-brand-200 px-2.5 py-1 rounded-lg transition-all">
+                                                                    <span className="text-xs font-bold text-slate-700 group-hover/trigger:text-brand-700 font-mono">
+                                                                        {campaign.trigger_value || 'Manual'}
+                                                                    </span>
+                                                                    <UsersIcon className="w-3 h-3 text-slate-400 group-hover/trigger:text-brand-400" />
+                                                                </div>
+                                                                <span className="text-[9px] font-bold text-brand-600 mt-1 opacity-0 group-hover/trigger:opacity-100 transition-opacity flex items-center gap-0.5">
+                                                                    See Details <ChevronRightIcon className="w-2.5 h-2.5" />
+                                                                </span>
+                                                            </div>
                                                         </td>
 
                                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -538,6 +613,191 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                     <p className="text-slate-600 font-medium text-sm">
                         Are you sure you want to delete this campaign?
                     </p>
+                </div>
+            </Modal>
+
+            {/* Enrollment Details Modal */}
+            <Modal
+                isOpen={isEnrollmentModalOpen}
+                onClose={() => setIsEnrollmentModalOpen(false)}
+                title={selectedCampaign ? `Enrollments: ${selectedCampaign.name}` : 'Campaign Enrollments'}
+                size="4xl"
+            >
+                <div className="flex flex-col h-[60vh]">
+                    {loadingEnrollments ? (
+                        <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+                            <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                            <p className="text-slate-500 font-bold animate-pulse">Fetching enrollment data...</p>
+                        </div>
+                    ) : enrollments.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <UsersIcon className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800">No enrollments yet</h3>
+                            <p className="text-slate-500 text-sm max-w-xs mx-auto mt-2 font-medium leading-relaxed">
+                                Once contacts are added via the <span className="font-bold text-brand-600">'{selectedCampaign?.trigger_value}'</span> trigger, they will appear here.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-hidden flex flex-col">
+                            {/* Stats Summary inside Modal */}
+                            <div className="flex justify-between items-end mb-4 px-1">
+                                <div className="grid grid-cols-3 gap-3 grow mr-4">
+                                    <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                                        <div className="text-[10px] font-black text-emerald-600 uppercase tracking-wider mb-1">Active</div>
+                                        <div className="text-xl font-black text-emerald-900">{enrollments.filter(e => e.status === 'ACTIVE').length}</div>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-100 p-3 rounded-xl">
+                                        <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider mb-1">Completed</div>
+                                        <div className="text-xl font-black text-blue-900">{enrollments.filter(e => e.status === 'COMPLETED').length}</div>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl">
+                                        <div className="text-[10px] font-black text-slate-600 uppercase tracking-wider mb-1">Stopped</div>
+                                        <div className="text-xl font-black text-slate-900">{enrollments.filter(e => ['CANCELLED', 'STOPPED_BY_REPLY', 'EXPIRED'].includes(e.status)).length}</div>
+                                    </div>
+                                </div>
+
+                                {selectedCampaign?.trigger_type === 'TAG_ADDED' && (
+                                    <button
+                                        onClick={async () => {
+                                            if (!selectedCampaign) return;
+                                            try {
+                                                const res = await dripCampaignService.syncCampaign(selectedCampaign.id);
+                                                alert(`Successfully enrolled ${res.count} existing contacts with tag '${selectedCampaign.trigger_value}'.`);
+                                                // Refresh
+                                                const data = await dripCampaignService.getEnrollments(selectedCampaign.id);
+                                                setEnrollments(data);
+                                            } catch (err) {
+                                                alert("Failed to sync contacts");
+                                            }
+                                        }}
+                                        className="h-fit bg-brand-50 text-brand-700 border border-brand-200 px-4 py-2.5 rounded-xl text-xs font-black hover:bg-brand-100 transition-all flex items-center gap-2 mb-0.5"
+                                        title="Click to enroll contacts who already have this tag"
+                                    >
+                                        <TriggerIcon className="w-4 h-4" />
+                                        Sync Existing Contacts
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Table */}
+                            <div className="flex-1 overflow-y-auto border border-slate-100 rounded-xl bg-white shadow-inner custom-scrollbar">
+                                <table className="min-w-full divide-y divide-slate-100">
+                                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Progress</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Next Run</th>
+                                            <th className="px-4 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Options</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {enrollments.map((enr) => {
+                                            const status = (enr.status || '').toUpperCase();
+                                            const isActive = status === 'ACTIVE';
+                                            let statusColor = 'bg-slate-100 text-slate-600 border-slate-200';
+                                            let statusIcon = <ClockIcon className="w-3 h-3" />;
+                                            
+                                            if (status === 'ACTIVE') {
+                                                statusColor = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                                                statusIcon = <PlayIcon className="w-3 h-3" />;
+                                            } else if (status === 'COMPLETED') {
+                                                statusColor = 'bg-blue-100 text-blue-700 border-blue-200';
+                                                statusIcon = <BadgeIcon className="w-3 h-3" />;
+                                            } else if (['CANCELLED', 'STOPPED_BY_REPLY', 'EXPIRED'].includes(status)) {
+                                                statusColor = 'bg-red-50 text-red-600 border-red-100';
+                                                statusIcon = <CloseIcon className="w-3 h-3" />;
+                                            }
+
+                                            return (
+                                                <tr key={enr.id} className="hover:bg-slate-50/80 transition-colors">
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-bold text-slate-800">{enr.contact?.name || 'Unknown'}</span>
+                                                            <span className="text-[10px] font-medium text-slate-400">{enr.contact?.phone || 'N/A'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${
+                                                                status === 'COMPLETED' 
+                                                                    ? 'bg-blue-600 border-blue-600 text-white' 
+                                                                    : 'bg-brand-50 border-brand-100 text-brand-600'
+                                                            }`}>
+                                                                <span className="text-xs font-black">
+                                                                    {status === 'COMPLETED' ? '✓' : (
+                                                                        Array.isArray(enr.current_step) ? enr.current_step[0]?.step_order : enr.current_step?.step_order || '1'
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className={`text-[11px] font-bold ${status === 'COMPLETED' ? 'text-blue-600' : 'text-slate-700'}`}>
+                                                                    {status === 'COMPLETED' ? 'Finished' : `At Step ${Array.isArray(enr.current_step) ? enr.current_step[0]?.step_order : enr.current_step?.step_order || 1}`}
+                                                                </span>
+                                                                <span className="text-[9px] font-medium text-slate-400">
+                                                                    Started {format(new Date(enr.started_at), 'MMM d')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${statusColor}`}>
+                                                            {statusIcon}
+                                                            {status.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 whitespace-nowrap">
+                                                        {isActive && enr.next_run_at ? (
+                                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                                                <CalendarIcon className="w-3.5 h-3.5 text-brand-400" />
+                                                                <span className="text-xs font-bold">
+                                                                    {format(new Date(enr.next_run_at), 'MMM d, h:mm a')}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-slate-300 font-medium italic">-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right">
+                                                        <div className="flex items-center justify-end space-x-2">
+                                                            {isActive && (
+                                                                <button
+                                                                    onClick={(e) => handleStopEnrollment(e, enr.id)}
+                                                                    className="px-2 py-1 text-[9px] font-black text-amber-600 hover:bg-amber-50 rounded border border-amber-200 transition-all uppercase"
+                                                                >
+                                                                    Stop
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={(e) => handleDeleteEnrollment(e, enr.id)}
+                                                                className="px-2 py-1 text-[9px] font-black text-red-500 hover:bg-red-50 rounded border border-transparent hover:border-red-100 transition-all uppercase"
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center shrink-0">
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                            Real-time tracking enabled
+                        </p>
+                        <button
+                            onClick={() => setIsEnrollmentModalOpen(false)}
+                            className="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg shadow-slate-200 active:scale-95 transition-all"
+                        >
+                            Close Details
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </div>

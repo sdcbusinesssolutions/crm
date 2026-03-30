@@ -26,7 +26,31 @@ const DripTriggerService = {
 
             if (error) throw error;
 
-            if (!campaigns || campaigns.length === 0) return;
+            if (!campaigns || campaigns.length === 0) {
+                // FALLBACK: If exact match fails, try case-insensitive check 
+                // Postgres .in() is case sensitive. We fetch all active TAG_ADDED campaigns for user 
+                // and filter in memory for maximum reliability.
+                const { data: allActive, error: fetchErr } = await supabaseAdmin
+                    .from('drip_campaigns')
+                    .select('id, name, allow_reentry, trigger_value')
+                    .eq('user_id', userId)
+                    .eq('status', 'ACTIVE')
+                    .eq('trigger_type', 'TAG_ADDED');
+                
+                if (fetchErr) throw fetchErr;
+
+                const lowerAddedTags = addedTags.map(t => t.toLowerCase().trim());
+                const matchingCampaigns = (allActive || []).filter(camp => {
+                    if (!camp.trigger_value) return false;
+                    return lowerAddedTags.includes(camp.trigger_value.toLowerCase().trim());
+                });
+
+                if (matchingCampaigns.length === 0) {
+                    // console.log('[DripTrigger] No matching campaigns after lower-case check.');
+                    return;
+                }
+                campaigns = matchingCampaigns;
+            }
 
             console.log(`[DripTrigger] Found ${campaigns.length} matching campaigns.`);
 
@@ -37,6 +61,56 @@ const DripTriggerService = {
 
         } catch (err) {
             console.error('[DripTrigger] Error handling tag trigger:', err);
+        }
+    },
+
+    /**
+     * Handle 'TAG_REMOVED' trigger - STOP campaigns if tag is removed
+     * @param {string} userId - The owner's ID
+     * @param {object} contact - The contact object
+     * @param {string[]} removedTags - Array of tags that were removed
+     */
+    async handleTagRemoved(userId, contact, removedTags) {
+        if (!removedTags || removedTags.length === 0) return;
+
+        console.log(`[DripTrigger] Checking TAG_REMOVED for ${contact.id}. Tags: ${removedTags.join(', ')}`);
+
+        try {
+            // Find all ACTIVE enrollments for this contact + user
+            // Where the campaign trigger_type is 'TAG_ADDED' 
+            // AND the trigger_value is one of the removed tags
+            const { data: enrollments, error } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select(`
+                    id,
+                    drip_campaigns!inner(id, name, trigger_type, trigger_value)
+                `)
+                .eq('contact_id', contact.id)
+                .eq('status', 'ACTIVE')
+                .eq('drip_campaigns.user_id', userId)
+                .eq('drip_campaigns.trigger_type', 'TAG_ADDED')
+                .in('drip_campaigns.trigger_value', removedTags);
+
+            if (error) throw error;
+            if (!enrollments || enrollments.length === 0) return;
+
+            const idsToCancel = enrollments.map(e => e.id);
+            const { error: cancelError } = await supabaseAdmin
+                .from('drip_enrollments')
+                .update({ 
+                    status: 'CANCELLED', 
+                    completed_at: new Date() 
+                })
+                .in('id', idsToCancel);
+
+            if (cancelError) throw cancelError;
+
+            enrollments.forEach(e => {
+                console.log(`[DripTrigger] Cancelled campaign '${e.drip_campaigns.name}' for ${contact.id} (Tag Removed).`);
+            });
+
+        } catch (err) {
+            console.error('[DripTrigger] Error handling tag removal:', err);
         }
     },
 
@@ -158,22 +232,35 @@ const DripTriggerService = {
             const nextRun = DripTriggerService.calculateDelay(now, delayValue, delayUnit);
 
             // Create Enrollment
+            const enrollmentPayload = {
+                drip_campaign_id: campaign.id,
+                contact_id: contactId,
+                current_step_id: firstStep.id,
+                status: 'ACTIVE',
+                started_at: now,
+                next_run_at: nextRun,
+                is_looping: false
+            };
+
             const { error: insertError } = await supabaseAdmin
                 .from('drip_enrollments')
-                .insert({
-                    drip_campaign_id: campaign.id,
-                    contact_id: contactId,
-                    current_step_id: firstStep.id,
-                    status: 'ACTIVE',
-                    started_at: now,
-                    next_run_at: nextRun,
-                    is_looping: false // Triggers typically don't force looping? Or should we read from campaign?
-                    // Campaign table doesn't seem to have is_looping column based on context, 
-                    // usually it's per enrollment or if campaign metadata has it. 
-                    // Let's assume false for auto-triggers for now.
-                });
+                .insert(enrollmentPayload);
 
-            if (insertError) throw insertError;
+            if (insertError) {
+                // If it fails because of missing columns unexpectedly, we log it
+                console.error('[DripTrigger] Insert failed. Error:', insertError.message);
+                throw insertError;
+            }
+
+            // --- INCREMENT ENROLLMENT COUNT ---
+            try {
+            const { data, error } = await supabaseAdmin.rpc('increment_campaign_enrollment', { camp_id: campaign.id });
+            if (error) {
+                // Fallback to direct update if RPC fails
+                const { data: campaignData } = await supabaseAdmin.from('drip_campaigns').select('enrollment_count').eq('id', campaign.id).single();
+                await supabaseAdmin.from('drip_campaigns').update({ enrollment_count: (campaignData?.enrollment_count || 0) + 1 }).eq('id', campaign.id);
+            }
+        } catch (e) { console.error('Enrollment count update failed:', e); }
 
             console.log(`[DripTrigger] Enrolled Contact ${contactId} in Campaign ${campaign.name} (Triggered).`);
 
@@ -241,6 +328,129 @@ const DripTriggerService = {
 
         } catch (e) {
             console.error('[DripTrigger] Error in handleReply:', e.message);
+        }
+    },
+
+    /**
+     * Finds contacts who have the tag but aren't enrolled and enrolls them.
+     */
+    async syncCampaignEnrollments(userId, campaignId) {
+        console.log(`[DripTrigger] Starting ROBUST SYNC for Campaign ${campaignId} (User: ${userId})...`);
+        try {
+            // 1. Get Campaign Details
+            const { data: campaign, error: campError } = await supabaseAdmin
+                .from('drip_campaigns')
+                .select('*')
+                .eq('id', campaignId)
+                .eq('user_id', userId)
+                .single();
+
+            if (campError || !campaign || campaign.trigger_type !== 'TAG_ADDED') {
+                throw new Error('Sync only available for Tag-based campaigns');
+            }
+
+            const triggerValue = (campaign.trigger_value || '').trim().toLowerCase();
+            if (!triggerValue) throw new Error('Campaign has no trigger tag defined.');
+
+            // 2. Fetch ALL contacts for this user (Robust Chunk-based Fetching)
+            let allContacts = [];
+            let page = 0;
+            const size = 1000;
+            let hasMore = true;
+
+            while (hasMore) {
+                const from = page * size;
+                const to = from + size - 1;
+                const { data: chunk, error: chunkErr } = await supabaseAdmin
+                    .from('contacts')
+                    .select('id, tags, name, phone')
+                    .eq('user_id', userId)
+                    .range(from, to);
+                
+                if (chunkErr) throw chunkErr;
+                if (!chunk || chunk.length === 0) {
+                    hasMore = false;
+                } else {
+                    allContacts = allContacts.concat(chunk);
+                    if (chunk.length < size) hasMore = false;
+                    else page++;
+                }
+                // Safety break for extreme data sizes
+                if (allContacts.length > 100000) break;
+            }
+
+            console.log(`[DripTrigger] Scanned ${allContacts.length} contacts for matching tags.`);
+
+            // 3. Find contacts with matching tag (case-insensitive + trim)
+            const matchingContactsRaw = allContacts.filter(c => {
+                const contactTags = Array.isArray(c.tags) ? c.tags : [];
+                return contactTags.some(t => {
+                    if (typeof t !== 'string') return false;
+                    return t.trim().toLowerCase() === triggerValue;
+                });
+            });
+
+            // 4. DEDUPLICATE BY PHONE (Unique Number requirement)
+            const uniqueMatchingContacts = [];
+            const seenPhones = new Set();
+            for (const c of matchingContactsRaw) {
+                const phone = (c.phone || '').trim();
+                if (phone) {
+                    if (!seenPhones.has(phone)) {
+                        seenPhones.add(phone);
+                        uniqueMatchingContacts.push(c);
+                    }
+                } else {
+                    // If no phone, treat ID as unique
+                    uniqueMatchingContacts.push(c);
+                }
+            }
+
+            console.log(`[DripTrigger] Found ${uniqueMatchingContacts.length} total contacts with tag '${triggerValue}'.`);
+            if (uniqueMatchingContacts.length === 0) return { count: 0 };
+
+            // 5. Get items ALREADY enrolled (Join with contacts to check phones)
+            const { data: existing, error: enrError } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select(`
+                    contact_id, 
+                    contacts:contact_id(phone)
+                `)
+                .eq('drip_campaign_id', campaignId);
+
+            if (enrError) throw enrError;
+
+            const enrolledIds = new Set();
+            const enrolledPhones = new Set();
+            (existing || []).forEach(e => {
+                enrolledIds.add(e.contact_id);
+                if (e.contacts?.phone) enrolledPhones.add(e.contacts.phone.trim());
+            });
+
+            const newContactsToEnroll = uniqueMatchingContacts.filter(c => {
+                const isIdIn = enrolledIds.has(c.id);
+                const isPhoneIn = c.phone && enrolledPhones.has(c.phone.trim());
+                return !isIdIn && !isPhoneIn;
+            });
+
+            console.log(`[DripTrigger] ${newContactsToEnroll.length} are new. Starting enrollment...`);
+            if (newContactsToEnroll.length === 0) return { count: 0 };
+
+            // 6. Enroll them
+            let count = 0;
+            for (const contact of newContactsToEnroll) {
+                try {
+                    await this.enrollContact(userId, contact.id, campaign);
+                    count++;
+                } catch (e) { 
+                    console.error(`[DripTrigger] Sync failed for contact ${contact.id}:`, e.message); 
+                }
+            }
+
+            return { count };
+        } catch (err) {
+            console.error('[DripTrigger] Robust sync failed:', err);
+            throw err;
         }
     }
 };

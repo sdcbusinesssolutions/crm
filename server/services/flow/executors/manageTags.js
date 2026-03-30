@@ -104,17 +104,15 @@ module.exports = {
                 }
             }
 
-            // 4. Also update conversation if it exists (for immediate UI sync if active)
-            // Only update if we actually touched something, or if we want to ensure consistency.
-            // Better to sync state if we have a valid finalTags list.
-            if (contacts.length > 0) {
-                await rpcClient
-                    .from('conversations')
-                    .update({ tags: finalTags }) // finalTags is an array (possibly empty), which allows clearing tags
-                    .eq('user_id', userId)
-                    .eq('contact_phone', phone);
-            }
+            // 5. Trigger Drip Campaigns (TAG_ADDED / TAG_REMOVED)
+            const DripTriggerService = require('../../DripTriggerService');
+            const triggerContact = contacts[0] || (contacts.length === 0 ? { id: phone, phone: phone } : contacts[0]); 
 
+            if (action === 'add' && tags.length > 0) {
+                DripTriggerService.handleTagAdded(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Trigger Error:', e));
+            } else if (action === 'remove' && tags.length > 0) {
+                DripTriggerService.handleTagRemoved(userId, triggerContact, tags).catch(e => console.error('[ManageTags] Drip Removal Error:', e));
+            }
 
             return { success: true, tags: finalTags };
 

@@ -409,6 +409,18 @@ router.delete('/enrollments/:enrollmentId', async (req, res) => {
     }
 });
 
+// SYNC: Retroactively enroll contacts with the matching tag
+router.post('/:id/sync', async (req, res) => {
+    try {
+        const DripTriggerService = require('../services/DripTriggerService');
+        const result = await DripTriggerService.syncCampaignEnrollments(req.user.id, req.params.id);
+        res.json({ success: true, count: result.count });
+    } catch (error) {
+        console.error('Error syncing campaign:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 function calculateDelay(startDate, value, unit) {
     const date = new Date(startDate);
     if (!value) return date; // Immediate

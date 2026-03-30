@@ -178,5 +178,15 @@ export const dripCampaignService = {
         });
         if (!res.ok) throw new Error('Failed to delete enrollment');
         return true;
+    },
+
+    async syncCampaign(id: string) {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/drip-campaigns/${id}/sync`, {
+            method: 'POST',
+            headers
+        });
+        if (!res.ok) throw new Error('Failed to sync campaign');
+        return await res.json();
     }
 };

@@ -354,9 +354,13 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const loadEnrollments = async () => {
         if (!campaignId) return;
         try {
+            if (campaign.trigger_type === 'TAG_ADDED') {
+                // AUTO-SYNC: Catch up any missing contacts whenever the tab is opened
+                await dripCampaignService.syncCampaign(campaignId).catch(e => console.warn('Sync failed:', e));
+            }
             const data = await dripCampaignService.getEnrollments(campaignId);
             setEnrollments(data || []);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error('Failed to load enrollments:', e); }
     };
 
     const loadTemplates = async () => {
@@ -732,35 +736,143 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     </div>
                 )}
                 {activeTab === 'ENROLLMENTS' ? (
-                    <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
-                        <div className="max-w-5xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                                <h3 className="font-bold text-slate-800">Active Enrollments ({enrollments.length})</h3>
-                                <button onClick={loadEnrollments} className="text-xs font-bold text-brand-600 hover:text-brand-700">Refresh</button>
+                    <div className="flex-1 overflow-y-auto bg-slate-50 p-0 m-0 w-full min-w-full">
+                        <div className="w-full min-w-full bg-white shadow-sm overflow-hidden border-b border-slate-200">
+                            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white px-6">
+                                <div className="flex items-center gap-4">
+                                    <h3 className="font-bold text-slate-800 text-base">Active Enrollments ({enrollments.length})</h3>
+                                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">UI VERSION 2.1</span>
+                                    {campaign.trigger_type === 'TAG_ADDED' && (
+                                        <button 
+                                            onClick={async () => {
+                                                if (!campaignId) return;
+                                                try {
+                                                    const res = await dripCampaignService.syncCampaign(campaignId);
+                                                    alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
+                                                    loadEnrollments();
+                                                } catch (e) { alert("Sync failed."); }
+                                            }}
+                                            className="px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-xs font-bold hover:bg-brand-100 transition-all flex items-center gap-2"
+                                        >
+                                            <TriggerIcon className="w-3.5 h-3.5" />
+                                            Sync Now
+                                        </button>
+                                    )}
+                                </div>
+                                <button onClick={loadEnrollments} className="text-xs font-bold text-slate-400 hover:text-brand-600 flex items-center gap-1.5 transition-colors">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                    Refresh
+                                </button>
                             </div>
-                            <table className="w-full text-left text-sm text-slate-600">
-                                <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-200">
-                                    <tr>
-                                        <th className="px-6 py-4">Contact</th>
-                                        <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4">Step</th>
-                                        <th className="px-6 py-4">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-200">
-                                    {enrollments.map(en => (
-                                        <tr key={en.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-slate-900">{en.contact?.name}<div className="text-xs text-slate-500">{en.contact?.phone}</div></td>
-                                            <td className="px-6 py-4"><span className={`px-2 py-0.5 rounded text-xs font-bold border ${en.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{en.status}</span></td>
-                                            <td className="px-6 py-4">{en.current_step?.step_order || '-'}</td>
-                                            <td className="px-6 py-4 flex gap-3">
-                                                <button onClick={() => handleStopEnrollment(en.id)} className="text-amber-600 hover:text-amber-700 text-xs font-bold">Stop</button>
-                                                <button onClick={() => handleDeleteEnrollment(en.id)} className="text-red-600 hover:text-red-700 text-xs font-bold">Delete</button>
-                                            </td>
+                            <div className="w-full min-w-full overflow-x-auto">
+                                <table className="w-full min-w-full text-left text-sm border-collapse">
+                                    <thead className="bg-[#10a37f] text-white">
+                                        <tr>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Name</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Status</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Sync Status</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600 text-right">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                        {enrollments.map(en => {
+                                            const contactName = en.contact?.name || 'Unknown';
+                                            const initial = contactName.charAt(0).toUpperCase();
+                                            const totalSteps = campaign.steps?.length || 1;
+                                            const currentOrder = Array.isArray(en.current_step) ? en.current_step[0]?.step_order : en.current_step?.step_order || 1;
+                                            
+                                            // Status and Color Logic
+                                            let badgeClass = 'bg-slate-50 text-slate-500 border-slate-100';
+                                            let dotClass = 'bg-slate-400';
+                                            const status = (en.status || '').toUpperCase();
+
+                                            if (status === 'COMPLETED') {
+                                                badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                                                dotClass = 'bg-emerald-500';
+                                            } else if (status === 'ACTIVE' || status === 'PROCESSING') {
+                                                badgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                                                dotClass = 'bg-blue-500';
+                                            } else if (status === 'PAUSED' || status === 'WAITING') {
+                                                badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                                                dotClass = 'bg-amber-500';
+                                            } else if (status === 'FAILED' || status === 'ERROR') {
+                                                badgeClass = 'bg-red-50 text-red-700 border-red-200';
+                                                dotClass = 'bg-red-500';
+                                            }
+
+                                            return (
+                                                <tr key={en.id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                                                                {initial}
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-slate-900">{contactName}</span>
+                                                                <div className="flex items-center gap-3 mt-0.5">
+                                                                    <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
+                                                                        <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 7.5V5z" /></svg>
+                                                                        {en.contact?.phone}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${badgeClass}`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
+                                                            {status.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all ${
+                                                                status === 'COMPLETED' 
+                                                                    ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm' 
+                                                                    : (status === 'FAILED' || status === 'ERROR')
+                                                                        ? 'bg-red-600 border-red-600 text-white shadow-sm'
+                                                                        : 'bg-emerald-50 border-emerald-100 text-emerald-600 shadow-sm'
+                                                            }`}>
+                                                                <span className="text-xs font-bold">
+                                                                    {status === 'COMPLETED' ? '✓' : currentOrder}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className={`text-xs font-bold leading-none ${status === 'COMPLETED' ? 'text-emerald-700' : 'text-slate-700'}`}>
+                                                                    {status === 'COMPLETED' ? 'Campaign Finished' : `Progress: Step ${currentOrder} of ${totalSteps}`}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 mt-1 font-medium italic">
+                                                                    Last change: {format(new Date(en.updated_at || en.started_at), 'MMM d, h:mm a')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {(status === 'ACTIVE' || status === 'WAITING') && (
+                                                                <button
+                                                                    onClick={() => handleStopEnrollment(en.id)}
+                                                                    className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg border border-transparent hover:border-amber-100 transition-all"
+                                                                    title="Cancel Campaign"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleDeleteEnrollment(en.id)}
+                                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all font-bold"
+                                                                title="Delete Permanently"
+                                                            >
+                                                                <TrashIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 ) : (
