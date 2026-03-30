@@ -1137,25 +1137,42 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
                                                         const header = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
                                                         const body = components.find((c: any) => c.type === 'BODY' || c.type === 'body');
-                                                        const carousel = components.find((c: any) => c.type === 'CAROUSEL' || c.type === 'carousel');
+                                                         const carousel = components.find((c: any) => c.type === 'CAROUSEL' || c.type === 'carousel');
 
-                                                        // Parse Body Params ({{1}}, {{2}}) OR Carousel params
-                                                        let bodyParamCount = 0;
+                                                         // --- ROBUST CARD PARSING ---
+                                                         // Normalized heterogeneous card structures for consistent UI rendering
+                                                         if (carousel && carousel.cards) {
+                                                             carousel.cards = carousel.cards.map((card: any) => {
+                                                                 if (!card.components && (card.header || card.body)) {
+                                                                     return {
+                                                                         ...card,
+                                                                         components: [
+                                                                             ...(card.header ? [{ type: 'HEADER', ...card.header }] : []),
+                                                                             ...(card.body ? [{ type: 'BODY', text: card.body }] : [])
+                                                                         ]
+                                                                     };
+                                                                 }
+                                                                 return card;
+                                                             });
+                                                         }
 
-                                                        if (body) {
-                                                            const bodyText = body.text || '';
-                                                            const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
-                                                            bodyParamCount = bodyMatch.length;
-                                                        } else if (carousel) {
-                                                            // If it's a carousel, check the first card's body for an idea of params per card
-                                                            const firstCard = carousel.cards?.[0] || carousel.cards?.[0];
-                                                            const cardBody = firstCard?.components?.find((c: any) => c.type === 'BODY' || c.type === 'body');
-                                                            if (cardBody) {
-                                                                const bodyText = cardBody.text || '';
-                                                                const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
-                                                                bodyParamCount = bodyMatch.length;
-                                                            }
-                                                        }
+                                                         // Parse Body Params ({{1}}, {{2}}) OR Carousel params
+                                                         let bodyParamCount = 0;
+
+                                                         if (body) {
+                                                             const bodyText = body.text || '';
+                                                             const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
+                                                             bodyParamCount = bodyMatch.length;
+                                                         } else if (carousel) {
+                                                             // If it's a carousel, check the first card's body for an idea of params per card
+                                                             const firstCard = carousel.cards?.[0];
+                                                             const cardBody = firstCard?.components?.find((c: any) => c.type === 'BODY' || c.type === 'body');
+                                                             if (cardBody) {
+                                                                 const bodyText = cardBody.text || '';
+                                                                 const bodyMatch = bodyText.match(/{{(\d+)}}/g) || [];
+                                                                 bodyParamCount = bodyMatch.length;
+                                                             }
+                                                         }
 
                                                         return (
                                                             <div className="space-y-4 animate-fade-in">

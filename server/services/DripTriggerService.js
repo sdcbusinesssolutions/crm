@@ -390,9 +390,21 @@ const DripTriggerService = {
                 });
             });
 
-            // 4. DEDUPLICATE BY PHONE (Unique Number requirement)
+            // 4. DEDUPLICATE BY PHONE (Global deduplication to prevent double spending/messaging)
             const uniqueMatchingContacts = [];
             const seenPhones = new Set();
+            
+            // First, prioritize contacts that are already enrolled to ensure we don't double-enroll them
+            const { data: alreadyEnrolled } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select('id, contact_id, contacts(phone)')
+                .eq('drip_campaign_id', campaignId);
+            
+            (alreadyEnrolled || []).forEach(e => {
+                const phone = e.contacts?.phone?.trim();
+                if (phone) seenPhones.add(phone);
+            });
+
             for (const c of matchingContactsRaw) {
                 const phone = (c.phone || '').trim();
                 if (phone) {
@@ -401,7 +413,7 @@ const DripTriggerService = {
                         uniqueMatchingContacts.push(c);
                     }
                 } else {
-                    // If no phone, treat ID as unique
+                    // Fallback to ID uniqueness if no phone exists
                     uniqueMatchingContacts.push(c);
                 }
             }

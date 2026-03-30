@@ -249,8 +249,22 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                             const carouselParams = params.carousel || {}; // { "0": "url", "1": "url" }
                             const bodyParams = params.body || []; // Usually templates have bodies for cards too
 
-                            // We need to build cards. Many templates have matching card counts.
-                            // If user provided carousel URLs, we build cards for them.
+                            // Check if there is a top-level body variable in the template (heuristic)
+                            // If we have a carousel but also a body param that doesn't seem to belong to a card index, 
+                            // or if templates like 'caro5' define a top-level body with variables.
+                            if (bodyParams.length > 0 && !params.carousel_body_mode) {
+                                // Add a top-level body component if we have body params but it's a carousel
+                                // This handles templates like 'caro5' and '27caro' which have a main body {{1}}
+                                components.push({
+                                    type: 'body',
+                                    parameters: [{
+                                        type: 'text',
+                                        text: replaceVariables(bodyParams[0], enrollment)
+                                    }]
+                                });
+                            }
+
+                            // Build cards
                             const cardIndices = Object.keys(carouselParams).sort((a, b) => parseInt(a) - parseInt(b));
                             const cards = cardIndices.map(idx => {
                                 const cardComponents = [];
@@ -259,25 +273,26 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                                 cardComponents.push({
                                     type: 'header',
                                     parameters: [{
-                                        type: 'image', // Most carousels use image, could be inferred/fixed if needed
+                                        type: 'image', // Most carousels use image
                                         image: { link: carouselParams[idx] }
                                     }]
                                 });
 
-                                // Card Body (If provided specifically for cards, or use global body)
-                                // Standard Drip Builder might just send one body for all cards or a list.
-                                // If body is a list and matches index, use it. Otherwise use first element.
-                                const cardBodyText = (Array.isArray(bodyParams) && bodyParams[idx]) 
-                                    ? bodyParams[idx] 
-                                    : (bodyParams[0] || 'Hello!');
-
-                                cardComponents.push({
-                                    type: 'body',
-                                    parameters: [{
-                                        type: 'text',
-                                        text: replaceVariables(cardBodyText, enrollment)
-                                    }]
-                                });
+                                // Card Body (ONLY if card index has a specific variable mapping, or if params match card count)
+                                // Standard Carousel Templates in this system often have STATIC card bodies.
+                                // If card i has a variable, we send it. Otherwise, we SHOULD NOT send parameters for that card.
+                                // We check if there's a card-specific param provided (usually at index [idx + offset] or if cardinality matches)
+                                // [BUG FIX] Most carousels 'caro5', '27caro' have STATIC card bodies. Sending params to them causes #132000.
+                                // We will ONLY send card body params if explicitly configured or if card bodies are dynamic.
+                                if (params.use_dynamic_cards && bodyParams[idx]) {
+                                    cardComponents.push({
+                                        type: 'body',
+                                        parameters: [{
+                                            type: 'text',
+                                            text: replaceVariables(bodyParams[idx], enrollment)
+                                        }]
+                                    });
+                                }
 
                                 return {
                                     card_index: parseInt(idx),
@@ -290,11 +305,6 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                                     type: 'carousel',
                                     cards: cards
                                 });
-                            } else {
-                                // Fallback if type was carousel but no cards defined
-                                if (params.body && Array.isArray(params.body)) {
-                                    components.push({ type: 'body', parameters: params.body.map(v => ({ type: 'text', text: replaceVariables(v, enrollment) })) });
-                                }
                             }
                         } else {
                             // 2. STANDARD TEMPLATE SUPPORT (Header + Body)
