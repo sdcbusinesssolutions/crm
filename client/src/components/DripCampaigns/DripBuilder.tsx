@@ -241,6 +241,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         };
     });
     const [enrollments, setEnrollments] = useState<any[]>([]);
+    const [isLoadingEnrollments, setIsLoadingEnrollments] = useState(false);
+    const [lastEnrollmentFetch, setLastEnrollmentFetch] = useState(0);
     const [templates, setTemplates] = useState<any[]>([]);
     const [gmailConnections, setGmailConnections] = useState<any[]>([]);
     const [smtpConnections, setSmtpConnections] = useState<any[]>([]);
@@ -352,16 +354,24 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         }
     };
 
-    const loadEnrollments = async () => {
+    const loadEnrollments = async (force = false) => {
         if (!campaignId) return;
+        if (!force && Date.now() - lastEnrollmentFetch < 60000 && enrollments.length > 0) return;
+
+        setIsLoadingEnrollments(true);
         try {
-            if (campaign.trigger_type === 'TAG_ADDED') {
-                // AUTO-SYNC: Catch up any missing contacts whenever the tab is opened
+            // Auto-Sync only if forced or initial load
+            if (force && campaign.trigger_type === 'TAG_ADDED') {
                 await dripCampaignService.syncCampaign(campaignId).catch(e => console.warn('Sync failed:', e));
             }
             const data = await dripCampaignService.getEnrollments(campaignId);
             setEnrollments(data || []);
-        } catch (e) { console.error('Failed to load enrollments:', e); }
+            setLastEnrollmentFetch(Date.now());
+        } catch (e) { 
+            console.error('Failed to load enrollments:', e); 
+        } finally {
+            setIsLoadingEnrollments(false);
+        }
     };
 
     const loadTemplates = async () => {
@@ -738,34 +748,75 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                 )}
                 {activeTab === 'ENROLLMENTS' ? (
                     <div className="flex-1 overflow-y-auto bg-slate-50 p-0 m-0 w-full min-w-full">
-                        <div className="w-full min-w-full bg-white shadow-sm overflow-hidden border-b border-slate-200">
-                            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white px-6">
-                                <div className="flex items-center gap-4">
-                                    <h3 className="font-bold text-slate-800 text-base">Active Enrollments ({enrollments.length})</h3>
-                                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">UI VERSION 2.1</span>
-                                    {campaign.trigger_type === 'TAG_ADDED' && (
-                                        <button 
-                                            onClick={async () => {
-                                                if (!campaignId) return;
-                                                try {
-                                                    const res = await dripCampaignService.syncCampaign(campaignId);
-                                                    alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
-                                                    loadEnrollments();
-                                                } catch (e) { alert("Sync failed."); }
-                                            }}
-                                            className="px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-xs font-bold hover:bg-brand-100 transition-all flex items-center gap-2"
-                                        >
-                                            <TriggerIcon className="w-3.5 h-3.5" />
-                                            Sync Now
-                                        </button>
-                                    )}
-                                </div>
-                                <button onClick={loadEnrollments} className="text-xs font-bold text-slate-400 hover:text-brand-600 flex items-center gap-1.5 transition-colors">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                                    Refresh
-                                </button>
+                    {/* ENROLLMENT STATISTICS HEADER */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 lg:p-6 bg-white border-b border-slate-200">
+                        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Total Enrolled</span>
+                            <span className="text-2xl font-black text-blue-900 mt-1">{enrollments.length}</span>
+                        </div>
+                        <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Completed</span>
+                            <span className="text-2xl font-black text-emerald-900 mt-1">
+                                {enrollments.filter(e => e.status === 'COMPLETED').length}
+                            </span>
+                        </div>
+                        <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-100 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider">In Progress</span>
+                            <span className="text-2xl font-black text-amber-900 mt-1">
+                                {enrollments.filter(e => e.status === 'ACTIVE' || e.status === 'PROCESSING' || e.status === 'WAITING').length}
+                            </span>
+                        </div>
+                        <div className="p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-indigo-600 tracking-wider">Stopped / Failed</span>
+                            <span className="text-2xl font-black text-indigo-900 mt-1">
+                                {enrollments.filter(e => e.status === 'FAILED' || e.status === 'STOPPED_BY_REPLY').length}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="w-full min-w-full bg-white shadow-sm overflow-hidden border-b border-slate-200">
+                        <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-white px-6">
+                            <div className="flex items-center gap-4">
+                                <h3 className="font-bold text-slate-800 text-base">Detailed Enrollment List</h3>
+                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">ENGINE v2.2 ACTIVE</span>
+                                {campaign.trigger_type === 'TAG_ADDED' && (
+                                    <button 
+                                        onClick={async () => {
+                                            if (!campaignId) return;
+                                            try {
+                                                const res = await dripCampaignService.syncCampaign(campaignId);
+                                                alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
+                                                loadEnrollments(true);
+                                            } catch (e) { alert("Sync failed."); }
+                                        }}
+                                        className="px-3 py-1.5 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-xs font-bold hover:bg-brand-100 transition-all flex items-center gap-2"
+                                    >
+                                        <TriggerIcon className="w-3.5 h-3.5" />
+                                        Sync Now
+                                    </button>
+                                )}
                             </div>
-                            <div className="w-full min-w-full overflow-x-auto">
+                            <button onClick={() => loadEnrollments(true)} className="text-xs font-bold text-slate-400 hover:text-brand-600 flex items-center gap-1.5 transition-colors group">
+                                <svg className={`w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500 ${isLoadingEnrollments ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                {isLoadingEnrollments ? 'Loading...' : 'Refresh'}
+                            </button>
+                        </div>
+                        <div className="w-full min-w-full overflow-x-auto min-h-[400px]">
+                            {isLoadingEnrollments ? (
+                                <div className="p-12 space-y-4">
+                                    {[1, 2, 3, 4].map(i => (
+                                        <div key={i} className="h-16 bg-slate-50 rounded-xl animate-pulse border border-slate-100"></div>
+                                    ))}
+                                </div>
+                            ) : enrollments.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-24 px-6 bg-slate-50/30">
+                                    <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-4 text-emerald-100 animate-pulse">
+                                        <TriggerIcon className="w-10 h-10" />
+                                    </div>
+                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-widest mb-1">No active enrollments</h4>
+                                    <p className="text-xs text-slate-400 max-w-xs mx-auto font-medium">Sync your tagged contacts or wait for new triggers to start the campaign automatically.</p>
+                                </div>
+                            ) : (
                                 <table className="w-full min-w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#10a37f] text-white">
                                         <tr>
@@ -878,6 +929,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         })}
                                     </tbody>
                                 </table>
+                                )} 
                             </div>
                         </div>
                     </div>
