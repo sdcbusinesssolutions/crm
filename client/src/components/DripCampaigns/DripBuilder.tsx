@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { format } from 'date-fns';
 import { dripCampaignService, DripCampaign, DripStep } from '../../services/dripCampaignService';
 import { integrationsService } from '../../services/integrationsService';
 import { tagService } from '../../services/tagService';
@@ -1115,7 +1116,25 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                         const tpl = templates.find(t => t.id === selectedStep.step_config?.template_id);
                                                         if (!tpl) return null;
 
-                                                        const components = tpl.components || [];
+                                                        // Robust Fallback: If components are missing (not synced in this session), rebuild them from text fields
+                                                        const components = tpl.components && tpl.components.length > 0 
+                                                            ? tpl.components 
+                                                            : [
+                                                                ...(tpl.body_text ? [{ type: 'BODY', text: tpl.body_text }] : []),
+                                                                ...(tpl.header_text || (tpl.template_type && tpl.template_type !== 'TEXT') 
+                                                                    ? [{ 
+                                                                        type: 'HEADER', 
+                                                                        format: tpl.template_type === 'TEXT' || !tpl.template_type ? 'TEXT' : tpl.template_type, 
+                                                                        text: tpl.header_text 
+                                                                    }] : []),
+                                                                ...(tpl.footer_text ? [{ type: 'FOOTER', text: tpl.footer_text }] : []),
+                                                                ...(tpl.buttons ? [
+                                                                    tpl.buttons.type === 'MEDIA_CARD_CAROUSEL' 
+                                                                        ? { type: 'CAROUSEL', cards: tpl.buttons.cards }
+                                                                        : { type: 'BUTTONS', buttons: tpl.buttons.buttons || [] }
+                                                                ] : [])
+                                                            ];
+
                                                         const header = components.find((c: any) => c.type === 'HEADER' || c.type === 'header');
                                                         const body = components.find((c: any) => c.type === 'BODY' || c.type === 'body');
                                                         const carousel = components.find((c: any) => c.type === 'CAROUSEL' || c.type === 'carousel');
