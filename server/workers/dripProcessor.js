@@ -320,13 +320,34 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                             }
                         }
 
-                        await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, enrollment.contact.phone, 'template', { name: templateName, language: { code: langCode }, components });
+                        // Clean components: remove null/empty string parameters to prevent #132000
+                        const cleanComponents = (comps) => {
+                            return comps.map(comp => {
+                                if (comp.parameters) {
+                                    comp.parameters = comp.parameters.filter(p => p.text !== null && p.text !== undefined && p.text !== '');
+                                }
+                                if (comp.cards) {
+                                    comp.cards.forEach(card => {
+                                        if (card.components) card.components = cleanComponents(card.components);
+                                    });
+                                }
+                                return comp;
+                            });
+                        };
+                        const finalComponents = cleanComponents(components);
+
+                        await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, enrollment.contact.phone, 'template', { name: templateName, language: { code: langCode }, components: finalComponents });
                         console.log(`[DripEngine] SENT WA to ${enrollment.contact.phone}`);
                         success = true;
                     } catch (e) {
                         console.error('[DripEngine] WA Failed:', e.message);
                         await logAction(enrollment, 'FAILED', { error: e.message });
-                        success = true;
+                        await supabase.from('drip_enrollments').update({ 
+                            status: 'FAILED', 
+                            completed_at: new Date(),
+                            last_error: e.message
+                        }).eq('id', enrollment.id);
+                        success = false;
                     }
                 }
             }
@@ -358,13 +379,16 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                     } catch (e) {
                         console.error('[DripEngine] Email Failed:', e.message);
                         await logAction(enrollment, 'FAILED', { error: e.message });
-                        success = true;
+                        await supabase.from('drip_enrollments').update({ 
+                            status: 'FAILED', 
+                            completed_at: new Date(),
+                            last_error: e.message
+                        }).eq('id', enrollment.id);
+                        success = false;
                     }
                 }
             }
         } else if (step.step_type === 'WAIT' || step.step_type === 'AI_INTENT') {
-            // WAIT is a pass-through. AI_INTENT logic would be complex, keeping it simplified for now or adding back if needed.
-            // But user wants to see it works. I'll add back basic AI_INTENT.
             if (step.step_type === 'AI_INTENT') {
                  try {
                     const { data: lastMsg } = await supabase.from('messages').select('content').eq('contact_id', enrollment.contact_id).eq('type', 'inbound').order('created_at', { ascending: false }).limit(1).maybeSingle();
