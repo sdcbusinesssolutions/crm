@@ -34,6 +34,52 @@ interface DripBuilderProps {
 
 // --- Sub-components for Performance (Isolated State) ---
 
+const StatusModal = React.memo(({ show, title, message, type, onClose }: any) => {
+    if (!show) return null;
+    return (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md transition-all duration-300">
+            <div 
+                className="bg-white rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] w-full max-w-[360px] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-5 duration-300 ease-out"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className={`p-8 text-center ${type === 'success' ? 'bg-gradient-to-b from-emerald-50/50 to-white' : 'bg-gradient-to-b from-red-50/50 to-white'}`}>
+                    <div className={`w-20 h-20 rounded-[2rem] mx-auto flex items-center justify-center mb-6 shadow-inner ${
+                        type === 'success' ? 'bg-emerald-100/50 text-emerald-600' : 'bg-red-100/50 text-red-600'
+                    }`}>
+                       {type === 'success' ? (
+                           <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                           </svg>
+                       ) : (
+                           <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                           </svg>
+                       )}
+                    </div>
+                    <h3 className={`text-2xl font-black tracking-tight ${type === 'success' ? 'text-emerald-900' : 'text-red-900'}`}>
+                        {title}
+                    </h3>
+                    <p className="mt-3 text-slate-500 text-[13px] font-bold leading-relaxed px-4">
+                        {message}
+                    </p>
+                </div>
+                <div className="p-6 pt-0 bg-white flex justify-center">
+                    <button 
+                        onClick={onClose}
+                        className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all duration-300 transform active:scale-95 ${
+                            type === 'success' 
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-[0_10px_20px_-5px_rgba(16,163,127,0.4)]' 
+                                : 'bg-red-600 text-white hover:bg-red-700 shadow-[0_10px_20px_-5px_rgba(220,38,38,0.4)]'
+                        }`}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
+
 const DripCanvas = React.memo(({
     campaign,
     selectedStep,
@@ -266,6 +312,9 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const [deletedStepIds, setDeletedStepIds] = useState<string[]>([]);
     const [templateDropdownOpen, setTemplateDropdownOpen] = useState(false);
     const templateDropdownRef = useRef<HTMLDivElement>(null);
+    const [statusModal, setStatusModal] = useState<{ show: boolean; title: string; message: string; type: 'success' | 'error' }>({ 
+        show: false, title: '', message: '', type: 'success' 
+    });
 
     // --- Effects ---
     // Effect 1: Campaign data (CRITICAL PATH - fires only when campaignId changes)
@@ -365,9 +414,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         }
         setIsLoadingEnrollments(true);
         try {
-            if (force && campaign.trigger_type === "TAG_ADDED") {
-                await dripCampaignService.syncCampaign(campaignId).catch(v => console.warn("Sync failed:", v));
-            }
+            // Removed redundant background sync to prevent duplicate processing
             const data = await dripCampaignService.getEnrollments(campaignId);
             _enrollmentCache.set(campaignId, { data: data || [], timestamp: Date.now() });
             setEnrollments(data || []);
@@ -471,7 +518,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
             if (exitAfterSave) onBack();
         } catch (e) {
             console.error('Failed to save drip campaign:', e);
-            alert('Failed to save. Please check your network and try again.');
+            setStatusModal({ show: true, title: 'Save Failed', message: 'Please check your network and try again.', type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -543,10 +590,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     }
                 }
             } else {
-                alert('Upload failed: ' + data.error);
+                setStatusModal({ show: true, title: 'Upload Failed', message: data.error || 'Unknown upload error', type: 'error' });
             }
         } catch (err: any) {
-            alert('Upload error: ' + err.message);
+            setStatusModal({ show: true, title: 'Upload Error', message: err.message, type: 'error' });
         } finally {
             setUploadingMedia(false);
         }
@@ -574,7 +621,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         try {
             await dripCampaignService.stopEnrollment(id);
             loadEnrollments();
-        } catch (e) { alert("Failed"); }
+        } catch (e) { setStatusModal({ show: true, title: 'Action Failed', message: 'Could not complete the request.', type: 'error' }); }
     };
 
     const handleDeleteEnrollment = async (id: string) => {
@@ -582,7 +629,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         try {
             await dripCampaignService.deleteEnrollment(id);
             loadEnrollments();
-        } catch (e) { alert("Failed"); }
+        } catch (e) { setStatusModal({ show: true, title: 'Action Failed', message: 'Could not complete the request.', type: 'error' }); }
     };
 
     const handleExportJSON = () => {
@@ -900,9 +947,21 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                 if (!campaignId) return;
                                                 try {
                                                     const res = await dripCampaignService.syncCampaign(campaignId);
-                                                    alert(`Sync Successful: ${res.count} unique contacts enrolled.`);
+                                                    setStatusModal({ 
+                                                        show: true, 
+                                                        title: 'Sync Complete', 
+                                                        message: `Sync Successful: ${res.count} unique contacts enrolled.`, 
+                                                        type: 'success' 
+                                                    });
                                                     loadEnrollments(true);
-                                                } catch (e) { alert("Sync failed."); }
+                                                } catch (e) { 
+                                                    setStatusModal({ 
+                                                        show: true, 
+                                                        title: 'Sync Failed', 
+                                                        message: 'Failed to sync contacts. Please try again.', 
+                                                        type: 'error' 
+                                                    }); 
+                                                }
                                             }}
                                             className="ml-2 px-2 py-1 bg-brand-50 text-brand-700 border border-brand-200 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-brand-100 transition-all flex items-center gap-1.5"
                                         >
@@ -1847,6 +1906,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     </>
                 )}
             </div>
+
+            <StatusModal 
+                {...statusModal} 
+                onClose={() => setStatusModal(prev => ({ ...prev, show: false }))} 
+            />
         </div >
     );
 };
