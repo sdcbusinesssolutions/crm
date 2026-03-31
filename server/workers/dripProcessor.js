@@ -324,7 +324,13 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                         const cleanComponents = (comps) => {
                             return comps.map(comp => {
                                 if (comp.parameters) {
-                                    comp.parameters = comp.parameters.filter(p => p.text !== null && p.text !== undefined && p.text !== '');
+                                    // ONLY filter text parameters. Keep media (image/video/doc) intact!
+                                    comp.parameters = comp.parameters.filter(p => {
+                                        if (p.type === 'text') {
+                                            return p.text !== null && p.text !== undefined && p.text !== '';
+                                        }
+                                        return true; // Keep media links
+                                    });
                                 }
                                 if (comp.cards) {
                                     comp.cards.forEach(card => {
