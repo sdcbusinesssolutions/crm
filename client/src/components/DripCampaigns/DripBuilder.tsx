@@ -1018,10 +1018,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                 <table className="w-full min-w-full text-left text-sm border-collapse">
                                     <thead className="bg-[#10a37f] text-white">
                                         <tr>
-                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Name</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Contact</th>
                                             <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Status</th>
-                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Sync Status</th>
-                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600 text-right">Actions</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Progress Timeline</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600">Execution Report</th>
+                                            <th className="px-6 py-4 font-black uppercase tracking-wider text-[11px] border-b border-emerald-600 text-right">Options</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -1051,70 +1052,73 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                             }
 
                                             return (
-                                                <tr key={en.id} className="hover:bg-slate-50/50 transition-colors">
-                                                    <td className="px-6 py-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                                                <tr key={en.id} className="hover:bg-slate-50/50 transition-all duration-300">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-black text-white shadow-lg transition-transform hover:rotate-6 ${
+                                                                status === 'COMPLETED' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-emerald-500/20' : 
+                                                                status === 'FAILED' ? 'bg-gradient-to-br from-red-400 to-red-600 shadow-red-500/20' : 
+                                                                'bg-gradient-to-br from-blue-400 to-blue-600 shadow-blue-500/20'
+                                                            }`}>
                                                                 {initial}
                                                             </div>
+                                                            <div>
+                                                                <div className="text-sm font-black text-slate-800 tracking-tight leading-none mb-1">{contactName}</div>
+                                                                <div className="text-[10px] text-slate-400 font-bold tabular-nums">{en.contact?.phone || 'No Phone'}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black tracking-widest uppercase shadow-sm border ${badgeClass}`}>
+                                                            <div className={`w-1.5 h-1.5 rounded-full mr-2 ${dotClass}`} />
+                                                            {status.replace(/_/g, ' ')}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 max-w-[240px]">
+                                                        <EnrollmentTimeline 
+                                                            steps={campaign.steps} 
+                                                            logs={en.logs} 
+                                                            status={status} 
+                                                            currentOrder={currentOrder} 
+                                                        />
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {status === 'ACTIVE' && en.next_run_at ? (
                                                             <div className="flex flex-col">
-                                                                <span className="font-bold text-slate-900">{contactName}</span>
-                                                                <div className="flex items-center gap-3 mt-0.5">
-                                                                    <div className="flex items-center gap-1 text-[11px] text-slate-500 font-medium">
-                                                                        <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 7.5V5z" /></svg>
-                                                                        {en.contact?.phone}
-                                                                    </div>
+                                                                <div className="flex items-center text-xs font-black text-slate-700">
+                                                                    <ClockIcon className="w-3 h-3 mr-1.5 text-blue-500" />
+                                                                    {new Date(en.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                </div>
+                                                                <div className="text-[9px] text-blue-400 font-black uppercase tracking-widest mt-0.5 ml-[18px]">
+                                                                    Waiting for Trigger
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-6 py-4">
-                                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${badgeClass}`}>
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`}></span>
-                                                            {status.replace(/_/g, ' ')}
-                                                        </span>
-                                                        {status === 'ACTIVE' && en.next_run_at && (
-                                                            <div className="flex items-center gap-1 text-[9px] text-amber-600 font-bold ml-1 uppercase">
-                                                                Next: {new Date(en.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        ) : status === 'COMPLETED' ? (
+                                                            <div className="flex items-center text-xs font-black text-emerald-600 uppercase tracking-tight">
+                                                                <CheckIcon className="w-3.5 h-3.5 mr-1 bg-emerald-50 rounded-full p-0.5" />
+                                                                All Delivered
                                                             </div>
+                                                        ) : (status === 'FAILED' || status === 'ERROR') ? (
+                                                            <div className="flex flex-col group relative">
+                                                                <div className="flex items-center text-xs font-black text-red-600 uppercase">
+                                                                    <div className="w-3.5 h-3.5 mr-1.5 flex items-center justify-center bg-red-600 text-white rounded-full text-[8px]">!</div>
+                                                                    Execution Blocked
+                                                                </div>
+                                                                <div className="absolute top-full left-0 mt-1 bg-slate-900/95 text-white text-[10px] font-bold p-3 rounded-xl shadow-2xl z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 max-w-[200px] whitespace-normal backdrop-blur-sm border border-white/10 translate-y-1 group-hover:translate-y-0">
+                                                                    <div className="text-[8px] text-white/50 uppercase mb-1">Error Message</div>
+                                                                    {en.last_error || 'Critical delivery failure. Reach out to the contact manually.'}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-300 font-bold">—</span>
                                                         )}
-                                                    </td>
-                                                    <td className="px-6 py-4 min-w-[200px]">
-                                                        <div className="flex flex-col gap-1.5">
-                                                            <div className="flex items-center justify-between gap-4">
-                                                                <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-none">
-                                                                    {status === 'COMPLETED' ? 'Campaign Finished' : (status === 'FAILED' || status === 'ERROR') ? 'Failure Report' : 'Active Progress'}
-                                                                </span>
-                                                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 tabular-nums">
-                                                                    {status === 'COMPLETED' ? totalSteps : currentOrder} OF {totalSteps}
-                                                                </span>
-                                                            </div>
-                                                            <EnrollmentTimeline 
-                                                                steps={campaign.steps} 
-                                                                logs={en.logs} 
-                                                                status={status} 
-                                                                currentOrder={currentOrder} 
-                                                            />
-                                                            <div className="flex items-center justify-between text-[9px] font-medium text-slate-400 capitalize tabular-nums">
-                                                                <span>Last change: {new Date(en.updated_at || en.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} {new Date(en.updated_at || en.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                            </div>
-                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            {(status === 'ACTIVE' || status === 'WAITING') && (
-                                                                <button
-                                                                    onClick={() => handleStopEnrollment(en.id)}
-                                                                    className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg border border-transparent hover:border-amber-100 transition-all"
-                                                                    title="Cancel Campaign"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                                </button>
-                                                            )}
                                                             <button
                                                                 onClick={() => handleDeleteEnrollment(en.id)}
-                                                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all font-bold"
-                                                                title="Delete Permanently"
+                                                                className="p-2.5 text-red-500 hover:bg-red-50 rounded-[12px] border border-transparent hover:border-red-100 transition-all transform active:scale-90"
+                                                                title="Delete Enrollment"
                                                             >
                                                                 <TrashIcon className="w-4 h-4" />
                                                             </button>
