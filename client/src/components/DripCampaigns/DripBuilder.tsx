@@ -667,8 +667,14 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                         (l.action_type === 'MESSAGE_SENT' || l.action_type === 'EMAIL_SENT' || l.action_type === 'AI_ANALYSIS')
                     );
                     
-                    const isCompleted = status === 'COMPLETED' || stepOrder < currentOrder || (stepOrder === currentOrder && !!log);
-                    const isCurrent = !isCompleted && stepOrder === currentOrder && (status === 'ACTIVE' || status === 'PROCESSING');
+                    const failedLog = (logs || []).find((l: any) => 
+                        Number(l.step_order) === stepOrder && 
+                        (l.action_type === 'FAILED' || l.status === 'FAILED')
+                    );
+                    
+                    const isFailed = !!failedLog;
+                    const isCompleted = !isFailed && (status === 'COMPLETED' || stepOrder < currentOrder || !!log);
+                    const isCurrent = !isFailed && !isCompleted && stepOrder === currentOrder && (status === 'ACTIVE' || status === 'PROCESSING');
                     const isLast = idx === sortedSteps.length - 1;
 
                     return (
@@ -677,49 +683,53 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             <div className="relative flex flex-col items-center justify-center flex-none">
                                 {/* Top Label (Step Status/Number) */}
                                 <div className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black transition-all px-1.5 py-0.5 rounded-full border shadow-sm pointer-events-none ${
+                                    isFailed ? 'bg-red-50 text-red-600 border-red-100' :
                                     isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
                                     isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110 shadow-blue-500/10' : 
                                     'bg-white text-slate-300 border-slate-100'
                                 }`}>
-                                    {isCompleted ? '✓' : ''} {stepOrder}
+                                    {isFailed ? '✘' : isCompleted ? '✓' : ''} {stepOrder}
                                 </div>
 
                                 {/* Main Interaction Dot */}
                                 <div 
                                     className={`relative z-10 w-3.5 h-3.5 rounded-full border-2 transition-all duration-500 ${
-                                        isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110 shadow-sm' : 
+                                        isFailed ? 'bg-red-500 border-red-500 shadow-sm shadow-red-500/20' :
+                                        isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110 shadow-sm shadow-emerald-500/20' : 
                                         isCurrent ? 'bg-blue-500 border-blue-100 ring-4 ring-blue-500/10 animate-pulse' : 
                                         'bg-white border-slate-200'
                                     }`}
                                 />
                                 
-                                {/* Timestamp Badge (Always visible for completed steps with logs) */}
-                                {log && (
+                                {/* Timestamp Badge */}
+                                {(log || failedLog) && (
                                     <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center group/tooltip">
-                                        {/* Micro-connector line */}
-                                        <div className={`w-[1px] h-1.5 mb-1 ${isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                                        <div className={`w-[1px] h-1.5 mb-1 ${isFailed ? 'bg-red-300' : isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
                                         
-                                        {/* Time Badge */}
                                         <div className={`whitespace-nowrap text-[8px] font-black tabular-nums transition-all px-1.5 py-0.5 rounded border shadow-sm ${
-                                            isCompleted ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20' : 'bg-white text-slate-400 border-slate-100'
+                                            isFailed ? 'bg-red-600 text-white border-red-500 shadow-red-500/20' :
+                                            isCompleted ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20' : 
+                                            'bg-white text-slate-400 border-slate-100'
                                         }`}>
-                                            {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            {new Date((log || failedLog).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
                                         </div>
 
                                         {/* Floating Detailed Info on Hover */}
                                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-24 whitespace-nowrap bg-slate-900/95 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-2xl pointer-events-none opacity-0 group-hover/timeline:opacity-100 transition-all z-30 scale-75 group-hover/timeline:scale-100 backdrop-blur-sm border border-white/10">
                                             <div className="text-[7px] text-white/50 uppercase tracking-widest mb-0.5">Execution Log</div>
-                                            <div>{step.step_type === 'WHATSAPP_MESSAGE' ? '📱 WhatsApp Template' : step.step_type}</div>
-                                            <div className="text-emerald-400 font-black mt-0.5">COMPLETED AT {new Date(log.created_at).toLocaleTimeString()}</div>
+                                            <div className={isFailed ? 'text-red-400' : 'text-emerald-400'}>
+                                                {isFailed ? `❌ FAILED: ${(failedLog.details?.error || 'Unknown Error').substring(0, 30)}` : `📱 Sent: ${step.step_type}`}
+                                            </div>
+                                            <div className="text-white/80 font-black mt-0.5">TIME: {new Date((log || failedLog).created_at).toLocaleTimeString()}</div>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* High-Contrast Connecting Line */}
+                            {/* Connecting Line */}
                             {!isLast && (
                                 <div className={`flex-1 h-[2.5px] mx-0.5 rounded-full transition-all duration-700 ${
-                                    isCompleted ? 'bg-[#10a37f]' : 'bg-slate-100'
+                                    isCompleted ? 'bg-[#10a37f]' : isFailed ? 'bg-red-300' : 'bg-slate-100'
                                 }`} />
                             )}
                         </div>

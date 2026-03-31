@@ -352,7 +352,7 @@ router.get('/:id/enrollments', async (req, res) => {
         const supabase = await getAuthenticatedSupabase(req);
         const { supabaseAdmin } = require('../lib/supabaseClient');
 
-        // 1. Verify campaign ownership first using the Auth Client (Respects RLS)
+        // 1. Verify campaign ownership
         const { data: campaign, error: cErr } = await supabase
             .from('drip_campaigns')
             .select('id')
@@ -363,24 +363,34 @@ router.get('/:id/enrollments', async (req, res) => {
             return res.status(404).json({ error: 'Campaign not found or access denied' });
         }
 
-        // 2. Use Admin Client to fetch detailed data including logs (Bypasses missing RLS on log table)
-        const { data, error } = await supabaseAdmin
+        // 2. Fetch Enrollments with basic info
+        const { data: enrollments, error: eErr } = await supabaseAdmin
             .from('drip_enrollments')
             .select(`
                 *,
                 contact:contacts(name, phone),
-                current_step:drip_steps(step_order),
-                logs:drip_logs(*)
+                current_step:drip_steps(step_order)
             `)
             .eq('drip_campaign_id', req.params.id)
             .order('started_at', { ascending: false });
 
-        if (error) throw error;
-        
-        // Sorting logs in JS to be safe if Supabase doesn't sort nested selects as expected
-        const processedData = data.map(en => ({
+        if (eErr) throw eErr;
+        if (!enrollments || enrollments.length === 0) return res.json([]);
+
+        // 3. Fetch ALL logs for these enrollments in one go
+        const enrollmentIds = enrollments.map(e => e.id);
+        const { data: allLogs, error: lErr } = await supabaseAdmin
+            .from('drip_logs')
+            .select('*')
+            .in('drip_enrollment_id', enrollmentIds)
+            .order('created_at', { ascending: true });
+
+        if (lErr) console.error('[DripLogs] Error fetching logs:', lErr);
+
+        // 4. Group logs by enrollment ID and attach
+        const processedData = enrollments.map(en => ({
             ...en,
-            logs: (en.logs || []).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+            logs: (allLogs || []).filter(l => l.drip_enrollment_id === en.id)
         }));
 
         res.json(processedData);
