@@ -56,7 +56,7 @@ const DripTriggerService = {
 
             // 2. Enroll Contact in each campaign
             for (const campaign of campaigns) {
-                await DripTriggerService.enrollContact(userId, contact.id, campaign);
+                await DripTriggerService.enrollContact(userId, contact.id, campaign, contact);
             }
 
         } catch (err) {
@@ -177,36 +177,69 @@ const DripTriggerService = {
     /**
      * Core Enrollment Logic
      */
-    async enrollContact(userId, contactId, campaign) {
+    async enrollContact(userId, contactId, campaign, contactObj = null) {
         try {
-            // Check existing enrollment
-            const { data: existing } = await supabaseAdmin
+            // 1. Resolve Contact Phone for robust global deduplication
+            // This prevents duplicate enrollments if the same phone exists in multiple contact records
+            let targetPhone = contactObj?.phone;
+            if (!targetPhone) {
+                const { data: contact } = await supabaseAdmin
+                    .from('contacts')
+                    .select('phone')
+                    .eq('id', contactId)
+                    .maybeSingle();
+                targetPhone = contact?.phone;
+            }
+
+            // 2. Check existing enrollment (by ID AND Phone)
+            // We join with contacts to find ANY enrollment for this campaign that matches this phone
+            const { data: existingById } = await supabaseAdmin
                 .from('drip_enrollments')
                 .select('id, status')
                 .eq('drip_campaign_id', campaign.id)
                 .eq('contact_id', contactId)
-                .neq('status', 'CANCELLED') // Considering active or completed?
+                .neq('status', 'CANCELLED')
                 .neq('status', 'EXPIRED')
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
 
+            let existing = existingById;
+
+            // If no enrollment found by ID, check by Phone for other contact records
+            if (!existing && targetPhone) {
+                const { data: existingByPhone } = await supabaseAdmin
+                    .from('drip_enrollments')
+                    .select('id, status, contacts!inner(phone)')
+                    .eq('drip_campaign_id', campaign.id)
+                    .eq('contacts.phone', targetPhone)
+                    .neq('status', 'CANCELLED')
+                    .neq('status', 'EXPIRED')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                
+                if (existingByPhone) {
+                    existing = { id: existingByPhone.id, status: existingByPhone.status };
+                }
+            }
+
             // Logic:
-            // If ACTIVE -> Don't enroll (already running)
+            // If ACTIVE/PROCESSING -> Don't enroll (already running)
             // If COMPLETED -> Check allow_reentry
             // If None -> Enroll
 
             if (existing) {
-                // 1. If currently Active/Paused -> Never re-enroll (duplication guard)
+                // 1. If currently Active/Paused/Processing -> Never re-enroll (duplication guard)
                 if (['ACTIVE', 'PAUSED', 'PROCESSING'].includes(existing.status)) {
-                    console.log(`[DripTrigger] Contact ${contactId} already in progress for ${campaign.name}. Skipping.`);
+                    console.log(`[DripTrigger] Contact ${contactId} (Phone: ${targetPhone}) already in progress for ${campaign.name}. Skipping.`);
                     return;
                 }
 
                 // 2. If finished/stopped -> Check Re-entry policy
                 // If allow_reentry is FALSE, we block even if they were completed/cancelled before.
                 if (!campaign.allow_reentry) {
-                    console.log(`[DripTrigger] Contact ${contactId} previously enrolled in ${campaign.name} and re-entry is disabled. Skipping.`);
+                    console.log(`[DripTrigger] Contact ${contactId} (Phone: ${targetPhone}) previously enrolled in ${campaign.name} and re-entry is disabled. Skipping.`);
                     return;
                 }
             }
@@ -452,7 +485,7 @@ const DripTriggerService = {
             let count = 0;
             for (const contact of newContactsToEnroll) {
                 try {
-                    await this.enrollContact(userId, contact.id, campaign);
+                    await this.enrollContact(userId, contact.id, campaign, contact);
                     count++;
                 } catch (e) { 
                     console.error(`[DripTrigger] Sync failed for contact ${contact.id}:`, e.message); 
