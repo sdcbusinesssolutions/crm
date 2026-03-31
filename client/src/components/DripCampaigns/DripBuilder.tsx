@@ -654,6 +654,63 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         </div>
     )), []);
 
+    const EnrollmentTimeline = React.useMemo(() => React.memo(({ steps, logs, status, currentOrder }: any) => {
+        if (!steps?.length) return <div className="h-4 w-full bg-slate-50 animate-pulse rounded-full" />;
+        const sortedSteps = [...steps].sort((a, b) => a.step_order - b.step_order);
+        
+        return (
+            <div className="flex items-center w-full min-w-[140px] px-1 h-12 group/timeline">
+                {sortedSteps.map((step: any, idx: number) => {
+                    const stepOrder = step.step_order;
+                    const log = (logs || []).find((l: any) => 
+                        l.step_order === stepOrder && 
+                        (l.action_type === 'MESSAGE_SENT' || l.action_type === 'EMAIL_SENT' || l.action_type === 'AI_ANALYSIS')
+                    );
+                    
+                    const isCompleted = status === 'COMPLETED' || stepOrder < currentOrder || (stepOrder === currentOrder && !!log);
+                    const isCurrent = !isCompleted && stepOrder === currentOrder && (status === 'ACTIVE' || status === 'PROCESSING');
+                    const isLast = idx === sortedSteps.length - 1;
+
+                    return (
+                        <div key={step.id} className={`flex items-center ${isLast ? 'flex-none' : 'flex-1'} relative`}>
+                            {/* Dot */}
+                            <div className="relative flex items-center justify-center flex-none">
+                                <div 
+                                    className={`relative z-10 w-2.5 h-2.5 rounded-full border-2 transition-all duration-500 ${
+                                        isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110 shadow-sm' : 
+                                        isCurrent ? 'bg-blue-500 border-blue-100 ring-4 ring-blue-500/10 animate-pulse' : 
+                                        'bg-white border-slate-200'
+                                    }`}
+                                />
+                                
+                                {/* Timestamp Hover Label */}
+                                {log && (
+                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[8px] font-black px-2 py-0.5 rounded shadow-xl pointer-events-none opacity-0 group-hover/timeline:opacity-100 transition-all z-20">
+                                        SENT {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                )}
+                                
+                                {/* Static Time (Always visible if space allows or on hover) */}
+                                {log && (
+                                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] font-black text-slate-400 tabular-nums scale-[0.9]">
+                                        {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Connector Line (To Next) */}
+                            {!isLast && (
+                                <div className={`flex-1 h-[2px] mx-0 transition-all duration-700 ${
+                                    isCompleted ? 'bg-[#10a37f]' : 'bg-slate-100'
+                                }`} />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    }), []);
+
     const daysMap = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     // --- Renderers ---
@@ -949,14 +1006,12 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                                     {status === 'COMPLETED' ? totalSteps : currentOrder} OF {totalSteps}
                                                                 </span>
                                                             </div>
-                                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                                                <div 
-                                                                    className={`h-full transition-all duration-1000 ease-out ${
-                                                                        status === 'COMPLETED' ? 'bg-emerald-500' : status === 'FAILED' ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'
-                                                                    }`}
-                                                                    style={{ width: `${Math.min(100, ((status === 'COMPLETED' ? totalSteps : currentOrder) / totalSteps) * 100)}%` }}
-                                                                />
-                                                            </div>
+                                                            <EnrollmentTimeline 
+                                                                steps={campaign.steps} 
+                                                                logs={en.logs} 
+                                                                status={status} 
+                                                                currentOrder={currentOrder} 
+                                                            />
                                                             <div className="flex items-center justify-between text-[9px] font-medium text-slate-400 capitalize tabular-nums">
                                                                 <span>Last change: {new Date(en.updated_at || en.started_at).toLocaleDateString([], { month: 'short', day: 'numeric' })} {new Date(en.updated_at || en.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                             </div>

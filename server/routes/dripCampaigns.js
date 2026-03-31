@@ -356,13 +356,21 @@ router.get('/:id/enrollments', async (req, res) => {
             .select(`
                 *,
                 contact:contacts(name, phone),
-                current_step:drip_steps(step_order)
+                current_step:drip_steps(step_order),
+                logs:drip_logs(*)
             `)
             .eq('drip_campaign_id', req.params.id)
             .order('started_at', { ascending: false });
 
         if (error) throw error;
-        res.json(data);
+        
+        // Sorting logs in JS to be safe if Supabase doesn't sort nested selects as expected
+        const processedData = data.map(en => ({
+            ...en,
+            logs: (en.logs || []).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+        }));
+
+        res.json(processedData);
     } catch (error) {
         console.error('Error fetching enrollments:', error);
         res.status(500).json({ error: error.message });
