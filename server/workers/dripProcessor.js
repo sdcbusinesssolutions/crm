@@ -69,18 +69,34 @@ function isWithinWindow(campaign, now = new Date()) {
 }
 
 function replaceVariables(text, enrollment) {
-    if (!text) return '';
+    if (text === null || text === undefined) return '';
     let result = text.toString();
     if (enrollment.contact) {
-        const name = enrollment.contact.name || '';
-        const phone = enrollment.contact.phone || '';
-        const email = enrollment.contact.email || '';
+        const contact = enrollment.contact;
+        const name = contact.name || '';
+        const phone = contact.phone || '';
+        const email = contact.email || '';
         const firstName = name.split(' ')[0] || '';
 
-        result = result.replace(/{{contact.name}}/g, name);
-        result = result.replace(/{{contact.first_name}}/g, firstName);
-        result = result.replace(/{{contact.phone}}/g, phone);
-        result = result.replace(/{{contact.email}}/g, email);
+        // Standard tags
+        result = result.replace(/{{contact\.name}}/g, name);
+        result = result.replace(/{{contact\.first_name}}/g, firstName);
+        result = result.replace(/{{contact\.phone}}/g, phone);
+        result = result.replace(/{{contact\.email}}/g, email);
+
+        // Short tags (Support common variations)
+        result = result.replace(/{{name}}/g, name);
+        result = result.replace(/{{first_name}}/g, firstName);
+        result = result.replace(/{{phone}}/g, phone);
+        result = result.replace(/{{email}}/g, email);
+        
+        // CRM Specific Mapping (Company/Source etc)
+        if (contact.custom_data && typeof contact.custom_data === 'object') {
+            Object.keys(contact.custom_data).forEach(key => {
+                const regex = new RegExp(`{{contact\\.${key}}}`, 'g');
+                result = result.replace(regex, contact.custom_data[key] || '');
+            });
+        }
     }
     return result;
 }
