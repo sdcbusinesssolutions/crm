@@ -704,84 +704,80 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     const EnrollmentTimeline = React.useMemo(() => React.memo(({ steps, logs, status, currentOrder }: any) => {
         if (!steps?.length) return <div className="h-4 w-full bg-slate-50 animate-pulse rounded-full" />;
         const sortedSteps = [...steps].sort((a, b) => a.step_order - b.step_order);
+        const isLongSequence = sortedSteps.length > 8;
         
         return (
-            <div className="flex items-center w-full min-w-[200px] px-2 h-16 overflow-visible group/timeline">
-                {sortedSteps.map((step: any, idx: number) => {
-                    const stepOrder = Number(step.step_order);
-                    const log = (logs || []).find((l: any) => 
-                        Number(l.step_order) === stepOrder && 
-                        (l.action_type === 'MESSAGE_SENT' || l.action_type === 'EMAIL_SENT' || l.action_type === 'AI_ANALYSIS')
-                    );
-                    
-                    const failedLog = (logs || []).find((l: any) => 
-                        Number(l.step_order) === stepOrder && 
-                        (l.action_type === 'FAILED' || l.status === 'FAILED')
-                    );
-                    
-                    const isFailed = !!failedLog;
-                    const isCompleted = !isFailed && (status === 'COMPLETED' || stepOrder < currentOrder || !!log);
-                    const isCurrent = !isFailed && !isCompleted && stepOrder === currentOrder && (status === 'ACTIVE' || status === 'PROCESSING');
-                    const isLast = idx === sortedSteps.length - 1;
+            <div className="w-full relative group/timeline">
+                <div className={`flex items-center w-full h-16 px-1 ${isLongSequence ? 'overflow-x-auto scrollbar-hide pb-2' : ''}`}>
+                    <div className={`flex items-center ${isLongSequence ? 'min-w-max' : 'w-full'}`}>
+                        {sortedSteps.map((step: any, idx: number) => {
+                            const stepOrder = Number(step.step_order);
+                            const log = (logs || []).find((l: any) => 
+                                Number(l.step_order) === stepOrder && 
+                                (l.action_type === 'MESSAGE_SENT' || l.action_type === 'EMAIL_SENT' || l.action_type === 'AI_ANALYSIS')
+                            );
+                            
+                            const failedLog = (logs || []).find((l: any) => 
+                                Number(l.step_order) === stepOrder && 
+                                (l.action_type === 'FAILED' || l.status === 'FAILED')
+                            );
+                            
+                            const isFailed = !!failedLog;
+                            const isCompleted = !isFailed && (status === 'COMPLETED' || stepOrder < currentOrder || !!log);
+                            const isCurrent = !isFailed && !isCompleted && stepOrder === currentOrder && (status === 'ACTIVE' || status === 'PROCESSING');
+                            const isLast = idx === sortedSteps.length - 1;
 
-                    return (
-                        <div key={step.id} className={`flex items-center ${isLast ? 'flex-none' : 'flex-1'} relative overflow-visible`}>
-                            {/* Dot Container */}
-                            <div className="relative flex flex-col items-center justify-center flex-none">
-                                {/* Top Label (Step Status/Number) */}
-                                <div className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black transition-all px-1.5 py-0.5 rounded-full border shadow-sm pointer-events-none ${
-                                    isFailed ? 'bg-red-50 text-red-600 border-red-100' :
-                                    isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                                    isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110 shadow-blue-500/10' : 
-                                    'bg-white text-slate-300 border-slate-100'
-                                }`}>
-                                    {isFailed ? '✘' : isCompleted ? '✓' : ''} {stepOrder}
-                                </div>
-
-                                {/* Main Interaction Dot */}
-                                <div 
-                                    className={`relative z-10 w-3.5 h-3.5 rounded-full border-2 transition-all duration-500 ${
-                                        isFailed ? 'bg-red-500 border-red-500 shadow-sm shadow-red-500/20' :
-                                        isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110 shadow-sm shadow-emerald-500/20' : 
-                                        isCurrent ? 'bg-blue-500 border-blue-100 ring-4 ring-blue-500/10 animate-pulse' : 
-                                        'bg-white border-slate-200'
-                                    }`}
-                                />
-                                
-                                {/* Timestamp Badge */}
-                                {(log || failedLog) && (
-                                    <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center group/tooltip">
-                                        <div className={`w-[1px] h-1.5 mb-1 ${isFailed ? 'bg-red-300' : isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
-                                        
-                                        <div className={`whitespace-nowrap text-[8px] font-black tabular-nums transition-all px-1.5 py-0.5 rounded border shadow-sm ${
-                                            isFailed ? 'bg-red-600 text-white border-red-500 shadow-red-500/20' :
-                                            isCompleted ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20' : 
-                                            'bg-white text-slate-400 border-slate-100'
+                            return (
+                                <div key={step.id} className={`flex items-center ${isLongSequence ? 'w-10' : 'flex-1'} relative overflow-visible`}>
+                                    {/* Dot Container */}
+                                    <div className="relative flex flex-col items-center justify-center flex-none">
+                                        {/* Top Label (Step Status/Number) */}
+                                        <div className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black transition-all px-1 py-0.5 rounded-full border shadow-sm pointer-events-none ${
+                                            isFailed ? 'bg-red-50 text-red-600 border-red-100' :
+                                            isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                                            isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110' : 
+                                            'bg-white text-slate-300 border-slate-100'
                                         }`}>
-                                            {new Date((log || failedLog).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            {isFailed ? '✘' : isCompleted ? '✓' : ''} {stepOrder}
                                         </div>
 
-                                        {/* Floating Detailed Info on Hover */}
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-24 whitespace-nowrap bg-slate-900/95 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-2xl pointer-events-none opacity-0 group-hover/timeline:opacity-100 transition-all z-30 scale-75 group-hover/timeline:scale-100 backdrop-blur-sm border border-white/10">
-                                            <div className="text-[7px] text-white/50 uppercase tracking-widest mb-0.5">Execution Log</div>
-                                            <div className={isFailed ? 'text-red-400' : 'text-emerald-400'}>
-                                                {isFailed ? `❌ FAILED: ${(failedLog.details?.error || 'Unknown Error').substring(0, 30)}` : `📱 Sent: ${step.step_type}`}
+                                        {/* Main Dot */}
+                                        <div className={`relative z-10 w-3 h-3 rounded-full border-2 transition-all duration-500 ${
+                                            isFailed ? 'bg-red-500 border-red-500' :
+                                            isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110' : 
+                                            isCurrent ? 'bg-blue-500 border-blue-100 ring-4 ring-blue-500/10 animate-pulse' : 
+                                            'bg-white border-slate-200'
+                                        }`} />
+                                        
+                                        {/* Timestamp Badge */}
+                                        {(log || failedLog) && (
+                                            <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                                                <div className={`w-[1px] h-1 mb-0.5 ${isFailed ? 'bg-red-300' : isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                                                <div className={`whitespace-nowrap text-[8px] font-black tabular-nums transition-all px-1 rounded shadow-sm scale-90 ${
+                                                    isFailed ? 'bg-red-600 text-white' :
+                                                    isCompleted ? 'bg-emerald-600 text-white' : 
+                                                    'bg-white text-slate-400 border border-slate-100'
+                                                }`}>
+                                                    {new Date((log || failedLog).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </div>
-                                            <div className="text-white/80 font-black mt-0.5">TIME: {new Date((log || failedLog).created_at).toLocaleTimeString()}</div>
-                                        </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
 
-                            {/* Connecting Line */}
-                            {!isLast && (
-                                <div className={`flex-1 h-[2.5px] mx-0.5 rounded-full transition-all duration-700 ${
-                                    isCompleted ? 'bg-[#10a37f]' : isFailed ? 'bg-red-300' : 'bg-slate-100'
-                                }`} />
-                            )}
-                        </div>
-                    );
-                })}
+                                    {/* Line */}
+                                    {!isLast && (
+                                        <div className={`flex-1 h-[2px] transition-all duration-700 ${
+                                            isCompleted ? 'bg-[#10a37f]' : isFailed ? 'bg-red-300' : 'bg-slate-100'
+                                        }`} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+                {isLongSequence && (
+                    <div className="absolute top-0 right-0 h-full w-12 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+                )}
             </div>
         );
     }), []);
