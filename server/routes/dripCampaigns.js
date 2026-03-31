@@ -350,8 +350,21 @@ router.post('/:id/enroll', async (req, res) => {
 router.get('/:id/enrollments', async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        // Using explicit join syntax if valid, or just selecting
-        const { data, error } = await supabase
+        const { supabaseAdmin } = require('../lib/supabaseClient');
+
+        // 1. Verify campaign ownership first using the Auth Client (Respects RLS)
+        const { data: campaign, error: cErr } = await supabase
+            .from('drip_campaigns')
+            .select('id')
+            .eq('id', req.params.id)
+            .single();
+
+        if (cErr || !campaign) {
+            return res.status(404).json({ error: 'Campaign not found or access denied' });
+        }
+
+        // 2. Use Admin Client to fetch detailed data including logs (Bypasses missing RLS on log table)
+        const { data, error } = await supabaseAdmin
             .from('drip_enrollments')
             .select(`
                 *,

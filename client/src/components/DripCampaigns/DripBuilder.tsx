@@ -659,11 +659,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
         const sortedSteps = [...steps].sort((a, b) => a.step_order - b.step_order);
         
         return (
-            <div className="flex items-center w-full min-w-[140px] px-1 h-12 group/timeline">
+            <div className="flex items-center w-full min-w-[200px] px-2 h-16 overflow-visible group/timeline">
                 {sortedSteps.map((step: any, idx: number) => {
-                    const stepOrder = step.step_order;
+                    const stepOrder = Number(step.step_order);
                     const log = (logs || []).find((l: any) => 
-                        l.step_order === stepOrder && 
+                        Number(l.step_order) === stepOrder && 
                         (l.action_type === 'MESSAGE_SENT' || l.action_type === 'EMAIL_SENT' || l.action_type === 'AI_ANALYSIS')
                     );
                     
@@ -672,35 +672,53 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     const isLast = idx === sortedSteps.length - 1;
 
                     return (
-                        <div key={step.id} className={`flex items-center ${isLast ? 'flex-none' : 'flex-1'} relative`}>
-                            {/* Dot */}
-                            <div className="relative flex items-center justify-center flex-none">
+                        <div key={step.id} className={`flex items-center ${isLast ? 'flex-none' : 'flex-1'} relative overflow-visible`}>
+                            {/* Dot Container */}
+                            <div className="relative flex flex-col items-center justify-center flex-none">
+                                {/* Top Label (Step Status/Number) */}
+                                <div className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black transition-all px-1.5 py-0.5 rounded-full border shadow-sm pointer-events-none ${
+                                    isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
+                                    isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110 shadow-blue-500/10' : 
+                                    'bg-white text-slate-300 border-slate-100'
+                                }`}>
+                                    {isCompleted ? '✓' : ''} {stepOrder}
+                                </div>
+
+                                {/* Main Interaction Dot */}
                                 <div 
-                                    className={`relative z-10 w-2.5 h-2.5 rounded-full border-2 transition-all duration-500 ${
+                                    className={`relative z-10 w-3.5 h-3.5 rounded-full border-2 transition-all duration-500 ${
                                         isCompleted ? 'bg-[#10a37f] border-[#10a37f] scale-110 shadow-sm' : 
                                         isCurrent ? 'bg-blue-500 border-blue-100 ring-4 ring-blue-500/10 animate-pulse' : 
                                         'bg-white border-slate-200'
                                     }`}
                                 />
                                 
-                                {/* Timestamp Hover Label */}
+                                {/* Timestamp Badge (Always visible for completed steps with logs) */}
                                 {log && (
-                                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-800 text-white text-[8px] font-black px-2 py-0.5 rounded shadow-xl pointer-events-none opacity-0 group-hover/timeline:opacity-100 transition-all z-20">
-                                        SENT {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </div>
-                                )}
-                                
-                                {/* Static Time (Always visible if space allows or on hover) */}
-                                {log && (
-                                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[7px] font-black text-slate-400 tabular-nums scale-[0.9]">
-                                        {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center group/tooltip">
+                                        {/* Micro-connector line */}
+                                        <div className={`w-[1px] h-1.5 mb-1 ${isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                                        
+                                        {/* Time Badge */}
+                                        <div className={`whitespace-nowrap text-[8px] font-black tabular-nums transition-all px-1.5 py-0.5 rounded border shadow-sm ${
+                                            isCompleted ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20' : 'bg-white text-slate-400 border-slate-100'
+                                        }`}>
+                                            {new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                        </div>
+
+                                        {/* Floating Detailed Info on Hover */}
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-24 whitespace-nowrap bg-slate-900/95 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shadow-2xl pointer-events-none opacity-0 group-hover/timeline:opacity-100 transition-all z-30 scale-75 group-hover/timeline:scale-100 backdrop-blur-sm border border-white/10">
+                                            <div className="text-[7px] text-white/50 uppercase tracking-widest mb-0.5">Execution Log</div>
+                                            <div>{step.step_type === 'WHATSAPP_MESSAGE' ? '📱 WhatsApp Template' : step.step_type}</div>
+                                            <div className="text-emerald-400 font-black mt-0.5">COMPLETED AT {new Date(log.created_at).toLocaleTimeString()}</div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Connector Line (To Next) */}
+                            {/* High-Contrast Connecting Line */}
                             {!isLast && (
-                                <div className={`flex-1 h-[2px] mx-0 transition-all duration-700 ${
+                                <div className={`flex-1 h-[2.5px] mx-0.5 rounded-full transition-all duration-700 ${
                                     isCompleted ? 'bg-[#10a37f]' : 'bg-slate-100'
                                 }`} />
                             )}
