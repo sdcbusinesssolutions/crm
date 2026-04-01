@@ -732,10 +732,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                     {/* Dot Container */}
                                     <div className="relative flex flex-col items-center justify-center flex-none">
                                         {/* Top Label (Step Status/Number) */}
-                                        <div className={`absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8px] font-black transition-all px-1 py-0.5 rounded-full border shadow-sm pointer-events-none ${
+                                        <div className={`absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-black transition-all px-2 py-0.5 rounded-full border shadow-md pointer-events-none ${
                                             isFailed ? 'bg-red-50 text-red-600 border-red-100' :
                                             isCompleted ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                                            isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110' : 
+                                            isCurrent ? 'bg-blue-50 text-blue-600 border-blue-100 scale-110 shadow-blue-500/10' : 
                                             'bg-white text-slate-300 border-slate-100'
                                         }`}>
                                             {isFailed ? '✘' : isCompleted ? '✓' : ''} {stepOrder}
@@ -751,12 +751,12 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         
                                         {/* Timestamp Badge */}
                                         {(log || failedLog) && (
-                                            <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                                                <div className={`w-[1px] h-1 mb-0.5 ${isFailed ? 'bg-red-300' : isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
-                                                <div className={`whitespace-nowrap text-[8px] font-black tabular-nums transition-all px-1 rounded shadow-sm scale-90 ${
+                                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                                                <div className={`w-[1px] h-1.5 mb-0.5 ${isFailed ? 'bg-red-300' : isCompleted ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                                                <div className={`whitespace-nowrap text-[10px] font-bold tabular-nums transition-all px-2 py-0.5 rounded-lg shadow-md ${
                                                     isFailed ? 'bg-red-600 text-white' :
-                                                    isCompleted ? 'bg-emerald-600 text-white' : 
-                                                    'bg-white text-slate-400 border border-slate-100'
+                                                    isCompleted ? 'bg-emerald-800 text-white shadow-emerald-500/20' : 
+                                                    'bg-white text-slate-500 border border-slate-200 shadow-sm'
                                                 }`}>
                                                     {new Date((log || failedLog).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </div>
