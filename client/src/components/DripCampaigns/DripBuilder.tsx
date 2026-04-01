@@ -1085,28 +1085,39 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         {status === 'ACTIVE' && en.next_run_at ? (
                                                             <div className="flex flex-col">
-                                                                <div className="flex items-center text-xs font-black text-slate-700">
-                                                                    <ClockIcon className="w-3 h-3 mr-1.5 text-blue-500" />
-                                                                    {new Date(en.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </div>
-                                                                <div className="text-[9px] text-blue-400 font-black uppercase tracking-widest mt-0.5 ml-[18px]">
-                                                                    Waiting for Trigger
-                                                                </div>
+                                                                 {(() => {
+                                                                     // Determine if current step is AI_INTENT
+                                                                     const currentStepId = en.current_step_id;
+                                                                     const currentStep = campaign.steps?.find(s => s.id === currentStepId);
+                                                                     const isAiIntent = currentStep?.step_type === 'AI_INTENT';
+                                                                     
+                                                                     return (
+                                                                         <>
+                                                                             <div className="flex items-center text-xs font-black text-slate-700">
+                                                                                 <ClockIcon className="w-3 h-3 mr-1.5 text-blue-500" />
+                                                                                 {new Date(en.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                             </div>
+                                                                             <div className={`text-[9px] font-black uppercase tracking-widest mt-0.5 ml-[18px] ${isAiIntent ? 'text-indigo-500 animate-pulse' : 'text-blue-400'}`}>
+                                                                                 {isAiIntent ? 'Waiting for Reply' : 'Next Step Scheduled'}
+                                                                             </div>
+                                                                         </>
+                                                                     );
+                                                                 })()}
                                                             </div>
-                                                        ) : status === 'COMPLETED' ? (
+                                                        ) : (status === 'COMPLETED' && !en.logs?.some(l => l.action_type === 'FAILED')) ? (
                                                             <div className="flex items-center text-xs font-black text-emerald-600 uppercase tracking-tight">
                                                                 <CheckIcon className="w-3.5 h-3.5 mr-1 bg-emerald-50 rounded-full p-0.5" />
                                                                 All Delivered
                                                             </div>
-                                                        ) : (status === 'FAILED' || status === 'ERROR') ? (
+                                                        ) : (status === 'FAILED' || status === 'ERROR' || en.logs?.some(l => l.action_type === 'FAILED')) ? (
                                                             <div className="flex flex-col group relative">
                                                                 <div className="flex items-center text-xs font-black text-red-600 uppercase">
                                                                     <div className="w-3.5 h-3.5 mr-1.5 flex items-center justify-center bg-red-600 text-white rounded-full text-[8px]">!</div>
-                                                                    Execution Blocked
+                                                                    {status === 'COMPLETED' ? 'Finished with Failures' : 'Execution Blocked'}
                                                                 </div>
                                                                 <div className="absolute top-full left-0 mt-1 bg-slate-900/95 text-white text-[10px] font-bold p-3 rounded-xl shadow-2xl z-50 opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-300 max-w-[200px] whitespace-normal backdrop-blur-sm border border-white/10 translate-y-1 group-hover:translate-y-0">
                                                                     <div className="text-[8px] text-white/50 uppercase mb-1">Error Message</div>
-                                                                    {en.last_error || 'Critical delivery failure. Reach out to the contact manually.'}
+                                                                    {status === 'COMPLETED' ? 'Some steps did not send successfully.' : (en.last_error || 'Critical delivery failure. Reach out to the contact manually.')}
                                                                 </div>
                                                             </div>
                                                         ) : (

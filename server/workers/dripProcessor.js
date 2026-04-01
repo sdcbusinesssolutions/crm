@@ -413,15 +413,56 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
         } else if (step.step_type === 'WAIT' || step.step_type === 'AI_INTENT') {
             if (step.step_type === 'AI_INTENT') {
                  try {
-                    const { data: lastMsg } = await supabase.from('messages').select('content').eq('contact_id', enrollment.contact_id).eq('type', 'inbound').order('created_at', { ascending: false }).limit(1).maybeSingle();
+                    // Optimized: Only check for replies received AFTER the enrollment started or last run
+                    let messageQuery = supabase.from('messages')
+                        .select('content, created_at')
+                        .eq('contact_id', enrollment.contact_id)
+                        .eq('type', 'inbound')
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    // Optional: Filter messages to only those after enrollment started
+                    if (enrollment.started_at) {
+                        messageQuery = messageQuery.gt('created_at', enrollment.started_at);
+                    }
+
+                    const { data: lastMsg } = await messageQuery.maybeSingle();
+
                     if (lastMsg) {
                         const config = step.step_config || {};
+                        const idempotencyKey = `AI-${enrollment.id}-${step.id}-${new Date(lastMsg.created_at).getTime()}`;
+                        
                         const intent = await AIService.analyzeIntent(lastMsg.content, config.intents || [], config.analysis_mode, enrollment.drip_campaign.user_id, config.openai_connection_id);
-                        await logAction(enrollment, 'AI_ANALYSIS', { result: intent });
+                        const { skipped } = await logAction(enrollment, 'AI_ANALYSIS', { result: intent, text: lastMsg.content }, idempotencyKey);
+                        
+                        if (!skipped) {
+                            console.log(`[DripEngine] AI Analysis complete for ${enrollment.id}: ${intent}`);
+                        }
+                        success = true; // Message found and analyzed
+                    } else {
+                        // NO MESSAGE FOUND: Keep waiting (do not mark as success)
+                        console.log(`[DripEngine] AI Analysis for ${enrollment.id}: Waiting for inbound message...`);
+                        success = false; 
+                        
+                        // BUT: We should update last_run_at so the locking mechanism doesn't think it's stuck
+                        // However, if success is false, we don't enter the update block below.
+                        // So we should manually update next_run_at to avoid immediate retry loop.
+                        const nextCheck = new Date(now.getTime() + 5 * 60 * 1000); // Check again in 5 mins
+                        await supabase.from('drip_enrollments').update({ last_run_at: now, next_run_at: nextCheck }).eq('id', enrollment.id);
                     }
-                 } catch (e) { console.error('AI Step Failed', e); }
+                 } catch (e) { 
+                    console.error('AI Step Failed', e); 
+                    await logAction(enrollment, 'FAILED', { error: e.message });
+                    await supabase.from('drip_enrollments').update({ 
+                        status: 'FAILED', 
+                        completed_at: new Date(),
+                        last_error: e.message
+                    }).eq('id', enrollment.id);
+                    success = false;
+                 }
+            } else {
+                success = true; // Standard WAIT step
             }
-            success = true;
         }
 
         if (success) {
