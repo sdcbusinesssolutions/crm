@@ -113,6 +113,8 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     // --- Master Initialization & Persistence Effect ---
     const [isReady, setIsReady] = useState(false);
 
+    const [showMappingHelp, setShowMappingHelp] = useState(false);
+
     const getTemplateVariableConfig = (templateName: string) => {
         const tpl = templates.find(t => t.name === templateName || t.id === templateName);
         if (!tpl) return { body: 0, header: 0, headerType: 'NONE', buttons: 0 };
@@ -1203,12 +1205,21 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                                                 const hasVars = config.body > 0 || config.header > 0 || config.buttons > 0;
                                                                 
                                                                 return (
-                                                                    <div className="space-y-3 pt-2 border-t border-slate-100 mt-2 bg-slate-50/30 p-2 rounded-xl">
+                                                                    <div className="space-y-3 pt-2 border-t border-slate-100 mt-2 bg-slate-50/30 p-2 rounded-xl relative">
                                                                         <div className="flex items-center justify-between mb-1">
-                                                                            <span className="text-[9px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-1.5">
-                                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                                                Mapping for {rule.template_name}
-                                                                            </span>
+                                                                            <div className="flex items-center gap-1.5 peer relative">
+                                                                                <span className="text-[9px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                                                    Mapping for {rule.template_name}
+                                                                                </span>
+                                                                                <button 
+                                                                                    type="button"
+                                                                                    onClick={() => setShowMappingHelp(true)}
+                                                                                    className="w-4 h-4 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center hover:bg-purple-200 transition-colors"
+                                                                                >
+                                                                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                                </button>
+                                                                            </div>
                                                                             {!hasMedia && !hasVars && (
                                                                                  <span className="text-[8px] font-bold text-slate-400 bg-slate-100/50 px-1.5 py-0.5 rounded italic">No variables detected</span>
                                                                             )}
@@ -1406,6 +1417,94 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                     </button>
                 </div>
             </div>
+            {/* Global Mapping Help Modal */}
+            {showMappingHelp && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-all duration-300 animate-in fade-in" onClick={() => setShowMappingHelp(false)}></div>
+                    <div className="relative w-full max-w-lg bg-white text-slate-700 p-8 sm:p-10 rounded-[40px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-white ring-12 ring-white/10">
+                        <div className="flex items-center justify-between mb-8 border-b border-slate-50 pb-6">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-1">Dynamic Variables</span>
+                                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Mapping Guide</h3>
+                            </div>
+                            <button onClick={() => setShowMappingHelp(false)} className="text-slate-400 hover:text-slate-900 transition-all p-2 hover:bg-slate-100 rounded-2xl flex items-center justify-center">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                            <div className="flex gap-4 group items-start">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Client Name</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">Full name from CRM (e.g. "John Doe").</div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 group items-start">
+                                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Client Phone</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">The contact's phone number.</div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-4 group items-start">
+                                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-100 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Time Left</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">Countdown (e.g. "24 Hours").</div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 group items-start">
+                                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-amber-100 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Exact Date</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">Full timestamp of the deadline.</div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 group items-start">
+                                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-purple-100 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Sequence</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">The name of this nurture sequence.</div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 group items-start md:col-span-1">
+                                <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-200 group-hover:scale-110 transition-all">
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </div>
+                                <div className="flex-1">
+                                    <div className="text-[10px] font-black text-slate-900 uppercase tracking-wider mb-1">Custom Text</div>
+                                    <div className="text-[12px] text-slate-500 font-medium leading-tight">Type your own manual values.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-10 pt-4">
+                            <button 
+                                onClick={() => setShowMappingHelp(false)}
+                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[24px] text-sm font-black uppercase tracking-widest shadow-2xl shadow-indigo-200 transition-all active:scale-95"
+                            >
+                                I Understand
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </form>
     );
 };
