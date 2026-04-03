@@ -101,6 +101,86 @@ function replaceVariables(text, enrollment) {
     return result;
 }
 
+// Function to resolve automated owner notification variables from rule mapping
+function resolveOwnerVariables(enrollment, rule) {
+    const contact = enrollment.contact || {};
+    const campaign = enrollment.drip_campaign || {};
+    const mapping = rule.mapping || {};
+    
+    // Calculate relative time (DUE_IN)
+    let dueIn = '';
+    if (enrollment.stop_at) {
+        const diffMs = new Date(enrollment.stop_at).getTime() - new Date().getTime();
+        const hrs = Math.max(0, Math.floor(diffMs / (60 * 60 * 1000)));
+        const mins = Math.max(0, Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000)));
+        dueIn = hrs > 0 ? `${hrs} Hours` : `${mins} Minutes`;
+    }
+
+    const resolveValue = (field, key) => {
+        switch (field) {
+            case 'CONTACT_NAME': return contact.name || 'Client';
+            case 'CONTACT_PHONE': return contact.phone || 'N/A';
+            case 'CAMPAIGN_NAME': return campaign.name || 'Sequence';
+            case 'DUE_IN': return dueIn || 'Soon';
+            case 'DUE_AT': return enrollment.stop_at ? new Date(enrollment.stop_at).toLocaleString() : 'N/A';
+            case 'CUSTOM_TEXT': return mapping[`${key}_custom`] || '';
+            default: return '';
+        }
+    };
+
+    const components = [];
+
+    // 1. Header Media Mapping
+    if (mapping.header_url) {
+        // We assume IMAGE if not specified, but usually it's passed in rule meta if needed.
+        // For owner notifications, image is the most common.
+        components.push({
+            type: 'header',
+            parameters: [{
+                type: 'image',
+                image: { link: mapping.header_url }
+            }]
+        });
+    }
+
+    // 2. Header Variable Mapping
+    const headerKeys = Object.keys(mapping)
+        .filter(k => k.startsWith('header_') && /\d+$/.test(k))
+        .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]));
+
+    if (headerKeys.length > 0) {
+        const headerParams = headerKeys.map(k => ({ type: 'text', text: resolveValue(mapping[k], k) }));
+        // If we already have a header component (for media), we can't have text variables in header too?
+        // Actually Meta allows either media OR text variables in header. 
+        // We'll prioritize media if present, otherwise text.
+        if (!mapping.header_url) {
+            components.push({ type: 'header', parameters: headerParams });
+        }
+    }
+
+    // 3. Body Variable Mapping
+    const bodyKeys = Object.keys(mapping)
+        .filter(k => /^\d+$/.test(k)) // Only numeric keys {{1}}, {{2}}...
+        .sort((a, b) => parseInt(a) - parseInt(b));
+
+    if (bodyKeys.length > 0) {
+        const bodyParams = bodyKeys.map(k => ({ type: 'text', text: resolveValue(mapping[k], k) }));
+        components.push({ type: 'body', parameters: bodyParams });
+    } else if (components.length === 0) {
+        // Fallback: Default mapping if none defined (1=Name, 2=Time, 3=Campaign)
+        components.push({
+            type: 'body',
+            parameters: [
+                { type: 'text', text: contact.name || 'Client' },
+                { type: 'text', text: dueIn || 'Soon' },
+                { type: 'text', text: campaign.name || 'Sequence' }
+            ]
+        });
+    }
+
+    return components;
+}
+
 async function processDrips() {
     console.log('[DripEngine] Running cycle...');
     const now = new Date();
@@ -189,18 +269,33 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                         const idempotencyKey = `NOTIFY-${enrollment.id}-${ruleId}`;
                         const { skipped } = await logAction(enrollment, 'OWNER_NOTIFY', {
                             phone: rule.phone,
+                            template: rule.template_name || 'TEXT_ONLY',
                             message: `Follow-up for ${enrollment.contact.name} due in ~${rule.value} ${rule.unit}`
                         }, idempotencyKey);
 
                         if (!skipped) {
                             try {
-                                const notificationMessage = `⏰ *Follow-up Reminder*\n\nContact: ${enrollment.contact.name || 'Unknown'}\nPhone: ${enrollment.contact.phone || 'N/A'}\nCampaign: ${enrollment.drip_campaign?.name || 'Unknown'}\n\nDue in approximately *${rule.value} ${rule.unit}*`;
-                                await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, rule.phone, 'text', { body: notificationMessage });
+                                if (rule.template_name) {
+                                    // 1. TEMPLATE NOTIFICATION (Prioritized by Meta)
+                                    const components = resolveOwnerVariables(enrollment, rule);
+                                    await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, rule.phone, 'template', { 
+                                        name: rule.template_name, 
+                                        language: { code: rule.lang || 'en' },
+                                        components: components
+                                    });
+                                } else {
+                                    // 2. STANDARD TEXT MESSAGE (Old Fallback)
+                                    const notificationMessage = `⏰ *Follow-up Reminder*\n\nContact: ${enrollment.contact.name || 'Unknown'}\nPhone: ${enrollment.contact.phone || 'N/A'}\nCampaign: ${enrollment.drip_campaign?.name || 'Unknown'}\n\nDue in approximately *${rule.value} ${rule.unit}*`;
+                                    await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, rule.phone, 'text', { body: notificationMessage });
+                                }
+                                
                                 console.log(`[DripEngine] ✅ Owner notification sent to ${rule.phone}`);
                                 newSentAlerts.push(ruleId);
                                 alertsModified = true;
                             } catch (notifyError) {
                                 console.error(`[DripEngine] ❌ Failed to send owner notification:`, notifyError.message);
+                                // We still mark it as sent or fail gracefully to avoid infinite loops, 
+                                // but ideally we should retry once.
                                 newSentAlerts.push(ruleId);
                                 alertsModified = true;
                             }

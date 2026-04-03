@@ -113,6 +113,60 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     // --- Master Initialization & Persistence Effect ---
     const [isReady, setIsReady] = useState(false);
 
+    const getTemplateVariableConfig = (templateName: string) => {
+        const tpl = templates.find(t => t.name === templateName || t.id === templateName);
+        if (!tpl) return { body: 0, header: 0, headerType: 'NONE', buttons: 0 };
+
+        // Normalized component list with fallback for flattened DB records
+        const components = (tpl.components && tpl.components.length > 0)
+            ? tpl.components
+            : [
+                ...(tpl.body_text ? [{ type: 'BODY', text: tpl.body_text }] : []),
+                ...(tpl.header_text || (tpl.template_type && tpl.template_type !== 'TEXT')
+                    ? [{
+                        type: 'HEADER',
+                        format: tpl.template_type === 'TEXT' || !tpl.template_type ? 'TEXT' : tpl.template_type,
+                        text: tpl.header_text
+                    }] : []),
+                ...(tpl.buttons ? [{ type: 'BUTTONS', buttons: tpl.buttons.buttons || [] }] : [])
+            ];
+
+        const bodyComp = components.find((c: any) => c.type?.toUpperCase() === 'BODY');
+        const headerComp = components.find((c: any) => c.type?.toUpperCase() === 'HEADER');
+        const buttonComps = components.filter((c: any) => c.type?.toUpperCase() === 'BUTTONS');
+
+        const bodyText = bodyComp?.text || '';
+        const headerText = headerComp?.text || '';
+        
+        let buttonVarCount = 0;
+        buttonComps.forEach((bc: any) => {
+            if (bc.buttons) {
+                bc.buttons.forEach((b: any) => {
+                    if (b.text && b.text.includes('{{')) buttonVarCount++;
+                });
+            }
+        });
+
+        const bodyMatches = bodyText.match(/{{(\d+)}}/g);
+        const headerMatches = headerText.match(/{{(\d+)}}/g);
+
+        return {
+            body: bodyMatches ? bodyMatches.length : 0,
+            header: headerMatches ? headerMatches.length : 0,
+            headerType: headerComp?.format || headerComp?.type || 'NONE',
+            buttons: buttonVarCount
+        };
+    };
+
+    const MAPPING_OPTIONS = [
+        { value: 'CONTACT_NAME', label: 'Client Name' },
+        { value: 'CONTACT_PHONE', label: 'Client Phone' },
+        { value: 'CAMPAIGN_NAME', label: 'Sequence Name' },
+        { value: 'DUE_IN', label: 'Time Remaining (e.g. 24 Hours)' },
+        { value: 'DUE_AT', label: 'Exact Deadline' },
+        { value: 'CUSTOM_TEXT', label: 'Custom Text...' },
+    ];
+
     useEffect(() => {
         let isEditing = !!initialData?.id;
 
@@ -334,6 +388,33 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         }
     };
 
+    const handleTemplateMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>, ruleIndex: number) => {
+        if (!e.target.files || !e.target.files[0]) return;
+        const file = e.target.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` },
+                body: formData
+            });
+            const data = await res.json();
+            if (data.success) {
+                const newRules = [...notificationRules];
+                if (!newRules[ruleIndex].mapping) newRules[ruleIndex].mapping = {};
+                newRules[ruleIndex].mapping['header_url'] = data.url;
+                setNotificationRules(newRules);
+            }
+        } catch (err) {
+            console.error("Upload failed", err);
+        }
+    };
+
     const loadTemplates = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -343,7 +424,9 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             });
             if (res.ok) {
                 const json = await res.json();
-                setTemplates(json.data || []);
+                // Support both { data: [...] } and direct array [...]
+                const list = json.data || (Array.isArray(json) ? json : []);
+                setTemplates(list);
             }
         } catch (e) {
             console.error('Failed to load templates', e);
@@ -1011,74 +1094,256 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                             </button>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1">
+                                        <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pr-1">
                                             {notificationRules.length === 0 ? (
                                                 <div className="text-[10px] text-purple-400 font-bold italic text-center py-6 bg-slate-50/50 rounded-2xl border border-dashed border-purple-100">
                                                     No alerts scheduled for this sequence.
                                                 </div>
                                             ) : (
                                                 notificationRules.map((rule, i) => (
-                                                    <div key={i} className="relative bg-white p-3 rounded-xl border border-purple-100 shadow-sm group overflow-visible transition-all hover:border-purple-200">
+                                                    <div key={i} className="relative bg-white p-3.5 rounded-2xl border border-purple-100 shadow-sm group overflow-visible transition-all hover:border-purple-200">
                                                         <button
                                                             type="button"
                                                             onClick={() => {
                                                                 const newRules = notificationRules.filter((_, idx) => idx !== i);
                                                                 setNotificationRules(newRules);
                                                             }}
-                                                            className="absolute -top-1.5 -right-1.5 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-full shadow-sm border border-slate-100 transition-all z-10 opacity-0 group-hover:opacity-100 scale-90"
+                                                            className="absolute -top-1.5 -right-1.5 bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full shadow-md border border-slate-100 transition-all z-10 opacity-0 group-hover:opacity-100 scale-100"
                                                             title="Remove Rule"
                                                         >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                                                         </button>
 
-                                                        <div className="space-y-2">
-                                                            <div className="flex bg-slate-50/80 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ring-purple-500/20 focus-within:border-purple-300 transition-all h-9">
-                                                                <div className="bg-slate-100/50 px-2 flex items-center border-r border-slate-200 text-slate-400">
-                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                        <div className="space-y-3">
+                                                            {/* Row 1: Side-by-Side Phone & Time (7:5) */}
+                                                            <div className="grid grid-cols-12 gap-2">
+                                                                <div className="col-span-7">
+                                                                    <div className="flex bg-slate-50/80 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 ring-purple-500/20 focus-within:border-purple-300 transition-all h-10">
+                                                                        <div className="bg-slate-100/50 px-2.5 flex items-center border-r border-slate-200 text-slate-400">
+                                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                                        </div>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="WhatsApp no."
+                                                                            value={rule.phone}
+                                                                            onChange={(e) => {
+                                                                                const newRules = [...notificationRules];
+                                                                                newRules[i].phone = e.target.value;
+                                                                                setNotificationRules(newRules);
+                                                                            }}
+                                                                            className="w-full border-0 focus:ring-0 text-[11px] py-1 px-2.5 bg-transparent font-bold placeholder-slate-400"
+                                                                        />
+                                                                    </div>
                                                                 </div>
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="WhatsApp no."
-                                                                    value={rule.phone}
-                                                                    onChange={(e) => {
-                                                                        const newRules = [...notificationRules];
-                                                                        newRules[i].phone = e.target.value;
-                                                                        setNotificationRules(newRules);
-                                                                    }}
-                                                                    className="w-full border-0 focus:ring-0 text-[11px] py-1 px-2.5 bg-transparent font-bold placeholder-slate-400"
-                                                                />
+
+                                                                <div className="col-span-5">
+                                                                    <div className="flex items-center bg-slate-50/80 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 ring-purple-500/20 focus-within:border-purple-300 transition-all h-10">
+                                                                        <input
+                                                                            type="number"
+                                                                            min="1"
+                                                                            value={rule.value}
+                                                                            onChange={(e) => {
+                                                                                const newRules = [...notificationRules];
+                                                                                newRules[i].value = parseInt(e.target.value) || 1;
+                                                                                setNotificationRules(newRules);
+                                                                            }}
+                                                                            className="w-10 border-0 focus:ring-0 text-xs py-1 pl-2 bg-transparent font-black"
+                                                                        />
+                                                                        <select
+                                                                            value={rule.unit}
+                                                                            onChange={(e) => {
+                                                                                const newRules = [...notificationRules];
+                                                                                newRules[i].unit = e.target.value;
+                                                                                setNotificationRules(newRules);
+                                                                            }}
+                                                                            className="flex-1 border-0 focus:ring-0 text-[9px] py-1 bg-transparent font-black cursor-pointer uppercase pr-6"
+                                                                        >
+                                                                            <option value="MINUTES">MINS</option>
+                                                                            <option value="HOURS">HRS</option>
+                                                                            <option value="DAYS">DAYS</option>
+                                                                        </select>
+                                                                        <span className="text-[8px] pr-2 font-black text-slate-400 shrink-0 tracking-tighter">BFR</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
-                                                            <div className="flex items-center gap-1.5 bg-slate-50/80 border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 ring-purple-500/20 focus-within:border-purple-300 transition-all h-9">
-                                                                <div className="bg-slate-100/50 px-2 flex items-center border-r border-slate-200 text-slate-400">
-                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                            {/* Row 2: Template Selector */}
+                                                            <div className="relative">
+                                                                <div className="flex bg-slate-50/80 border border-slate-200 rounded-xl overflow-hidden focus-within:ring-2 ring-purple-500/20 transition-all h-9">
+                                                                    <div className="bg-slate-100/50 px-2.5 flex items-center border-r border-slate-200 text-slate-400">
+                                                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                                                                    </div>
+                                                                    <select
+                                                                        value={rule.template_name || ''}
+                                                                        onChange={(e) => {
+                                                                            const newRules = [...notificationRules];
+                                                                            const name = e.target.value;
+                                                                            newRules[i].template_name = name;
+                                                                            // Reset mapping when template changes
+                                                                            newRules[i].mapping = {};
+                                                                            setNotificationRules(newRules);
+                                                                        }}
+                                                                        className="w-full border-0 focus:ring-0 text-[10px] py-1 px-2.5 bg-transparent font-bold text-slate-700 cursor-pointer appearance-none"
+                                                                    >
+                                                                        <option value="">Standard Text Message (No Template)</option>
+                                                                        {templates.map(t => (
+                                                                            <option key={t.id} value={t.name}>{t.name}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                                                    </div>
                                                                 </div>
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    value={rule.value}
-                                                                    onChange={(e) => {
-                                                                        const newRules = [...notificationRules];
-                                                                        newRules[i].value = parseInt(e.target.value) || 1;
-                                                                        setNotificationRules(newRules);
-                                                                    }}
-                                                                    className="w-12 border-0 focus:ring-0 text-xs py-1 bg-transparent font-black"
-                                                                />
-                                                                <select
-                                                                    value={rule.unit}
-                                                                    onChange={(e) => {
-                                                                        const newRules = [...notificationRules];
-                                                                        newRules[i].unit = e.target.value;
-                                                                        setNotificationRules(newRules);
-                                                                    }}
-                                                                    className="flex-1 border-0 focus:ring-0 text-[10px] py-1 bg-transparent font-black cursor-pointer uppercase pr-6"
-                                                                >
-                                                                    <option value="MINUTES">MINS</option>
-                                                                    <option value="HOURS">HOURS</option>
-                                                                    <option value="DAYS">DAYS</option>
-                                                                </select>
-                                                                <span className="text-[9px] pr-2 font-black text-slate-400 shrink-0 tracking-tighter">BEFORE</span>
                                                             </div>
+
+                                                            {/* Row 3: Variable Mapping (Dynamic) */}
+                                                            {rule.template_name && (() => {
+                                                                const config = getTemplateVariableConfig(rule.template_name);
+                                                                const hasMedia = ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(config.headerType?.toUpperCase());
+                                                                const hasVars = config.body > 0 || config.header > 0 || config.buttons > 0;
+                                                                
+                                                                return (
+                                                                    <div className="space-y-3 pt-2 border-t border-slate-100 mt-2 bg-slate-50/30 p-2 rounded-xl">
+                                                                        <div className="flex items-center justify-between mb-1">
+                                                                            <span className="text-[9px] font-black text-purple-600 uppercase tracking-widest flex items-center gap-1.5">
+                                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                                                Mapping for {rule.template_name}
+                                                                            </span>
+                                                                            {!hasMedia && !hasVars && (
+                                                                                 <span className="text-[8px] font-bold text-slate-400 bg-slate-100/50 px-1.5 py-0.5 rounded italic">No variables detected</span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* 1. Header Media Mapping */}
+                                                                        {hasMedia && (
+                                                                            <div className="space-y-1.5">
+                                                                                <label className="text-[9px] font-black text-purple-400 uppercase tracking-widest ml-1">Header {config.headerType}</label>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <div className="flex-1 flex bg-white border border-slate-200 rounded-lg overflow-hidden h-8">
+                                                                                        <div className="bg-slate-50 px-2 flex items-center border-r border-slate-200">
+                                                                                            <span className="text-[10px] font-bold text-purple-500">URL</span>
+                                                                                        </div>
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            placeholder="Media URL..."
+                                                                                            value={rule.mapping?.header_url || ''}
+                                                                                            onChange={(e) => {
+                                                                                                const newRules = [...notificationRules];
+                                                                                                if (!newRules[i].mapping) newRules[i].mapping = {};
+                                                                                                newRules[i].mapping['header_url'] = e.target.value;
+                                                                                                setNotificationRules(newRules);
+                                                                                            }}
+                                                                                            className="w-full border-0 focus:ring-0 text-[10px] font-medium px-2"
+                                                                                        />
+                                                                                    </div>
+                                                                                    <label className="shrink-0 h-8 px-3 bg-purple-50 hover:bg-purple-100 text-purple-600 text-[10px] font-black rounded-lg border border-purple-100 flex items-center justify-center cursor-pointer transition-all">
+                                                                                        UPLOAD
+                                                                                        <input type="file" className="hidden" accept={config.headerType?.toUpperCase() === 'IMAGE' ? 'image/*' : config.headerType?.toUpperCase() === 'VIDEO' ? 'video/*' : '*'} onChange={(e) => handleTemplateMediaUpload(e, i)} />
+                                                                                    </label>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* 2. Header Variable Mapping */}
+                                                                        {config.header > 0 && Array.from({ length: config.header }).map((_, vIdx) => {
+                                                                            const varNum = vIdx + 1;
+                                                                            const key = `header_${varNum}`;
+                                                                            const currentMapping = rule.mapping?.[key] || '';
+                                                                            return (
+                                                                                <div key={key} className="flex items-center gap-2">
+                                                                                    <span className="text-[9px] font-black text-purple-600 bg-purple-50 w-7 h-7 flex items-center justify-center rounded-lg border border-purple-100 shrink-0">H{varNum}</span>
+                                                                                    <select
+                                                                                        value={currentMapping}
+                                                                                        onChange={(e) => {
+                                                                                            const newRules = [...notificationRules];
+                                                                                            if (!newRules[i].mapping) newRules[i].mapping = {};
+                                                                                            newRules[i].mapping[key] = e.target.value;
+                                                                                            setNotificationRules(newRules);
+                                                                                        }}
+                                                                                        className="flex-1 bg-white border border-slate-200 rounded-lg text-[10px] py-1 px-2 font-bold focus:ring-1 focus:ring-purple-500 h-7"
+                                                                                    >
+                                                                                        <option value="">-- Map Header Var {varNum} --</option>
+                                                                                        {MAPPING_OPTIONS.map(opt => (
+                                                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                                        ))}
+                                                                                    </select>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+
+                                                                        {/* 3. Body Variable Mapping */}
+                                                                        {config.body > 0 && (
+                                                                            <div className="space-y-2">
+                                                                                {Array.from({ length: config.body }).map((_, vIdx) => {
+                                                                                    const varNum = vIdx + 1;
+                                                                                    const currentMapping = rule.mapping?.[varNum] || '';
+                                                                                    return (
+                                                                                        <div key={varNum} className="flex items-center gap-2">
+                                                                                            <span className="text-[10px] font-black text-purple-600 bg-purple-50 w-7 h-7 flex items-center justify-center rounded-lg border border-purple-100 shrink-0">{'{{'}{varNum}{'}}'}</span>
+                                                                                            <select
+                                                                                                value={currentMapping}
+                                                                                                onChange={(e) => {
+                                                                                                    const newRules = [...notificationRules];
+                                                                                                    if (!newRules[i].mapping) newRules[i].mapping = {};
+                                                                                                    newRules[i].mapping[varNum] = e.target.value;
+                                                                                                    setNotificationRules(newRules);
+                                                                                                }}
+                                                                                                className="flex-1 bg-white border border-slate-200 rounded-lg text-[10px] py-1 px-2 font-bold focus:ring-1 focus:ring-purple-500 h-7"
+                                                                                            >
+                                                                                                <option value="">-- Map to body field --</option>
+                                                                                                {MAPPING_OPTIONS.map(opt => (
+                                                                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                                                ))}
+                                                                                            </select>
+                                                                                            {currentMapping === 'CUSTOM_TEXT' && (
+                                                                                                <input
+                                                                                                    type="text"
+                                                                                                    placeholder="Value..."
+                                                                                                    value={rule.mapping?.[`${varNum}_custom`] || ''}
+                                                                                                    onChange={(e) => {
+                                                                                                        const newRules = [...notificationRules];
+                                                                                                        if (!newRules[i].mapping) newRules[i].mapping = {};
+                                                                                                        newRules[i].mapping[`${varNum}_custom`] = e.target.value;
+                                                                                                        setNotificationRules(newRules);
+                                                                                                    }}
+                                                                                                    className="flex-1 bg-white border border-slate-200 rounded-lg text-[10px] py-1 px-2 font-medium h-7"
+                                                                                                />
+                                                                                            )}
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+
+                                                                        {/* 4. Button Variable Mapping */}
+                                                                        {config.buttons > 0 && Array.from({ length: config.buttons }).map((_, vIdx) => {
+                                                                            const varNum = vIdx + 1;
+                                                                            const key = `btn_${varNum}`;
+                                                                            const currentMapping = rule.mapping?.[key] || '';
+                                                                            return (
+                                                                                <div key={key} className="flex items-center gap-2">
+                                                                                    <span className="text-[9px] font-black text-purple-600 bg-purple-50 w-7 h-7 flex items-center justify-center rounded-lg border border-purple-100 shrink-0">B{varNum}</span>
+                                                                                    <select
+                                                                                        value={currentMapping}
+                                                                                        onChange={(e) => {
+                                                                                            const newRules = [...notificationRules];
+                                                                                            if (!newRules[i].mapping) newRules[i].mapping = {};
+                                                                                            newRules[i].mapping[key] = e.target.value;
+                                                                                            setNotificationRules(newRules);
+                                                                                        }}
+                                                                                        className="flex-1 bg-white border border-slate-200 rounded-lg text-[10px] py-1 px-2 font-bold focus:ring-1 focus:ring-purple-500 h-7"
+                                                                                    >
+                                                                                        <option value="">-- Map Button Var {varNum} --</option>
+                                                                                        {MAPPING_OPTIONS.map(opt => (
+                                                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                                                        ))}
+                                                                                    </select>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </div>
                                                 ))
