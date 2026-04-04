@@ -206,8 +206,8 @@ class FlowEngine {
                         .from('flow_sessions')
                         .select('id, status, current_node_id, variables, flow_id, user_id')
                         .eq('status', 'waiting_input')
-                        .order('last_interaction_at', { ascending: true })
-                        .limit(20);
+                        .order('last_interaction_at', { ascending: false })
+                        .limit(500);
 
                     if (!waitingError && waitingSessions && waitingSessions.length > 0) {
                         for (const session of waitingSessions) {
@@ -260,7 +260,7 @@ class FlowEngine {
                         .select('id')
                         .in('status', ['active', 'processing', 'resuming'])
                         .lt('last_interaction_at', stuckThreshold)
-                        .limit(5);
+                        .limit(50);
 
                     if (!stuckError && stuckSessions && stuckSessions.length > 0) {
                         for (const stuck of stuckSessions) {
@@ -1112,8 +1112,8 @@ class FlowEngine {
                     const timeoutTime = new Date(output.timeoutAt).getTime();
                     const delayMs = timeoutTime - Date.now();
 
-                    // Scheduling exact RAM trigger for any timeout up to 15 minutes
-                    if (delayMs > 0 && delayMs <= 15 * 60 * 1000) {
+                    // Scheduling exact RAM trigger for any timeout up to 24 hours
+                    if (delayMs > 0 && delayMs <= 24 * 60 * 60 * 1000) {
                         console.log(`[FlowEngine] Short unresponsive timeout detected. Scheduling RAM trigger in ${delayMs}ms for session ${session.id}.`);
                         setTimeout(async () => {
                             try {
