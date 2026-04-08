@@ -7,6 +7,7 @@ import SettingsPanel from './SettingsPanel';
 import Canvas from './Canvas';
 import Navigation from './Navigation';
 import { ArrowLeftIcon, EditIcon, PlusIcon } from './icons';
+import MindMap from './MiniMap';
 
 interface FlowEditorProps {
   flowId: string;
@@ -18,6 +19,9 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [flowStatus, setFlowStatus] = useState<'Draft' | 'Published'>('Draft');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [connectingSource, setConnectingSource] = useState<{ nodeId: string; handleId?: string } | null>(null);
@@ -35,11 +39,31 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   const draggingNode = useRef<{ id: string; offset: { x: number; y: number } } | null>(null);
   const isPanning = useRef(false);
   const lastClientPos = useRef({ x: 0, y: 0 });
-  const [connectionLine, setConnectionLine] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+  const [connectionLine, setConnectionLine] = useState<{ fromX: number, fromY: number, toX: number, toY: number } | null>(null);
+  const dashPosition = useRef({ x: 300, y: window.innerHeight - 240 });
+  const isDraggingDash = useRef(false);
+  const dashOffset = useRef({ x: 0, y: 0 });
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { connectingSourceRef.current = connectingSource; }, [connectingSource]);
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+
+  const cancelConnection = useCallback(() => {
+    document.body.classList.remove('is-connecting');
+    setConnectingSource(null);
+    setConnectionLine(null);
+  }, []);
+
+  // ESC KEY SUPPORT
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && connectingSourceRef.current) {
+        cancelConnection();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cancelConnection]);
 
   useEffect(() => {
     // Set initial state based on screen size, but allow user toggling afterwards
@@ -210,6 +234,11 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     const deltaY = y - lastClientPos.current.y;
     lastClientPos.current = { x, y };
 
+    if (isDraggingDash.current) {
+      dashPosition.current = { x: x - dashOffset.current.x, y: y - dashOffset.current.y };
+      return;
+    }
+
     if (isPanning.current) {
       setViewport(prev => ({ ...prev, x: prev.x + deltaX, y: prev.y + deltaY }));
       if (e.type === 'touchmove') e.preventDefault();
@@ -222,17 +251,62 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       if (e.type === 'touchmove') e.preventDefault();
     }
     if (connectingSourceRef.current) {
-      const worldPos = screenToWorld(x, y);
-      setConnectionLine(line => line ? { ...line, x2: worldPos.x, y2: worldPos.y } : null);
+      let worldPos = screenToWorld(x, y);
+
+      // MAGNET SNAPPING: Detect nearest node input area
+      const magnetRange = 50;
+      let snapped = false;
+      for (const node of nodes) {
+        const dx = worldPos.x - node.position.x;
+        const dy = worldPos.y - (node.position.y + 15); // Approximate target handle pos
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < magnetRange && node.id !== connectingSourceRef.current.nodeId) {
+          worldPos = { x: node.position.x, y: node.position.y + 15 };
+          snapped = true;
+          break;
+        }
+      }
+
+      setConnectionLine(line => line ? { ...line, toX: worldPos.x, toY: worldPos.y } : null);
+
+      // AUTO-PANNING (Edge Scrolling)
+      if (canvasWrapperRef.current) {
+        const bounds = canvasWrapperRef.current.getBoundingClientRect();
+        const edgeThreshold = 50;
+        const panSpeed = 10;
+
+        let panX = 0;
+        let panY = 0;
+
+        if (x < bounds.left + edgeThreshold) panX = panSpeed;
+        else if (x > bounds.right - edgeThreshold) panX = -panSpeed;
+
+        if (y < bounds.top + edgeThreshold) panY = panSpeed;
+        else if (y > bounds.bottom - edgeThreshold) panY = -panSpeed;
+
+        if (panX !== 0 || panY !== 0) {
+          setViewport(prev => ({ ...prev, x: prev.x + panX, y: prev.y + panY }));
+        }
+      }
+
       if (e.type === 'touchmove') e.preventDefault();
     }
-  }, [screenToWorld]);
+  }, [screenToWorld, nodes]);
 
-  const cancelConnection = useCallback(() => {
-    document.body.classList.remove('is-connecting');
-    setConnectingSource(null);
-    setConnectionLine(null);
-  }, []);
+  const centerNode = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node || !canvasWrapperRef.current) return;
+    const bounds = canvasWrapperRef.current.getBoundingClientRect();
+    setViewport({
+      x: (bounds.width / 2) - (node.position.x * viewportRef.current.zoom) - (110 * viewportRef.current.zoom),
+      y: (bounds.height / 2) - (node.position.y * viewportRef.current.zoom) - (50 * viewportRef.current.zoom),
+      zoom: viewportRef.current.zoom
+    });
+    setSelectedNodeId(nodeId);
+    setSearchQuery('');
+    setShowSearchResults(false);
+  }, [nodes]);
 
   const handleCompleteConnection = useCallback((targetNodeId: string) => {
     const source = connectingSourceRef.current;
@@ -262,6 +336,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     }
     draggingNode.current = null;
     isPanning.current = false;
+    isDraggingDash.current = false;
     if (source) cancelConnection();
     cleanupListeners();
   }, [cancelConnection, handleCompleteConnection]);
@@ -310,19 +385,77 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     document.body.classList.add('is-connecting');
     const { x, y } = getClientPos(e);
     const worldPos = screenToWorld(x, y);
-    setConnectionLine({ x1: worldPos.x, y1: worldPos.y, x2: worldPos.x, y2: worldPos.y });
+    setConnectionLine({ fromX: worldPos.x, fromY: worldPos.y, toX: worldPos.x, toY: worldPos.y });
     startInteraction(e);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
+      if (!canvasWrapperRef.current) return;
+      
+      const bounds = canvasWrapperRef.current.getBoundingClientRect();
+      const mouseX = e.clientX - bounds.left;
+      const mouseY = e.clientY - bounds.top;
+
+      // World position under mouse before zoom
+      const wx = (mouseX - viewport.x) / viewport.zoom;
+      const wy = (mouseY - viewport.y) / viewport.zoom;
+
       const delta = -e.deltaY * 0.001;
-      setViewport(prev => ({ ...prev, zoom: Math.min(Math.max(prev.zoom + delta, 0.1), 3) }));
+      const nextZoom = Math.min(Math.max(viewport.zoom + delta, 0.1), 3);
+
+      setViewport({
+        zoom: nextZoom,
+        x: mouseX - wx * nextZoom,
+        y: mouseY - wy * nextZoom
+      });
     } else {
       setViewport(prev => ({ ...prev, x: prev.x - e.deltaX, y: prev.y - e.deltaY }));
     }
   };
+
+  const handleManualZoom = useCallback((delta: number) => {
+    if (!canvasWrapperRef.current) return;
+    const bounds = canvasWrapperRef.current.getBoundingClientRect();
+    const centerX = bounds.width / 2;
+    const centerY = bounds.height / 2;
+    const oldZoom = viewportRef.current.zoom;
+    const newZoom = Math.min(Math.max(oldZoom + delta, 0.1), 3);
+    const wx = (centerX - viewportRef.current.x) / oldZoom;
+    const wy = (centerY - viewportRef.current.y) / oldZoom;
+    setViewport({ x: centerX - wx * newZoom, y: centerY - wy * newZoom, zoom: newZoom });
+  }, []);
+
+  const handleFitView = useCallback(() => {
+    if (nodes.length === 0 || !canvasWrapperRef.current) return;
+    
+    // Calculate full flow bounds
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      minX = Math.min(minX, n.position.x);
+      minY = Math.min(minY, n.position.y);
+      maxX = Math.max(maxX, n.position.x + 250);
+      maxY = Math.max(maxY, n.position.y + 100);
+    });
+
+    const flowW = maxX - minX;
+    const flowH = maxY - minY;
+
+    const bounds = canvasWrapperRef.current.getBoundingClientRect();
+    const padding = 100;
+
+    // Target zoom to fit everything
+    const zoomX = (bounds.width - padding) / flowW;
+    const zoomY = (bounds.height - padding) / flowH;
+    const nextZoom = Math.min(Math.max(Math.min(zoomX, zoomY), 0.3), 1.2);
+
+    setViewport({
+      zoom: nextZoom,
+      x: (bounds.width / 2) - ((minX + flowW / 2) * nextZoom),
+      y: (bounds.height / 2) - ((minY + flowH / 2) * nextZoom),
+    });
+  }, [nodes]);
 
   const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }, []);
   const onDrop = useCallback((event: React.DragEvent) => {
@@ -396,6 +529,72 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
             </div>
           </div>
 
+          {/* SEARCH NODE FEATURE */}
+          <div className="relative hidden lg:block w-64">
+            <label className="block text-[10px] font-extrabold text-slate-500 uppercase tracking-widest ml-1 mb-1">Jump to Node / Search</label>
+            <div className={`relative group transition-all duration-300 ${searchQuery ? 'ring-2 ring-brand-500 shadow-[0_0_15px_rgba(132,204,22,0.3)] rounded-lg' : ''}`}>
+              <input
+                type="text"
+                placeholder={connectingSource ? "Search to connect..." : "Search node name..."}
+                className={`w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500 transition-all ${connectingSource ? 'placeholder-brand-400 font-bold' : ''}`}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchResults(true);
+                }}
+              />
+              <div className="absolute right-3 top-2.5 text-slate-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+
+              {showSearchResults && searchQuery.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-md shadow-2xl max-h-64 overflow-y-auto z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+                  {nodes.filter(n => (n.data.label || 'Un-named node').toLowerCase().includes(searchQuery.toLowerCase()) || n.type.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
+                    nodes.filter(n => (n.data.label || 'Un-named node').toLowerCase().includes(searchQuery.toLowerCase()) || n.type.toLowerCase().includes(searchQuery.toLowerCase())).map(n => (
+                      <button
+                        key={n.id}
+                        onClick={() => {
+                          if (connectingSource) {
+                            handleCompleteConnection(n.id);
+                            centerNode(n.id);
+                          } else {
+                            centerNode(n.id);
+                          }
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-800 border-b border-slate-800 last:border-0 flex items-center justify-between transition-colors group/item"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${connectingSource ? 'bg-brand-400 animate-pulse' : 'bg-slate-700'}`}></div>
+                          <div>
+                            <div className="text-sm font-bold text-white leading-none mb-1">{n.data.label || <span className="text-slate-500 italic font-medium">Un-named node</span>}</div>
+                            <div className="text-[10px] text-slate-500 uppercase tracking-wide">{n.type}</div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-1.5 transition-all">
+                          {connectingSource ? (
+                             <div className="flex items-center gap-1.5 text-[opacity] font-bold uppercase tracking-widest text-brand-400 transition-colors">
+                               <span className="text-[9px]">Click to Connect</span>
+                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                             </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-[opacity] font-bold uppercase tracking-widest text-slate-500 group-hover/item:text-brand-400 transition-colors">
+                              <span className="text-[9px]">Teleport</span>
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-slate-500 italic">No nodes found</div>
+                  )
+                }
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end bg-slate-800/30 p-1.5 rounded-xl border border-slate-800/50">
             <div className="flex items-center gap-2 px-2">
               <span className={`text-[10px] font-black uppercase tracking-wider transition-colors ${flowStatus === 'Published' ? 'text-emerald-400' : 'text-slate-500'}`}>{flowStatus}</span>
@@ -426,8 +625,44 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
 
         <div ref={canvasWrapperRef} className={`flex-1 relative h-full overflow-hidden flex flex-col transition-colors duration-200 bg-slate-950`} onWheel={handleWheel}>
           <div className="absolute inset-0 z-0">
-            <Canvas nodes={nodes} edges={edges} connectingSource={connectingSource} connectionLine={connectionLine} viewport={viewport} onNodeDragStart={handleNodeDragStart} onNodeTouchStart={handleNodeDragStart} onCanvasMouseDown={handleCanvasStart} onCanvasTouchStart={handleCanvasStart} onUpdateNode={updateNodeData} onDeleteNode={deleteNode} onDeleteEdge={deleteEdge} onDuplicateNode={duplicateNode} onSourceHandleMouseDown={handleSourceHandleStart} onSourceHandleTouchStart={handleSourceHandleStart} onNodeSettingsClick={(nodeId) => setSelectedNodeId(nodeId)} onNodeClick={() => { }} onNodeMouseUp={handleCompleteConnection} onDragOver={onDragOver} onDrop={onDrop} />
-            <Navigation zoom={viewport.zoom} onZoomIn={() => setViewport(p => ({ ...p, zoom: Math.min(p.zoom + 0.2, 3) }))} onZoomOut={() => setViewport(p => ({ ...p, zoom: Math.max(p.zoom - 0.2, 0.1) }))} onFitView={() => setViewport({ x: 0, y: 0, zoom: 1 })} className="absolute bottom-6 right-6 md:bottom-8 md:left-8" />
+            <Canvas nodes={nodes} edges={edges} connectingSource={connectingSource} connectionLine={connectionLine} viewport={viewport} onNodeDragStart={handleNodeDragStart} onNodeTouchStart={handleNodeDragStart} onCanvasMouseDown={handleCanvasStart} onCanvasTouchStart={handleCanvasStart} onUpdateNode={updateNodeData} onDeleteNode={deleteNode} onDeleteEdge={deleteEdge} onDuplicateNode={duplicateNode} onSourceHandleMouseDown={handleSourceHandleStart} onSourceHandleTouchStart={handleSourceHandleStart} onNodeSettingsClick={(nodeId) => setSelectedNodeId(nodeId)} onNodeClick={(nodeId) => centerNode(nodeId)} onNodeMouseUp={handleCompleteConnection} onDragOver={onDragOver} onDrop={onDrop} />
+            
+            {/* Unified Command Center (Navigator + Zoom) */}
+            <div 
+              className="absolute z-50 pointer-events-none group/dock"
+              style={{ left: `${dashPosition.current.x}px`, top: `${dashPosition.current.y}px` }}
+            >
+               <div className="pointer-events-auto flex flex-col items-stretch bg-slate-900/40 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 hover:border-brand-500/30 rounded-2xl p-0 shadow-2xl hover:shadow-brand-900/10 transition-all duration-300 w-64 hover:ring-1 hover:ring-white/10 overflow-hidden">
+                 <div 
+                   className="px-4 py-2 border-b border-white/5 flex items-center justify-between cursor-move"
+                   onMouseDown={(e) => {
+                     const { x, y } = getClientPos(e);
+                     isDraggingDash.current = true;
+                     dashOffset.current = { x: x - dashPosition.current.x, y: y - dashPosition.current.y };
+                     startInteraction(e);
+                   }}
+                 >
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest select-none pointer-events-none italic">Navigator</label>
+                   <div className="flex items-center gap-1">
+                      <Navigation 
+                        zoom={viewport.zoom} 
+                        onZoomIn={() => handleManualZoom(0.2)} 
+                        onZoomOut={() => handleManualZoom(-0.2)} 
+                        onFitView={handleFitView} 
+                      />
+                   </div>
+                 </div>
+                 
+                 <div className="p-1">
+                    <MindMap 
+                      nodes={nodes} 
+                      viewport={viewport} 
+                      onMoveTo={centerNode} 
+                      canvasBounds={canvasWrapperRef.current?.getBoundingClientRect()}
+                    />
+                 </div>
+               </div>
+            </div>
           </div>
         </div>
 

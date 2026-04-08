@@ -7,7 +7,7 @@ interface CanvasProps {
   nodes: Node[];
   edges: Edge[];
   connectingSource: { nodeId: string; handleId?: string } | null;
-  connectionLine: { x1: number, y1: number, x2: number, y2: number } | null;
+  connectionLine: { fromX: number, fromY: number, toX: number, toY: number } | null;
   viewport: { x: number; y: number; zoom: number };
   onNodeDragStart: (e: React.MouseEvent, nodeId: string) => void;
   onNodeTouchStart: (e: React.TouchEvent, nodeId: string) => void;
@@ -264,21 +264,29 @@ const Canvas: React.FC<CanvasProps> = ({
             );
           })}
 
-          {connectionLine && (() => {
-            const distLine = Math.abs(connectionLine.x2 - connectionLine.x1);
-            const isLineLeft = connectionLine.x2 < connectionLine.x1;
-            const connOffset = isLineLeft ? Math.max(distLine * 0.8, 150) : Math.max(distLine / 2, 80);
-
-            return (
+          {/* Render Active Connection Line (Sticky Drag) */}
+          {connectingSource && connectionLine && (
+            <g className="pointer-events-none drop-shadow-[0_0_15px_rgba(132,204,22,0.4)]">
+              <defs>
+                <linearGradient id="activeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="100%" stopColor="#4d7c0f" />
+                </linearGradient>
+              </defs>
               <path
-                d={`M ${connectionLine.x1} ${connectionLine.y1} C ${connectionLine.x1 + connOffset} ${connectionLine.y1} ${connectionLine.x2 - connOffset} ${connectionLine.y2} ${connectionLine.x2} ${connectionLine.y2}`}
-                stroke="#06b6d4"
-                strokeWidth="2"
+                d={`M ${connectionLine.fromX} ${connectionLine.fromY} 
+                   C ${(connectionLine.fromX + connectionLine.toX) / 2} ${connectionLine.fromY}, 
+                     ${(connectionLine.fromX + connectionLine.toX) / 2} ${connectionLine.toY}, 
+                     ${connectionLine.toX} ${connectionLine.toY}`}
+                stroke="url(#activeGradient)"
+                strokeWidth="4"
                 fill="none"
-                strokeDasharray="5,5"
+                strokeDasharray="8 6"
+                className="animate-[dash_0.5s_linear_infinite]"
               />
-            );
-          })()}
+              <circle cx={connectionLine.toX} cy={connectionLine.toY} r="5" fill="#84cc16" className="animate-pulse" />
+            </g>
+          )}
         </svg>
 
         {/* Nodes Layer */}
