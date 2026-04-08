@@ -15,6 +15,7 @@ interface IntegrationsViewProps {
 
 const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, onNavigate }) => {
     const [brandColor, setBrandColor] = useState('#ea580c'); // Default orange
+    const [connectedApps, setConnectedApps] = useState<string[]>([]);
 
     useEffect(() => {
         const loadTheme = async () => {
@@ -25,6 +26,11 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
         };
         loadTheme();
     }, []);
+
+    const handleConnect = (appName: string, url: string) => {
+        setConnectedApps(prev => [...prev, appName]);
+        if (url) window.open(url, '_blank', 'noopener,noreferrer');
+    };
 
     // Helper for subtle background
     const getSubtleBg = () => ({
@@ -177,36 +183,166 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
 
                         {/* Bulk RCS Integration */}
                         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
-                            {/* Animated glow bg on hover */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                            <div className="w-12 h-12 rounded-xl overflow-hidden mb-4 flex items-center justify-center bg-gradient-to-br from-[#0d2444] to-[#0a4a5e] shadow-md ring-2 ring-teal-200">
-                                <img
-                                    src="https://bulkrcs.online/wp-content/uploads/2024/12/cropped-bulkrcs-192x192.png"
-                                    alt="Bulk RCS Logo"
-                                    className="w-9 h-9 object-contain"
-                                    onError={(e) => {
-                                        (e.target as HTMLImageElement).style.display = 'none';
-                                        (e.target as HTMLImageElement).parentElement!.innerHTML = `<svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#00e5c8" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>`;
-                                    }}
-                                />
+                            {/* Animated glow bg on hover - Moved behind */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
+                            
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#0d2444] to-[#0a4a5e] shadow-md ring-2 ring-teal-100">
+                                        <img
+                                            src="https://bulkrcs.online/wp-content/uploads/2024/12/cropped-bulkrcs-192x192.png"
+                                            alt="Bulk RCS"
+                                            className="w-9 h-9 object-contain"
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                (e.target as HTMLImageElement).parentElement!.innerHTML = `<svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#00e5c8" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>`;
+                                            }}
+                                        />
+                                    </div>
+                                    {connectedApps.includes('bulk_rcs') && (
+                                        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-100">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                            Connected
+                                        </div>
+                                    )}
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 mb-1">Bulk RCS</h3>
+                                <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                                    Send rich, interactive RCS messages at scale. Engage customers with branded, media-rich business messaging directly on Android devices.
+                                </p>
+                                <button
+                                    onClick={() => handleConnect('bulk_rcs', 'https://bulkrcs.online')}
+                                    className="w-full px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
+                                    style={{
+                                        background: connectedApps.includes('bulk_rcs') ? '#f8fafc' : 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+                                        color: connectedApps.includes('bulk_rcs') ? '#475569' : '#fff',
+                                        border: connectedApps.includes('bulk_rcs') ? '1px solid #e2e8f0' : 'none',
+                                        boxShadow: connectedApps.includes('bulk_rcs') ? 'none' : '0 4px 14px rgba(6, 182, 212, 0.35)'
+                                    }}>
+                                    {connectedApps.includes('bulk_rcs') ? 'Manage' : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                            Connect
+                                        </>
+                                    )}
+                                </button>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-1">Bulk RCS</h3>
-                            <p className="text-slate-500 text-sm mb-6">
-                                Send rich, interactive RCS messages at scale. Engage customers with branded, media-rich business messaging directly on Android devices.
-                            </p>
-                            <button
-                                onClick={() => window.open('https://bulkrcs.online', '_blank', 'noopener,noreferrer')}
-                                className="w-full px-4 py-2.5 font-semibold rounded-lg transition-all hover:shadow-lg hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
-                                style={{
-                                    background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
-                                    color: '#fff',
-                                    boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
-                                }}>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                                Connect
-                            </button>
+                        </div>
+
+                        {/* N8N Workflow Automation */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-red-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
+                            
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#ea4b20] to-[#ff6a3d] shadow-md ring-2 ring-orange-100">
+                                        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none">
+                                            <circle cx="5" cy="12" r="3" fill="white" opacity="0.9"/>
+                                            <circle cx="19" cy="12" r="3" fill="white" opacity="0.9"/>
+                                            <path d="M8 12h8" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+                                            <path d="M2 6l3 6-3 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                            <path d="M22 6l-3 6 3 6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-1 bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                                            Powered by N8N
+                                        </div>
+                                        {connectedApps.includes('n8n') && (
+                                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-100">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Connected
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 mb-1">N8N Workflow Automation</h3>
+                                <p className="text-slate-600 text-sm mb-2 leading-relaxed">
+                                    Automate complex workflows by connecting your WhatsApp flows with 400+ apps. Trigger actions, sync data, and build powerful no-code automations.
+                                </p>
+                                <p className="text-[11px] text-orange-600 font-medium mb-5 flex items-center gap-1">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                    Executed via N8N Workflow Engine
+                                </p>
+                                <button
+                                    onClick={() => handleConnect('n8n', 'https://n8n.io')}
+                                    className="w-full px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
+                                    style={{
+                                        background: connectedApps.includes('n8n') ? '#f8fafc' : 'linear-gradient(135deg, #ea4b20 0%, #ff6a3d 100%)',
+                                        color: connectedApps.includes('n8n') ? '#475569' : '#fff',
+                                        border: connectedApps.includes('n8n') ? '1px solid #e2e8f0' : 'none',
+                                        boxShadow: connectedApps.includes('n8n') ? 'none' : '0 4px 14px rgba(234, 75, 32, 0.3)'
+                                    }}>
+                                    {connectedApps.includes('n8n') ? 'Configure' : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                            </svg>
+                                            Explore N8N
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* AI Voice Calling Agent */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-purple-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
+                            
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#6d28d9] to-[#a855f7] shadow-md ring-2 ring-violet-100">
+                                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 10v2a7 7 0 01-14 0v-2" />
+                                            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"/>
+                                            <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="flex items-center gap-1 bg-violet-100 text-violet-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-violet-200">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                            3rd Party
+                                        </div>
+                                        {connectedApps.includes('ai_voice') && (
+                                            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 text-[11px] font-bold px-2 py-0.5 rounded-full border border-emerald-100">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Connected
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 mb-1">AI Voice Calling Agent</h3>
+                                <p className="text-slate-600 text-sm mb-2 leading-relaxed">
+                                    Deploy AI-powered outbound &amp; inbound voice agents. Automate sales calls, customer support, and follow-ups with human-like voice bots.
+                                </p>
+                                <p className="text-[11px] text-violet-600 font-medium mb-5 flex items-center gap-1">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                    Powered by external Voice platform
+                                </p>
+                                <button
+                                    onClick={() => handleConnect('ai_voice', '')}
+                                    disabled={false} /* Enable it for simulation */
+                                    className={`w-full px-4 py-2.5 font-semibold rounded-lg flex items-center justify-center gap-2 select-none outline-none transition-all ${connectedApps.includes('ai_voice') ? 'cursor-default' : 'hover:shadow-lg'}`}
+                                    style={{
+                                        background: connectedApps.includes('ai_voice') ? '#f8fafc' : 'linear-gradient(135deg, #6d28d9 0%, #a855f7 100%)',
+                                        color: connectedApps.includes('ai_voice') ? '#475569' : '#fff',
+                                        border: connectedApps.includes('ai_voice') ? '1px solid #e2e8f0' : 'none',
+                                        boxShadow: connectedApps.includes('ai_voice') ? 'none' : '0 4px 14px rgba(109, 40, 217, 0.3)'
+                                    }}>
+                                    {connectedApps.includes('ai_voice') ? 'Manage Agent' : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            Coming Soon
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
