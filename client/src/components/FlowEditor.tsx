@@ -119,6 +119,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     loadFlow();
   }, [flowId]);
 
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -157,6 +158,53 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     const currentViewport = viewportRef.current;
     return { x: (screenX - bounds.left - currentViewport.x) / currentViewport.zoom, y: (screenY - bounds.top - currentViewport.y) / currentViewport.zoom };
   }, []);
+
+  useEffect(() => {
+    if (!connectingSource) return;
+
+    const handleStickyMove = (e: MouseEvent | TouchEvent) => {
+      const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const y = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      let worldPos = screenToWorld(x, y);
+
+      // MAGNET SNAPPING: Detect nearest node input area
+      const magnetRange = 50;
+      for (const node of nodes) {
+        const dx = worldPos.x - node.position.x;
+        const dy = worldPos.y - (node.position.y + 20); // Center-left target area
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < magnetRange && node.id !== connectingSource.nodeId) {
+          worldPos = { x: node.position.x, y: node.position.y + 20 };
+          break;
+        }
+      }
+
+      setConnectionLine(line => line ? { ...line, toX: worldPos.x, toY: worldPos.y } : null);
+      
+      // AUTO-PANNING (Edge Scrolling) for sticky connections
+      if (canvasWrapperRef.current) {
+        const bounds = canvasWrapperRef.current.getBoundingClientRect();
+        const edgeThreshold = 60;
+        const panSpeed = 8;
+        let panX = 0; let panY = 0;
+        if (x < bounds.left + edgeThreshold) panX = panSpeed;
+        else if (x > bounds.right - edgeThreshold) panX = -panSpeed;
+        if (y < bounds.top + edgeThreshold) panY = panSpeed;
+        else if (y > bounds.bottom - edgeThreshold) panY = -panSpeed;
+        if (panX !== 0 || panY !== 0) {
+          setViewport(prev => ({ ...prev, x: prev.x + panX, y: prev.y + panY }));
+        }
+      }
+    };
+
+    window.addEventListener('mousemove', handleStickyMove);
+    window.addEventListener('touchmove', handleStickyMove, { passive: false });
+    return () => {
+      window.removeEventListener('mousemove', handleStickyMove);
+      window.removeEventListener('touchmove', handleStickyMove);
+    };
+  }, [connectingSource, screenToWorld, nodes]);
 
   const getClientPos = (e: MouseEvent | TouchEvent | React.MouseEvent | React.TouchEvent) => {
     if ('touches' in e) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -250,49 +298,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       setNodes(prev => prev.map(n => n.id === id ? { ...n, position: { x: worldPos.x - offset.x, y: worldPos.y - offset.y } } : n));
       if (e.type === 'touchmove') e.preventDefault();
     }
-    if (connectingSourceRef.current) {
-      let worldPos = screenToWorld(x, y);
-
-      // MAGNET SNAPPING: Detect nearest node input area
-      const magnetRange = 50;
-      let snapped = false;
-      for (const node of nodes) {
-        const dx = worldPos.x - node.position.x;
-        const dy = worldPos.y - (node.position.y + 15); // Approximate target handle pos
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < magnetRange && node.id !== connectingSourceRef.current.nodeId) {
-          worldPos = { x: node.position.x, y: node.position.y + 15 };
-          snapped = true;
-          break;
-        }
-      }
-
-      setConnectionLine(line => line ? { ...line, toX: worldPos.x, toY: worldPos.y } : null);
-
-      // AUTO-PANNING (Edge Scrolling)
-      if (canvasWrapperRef.current) {
-        const bounds = canvasWrapperRef.current.getBoundingClientRect();
-        const edgeThreshold = 50;
-        const panSpeed = 10;
-
-        let panX = 0;
-        let panY = 0;
-
-        if (x < bounds.left + edgeThreshold) panX = panSpeed;
-        else if (x > bounds.right - edgeThreshold) panX = -panSpeed;
-
-        if (y < bounds.top + edgeThreshold) panY = panSpeed;
-        else if (y > bounds.bottom - edgeThreshold) panY = -panSpeed;
-
-        if (panX !== 0 || panY !== 0) {
-          setViewport(prev => ({ ...prev, x: prev.x + panX, y: prev.y + panY }));
-        }
-      }
-
-      if (e.type === 'touchmove') e.preventDefault();
-    }
-  }, [screenToWorld, nodes]);
+  }, [screenToWorld]);
 
   const centerNode = useCallback((nodeId: string) => {
     const node = nodes.find(n => n.id === nodeId);
@@ -337,19 +343,31 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   };
 
   const handleGlobalUp = useCallback((e: MouseEvent | TouchEvent) => {
-    document.body.classList.remove('dragging-node', 'is-connecting');
+    document.body.classList.remove('dragging-node');
     const source = connectingSourceRef.current;
-    if (source && 'changedTouches' in e) {
-      const target = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-      const nodeEl = target?.closest('[data-node-id]');
-      if (nodeEl) { handleCompleteConnection(nodeEl.getAttribute('data-node-id')!); cleanupListeners(); return; }
+    
+    // Check if we hit a node on release (Drag-to-connect)
+    const clientX = 'changedTouches' in e ? e.changedTouches[0].clientX : e.clientX;
+    const clientY = 'changedTouches' in e ? e.changedTouches[0].clientY : e.clientY;
+    const target = document.elementFromPoint(clientX, clientY);
+    const nodeEl = target?.closest('[data-node-id]');
+    
+    if (nodeEl) {
+      const nodeId = nodeEl.getAttribute('data-node-id')!;
+      if (source && nodeId !== source.nodeId) {
+        handleCompleteConnection(nodeId);
+        draggingNode.current = null;
+        isPanning.current = false;
+        cleanupListeners();
+        return;
+      }
     }
+
     draggingNode.current = null;
     isPanning.current = false;
     isDraggingDash.current = false;
-    if (source) cancelConnection();
     cleanupListeners();
-  }, [cancelConnection, handleCompleteConnection]);
+  }, [handleCompleteConnection]);
 
   const cleanupListeners = () => {
     window.removeEventListener('mousemove', handleGlobalMove);
