@@ -174,6 +174,40 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 View Documentation
                             </button>
                         </div>
+
+                        {/* Bulk RCS Integration */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                            {/* Animated glow bg on hover */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                            <div className="w-12 h-12 rounded-xl overflow-hidden mb-4 flex items-center justify-center bg-gradient-to-br from-[#0d2444] to-[#0a4a5e] shadow-md ring-2 ring-teal-200">
+                                <img
+                                    src="https://bulkrcs.online/wp-content/uploads/2024/12/cropped-bulkrcs-192x192.png"
+                                    alt="Bulk RCS Logo"
+                                    className="w-9 h-9 object-contain"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        (e.target as HTMLImageElement).parentElement!.innerHTML = `<svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="#00e5c8" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>`;
+                                    }}
+                                />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-1">Bulk RCS</h3>
+                            <p className="text-slate-500 text-sm mb-6">
+                                Send rich, interactive RCS messages at scale. Engage customers with branded, media-rich business messaging directly on Android devices.
+                            </p>
+                            <button
+                                onClick={() => window.open('https://bulkrcs.online', '_blank', 'noopener,noreferrer')}
+                                className="w-full px-4 py-2.5 font-semibold rounded-lg transition-all hover:shadow-lg hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                                style={{
+                                    background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+                                    color: '#fff',
+                                    boxShadow: '0 4px 14px rgba(6, 182, 212, 0.35)'
+                                }}>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                Connect
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
