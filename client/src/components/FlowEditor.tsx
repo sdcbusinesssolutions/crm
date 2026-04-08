@@ -182,16 +182,25 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
 
       setConnectionLine(line => line ? { ...line, toX: worldPos.x, toY: worldPos.y } : null);
       
-      // AUTO-PANNING (Edge Scrolling) for sticky connections
+      // AUTO-PANNING (Edge Scrolling) for sticky connections - PROPORTIONAL SPEED
       if (canvasWrapperRef.current) {
         const bounds = canvasWrapperRef.current.getBoundingClientRect();
-        const edgeThreshold = 60;
-        const panSpeed = 8;
+        const edgeThreshold = 80; // Larger threshold for smoother ramp
+        const maxPanSpeed = 15;
         let panX = 0; let panY = 0;
-        if (x < bounds.left + edgeThreshold) panX = panSpeed;
-        else if (x > bounds.right - edgeThreshold) panX = -panSpeed;
-        if (y < bounds.top + edgeThreshold) panY = panSpeed;
-        else if (y > bounds.bottom - edgeThreshold) panY = -panSpeed;
+        
+        if (x < bounds.left + edgeThreshold) {
+          panX = maxPanSpeed * (1 - (x - bounds.left) / edgeThreshold);
+        } else if (x > bounds.right - edgeThreshold) {
+          panX = -maxPanSpeed * (1 - (bounds.right - x) / edgeThreshold);
+        }
+        
+        if (y < bounds.top + edgeThreshold) {
+          panY = maxPanSpeed * (1 - (y - bounds.top) / edgeThreshold);
+        } else if (y > bounds.bottom - edgeThreshold) {
+          panY = -maxPanSpeed * (1 - (bounds.bottom - y) / edgeThreshold);
+        }
+        
         if (panX !== 0 || panY !== 0) {
           setViewport(prev => ({ ...prev, x: prev.x + panX, y: prev.y + panY }));
         }
@@ -576,7 +585,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
               </div>
 
               {showSearchResults && searchQuery.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-md shadow-2xl max-h-64 overflow-y-auto z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 right-0 mt-3 bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_20px_rgba(132,204,22,0.1)] max-h-[70vh] overflow-y-auto z-[100] animate-in fade-in zoom-in-95 slide-in-from-top-4 duration-300 ease-out p-1 custom-scrollbar-dark">
                   {nodes.filter(n => (n.data.label || 'Un-named node').toLowerCase().includes(searchQuery.toLowerCase()) || n.type.toLowerCase().includes(searchQuery.toLowerCase())).length > 0 ? (
                     nodes.filter(n => (n.data.label || 'Un-named node').toLowerCase().includes(searchQuery.toLowerCase()) || n.type.toLowerCase().includes(searchQuery.toLowerCase())).map(n => (
                       <button
@@ -657,10 +666,10 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
             
             {/* Unified Command Center (Navigator + Zoom) */}
             <div 
-              className="absolute z-50 pointer-events-none group/dock"
+              className="absolute z-50 pointer-events-none group/dock transition-[left,top] duration-75 ease-out"
               style={{ left: `${dashPosition.x}px`, top: `${dashPosition.y}px` }}
             >
-               <div className="pointer-events-auto flex flex-col items-stretch bg-slate-900/40 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 hover:border-brand-500/30 rounded-2xl p-0 shadow-2xl hover:shadow-brand-900/10 transition-all duration-300 w-64 hover:ring-1 hover:ring-white/10 overflow-hidden">
+               <div className="pointer-events-auto flex flex-col items-stretch bg-slate-950/60 hover:bg-slate-900/90 backdrop-blur-2xl border border-white/10 hover:border-brand-500/40 rounded-3xl p-0 shadow-2xl hover:shadow-brand-500/10 transition-all duration-500 w-72 hover:ring-1 hover:ring-white/10 overflow-hidden group-active/dock:scale-[0.98] group-active/dock:duration-150">
                  <div 
                    className="px-4 py-2 border-b border-white/5 flex items-center justify-between cursor-move"
                    onMouseDown={(e) => {
