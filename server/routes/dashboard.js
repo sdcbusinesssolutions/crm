@@ -11,11 +11,11 @@ const facebookService = require('../services/FacebookLeadService');
 // ============================================================
 if (!global.dashboardCache)      global.dashboardCache      = {};
 if (!global.dashboardChartCache) global.dashboardChartCache = {};
-if (!global.connectionCache)     global.connectionCache     = {};
+global.connectionCache = {}; // ALWAYS RESET on reload — ensures stale TIER_50 cache is cleared
 
 const STATS_TTL   = 15 * 60 * 1000; // 15 minutes (was 5) — more visits served from RAM
 const CHARTS_TTL  = 30 * 60 * 1000; // 30 minutes (was 10) — chart data changes rarely
-const CONN_TTL    = 24 * 60 * 60 * 1000; // 24 hours (1 day) — Meta API call is expensive, cache heavily to avoid limits
+const CONN_TTL    = 15 * 60 * 1000; // 15 minutes — limits can change, keep fresh
 
 // ============================================================
 // PHASE 1: FAST SUMMARY — ~8 parallel queries (was 19)
@@ -340,37 +340,54 @@ router.get('/connections', requireAuth, async (req, res) => {
 
         const supabase = supabaseAdmin;
         const [{ data: waConfigData }, facebookStatus] = await Promise.all([
-            supabase.from('whatsapp_config').select('phone_number_id, meta_access_token').eq('user_id', userId).limit(1),
+            supabase.from('whatsapp_config').select('phone_number_id, whatsapp_business_account_id, meta_access_token').eq('user_id', userId).limit(1),
             facebookService.getUserConnectedStatus(userId).catch(() => ({ connected: false }))
         ]);
 
-        const config    = waConfigData?.[0];
+        const config      = waConfigData?.[0];
         const whatsAppId  = config?.phone_number_id;
+        const wabaId      = config?.whatsapp_business_account_id;
         const accessToken = config?.meta_access_token;
 
         let phoneHealth = {
-            quality_rating: 'UNKNOWN', messaging_limit_tier: 'TIER_50',
+            quality_rating: 'UNKNOWN', messaging_limit: 'UNKNOWN',
             status: 'UNKNOWN', name_status: 'UNKNOWN', display_phone_number: null
         };
 
         if (whatsAppId && accessToken) {
             try {
+                const axios = require('axios');
                 const https = require('https');
                 const agent = new https.Agent({ keepAlive: true });
-                const metaUrl = `https://graph.facebook.com/v21.0/${whatsAppId}?fields=quality_rating,messaging_limit_tier,status,name_status,display_phone_number`;
-                const { data: metaRes } = await require('axios').get(metaUrl, {
-                    headers: { 'Authorization': `Bearer ${accessToken}` },
-                    timeout: 5000,
-                    httpsAgent: agent
+                const axiosOpts = { headers: { 'Authorization': `Bearer ${accessToken}` }, timeout: 8000, httpsAgent: agent };
+
+                // Per Meta docs: whatsapp_business_manager_messaging_limit is the correct (non-deprecated) field.
+                // messaging_limit_tier is deprecated and returns TIER_50 incorrectly.
+                // Use v25.0 as shown in Meta's official example.
+                // Reference: https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits
+                const metaUrl = `https://graph.facebook.com/v25.0/${whatsAppId}?fields=quality_rating,whatsapp_business_manager_messaging_limit,status,name_status,display_phone_number`;
+
+                const metaRes = await axios.get(metaUrl, axiosOpts).then(r => r.data).catch(e => {
+                    console.error(`[Dashboard] Meta API failed for ID ${whatsAppId}:`, e.response?.data || e.message);
+                    return null;
                 });
-                if (metaRes) phoneHealth = {
-                    quality_rating:      (metaRes.quality_rating      || 'UNKNOWN').toUpperCase(),
-                    messaging_limit:     (metaRes.messaging_limit_tier || 'TIER_50').toUpperCase(),
-                    status:              (metaRes.status               || 'UNKNOWN').toUpperCase(),
-                    name_status:         (metaRes.name_status          || 'UNKNOWN').toUpperCase(),
-                    display_phone_number: metaRes.display_phone_number || null
-                };
-            } catch (e) { /* silent — connection may not be configured */ }
+
+                console.log(`[Dashboard] Meta API response for ${whatsAppId}:`, JSON.stringify(metaRes));
+
+                if (metaRes) {
+                    // Use new field; if not present (older token permissions), show UNKNOWN — never hardcode TIER_50
+                    const limitTier = metaRes.whatsapp_business_manager_messaging_limit || 'UNKNOWN';
+                    phoneHealth = {
+                        quality_rating:      (metaRes.quality_rating || 'UNKNOWN').toString().toUpperCase(),
+                        messaging_limit:     limitTier.toString().toUpperCase(),
+                        status:              (metaRes.status || 'UNKNOWN').toString().toUpperCase(),
+                        name_status:         (metaRes.name_status || 'UNKNOWN').toString().toUpperCase(),
+                        display_phone_number: metaRes.display_phone_number || null
+                    };
+                }
+            } catch (e) {
+                console.error(`[Dashboard] Meta API exception for ID ${whatsAppId}:`, e.message);
+            }
         }
 
         const data = {

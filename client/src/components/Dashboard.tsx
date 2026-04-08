@@ -533,17 +533,20 @@ const WhatsAppScannerCard: React.FC<{
     const qrLink = phone ? `https://wa.me/${phone.replace(/\D/g, '')}` : 'https://whatsapp.com';
 
     // Map tier to readable string
+    // Uses whatsapp_business_manager_messaging_limit field values (non-deprecated Meta API)
     const formatLimit = (tier: string) => {
-        if (!tier) return 'N/A';
+        if (!tier || tier === 'UNKNOWN' || tier === 'CHECKING') return tier || 'N/A';
         const map: any = {
-            'TIER_50': '50 / 24h',
-            'TIER_250': '250 / 24h',
-            'TIER_1K': '1K / 24h',
-            'TIER_10K': '10K / 24h',
-            'TIER_100K': '100K / 24h',
-            'TIER_UNLIMITED': 'Unlimited'
+            'TIER_50':        '50 / 24h',
+            'TIER_250':       '250 / 24h',
+            'TIER_1K':        '1K / 24h',
+            'TIER_2K':        '2K / 24h',
+            'TIER_5K':        '5K / 24h',
+            'TIER_10K':       '10K / 24h',
+            'TIER_100K':      '100K / 24h',
+            'TIER_UNLIMITED': 'Unlimited',
         };
-        return map[tier] || tier;
+        return map[tier] || tier.replace('TIER_', '').replace('K', 'K / 24h');
     };
 
     // ── KEY FIX: Phone presence = connected (ground truth) ────────────────────
@@ -659,7 +662,7 @@ const WhatsAppScannerCard: React.FC<{
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline, onToggleSidebar }) => {
     // ── Helpers ─────────────────────────────────────────────────────────────────
-    const CACHE_KEY = 'dashboard_stats_cache';
+    const CACHE_KEY = 'dashboard_stats_cache_v3';
     // DISPLAY TTL: how long before we silently background-refresh (not show skeleton)
     // Skeleton only shows when there is ZERO cached data (true first visit)
     const CACHE_REFRESH_TTL = 5 * 60 * 1000;  // 5 min — background-refresh trigger
