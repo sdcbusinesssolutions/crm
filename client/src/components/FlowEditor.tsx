@@ -40,7 +40,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
   const isPanning = useRef(false);
   const lastClientPos = useRef({ x: 0, y: 0 });
   const [connectionLine, setConnectionLine] = useState<{ fromX: number, fromY: number, toX: number, toY: number } | null>(null);
-  const dashPosition = useRef({ x: 300, y: window.innerHeight - 240 });
+  const [dashPosition, setDashPosition] = useState({ x: 80, y: window.innerHeight - 240 });
   const isDraggingDash = useRef(false);
   const dashOffset = useRef({ x: 0, y: 0 });
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
@@ -233,9 +233,9 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     const deltaX = x - lastClientPos.current.x;
     const deltaY = y - lastClientPos.current.y;
     lastClientPos.current = { x, y };
-
+    
     if (isDraggingDash.current) {
-      dashPosition.current = { x: x - dashOffset.current.x, y: y - dashOffset.current.y };
+      setDashPosition({ x: x - dashOffset.current.x, y: y - dashOffset.current.y });
       return;
     }
 
@@ -307,6 +307,16 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
     setSearchQuery('');
     setShowSearchResults(false);
   }, [nodes]);
+
+  const handleMoveTo = useCallback((x: number, y: number) => {
+    if (!canvasWrapperRef.current) return;
+    const bounds = canvasWrapperRef.current.getBoundingClientRect();
+    setViewport({
+      x: (bounds.width / 2) - (x * viewportRef.current.zoom),
+      y: (bounds.height / 2) - (y * viewportRef.current.zoom),
+      zoom: viewportRef.current.zoom
+    });
+  }, []);
 
   const handleCompleteConnection = useCallback((targetNodeId: string) => {
     const source = connectingSourceRef.current;
@@ -630,7 +640,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
             {/* Unified Command Center (Navigator + Zoom) */}
             <div 
               className="absolute z-50 pointer-events-none group/dock"
-              style={{ left: `${dashPosition.current.x}px`, top: `${dashPosition.current.y}px` }}
+              style={{ left: `${dashPosition.x}px`, top: `${dashPosition.y}px` }}
             >
                <div className="pointer-events-auto flex flex-col items-stretch bg-slate-900/40 hover:bg-slate-900/80 backdrop-blur-md border border-slate-700/50 hover:border-brand-500/30 rounded-2xl p-0 shadow-2xl hover:shadow-brand-900/10 transition-all duration-300 w-64 hover:ring-1 hover:ring-white/10 overflow-hidden">
                  <div 
@@ -638,7 +648,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
                    onMouseDown={(e) => {
                      const { x, y } = getClientPos(e);
                      isDraggingDash.current = true;
-                     dashOffset.current = { x: x - dashPosition.current.x, y: y - dashPosition.current.y };
+                     dashOffset.current = { x: x - dashPosition.x, y: y - dashPosition.y };
                      startInteraction(e);
                    }}
                  >
@@ -657,7 +667,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
                     <MindMap 
                       nodes={nodes} 
                       viewport={viewport} 
-                      onMoveTo={centerNode} 
+                      onMoveTo={handleMoveTo} 
                       canvasBounds={canvasWrapperRef.current?.getBoundingClientRect()}
                     />
                  </div>
