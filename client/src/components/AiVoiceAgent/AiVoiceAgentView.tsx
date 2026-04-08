@@ -141,20 +141,28 @@ const AiVoiceAgentView: React.FC = () => {
                                 className="w-full h-full object-contain drop-shadow-xl"
                             />
                         </div>
-                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Voice Agent</h3>
-                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Clone realistic voices for your agents</p>
+                        <h3 className="font-black text-slate-800 mb-1 text-xl tracking-tight z-10">Ai Voice Agent</h3>
+                        <p className="text-[11px] text-slate-500 font-medium z-10 max-w-[200px] leading-relaxed">
+                            Requires 3rd-party voice platform. Clone realistic voices with external AI engines.
+                        </p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
+                            {/* 3rd Party Badge */}
+                            <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 z-20">
+                                External AI
+                            </div>
                             <img
                                 src="/assets/cute_orange_robot_chat.png"
                                 alt="AI Chatbot Robot"
                                 className="w-full h-full object-contain drop-shadow-xl"
                             />
                         </div>
-                        <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Ai Chatbot</h3>
-                        <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Advanced NLP for natural conversations</p>
+                        <h3 className="font-black text-slate-800 mb-1 text-xl tracking-tight z-10">Ai Chatbot</h3>
+                        <p className="text-[11px] text-slate-500 font-medium z-10 max-w-[200px] leading-relaxed">
+                            Connect your own NLP engine. Advanced conversations powered by your preferred 3rd-party API.
+                        </p>
                     </div>
 
                     <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
@@ -167,6 +175,36 @@ const AiVoiceAgentView: React.FC = () => {
                         </div>
                         <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Task Management</h3>
                         <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
+                    </div>
+                </div>
+
+                {/* Automation & Integration Info Banner */}
+                <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 p-6 rounded-2xl mb-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent"></div>
+                    </div>
+                    
+                    <div className="flex-1 relative z-10 text-center md:text-left">
+                        <h2 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
+                            <span className="p-1.5 bg-red-500/20 rounded-lg">🛡️</span>
+                            Dependency Notice
+                        </h2>
+                        <p className="text-slate-300 text-sm leading-relaxed max-w-2xl font-medium">
+                            Please note: We provide the integration interface. <span className="text-red-400 font-bold underline">You must bring your own 3rd-party tools or website subscriptions</span> (e.g., N8N, OpenAI, or Voice APIs). We do not provide these underlying services — they must be configured independently to work within this dashboard.
+                        </p>
+                    </div>
+
+                    <div className="flex shrink-0 gap-3 relative z-10">
+                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
+                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            </div>
+                            <span className="text-[10px] font-bold text-orange-400 tracking-tighter uppercase whitespace-nowrap">N8N External</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
+                            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-xs">🛠️</div>
+                            <span className="text-[10px] font-bold text-red-400 tracking-tighter uppercase whitespace-nowrap">User Provided</span>
+                        </div>
                     </div>
                 </div>
 
