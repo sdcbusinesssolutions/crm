@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 async function findContact() {
-    const searchPhone = '9373393645';
+    const searchPhone = '0000000000';
     console.log(`Searching for phone ending in: ${searchPhone.slice(-6)}`);
     
     // Search with ilike to handle country codes, etc.

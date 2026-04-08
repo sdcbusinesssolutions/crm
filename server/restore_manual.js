@@ -13,7 +13,7 @@ async function manualRestore() {
     console.log('Groups found:', groups.map(g => `${g.name} (${g.id})`));
 
     // 2. Identify Target Contacts (from previous known context)
-    const phones = ['918408907516', '919373393645', '+918408907516', '+919373393645'];
+    const phones = ['918408907516', '910000000000', '+918408907516', '+910000000000'];
 
     // 3. Find these contacts
     const { data: contacts } = await supabase.from('contacts').select('id, phone, name, group_ids').or(`phone.in.(${phones.map(p => `"${p}"`).join(',')})`);

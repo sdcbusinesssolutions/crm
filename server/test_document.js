@@ -4,7 +4,7 @@ const whatsappService = require('./services/whatsappService');
 
 async function testSend() {
     const userId = '38edee2f-04c5-4f4c-8ca1-baed6ed84711';
-    const toPhone = '919373393645';
+    const toPhone = '910000000000';
 
     const videoPath = path.join(__dirname, '..', '948262737855867-177261974930878.mp4');
     const fileBuffer = fs.readFileSync(videoPath);

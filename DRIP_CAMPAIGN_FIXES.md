@@ -16,14 +16,14 @@
 ```
 All three sent to the same number within seconds.
 
-### 2. **Owner Notifications Not Received (919373393645)**
+### 2. **Owner Notifications Not Received (910000000000)**
 **Root Cause:** The notification code was only *simulating* sends, not actually sending WhatsApp messages.
 - Line 192 in `dripProcessor.js` said: `// Simulate sending notification`
 - Owner phone was logged but no actual message was sent
 
 **Evidence from logs:**
 ```
-[DripLog] OWNER_NOTIFY: {"phone":"919373393645","message":"Follow-up for dev due in ~10 MINUTES"}
+[DripLog] OWNER_NOTIFY: {"phone":"910000000000","message":"Follow-up for dev due in ~10 MINUTES"}
 ```
 Log entry created, but no WhatsApp API call made.
 
@@ -168,7 +168,7 @@ Check that `notification_rules` are configured in your enrollments:
   "stop_at": "2026-02-13T00:00:00Z",
   "notification_rules": [
     {
-      "phone": "919373393645",
+      "phone": "910000000000",
       "value": 10,
       "unit": "MINUTES"
     }
@@ -247,7 +247,7 @@ This provides an additional safety layer but requires PostgreSQL with `btree_gis
 | Issue | Status | Fix Location |
 |-------|--------|--------------|
 | Triple messages (918408907516) | ✅ Fixed | `dripProcessor.js` + `dripCampaigns.js` |
-| Owner notifications not sent (919373393645) | ✅ Fixed | `dripProcessor.js` |
+| Owner notifications not sent (910000000000) | ✅ Fixed | `dripProcessor.js` |
 | Race conditions | ✅ Fixed | `dripProcessor.js` (duplicate guard) |
 | Cost optimization | ✅ Fixed | Duplicate prevention at all levels |
 | Multi-threading safety | ✅ Fixed | Atomic locking + duplicate checks |

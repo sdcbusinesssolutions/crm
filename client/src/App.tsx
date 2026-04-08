@@ -43,12 +43,11 @@ import WhatsAppApiSettings from './components/WhatsAppApiSettings';
 import CreateCampaignComponent from './components/Campaigns/CreateCampaign';
 import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAutomation';
 import DripCampaignManager from './components/DripCampaigns/DripCampaignManager';
-
+import QuickReply from './components/QuickReply';
 import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
 import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
-
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
     // Handles cross-domain impersonation redirects from Supabase Magic Links
@@ -654,6 +653,10 @@ const MainApp: React.FC = () => {
             return <AiVoiceAgentView />;
         }
 
+        if (activeMenuItem === 'Quick Reply') {
+            return <QuickReply onToggleSidebar={() => setSidebarOpen(true)} />;
+        }
+
         // ... (rest of code)
         // ...
         // Note: I will only replace the render logic and state initialization part if possible, 
@@ -722,6 +725,9 @@ const MainApp: React.FC = () => {
                 />
             );
         }
+        if (activeMenuItem === 'Quick Reply') {
+            return <QuickReply />;
+        }
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center animate-fade-in">
@@ -769,7 +775,7 @@ const MainApp: React.FC = () => {
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
-                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
                     (
                         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
                             <div className="flex items-center space-x-3">

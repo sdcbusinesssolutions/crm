@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ReactNode } from 'react';
-import { QuickReplyIcon, PlusIcon, SearchIcon, TrashIcon, EditIcon, CloseIcon, MessageIcon, ListIcon, CtaIcon, FlowIcon, ImageFileIcon, GmailIcon } from './icons';
+import { QuickReplyIcon, PlusIcon, SearchIcon, TrashIcon, EditIcon, CloseIcon, MessageIcon, ListIcon, CtaIcon, FlowIcon, ImageFileIcon, GmailIcon, MenuIcon } from './icons';
 import { quickReplyService } from '../services/quickReplyService';
 import { Flow, NodeType, MediaType } from '../types';
 import { supabase } from '../lib/supabase';
@@ -66,7 +66,11 @@ const BuilderSection: React.FC<{ title: string; children: ReactNode; action?: Re
 
 // --- Main Component ---
 
-const QuickReply: React.FC = () => {
+interface QuickReplyProps {
+    onToggleSidebar?: () => void;
+}
+
+const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
     const [replies, setReplies] = useState<Flow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -80,7 +84,11 @@ const QuickReply: React.FC = () => {
     const [nameError, setNameError] = useState<string>('');
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [testPhone, setTestPhone] = useState<string>(() => localStorage.getItem('qr_test_phone') || '');
+    const [testPhone, setTestPhone] = useState<string>(() => {
+        const saved = localStorage.getItem('qr_test_phone_v3');
+        if (saved === '919373393645' || saved === '9373393645') return '';
+        return saved || '';
+    });
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     const [isTestSending, setIsTestSending] = useState(false);
     const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -172,7 +180,12 @@ const QuickReply: React.FC = () => {
             return;
         }
         
-        localStorage.setItem('qr_test_phone', testPhone);
+        localStorage.setItem('qr_test_phone_v3', testPhone);
+        if (testPhone === '919373393645' || testPhone === '9373393645') {
+            setTestResult({ ok: false, msg: 'Invalid test number.' });
+            return;
+        }
+
         setIsTestSending(true);
         setTestResult(null);
         try {
@@ -643,8 +656,15 @@ const QuickReply: React.FC = () => {
                                 <input
                                     type="tel"
                                     value={testPhone}
-                                    onChange={e => { setTestPhone(e.target.value); setTestResult(null); }}
-                                    placeholder="Country Code + Phone (e.g. 919876543210)"
+                                    onChange={e => { 
+                                        const val = e.target.value;
+                                        setTestPhone(val); 
+                                        if (val !== '919373393645') {
+                                            localStorage.setItem('qr_test_phone_v3', val);
+                                        }
+                                        setTestResult(null); 
+                                    }}
+                                    placeholder="Country Code + Phone (e.g. 910000000000)"
                                     disabled={isTestSending}
                                     className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all disabled:opacity-60"
                                 />
@@ -710,6 +730,9 @@ const QuickReply: React.FC = () => {
                 <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
+                            <button onClick={onToggleSidebar} className="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors mr-1">
+                                <MenuIcon className="w-5 h-5" />
+                            </button>
                             <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center border border-brand-100 shadow-sm">
                                 <QuickReplyIcon className="w-6 h-6" />
                             </div>
@@ -919,8 +942,15 @@ const QuickReply: React.FC = () => {
                             <input
                                 type="tel"
                                 value={testPhone}
-                                onChange={e => { setTestPhone(e.target.value); setTestResult(null); }}
-                                placeholder="Country Code + Phone (e.g. 919876543210)"
+                                onChange={e => { 
+                                    const val = e.target.value;
+                                    setTestPhone(val); 
+                                    if (val !== '919373393645') {
+                                        localStorage.setItem('qr_test_phone_v3', val);
+                                    }
+                                    setTestResult(null); 
+                                }}
+                                placeholder="Country Code + Phone (e.g. 910000000000)"
                                 disabled={isTestSending}
                                 className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-mono placeholder-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all disabled:opacity-60"
                             />

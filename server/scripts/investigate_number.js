@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 async function checkSpecificNumber() {
-    const phone = '9373393645';
+    const phone = '0000000000';
     console.log(`--- Investigating Phone: ${phone} ---`);
     
     // 1. Check Contact

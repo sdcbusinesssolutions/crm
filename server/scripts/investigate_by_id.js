@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 async function investigate() {
-    const contactId = '048d4684-4678-4cee-8a4f-a1c4f6a224cc'; // The confirmed ID from 919373393645
+    const contactId = '048d4684-4678-4cee-8a4f-a1c4f6a224cc'; // The confirmed ID from 910000000000
     console.log(`--- Investigating Contact ID: ${contactId} ---`);
     
     // Enrollments

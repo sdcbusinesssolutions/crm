@@ -3,7 +3,7 @@ const axios = require('axios');
 const payload = {
     "messaging_product": "whatsapp",
     "recipient_type": "individual",
-    "to": "919373393645",
+    "to": "910000000000",
     "type": "template",
     "template": {
         "name": "test244",

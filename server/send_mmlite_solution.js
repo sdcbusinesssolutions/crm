@@ -5,7 +5,7 @@ async function sendMMLite() {
     const phone_number_id = '712851615243145';
     const meta_access_token = 'EAAO4J3qeOYUBQULZBn4HNithiWfjp0X4qjwaC04xV9hmwq9AOAG4XSQnxuAvyiQ11eVkCosPVRp5VzUvMVNoOH3sVUP1ucGGJsUKIQCZAZBa6xSr6FGWMAfITzCCARQHVP01mtnL14om8Y1CmiJlPZAPv6AcY1yVN4pch9dWLnRGMSPSGLKSrQ29QNS2';
     const meta_app_id = '1046904630557061'; // Used as solution_id
-    const to = '919373393645';
+    const to = '910000000000';
     const templateName = 'devk'; 
     const templateLang = 'en_US'; 
 

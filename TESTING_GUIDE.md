@@ -30,7 +30,7 @@ Verify that enrolling the same contact twice doesn't create duplicates.
    - Set "Stop At" date (optional): Tomorrow's date
    - Add notification rule:
      ```json
-     Phone: 919373393645
+     Phone: 910000000000
      Time: 10
      Unit: MINUTES
      ```
@@ -139,7 +139,7 @@ Verify that owner receives WhatsApp notifications at configured intervals.
      - Stop At: 15 minutes from now
      - Notification Rule:
        ```
-       Phone: 919373393645 (your owner number)
+       Phone: 910000000000 (your owner number)
        Value: 10
        Unit: MINUTES
        ```
@@ -149,7 +149,7 @@ Verify that owner receives WhatsApp notifications at configured intervals.
    - The processor should detect it's within the 10-minute window
 
 3. **Check Owner Phone**
-   - Owner (919373393645) should receive WhatsApp message:
+   - Owner (910000000000) should receive WhatsApp message:
      ```
      ⏰ Follow-up Reminder
      
@@ -163,8 +163,8 @@ Verify that owner receives WhatsApp notifications at configured intervals.
 4. **Check Server Logs**
    Look for:
    ```
-   [DripLog] OWNER_NOTIFY: {"phone":"919373393645","message":"Follow-up for dev due in ~10 MINUTES"}
-   [DripEngine] ✅ Owner notification sent to 919373393645
+   [DripLog] OWNER_NOTIFY: {"phone":"910000000000","message":"Follow-up for dev due in ~10 MINUTES"}
+   [DripEngine] ✅ Owner notification sent to 910000000000
    ```
 
 ### ✅ Expected Result

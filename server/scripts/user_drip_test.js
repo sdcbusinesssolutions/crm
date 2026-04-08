@@ -4,7 +4,7 @@ const { processSingleEnrollment } = require('../workers/dripProcessor');
 async function main() {
     console.log('--- STARTING USER SPECIFIC DRIP TEST ---');
 
-    const testPhone = '919373393645';
+    const testPhone = '910000000000';
     const ownerPhone = '918408907516';
     const campaignId = '4b67ae22-e1fd-48d3-80e0-2e8a038657b8'; // "drip test"
     const userId = 'a67982f4-b24a-4c67-9378-ecdb0ed42e5c'; // User ID from campaign
@@ -12,7 +12,7 @@ async function main() {
     // 1. Ensure Contact Exists
     let { data: contact } = await supabase.from('contacts').select('id').eq('phone', testPhone).maybeSingle();
     if (!contact) {
-        console.log('Creating test contact 919373393645...');
+        console.log('Creating test contact 910000000000...');
         const { data: n, error: e } = await supabase.from('contacts').insert({
             name: 'Deepak Sharma (Test)',
             phone: testPhone,

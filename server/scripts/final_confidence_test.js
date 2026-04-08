@@ -4,7 +4,7 @@ const { processSingleEnrollment } = require('../workers/dripProcessor');
 async function runTest() {
     console.log('🚀 [DRIP_TEST] Starting Confidence Test for Deepak Sharma');
     
-    const contactPhone = '919373393645';
+    const contactPhone = '910000000000';
     const ownerPhone = '918408907516';
     const campaignId = '4b67ae22-e1fd-48d3-80e0-2e8a038657b8'; // "drip test"
     const userId = 'a67982f4-b24a-4c67-9378-ecdb0ed42e5c';
@@ -20,7 +20,7 @@ async function runTest() {
     }
 
     // 2. Create Fresh Contact
-    console.log('👤 Creating contact: 919373393645');
+    console.log('👤 Creating contact: 910000000000');
     const { data: contact, error: cErr } = await supabase.from('contacts').insert({
         name: 'Deepak Test',
         phone: contactPhone,
