@@ -171,27 +171,25 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
 
     const handleTestSend = async () => {
         const phone = testPhone.replace(/\D/g, '');
+        
         if (!phone || phone.length < 10) {
-            setTestResult({ ok: false, msg: 'Enter a valid phone number (with country code).' });
+            setTestResult({ ok: false, msg: '❌ Please enter a valid 10+ digit phone number.' });
             return;
         }
-        
-        localStorage.setItem('qr_test_phone_v3', testPhone);
 
         setIsTestSending(true);
         setTestResult(null);
+        localStorage.setItem('qr_test_phone_v3', testPhone);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             
-            // If we have an ID, we use the saved test endpoint. 
-            // If not (New Reply), we use the direct-node endpoint with current tempData.
-            const url = editingReply?.id 
-                ? `/api/quick-replies/${editingReply.id}/test-send`
-                : `/api/quick-replies/test-direct`;
-            
-            const body = editingReply?.id 
-                ? { to: phone }
-                : { to: phone, node: { type: selectedType, data: tempData } };
+            // ALWAYS use test-direct to ensure we test the current in-editor state (tempData)
+            // Even if the reply is saved, we want to test the LATEST unsaved changes.
+            const url = `/api/quick-replies/test-direct`;
+            const body = { 
+                to: phone, 
+                node: { type: selectedType, data: tempData } 
+            };
 
             const res = await fetch(url, {
                 method: 'POST',

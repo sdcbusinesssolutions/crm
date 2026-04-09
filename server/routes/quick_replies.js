@@ -112,12 +112,14 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// Helper to build WhatsApp payload from node data
+// Helper to build WhatsApp payload from node data (Synced with Flow Builder Executors)
 function buildWhatsAppPayload(node) {
     const type = node.type;
-    const d = node.data;
+    const d = node.data || {};
     let msgType = 'text';
     let content = {};
+
+    console.log(`[QuickReply] Building payload for type: ${type}`);
 
     if (type === 'textMessage') {
         msgType = 'text';
@@ -125,7 +127,10 @@ function buildWhatsAppPayload(node) {
 
     } else if (type === 'mediaMessage') {
         msgType = d.mediaType?.toLowerCase() || 'image';
-        content = { link: d.url };
+        // Support both direct URL and Media ID
+        if (d.url) content.link = d.url;
+        if (d.mediaId) content.id = d.mediaId;
+        
         if (d.caption && !['audio', 'sticker'].includes(msgType)) {
             content.caption = d.caption;
         }
@@ -136,7 +141,7 @@ function buildWhatsAppPayload(node) {
             type: 'button',
             body: { text: d.body || '(no body)' },
             action: {
-                buttons: (d.buttons || []).map(btn => ({
+                buttons: (d.buttons || []).slice(0, 3).map(btn => ({
                     type: 'reply',
                     reply: { id: btn.id, title: btn.title }
                 }))
@@ -146,8 +151,15 @@ function buildWhatsAppPayload(node) {
         if (d.headerType && d.headerType !== 'None') {
             const ht = d.headerType.toLowerCase();
             content.header = { type: ht };
-            if (ht === 'text') content.header.text = d.headerText;
-            else content.header[ht] = { link: d.headerUrl };
+            if (ht === 'text') {
+                content.header.text = d.headerText;
+            } else {
+                // Support both link and ID for media headers
+                const mediaUrl = d.headerUrl || d.url;
+                const mediaId = d.headerId || d.mediaId;
+                if (mediaUrl) content.header[ht] = { link: mediaUrl };
+                if (mediaId) content.header[ht] = { id: mediaId };
+            }
         }
 
     } else if (type === 'listMessage') {
@@ -179,12 +191,18 @@ function buildWhatsAppPayload(node) {
         };
         if (d.footer) content.footer = { text: d.footer };
         
-        // Handle CTA Headers (Image, Video, Document, Text)
+        // Handle CTA Headers
         if (d.headerType && d.headerType !== 'None') {
             const ht = d.headerType.toLowerCase();
             content.header = { type: ht };
-            if (ht === 'text') content.header.text = d.headerText;
-            else content.header[ht] = { link: d.headerUrl };
+            if (ht === 'text') {
+                content.header.text = d.headerText;
+            } else {
+                const mediaUrl = d.headerUrl || d.url;
+                const mediaId = d.headerId || d.mediaId;
+                if (mediaUrl) content.header[ht] = { link: mediaUrl };
+                if (mediaId) content.header[ht] = { id: mediaId };
+            }
         }
 
     } else if (type === 'sendFlow') {
@@ -212,7 +230,7 @@ function buildWhatsAppPayload(node) {
             type: 'carousel',
             body: { text: d.body || 'Check out these items' },
             action: {
-                cards: (d.cards || []).map((card, index) => ({
+                cards: (d.cards || []).slice(0, 10).map((card, index) => ({
                     card_index: index,
                     type: 'cta_url',
                     header: {
@@ -241,17 +259,19 @@ router.post('/test-direct', async (req, res) => {
         const { to, node } = req.body;
         if (!to || !node) return res.status(400).json({ error: 'Missing "to" or "node" data.' });
 
-        const supabase = getAuthenticatedSupabase(req);
+        console.log(`[Test-Direct] Starting test send to ${to}...`);
         const { data: { user } } = await supabase.auth.getUser();
         
         const whatsappService = require('../services/whatsappService');
         const { msgType, content } = buildWhatsAppPayload(node);
 
-        await whatsappService.sendMessage(user.id, to.replace(/\D/g, ''), msgType, content);
+        const result = await whatsappService.sendMessage(user.id, to.replace(/\D/g, ''), msgType, content);
+        console.log(`[Test-Direct] Success. Meta ID: ${result?.messages?.[0]?.id}`);
+        
         res.json({ success: true, sentTo: to.replace(/\D/g, ''), type: msgType });
 
     } catch (error) {
-        console.error('Test direct error:', error);
+        console.error('Test direct error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -259,12 +279,12 @@ router.post('/test-direct', async (req, res) => {
 // POST /:id/test-send — Send a quick reply to a test number (by ID)
 router.post('/:id/test-send', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
         const { to } = req.body;
-
         if (!to) return res.status(400).json({ error: 'Missing "to" phone number.' });
 
+        console.log(`[Test-Send] Starting test for saved reply ${id} to ${to}...`);
+        
         // Fetch the reply
         const { data: reply, error } = await supabase
             .from('quick_replies')
@@ -272,22 +292,29 @@ router.post('/:id/test-send', async (req, res) => {
             .eq('id', id)
             .single();
 
-        if (error || !reply) return res.status(404).json({ error: 'Quick reply not found.' });
+        if (error || !reply) {
+            console.error(`[Test-Send] Quick reply not found: ${id}`);
+            return res.status(404).json({ error: 'Quick reply not found.' });
+        }
 
         const { data: { user } } = await supabase.auth.getUser();
-        const userId = user.id;
-
         const node = reply.nodes?.[0];
-        if (!node) return res.status(400).json({ error: 'Quick reply has no nodes.' });
+        
+        if (!node) {
+            console.error(`[Test-Send] Reply ${id} has no nodes!`);
+            return res.status(400).json({ error: 'Quick reply has no nodes.' });
+        }
 
         const whatsappService = require('../services/whatsappService');
         const { msgType, content } = buildWhatsAppPayload(node);
 
-        await whatsappService.sendMessage(userId, to.replace(/\D/g, ''), msgType, content);
+        const result = await whatsappService.sendMessage(user.id, to.replace(/\D/g, ''), msgType, content);
+        console.log(`[Test-Send] Success. Meta ID: ${result?.messages?.[0]?.id}`);
+
         res.json({ success: true, sentTo: to.replace(/\D/g, ''), type: msgType });
 
     } catch (error) {
-        console.error('Test send error:', error);
+        console.error('Test send error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
