@@ -125,7 +125,10 @@ function buildWhatsAppPayload(node) {
 
     } else if (type === 'mediaMessage') {
         msgType = d.mediaType?.toLowerCase() || 'image';
-        content = { link: d.url, caption: d.caption };
+        content = { link: d.url };
+        if (d.caption && !['audio', 'sticker'].includes(msgType)) {
+            content.caption = d.caption;
+        }
 
     } else if (type === 'quickReplyMessage') {
         msgType = 'interactive';
@@ -175,6 +178,14 @@ function buildWhatsAppPayload(node) {
             action: { name: 'cta_url', parameters: { display_text: d.displayText, url: d.url } }
         };
         if (d.footer) content.footer = { text: d.footer };
+        
+        // Handle CTA Headers (Image, Video, Document, Text)
+        if (d.headerType && d.headerType !== 'None') {
+            const ht = d.headerType.toLowerCase();
+            content.header = { type: ht };
+            if (ht === 'text') content.header.text = d.headerText;
+            else content.header[ht] = { link: d.headerUrl };
+        }
 
     } else if (type === 'sendFlow') {
         msgType = 'interactive';

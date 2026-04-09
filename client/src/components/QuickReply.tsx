@@ -84,11 +84,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
     const [nameError, setNameError] = useState<string>('');
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [testPhone, setTestPhone] = useState<string>(() => {
-        const saved = localStorage.getItem('qr_test_phone_v3');
-        if (saved === '919373393645' || saved === '9373393645') return '';
-        return saved || '';
-    });
+    const [testPhone, setTestPhone] = useState<string>(() => localStorage.getItem('qr_test_phone_v3') || '');
     const [isTestModalOpen, setIsTestModalOpen] = useState(false);
     const [isTestSending, setIsTestSending] = useState(false);
     const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -181,10 +177,6 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
         }
         
         localStorage.setItem('qr_test_phone_v3', testPhone);
-        if (testPhone === '919373393645' || testPhone === '9373393645') {
-            setTestResult({ ok: false, msg: 'Invalid test number.' });
-            return;
-        }
 
         setIsTestSending(true);
         setTestResult(null);
@@ -945,9 +937,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                                 onChange={e => { 
                                     const val = e.target.value;
                                     setTestPhone(val); 
-                                    if (val !== '919373393645') {
-                                        localStorage.setItem('qr_test_phone_v3', val);
-                                    }
+                                    localStorage.setItem('qr_test_phone_v3', val);
                                     setTestResult(null); 
                                 }}
                                 placeholder="Country Code + Phone (e.g. 910000000000)"

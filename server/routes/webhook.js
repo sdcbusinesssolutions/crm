@@ -785,7 +785,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 .eq('whatsapp_message_id', waMessageId)
                                 .maybeSingle();
 
-                            if (origMsg && (origMsg.type === 'video' || origMsg.type === 'audio') && origMsg.media_url) {
+                            if (origMsg && origMsg.media_url) {
                                 // 2. Fetch contact phone and owner userId from conversation
                                 const { data: conv } = await supabaseAdmin
                                     .from('conversations')
@@ -796,70 +796,133 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 if (conv && conv.contact_phone && conv.user_id) {
                                     const ownerId = conv.user_id;
                                     try {
-                                        let finalType = origMsg.type;
                                         let finalContent = {};
+                                        const whatsappService = require('../services/whatsappService');
 
-                                        // TRY FFMPEG TRANSCODE FOR VIDEOS ONLY (NO AUDIO DOCUMENT FALLBACKS)
-                                        if (origMsg.type === 'video') {
-                                            console.log(`[Auto-Heal] Downloading corrupted video & performing H.264 Transcode...`);
-                                            // 3. Download the raw file
+                                        // UNIVERSAL AUTO-HEAL FOR 131053 (Media Upload Error)
+                                        // This handles Image, Video, Audio, and Document types by downloading the binary 
+                                        // and re-uploading to Meta as a Media ID, which is much more reliable than link-delivery.
+                                        
+                                        console.log(`[Auto-Heal] Starting recovery for ${origMsg.type} (Message: ${waMessageId})`);
+
+                                        // 3. Download the raw file binary
+                                        let rawBuffer;
+                                        try {
                                             const dlResponse = await axios.get(origMsg.media_url, {
                                                 responseType: 'arraybuffer',
                                                 maxBodyLength: Infinity,
                                                 maxContentLength: Infinity
                                             });
-                                            const rawBuffer = Buffer.from(dlResponse.data);
+                                            rawBuffer = Buffer.from(dlResponse.data);
+                                            console.log(`[Auto-Heal] Downloaded ${rawBuffer.length} bytes from ${origMsg.media_url}`);
+                                        } catch (dlErr) {
+                                            console.error(`[Auto-Heal] Failed to download media for recovery:`, dlErr.message);
+                                            return;
+                                        }
 
-                                            // 4. Force Transcode
+                                        let finalBuffer = rawBuffer;
+                                        let finalMime = 'application/octet-stream';
+                                        let finalFilename = `recovered_media_${Date.now()}`;
+
+                                        // 4. Force Transcode ONLY for Videos
+                                        if (origMsg.type === 'video') {
+                                            console.log(`[Auto-Heal] Performing H.264 Transcode for video...`);
                                             const { transcodeToWhatsAppVideo } = require('../utils/videoTranscoder');
                                             try {
-                                                const transcodedBuffer = await transcodeToWhatsAppVideo(rawBuffer);
-                                                console.log(`[Auto-Heal] Transcode successful. Uploading new Media ID...`);
-
-                                                // 5. Re-Upload to Meta
-                                                const whatsappService = require('../services/whatsappService');
-                                                const newMediaId = await whatsappService.uploadMediaToWhatsApp(
-                                                    ownerId,
-                                                    transcodedBuffer,
-                                                    'video/mp4',
-                                                    'auto_fixed_video.mp4' // Force standard name
-                                                );
-
-                                                finalType = 'video';
-                                                finalContent = { id: newMediaId, caption: origMsg.text || '' };
-
-                                                console.log(`[Auto-Heal] Resending final payload properly as Video...`);
-                                                const resData = await whatsappService.sendMessage(
-                                                    ownerId,
-                                                    conv.contact_phone,
-                                                    finalType,
-                                                    finalContent,
-                                                    logPhoneId, // Use the phoneId from the webhook status update
-                                                    true // CRITICAL: skipDBLog = true -> DO NOT DUPLICATE MESSAGE IN UI
-                                                );
-
-                                                // 6. Update the old row quietly with the newly healed WA Message ID!
-                                                const healedWaMessageId = resData?.messages?.[0]?.id;
-                                                if (healedWaMessageId) {
-                                                    await supabaseAdmin
-                                                        .from('messages')
-                                                        .update({
-                                                            whatsapp_message_id: healedWaMessageId,
-                                                            status: 'sent',
-                                                            updated_at: new Date().toISOString()
-                                                        })
-                                                        .eq('whatsapp_message_id', waMessageId); // Find original failed row
-                                                    console.log(`[Auto-Heal] Original DB Row smoothly updated with new WAMID: ${healedWaMessageId}. Duplicate prevented.`);
-                                                }
-
+                                                finalBuffer = await transcodeToWhatsAppVideo(rawBuffer);
+                                                finalMime = 'video/mp4';
+                                                finalFilename = 'auto_fixed_video.mp4';
+                                                console.log(`[Auto-Heal] Transcode successful.`);
                                             } catch (transcodeErr) {
-                                                console.error('[Auto-Heal] FFmpeg Transcode failed. NO FALLBACK PERMITTED. Message will permanently fail.', transcodeErr.message);
-                                                // We simply return. Do NOT trigger a document fallback!
+                                                console.error('[Auto-Heal] FFmpeg Transcode failed. Message will permanently fail.', transcodeErr.message);
                                                 return;
                                             }
                                         } else {
-                                            console.warn(`[Auto-Heal] Skipping auto-heal for non-video type: ${origMsg.type}. Document fallbacks disabled by user policy.`);
-                                            return;
+                                            // Determine MIME type for non-video types
+                                            if (origMsg.type === 'image') {
+                                                finalMime = 'image/jpeg';
+                                                finalFilename = 'recovered_image.jpg';
+                                            } else if (origMsg.type === 'audio') {
+                                                finalMime = 'audio/mpeg';
+                                                finalFilename = 'recovered_audio.mp3';
+                                            } else if (origMsg.type === 'document') {
+                                                finalMime = 'application/pdf';
+                                                finalFilename = 'recovered_doc.pdf';
+                                            }
+                                            // Handle interactive headers or direct media types
+                                            finalType = origMsg.type;
+                                        }
+
+                                        // 5. Re-Upload to Meta to get a FRESH Media ID
+                                        try {
+                                            console.log(`[Auto-Heal] Uploading FRESH Media ID to Meta...`);
+                                            const newMediaId = await whatsappService.uploadMediaToWhatsApp(
+                                                ownerId,
+                                                finalBuffer,
+                                                finalMime,
+                                                finalFilename
+                                            );
+
+                                            // 6. Construct Re-Send Payload
+                                            // If it was an interactive message, we need to rebuild the interactive header with the ID
+                                            if (origMsg.type === 'interactive') {
+                                                const rawTextBody = origMsg.message_text || origMsg.text || '{}';
+                                                try {
+                                                    const interactive = JSON.parse(rawTextBody);
+                                                    const hType = interactive.header?.type?.toLowerCase();
+                                                    if (hType && interactive.header[hType]) {
+                                                        // Replace link with freshly uploaded ID
+                                                        delete interactive.header[hType].link;
+                                                        interactive.header[hType].id = newMediaId;
+                                                        finalContent = interactive;
+                                                        finalType = 'interactive';
+                                                    } else {
+                                                        throw new Error('Interactive header type not found in JSON');
+                                                    }
+                                                } catch (pErr) {
+                                                    console.error('[Auto-Heal] Failed to parse/rebuild interactive payload:', pErr.message);
+                                                    return;
+                                                }
+                                            } else {
+                                                // Standard Media Message
+                                                finalType = origMsg.type;
+                                                finalContent = { id: newMediaId };
+                                                
+                                                // Captions only allowed for non-audio/non-sticker
+                                                if (!['audio', 'sticker'].includes(finalType)) {
+                                                    finalContent.caption = origMsg.message_text || origMsg.text || '';
+                                                }
+
+                                                if (finalType === 'document') {
+                                                    finalContent.filename = finalFilename;
+                                                }
+                                            }
+
+                                            console.log(`[Auto-Heal] Resending flawless payload using Media ID...`);
+                                            const resData = await whatsappService.sendMessage(
+                                                ownerId,
+                                                conv.contact_phone,
+                                                finalType,
+                                                finalContent,
+                                                logPhoneId,
+                                                true // skipDBLog = true -> prevent duplicate UI entries
+                                            );
+
+                                            // 7. Success! Update DB row quietly
+                                            const healedWaMessageId = resData?.messages?.[0]?.id;
+                                            if (healedWaMessageId) {
+                                                await supabaseAdmin
+                                                    .from('messages')
+                                                    .update({
+                                                        whatsapp_message_id: healedWaMessageId,
+                                                        status: 'sent',
+                                                        updated_at: new Date().toISOString()
+                                                    })
+                                                    .eq('whatsapp_message_id', waMessageId);
+                                                console.log(`[Auto-Heal] Row healed & updated with new WAMID: ${healedWaMessageId}`);
+                                            }
+                                        } catch (uploadOrSendErr) {
+                                            console.error(`[Auto-Heal] Critical recovery failure:`, uploadOrSendErr.message);
                                         }
                                     } catch (retryErr) {
                                         console.error(`[Auto-Heal] Auto-Heal delivery failed heavily:`, retryErr.message);

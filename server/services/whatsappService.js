@@ -216,15 +216,36 @@ class WhatsAppService {
             let mediaUrl = null;
 
             if (type === 'text') textBody = typeof content === 'string' ? content : (content.body || '');
-            else if (type === 'interactive') textBody = JSON.stringify(content);
+            else if (type === 'interactive') {
+                textBody = JSON.stringify(content);
+                // Extract mediaUrl from interactive header if present
+                const header = content.header;
+                if (header) {
+                    const hType = header.type?.toLowerCase();
+                    if (['image', 'video', 'document'].includes(hType) && header[hType]) {
+                        mediaUrl = header[hType].link || null;
+                    }
+                }
+            }
             else if (type === 'template') {
                 try {
                     const hydrated = await this._hydrateTemplate(content, userId);
                     if (hydrated) content = hydrated;
                 } catch (e) { console.warn('Template hydration failed:', e); }
                 textBody = JSON.stringify(content);
+                
+                // Extract mediaUrl from template components if present
+                if (content.components) {
+                    const headerComp = content.components.find(c => c.type === 'header');
+                    if (headerComp && headerComp.parameters) {
+                        const mediaParam = headerComp.parameters.find(p => ['image', 'video', 'document'].includes(p.type));
+                        if (mediaParam && mediaParam[mediaParam.type]) {
+                            mediaUrl = mediaParam[mediaParam.type].link || null;
+                        }
+                    }
+                }
             }
-            else if (['image', 'video', 'document'].includes(type)) {
+            else if (['image', 'video', 'audio', 'document', 'sticker'].includes(type)) {
                 mediaUrl = content.link || null;
                 textBody = content.caption || null;
             }
