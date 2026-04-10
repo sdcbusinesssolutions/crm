@@ -4,7 +4,7 @@ import {
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
     UserCircleIcon, ChevronLeftIcon, PhoneIcon, EditIcon, CloseIcon,
     UsersIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon
+    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon
 } from './icons';
 
 import { inboxService } from '../services/inboxService';
@@ -1607,12 +1607,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     return (
         <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
-            {quickFilter === 'Quick Reply' ? (
-                <div className="flex-1 h-full overflow-hidden">
-                    <QuickReply onToggleSidebar={onToggleSidebar} />
-                </div>
-            ) : (
-                <>
             {/* Left Sidebar: Conversation List */}
             <div className={`shrink-0 w-full md:w-72 lg:w-80 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
@@ -1628,6 +1622,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <h2 className="text-xl font-bold text-slate-900">Inbox</h2>
                         </div>
                         <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setQuickFilter('Quick Reply')}
+                                className={`p-2 rounded-lg transition-colors ${quickFilter === 'Quick Reply' ? 'bg-brand-100 text-brand-600' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-50'}`}
+                                title="Quick Replies"
+                            >
+                                <QuickReplyIcon className="w-5 h-5" />
+                            </button>
                             <button
                                 onClick={handleExportContactList}
                                 className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
@@ -1678,12 +1679,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar">
-                        {['All', 'Mine', 'Unassigned', 'Quick Reply'].map(f => (
+                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
+                        {['All', 'Mine', 'Unassigned'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setQuickFilter(f as any)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors whitespace-nowrap ${quickFilter === f ? 'bg-brand-100 text-brand-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                                className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-brand-600 text-white translate-y-[-1px] shadow-brand-200' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
                             >
                                 {f}
                             </button>
@@ -1713,7 +1714,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         filteredChats.map(chat => (
                             <div
                                 key={chat.id}
-                                onClick={() => setActiveChatId(chat.id)}
+                                onClick={() => { setActiveChatId(chat.id); if(quickFilter === 'Quick Reply') setQuickFilter('All'); }}
                                 className={`p-4 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors group ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-1">
@@ -1823,7 +1824,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         opacity: 1
                     }}
                 />
-                {activeChat ? (
+                {quickFilter === 'Quick Reply' ? (
+                    <div className="flex-1 h-full overflow-hidden relative z-10 bg-white animate-fade-in">
+                        <QuickReply onToggleSidebar={onToggleSidebar} />
+                    </div>
+                ) : activeChat ? (
                     <>
                         {/* Chat Header */}
                         <header className="bg-white px-3 py-2 border-b border-[#00684a] flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
@@ -2127,9 +2132,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             setMessageInput(val);
 
                                             // Trigger quick reply dropdown on '/'
-                                            if (val.startsWith('/')) {
+                                            const lastSlashIndex = val.lastIndexOf('/');
+                                            if (lastSlashIndex !== -1 && (lastSlashIndex === 0 || val[lastSlashIndex - 1] === ' ')) {
                                                 setIsQuickReplyOpen(true);
-                                                setQuickReplySearch(val.substring(1));
+                                                setQuickReplySearch(val.substring(lastSlashIndex + 1));
                                                 setSelectedQuickReplyIndex(0);
                                             } else {
                                                 setIsQuickReplyOpen(false);
@@ -2358,9 +2364,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
                 )
             }
-            {/* Clear Chat Confirmation Modal */}
-                </>
-            )}
 
             {isClearChatModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
