@@ -2157,42 +2157,55 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 } else if (e.key === 'Escape') {
                                                     setIsQuickReplyOpen(false);
                                                 }
-                                            } else {
-                                                handleKeyDown(e);
                                             }
                                         }}
                                         className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
                                     />
 
                                     {/* Quick Replies Dropdown */}
-                                    {isQuickReplyOpen && filteredQuickReplies.length > 0 && (
+                                    {isQuickReplyOpen && (
                                         <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-[100] animate-slide-up">
                                             <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Replies</span>
                                                 <span className="text-[10px] text-slate-400">↑↓ to navigate • Enter to send</span>
                                             </div>
                                             <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                                {filteredQuickReplies.map((reply, index) => (
-                                                    <button
-                                                        key={reply.id}
-                                                        onClick={() => handleSendQuickReply(reply)}
-                                                        onMouseEnter={() => setSelectedQuickReplyIndex(index)}
-                                                        className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${index === selectedQuickReplyIndex ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50'}`}
-                                                    >
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${index === selectedQuickReplyIndex ? 'bg-brand-100' : 'bg-slate-100'}`}>
-                                                                <span className="text-xs font-bold text-slate-500">/</span>
+                                                {filteredQuickReplies.length > 0 ? (
+                                                    filteredQuickReplies.map((reply, index) => (
+                                                        <button
+                                                            key={reply.id}
+                                                            onClick={() => handleSendQuickReply(reply)}
+                                                            onMouseEnter={() => setSelectedQuickReplyIndex(index)}
+                                                            className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${index === selectedQuickReplyIndex ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50'}`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${index === selectedQuickReplyIndex ? 'bg-brand-100' : 'bg-slate-100'}`}>
+                                                                    <span className="text-xs font-bold text-slate-500">/</span>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-bold truncate">{reply.name}</p>
+                                                                    <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                                                                        {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || 'Interactive Message'}
+                                                                    </p>
+                                                                </div>
                                                             </div>
-                                                            <div>
-                                                                <p className="text-sm font-bold truncate">{reply.name}</p>
-                                                                <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
-                                                                    {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || 'Interactive Message'}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">/{reply.name.toLowerCase().replace(/\s+/g, '-')}</span>
-                                                    </button>
-                                                ))}
+                                                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">/{reply.name.toLowerCase().replace(/\s+/g, '-')}</span>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="p-8 text-center">
+                                                        <p className="text-xs text-slate-400 italic">No matching quick replies</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex justify-center">
+                                                <button
+                                                    onClick={() => { setQuickFilter('Quick Reply'); setIsQuickReplyOpen(false); }}
+                                                    className="text-[10px] font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <PlusIcon className="w-3 h-3" />
+                                                    Create New Quick Reply
+                                                </button>
                                             </div>
                                         </div>
                                     )}
