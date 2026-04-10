@@ -22,6 +22,20 @@ const formatTime = (dateString: string) => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
+// Optimized Emoji Picker to prevent "hang" on re-renders
+const MemoizedEmojiPicker = React.memo(({ onEmojiClick }: { onEmojiClick: (emojiData: EmojiClickData) => void }) => (
+    <EmojiPicker
+        onEmojiClick={onEmojiClick}
+        width={350}
+        height={400}
+        lazyLoadEmojis={true}
+        previewConfig={{ showPreview: false }}
+        skinTonesDisabled
+        searchDisabled={false}
+    />
+));
+MemoizedEmojiPicker.displayName = 'MemoizedEmojiPicker';
+
 interface InboxProps {
     onToggleSidebar?: () => void;
 }
@@ -36,6 +50,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [messageInput, setMessageInput] = useState('');
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+    const [hasOpenedEmoji, setHasOpenedEmoji] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
     // Recording State
@@ -2070,29 +2085,38 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             )}
 
                             <button
-                                onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
-                                className={`p-2 transition-colors ${isEmojiPickerOpen ? 'text-brand-600' : 'text-slate-600 hover:text-brand-600'}`}
+                                onClick={() => {
+                                    setIsEmojiPickerOpen(!isEmojiPickerOpen);
+                                    setHasOpenedEmoji(true);
+                                    setIsAttachmentOpen(false);
+                                    setIsQuickReplyOpen(false);
+                                }}
+                                className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isEmojiPickerOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
+                                title="Emojis"
                             >
                                 <EmojiIcon className="w-6 h-6" />
                             </button>
 
-                            {isEmojiPickerOpen && (
-                                <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setIsEmojiPickerOpen(false)}></div>
-                                    <div className="absolute bottom-16 left-0 z-40 animate-fade-in shadow-2xl rounded-2xl overflow-hidden border border-[#00684a]/20">
-                                        <EmojiPicker
-                                            onEmojiClick={handleEmojiClick}
-                                            width={350}
-                                            height={450}
-                                            previewConfig={{ showPreview: false }}
-                                        />
+                            {/* Emoji Picker - Mounted once after first open for performance */}
+                            {(isEmojiPickerOpen || hasOpenedEmoji) && (
+                                <div 
+                                    className={`absolute bottom-16 left-0 z-40 transition-all duration-200 ${isEmojiPickerOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
+                                >
+                                    <div className="fixed inset-0 z-[-1]" onClick={() => setIsEmojiPickerOpen(false)}></div>
+                                    <div className="shadow-2xl rounded-2xl overflow-hidden border border-brand-100 bg-white">
+                                        <MemoizedEmojiPicker onEmojiClick={handleEmojiClick} />
                                     </div>
-                                </>
+                                </div>
                             )}
 
                             <button
-                                onClick={() => setIsAttachmentOpen(!isAttachmentOpen)}
-                                className={`p-2 transition-colors ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
+                                onClick={() => {
+                                    setIsAttachmentOpen(!isAttachmentOpen);
+                                    setIsEmojiPickerOpen(false);
+                                    setIsQuickReplyOpen(false);
+                                }}
+                                className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
+                                title="Attachments"
                             >
                                 <PaperClipIcon className="w-6 h-6" />
                             </button>
