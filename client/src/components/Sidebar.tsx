@@ -45,8 +45,7 @@ export type MenuItem =
     | 'My Plan'
     | 'G Automation'
     | 'AI Buddy'
-    | 'Drip Campaigns'
-    | 'Quick Reply';
+    | 'Drip Campaigns';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -158,7 +157,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'Gallery': return <GalleryIcon className={baseClass} />;
             case 'AI Buddy': return <SparklesIcon className={baseClass} />;
             case 'Drip Campaigns': return <TriggerIcon className={baseClass} />;
-            case 'Quick Reply': return <QuickReplyIcon className={baseClass} />;
             default: return null;
         }
     };
@@ -387,7 +385,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
-                        {renderItem('Quick Reply', <QuickReplyIcon className="w-5 h-5" />)}
                         {renderItem('Drip Campaigns', <ClockIcon className="w-5 h-5" />)}
 
                         {renderItem('G Automation', <ListIcon className="w-5 h-5" />)}

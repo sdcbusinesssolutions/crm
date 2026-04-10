@@ -14,6 +14,7 @@ import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
 import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
+import QuickReply from './QuickReply';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -30,7 +31,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [quickFilter, setQuickFilter] = useState<'All' | 'Mine' | 'Unassigned'>('All');
+    const [quickFilter, setQuickFilter] = useState<'All' | 'Mine' | 'Unassigned' | 'Quick Reply'>('All');
     const [filterTag, setFilterTag] = useState('');
     const [messageInput, setMessageInput] = useState('');
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
@@ -1606,6 +1607,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     return (
         <div className="flex h-full w-full bg-slate-50 overflow-hidden animate-fade-in relative">
+            {quickFilter === 'Quick Reply' ? (
+                <div className="flex-1 h-full overflow-hidden">
+                    <QuickReply onToggleSidebar={onToggleSidebar} />
+                </div>
+            ) : (
+                <>
             {/* Left Sidebar: Conversation List */}
             <div className={`shrink-0 w-full md:w-72 lg:w-80 border-r border-[#00684a] flex flex-col bg-white z-[90] md:z-10 fixed md:static inset-0 transform transition-transform duration-300 ${activeChatId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}`}>
                 {/* Header & Search */}
@@ -1672,7 +1679,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar">
-                        {['All', 'Mine', 'Unassigned'].map(f => (
+                        {['All', 'Mine', 'Unassigned', 'Quick Reply'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setQuickFilter(f as any)}
@@ -2352,6 +2359,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 )
             }
             {/* Clear Chat Confirmation Modal */}
+                </>
+            )}
+
             {isClearChatModalOpen && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
                     <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 transform transition-all scale-100">
