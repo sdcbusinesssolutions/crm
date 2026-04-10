@@ -116,5 +116,22 @@ export const quickReplyService = {
             console.error("Failed to delete quick reply", e);
             return false;
         }
+    },
+
+    sendQuickReply: async (id: string, to: string): Promise<boolean> => {
+        try {
+            const headers = await getAuthHeaders();
+            const response = await fetch(`${API_URL}/${id}/test-send`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ to })
+            });
+
+            if (!response.ok) throw new Error('Failed to send quick reply');
+            return true;
+        } catch (e) {
+            console.error("Failed to send quick reply", e);
+            return false;
+        }
     }
 };

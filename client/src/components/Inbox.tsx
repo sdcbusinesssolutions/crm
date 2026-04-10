@@ -8,10 +8,11 @@ import {
 } from './icons';
 
 import { inboxService } from '../services/inboxService';
+import { quickReplyService } from '../services/quickReplyService';
 import { themeService } from '../services/themeService';
 import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
-import { Conversation, Message } from '../types';
+import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 // Helper to format time
@@ -61,6 +62,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState<string | null>(null);
 
+    // Quick Replies State
+    const [quickReplies, setQuickReplies] = useState<Flow[]>([]);
+    const [isQuickReplyOpen, setIsQuickReplyOpen] = useState(false);
+    const [quickReplySearch, setQuickReplySearch] = useState('');
+    const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
+
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
 
@@ -93,6 +100,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         // Poll for new conversations
         const interval = setInterval(loadConversations, 5000);
         return () => clearInterval(interval);
+    }, []);
+
+    // Load Quick Replies
+    useEffect(() => {
+        quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
     }, []);
 
     // Load Messages & Mark as Read
@@ -229,6 +241,60 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             return true;
         });
     }, [conversations, searchTerm, quickFilter, filterTag]);
+
+    const filteredQuickReplies = useMemo(() => {
+        if (!quickReplySearch) return quickReplies;
+        return quickReplies.filter(r =>
+            r.name.toLowerCase().includes(quickReplySearch.toLowerCase()) ||
+            (r.nodes?.[0]?.data?.message || '').toLowerCase().includes(quickReplySearch.toLowerCase())
+        );
+    }, [quickReplies, quickReplySearch]);
+
+    const handleSendQuickReply = async (reply: Flow) => {
+        if (!activeChat || isSendingRef.current) return;
+
+        setIsQuickReplyOpen(false);
+        setMessageInput('');
+        isSendingRef.current = true;
+
+        // Optimistic UI for text-based quick replies
+        const node = reply.nodes?.[0];
+        const tempId = `temp-${Date.now()}`;
+        
+        if (node?.type === 'textMessage') {
+            const msg: Message = {
+                id: tempId,
+                conversation_id: activeChat.id,
+                text: node.data.message,
+                direction: 'out',
+                type: 'text',
+                status: 'sent',
+                created_at: new Date().toISOString()
+            };
+            setMessages(prev => [...prev, msg]);
+        }
+
+        try {
+            const success = await quickReplyService.sendQuickReply(reply.id, activeChat.contact_phone);
+            if (success) {
+                // If it was a text message, the poller will eventually replace the tempId
+                // For interactive messages, we wait for the poller
+                console.log("Quick reply sent successfully");
+            } else {
+                alert("Failed to send quick reply");
+                if (node?.type === 'textMessage') {
+                    setMessages(prev => prev.filter(m => m.id !== tempId));
+                }
+            }
+        } catch (error) {
+            console.error("Error sending quick reply:", error);
+            if (node?.type === 'textMessage') {
+                setMessages(prev => prev.filter(m => m.id !== tempId));
+            }
+        } finally {
+            isSendingRef.current = false;
+        }
+    };
 
 
     // Track if we are in the middle of switching chats to force scroll
@@ -2049,10 +2115,74 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         rows={1}
                                         placeholder="Type a message..."
                                         value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyDown={handleKeyDown}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setMessageInput(val);
+
+                                            // Trigger quick reply dropdown on '/'
+                                            if (val.startsWith('/')) {
+                                                setIsQuickReplyOpen(true);
+                                                setQuickReplySearch(val.substring(1));
+                                                setSelectedQuickReplyIndex(0);
+                                            } else {
+                                                setIsQuickReplyOpen(false);
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (isQuickReplyOpen) {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    setSelectedQuickReplyIndex(prev => (prev + 1) % filteredQuickReplies.length);
+                                                } else if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    setSelectedQuickReplyIndex(prev => (prev - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
+                                                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                                                    e.preventDefault();
+                                                    if (filteredQuickReplies[selectedQuickReplyIndex]) {
+                                                        handleSendQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
+                                                    }
+                                                } else if (e.key === 'Escape') {
+                                                    setIsQuickReplyOpen(false);
+                                                }
+                                            } else {
+                                                handleKeyDown(e);
+                                            }
+                                        }}
                                         className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
                                     />
+
+                                    {/* Quick Replies Dropdown */}
+                                    {isQuickReplyOpen && filteredQuickReplies.length > 0 && (
+                                        <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-[100] animate-slide-up">
+                                            <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Replies</span>
+                                                <span className="text-[10px] text-slate-400">↑↓ to navigate • Enter to send</span>
+                                            </div>
+                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                                                {filteredQuickReplies.map((reply, index) => (
+                                                    <button
+                                                        key={reply.id}
+                                                        onClick={() => handleSendQuickReply(reply)}
+                                                        onMouseEnter={() => setSelectedQuickReplyIndex(index)}
+                                                        className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${index === selectedQuickReplyIndex ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50'}`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${index === selectedQuickReplyIndex ? 'bg-brand-100' : 'bg-slate-100'}`}>
+                                                                <span className="text-xs font-bold text-slate-500">/</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold truncate">{reply.name}</p>
+                                                                <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
+                                                                    {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || 'Interactive Message'}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">/{reply.name.toLowerCase().replace(/\s+/g, '-')}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

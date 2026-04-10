@@ -284,6 +284,7 @@ router.post('/:id/test-send', async (req, res) => {
         if (!to) return res.status(400).json({ error: 'Missing "to" phone number.' });
 
         console.log(`[Test-Send] Starting test for saved reply ${id} to ${to}...`);
+        const supabase = getAuthenticatedSupabase(req);
         
         // Fetch the reply
         const { data: reply, error } = await supabase
