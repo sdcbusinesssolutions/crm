@@ -749,20 +749,20 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                     
                     {/* Stats Overview */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Replies</div>
-                            <div className="text-3xl font-black text-slate-900">{replies.length}</div>
-                            <div className="text-xs text-slate-400 mt-1 font-medium">All message templates</div>
+                        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-300 border-l-[6px] border-l-slate-800 shadow-md hover:shadow-lg transition-all">
+                            <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Replies</div>
+                            <div className="text-4xl font-black text-slate-900">{replies.length}</div>
+                            <div className="text-xs text-slate-400 mt-2 font-bold uppercase">All Platform Templates</div>
                         </div>
-                        <div className="bg-emerald-50 p-5 rounded-2xl border border-emerald-100 shadow-sm">
-                            <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Status: Active</div>
-                            <div className="text-3xl font-black text-emerald-700">{replies.length}</div>
-                            <div className="text-xs text-emerald-600 mt-1 font-medium">Ready for automation</div>
+                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-200 border-l-[6px] border-l-[#0D9668] shadow-md hover:shadow-lg transition-all">
+                            <div className="text-[10px] font-black text-[#0D9668] uppercase tracking-widest mb-1">Status: Active</div>
+                            <div className="text-4xl font-black text-[#0D9668]">{replies.length}</div>
+                            <div className="text-xs text-[#0D9668] mt-2 font-bold uppercase tracking-tight">System Ready for automation</div>
                         </div>
-                        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm">
-                            <div className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Interactive Type</div>
-                            <div className="text-3xl font-black text-blue-700">{filteredReplies.filter(r => r.nodes[0]?.type !== NodeType.TextMessage).length}</div>
-                            <div className="text-xs text-blue-600 mt-1 font-medium">Buttons / Lists / Flows</div>
+                        <div className="bg-violet-50 p-6 rounded-2xl border border-violet-200 border-l-[6px] border-l-violet-600 shadow-md hover:shadow-lg transition-all">
+                            <div className="text-[10px] font-black text-violet-600 uppercase tracking-widest mb-1">Interactive Type</div>
+                            <div className="text-4xl font-black text-violet-700">{filteredReplies.filter(r => r.nodes[0]?.type !== NodeType.TextMessage).length}</div>
+                            <div className="text-xs text-violet-600 mt-2 font-bold uppercase tracking-tight">Buttons / Lists / Flows</div>
                         </div>
                     </div>
 
@@ -781,7 +781,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     {/* Table View */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-lg border-x border-b border-[#0D9668]/30 overflow-hidden">
                         {isLoading ? (
                             <div className="flex flex-col justify-center items-center py-24 text-slate-400 font-bold italic">
                                 <div className="w-8 h-8 border-4 border-[#0D9668]/20 border-t-[#0D9668] rounded-full animate-spin mb-4"></div>
@@ -829,7 +829,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                                                         <tr key={reply.id} className="hover:bg-slate-50 transition-colors group cursor-default">
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <div className="flex items-center">
-                                                                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200 group-hover:bg-[#0D9668]/5 group-hover:text-[#0D9668] group-hover:border-[#0D9668]/20 transition-all">
+                                                                    <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#0D9668] flex items-center justify-center mr-3 border border-emerald-100 transition-all group-hover:scale-110 group-hover:shadow-sm group-hover:bg-[#0D9668]/10">
                                                                         {type === NodeType.QuickReplyMessage && <QuickReplyIcon className="w-5 h-5" />}
                                                                         {type === NodeType.MediaMessage && <ImageFileIcon className="w-5 h-5" />}
                                                                         {type === NodeType.ListMessage && <ListIcon className="w-5 h-5" />}
@@ -898,35 +898,35 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
 
                                     {/* Pagination Controls */}
                                     {totalPages > 1 && (
-                                        <div className="px-6 py-4 flex items-center justify-between bg-white border-t border-slate-50">
+                                        <div className="px-6 py-5 flex items-center justify-between bg-slate-50/80 border-t-2 border-slate-100 backdrop-blur-sm">
                                             <div className="flex-1 flex justify-between sm:hidden">
                                                 <button
-                                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                    onClick={() => { setCurrentPage(prev => Math.max(prev - 1, 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                                                     disabled={currentPage === 1}
-                                                    className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                                    className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-black rounded-xl text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 shadow-sm"
                                                 >
                                                     Previous
                                                 </button>
                                                 <button
-                                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                    onClick={() => { setCurrentPage(prev => Math.min(prev + 1, totalPages)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                                                     disabled={currentPage === totalPages}
-                                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-black rounded-xl text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 shadow-sm"
                                                 >
                                                     Next
                                                 </button>
                                             </div>
                                             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                                                 <div>
-                                                    <p className="text-sm text-slate-700">
-                                                        Showing <span className="font-semibold">{startIndex + 1}</span> to <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredReplies.length)}</span> of <span className="font-semibold">{filteredReplies.length}</span> results
+                                                    <p className="text-sm text-slate-600 font-medium">
+                                                        Showing <span className="font-black text-[#0D9668]">{startIndex + 1}</span> to <span className="font-black text-[#0D9668]">{Math.min(startIndex + itemsPerPage, filteredReplies.length)}</span> of <span className="font-bold text-slate-800">{filteredReplies.length}</span> results
                                                     </p>
                                                 </div>
                                                 <div>
-                                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                                    <nav className="relative z-0 inline-flex rounded-xl shadow-md -space-x-px bg-white border border-slate-200 overflow-hidden" aria-label="Pagination">
                                                         <button
-                                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                            onClick={() => { setCurrentPage(prev => Math.max(prev - 1, 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                                                             disabled={currentPage === 1}
-                                                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                                                            className="relative inline-flex items-center px-3 py-2 border-r border-slate-200 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors"
                                                         >
                                                             <span className="sr-only">Previous</span>
                                                             <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -936,16 +936,16 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                                                         {[...Array(totalPages)].map((_, i) => (
                                                             <button
                                                                 key={i + 1}
-                                                                onClick={() => setCurrentPage(i + 1)}
-                                                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === i + 1 ? 'z-10 bg-[#0D9668] border-[#0D9668] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
+                                                                onClick={() => { setCurrentPage(i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                                className={`relative inline-flex items-center px-4 py-2 border-r border-slate-200 text-sm font-extrabold transition-all ${currentPage === i + 1 ? 'z-10 bg-[#0D9668] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                                                             >
                                                                 {i + 1}
                                                             </button>
                                                         ))}
                                                         <button
-                                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                            onClick={() => { setCurrentPage(prev => Math.min(prev + 1, totalPages)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                                                             disabled={currentPage === totalPages}
-                                                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                                                            className="relative inline-flex items-center px-3 py-2 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50 transition-colors"
                                                         >
                                                             <span className="sr-only">Next</span>
                                                             <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -975,9 +975,14 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                         { type: NodeType.TextMessage, label: 'Plain Text', icon: <MessageIcon />, description: 'Simple text-only message' },
                         { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon />, description: 'Chain another interaction flow' }
                     ].map((item) => (
-                        <button key={item.type} onClick={() => handleTypeSelect(item.type as any)} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-[#0D9668] hover:shadow-xl hover:shadow-emerald-500/5 transition-all text-left group">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-[#0D9668] shadow-sm shrink-0 border border-slate-100">{React.cloneElement(item.icon as any, { className: 'w-6 h-6' })}</div>
-                            <div><h4 className="font-bold text-slate-800 mb-1 group-hover:text-[#0D9668]">{item.label}</h4><p className="text-[11px] text-slate-500 leading-tight">{item.description}</p></div>
+                        <button key={item.type} onClick={() => handleTypeSelect(item.type as any)} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-white hover:bg-[#F1FDF9] hover:border-[#0D9668] hover:shadow-xl hover:shadow-[#0D9668]/5 transition-all text-left group">
+                            <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-[#0D9668] shadow-sm shrink-0 border border-emerald-100 group-hover:bg-[#0D9668] group-hover:text-white transition-all">
+                                {React.cloneElement(item.icon as any, { className: 'w-6 h-6' })}
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-slate-800 mb-1 group-hover:text-[#0D9668]">{item.label}</h4>
+                                <p className="text-[11px] text-slate-500 leading-tight">{item.description}</p>
+                            </div>
                         </button>
                     ))}
                 </div>
