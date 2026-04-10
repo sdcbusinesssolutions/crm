@@ -12,22 +12,35 @@ const getAuthHeaders = async () => {
     };
 };
 
+let quickRepliesCache: Flow[] | null = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 30000; // 30 seconds
+
 export const quickReplyService = {
-    getQuickReplies: async (): Promise<Flow[]> => {
+    getQuickReplies: async (forceRefresh: boolean = false): Promise<Flow[]> => {
+        const now = Date.now();
+        if (!forceRefresh && quickRepliesCache && (now - lastFetchTime < CACHE_DURATION)) {
+            return quickRepliesCache;
+        }
+
         try {
             const headers = await getAuthHeaders();
             const response = await fetch(API_URL, { headers });
             if (!response.ok) throw new Error('Failed to fetch quick replies');
             const data = await response.json();
 
-            return data.map((f: any) => ({
+            const processedData = data.map((f: any) => ({
                 ...f,
                 status: 'Published',
                 updatedAt: new Date(f.updated_at).toLocaleString(),
             }));
+
+            quickRepliesCache = processedData;
+            lastFetchTime = now;
+            return processedData;
         } catch (e) {
             console.error("Failed to fetch quick replies", e);
-            return [];
+            return quickRepliesCache || [];
         }
     },
 
@@ -58,6 +71,7 @@ export const quickReplyService = {
 
             if (!response.ok) throw new Error('Failed to create quick reply');
             const f = await response.json();
+            quickRepliesCache = null; // Invalidate cache
             return f;
         } catch (e) {
             console.error("Failed to create quick reply", e);
@@ -95,6 +109,7 @@ export const quickReplyService = {
 
             if (!response2.ok) throw new Error('Failed to update quick reply');
             const f = await response2.json();
+            quickRepliesCache = null; // Invalidate cache
             return f;
         } catch (e) {
             console.error("Failed to update quick reply", e);
@@ -111,6 +126,7 @@ export const quickReplyService = {
             });
 
             if (!response.ok) throw new Error('Failed to delete quick reply');
+            quickRepliesCache = null; // Invalidate cache
             return true;
         } catch (e) {
             console.error("Failed to delete quick reply", e);
