@@ -121,7 +121,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     // Load Quick Replies
     useEffect(() => {
         quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
-    }, []);
+    }, [quickFilter]);
+
+    // Force refresh when dropdown is opened to catch new one immediately
+    useEffect(() => {
+        if (isQuickReplyOpen) {
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        }
+    }, [isQuickReplyOpen]);
 
     // Load Messages & Mark as Read
     useEffect(() => {
@@ -1692,7 +1699,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <button
                                 key={f}
                                 onClick={() => setQuickFilter(f as any)}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-gradient-to-r from-[#00684a] to-[#00a67d] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px]' : 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:scale-105'}`}
+                                className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-[#0D9668] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px]' : 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:scale-105'}`}
                             >
                                 {f}
                             </button>
@@ -1833,13 +1840,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     }}
                 />
                 {quickFilter === 'Quick Reply' ? (
-                    <div className="flex-1 h-full overflow-hidden relative z-10 bg-white animate-fade-in">
+                    <div className="flex-1 h-full overflow-hidden relative z-10 bg-white animate-fade-in border border-[#0D9668] m-3 rounded-2xl shadow-lg">
                         <QuickReply onToggleSidebar={onToggleSidebar} />
                     </div>
                 ) : activeChat ? (
                     <>
                         {/* Chat Header */}
-                        <header className="bg-white px-3 py-2 border-b border-[#00684a] flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
+                        <header className="bg-white px-3 py-2 border-b border-[#0D9668] flex justify-between items-center shadow-sm shrink-0 w-full relative z-30">
                             <div
                                 className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden mr-2 cursor-pointer hover:bg-slate-50 rounded-lg p-1 transition-colors"
                                 onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}
@@ -2076,9 +2083,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <div className="h-px bg-slate-100 my-1 mx-2"></div>
                                         <button 
                                             onClick={() => { setQuickFilter('Quick Reply'); setIsAttachmentOpen(false); }} 
-                                            className="flex items-center gap-3 px-3 py-2 hover:bg-brand-50 rounded-lg text-sm text-brand-600 font-bold transition-colors w-full text-left"
+                                            className="flex items-center gap-3 px-3 py-2 hover:bg-green-50 rounded-lg text-sm text-[#0D9668] font-bold transition-colors w-full text-left"
                                         >
-                                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
+                                            <div className="w-8 h-8 rounded-full bg-green-100 text-[#0D9668] flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
                                         </button>
                                     </div>
                                 </>

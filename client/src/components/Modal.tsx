@@ -47,11 +47,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
             <div
                 ref={modalRef}
-                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-xl shadow-2xl w-full ${sizeClasses[size]} transform transition-all border border-[var(--color-border)] flex flex-col max-h-[90vh]`}
+                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-xl shadow-2xl w-full ${sizeClasses[size]} transform transition-all border border-[#00684a] flex flex-col max-h-[90vh]`}
                 role="dialog"
                 aria-modal="true"
             >
-                <div className="flex justify-between items-center p-6 border-b border-[var(--color-border)] flex-shrink-0">
+                <div className="flex justify-between items-center p-6 border-b border-[#00684a] flex-shrink-0">
                     <h3 className="text-xl font-bold">{title}</h3>
                     <button
                         onClick={onClose}
@@ -68,7 +68,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
                 </div>
 
                 {footer && (
-                    <div className="p-6 border-t border-[var(--color-border)] bg-[var(--color-bg)] rounded-b-xl flex justify-end gap-3 flex-shrink-0">
+                    <div className="p-6 border-t border-[#00684a] bg-[var(--color-bg)] rounded-b-xl flex justify-end gap-3 flex-shrink-0">
                         {footer}
                     </div>
                 )}

@@ -90,6 +90,8 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
     const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
     const [flows, setFlows] = useState<{ id: string, name: string }[]>([]);
     const [whatsappForms, setWhatsappForms] = useState<{ id: string, name: string }[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(6);
 
     useEffect(() => {
         loadReplies();
@@ -771,7 +773,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                             <input
                                 type="text"
                                 placeholder="Search replies by name or trigger..."
-                                value={searchQuery}
+                        value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-11 pr-4 py-3 bg-white border border-brand-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500/10 focus:border-brand-600 transition-all outline-none shadow-sm font-medium placeholder-slate-400"
                             />
@@ -782,109 +784,182 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                         {isLoading ? (
                             <div className="flex flex-col justify-center items-center py-24 text-slate-400 font-bold italic">
-                                <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4"></div>
+                                <div className="w-8 h-8 border-4 border-[#0D9668]/20 border-t-[#0D9668] rounded-full animate-spin mb-4"></div>
                                 Fetching replies...
                             </div>
-                        ) : filteredReplies.length === 0 ? (
-                            <div className="text-center py-24 px-4">
-                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-slate-100">
-                                    <SearchIcon className="w-8 h-8 text-slate-300" />
-                                </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">No replies found</h3>
-                                <p className="text-slate-500 text-sm mb-6">Create your first quick reply template to get started.</p>
-                                <button onClick={handleCreateNewClick} className="text-brand-600 font-bold hover:underline text-sm">+ Create New Reply</button>
-                            </div>
-                        ) : (
-                            <>
-                                {/* Table Desktop */}
-                                <div className="hidden md:block overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-slate-100">
-                                        <thead className="bg-[#10b981] text-white">
-                                            <tr>
-                                                <th className="px-6 py-5 text-left text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Name</th>
-                                                <th className="px-6 py-5 text-left text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Trigger</th>
-                                                <th className="px-6 py-5 text-left text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Status</th>
-                                                <th className="px-6 py-5 text-left text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Last Updated</th>
-                                                <th className="px-6 py-5 text-right text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100">
-                                            {filteredReplies.map((reply) => {
-                                                const type = reply.nodes[0]?.type || NodeType.TextMessage;
-                                                const trigger = reply.nodes[0]?.data?.triggerName || reply.name;
-                                                
-                                                return (
-                                                    <tr key={reply.id} className="hover:bg-slate-50 transition-colors group cursor-default">
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <div className="flex items-center">
-                                                                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200 group-hover:bg-brand-50 group-hover:text-brand-600 group-hover:border-brand-100 transition-all">
-                                                                    {type === NodeType.QuickReplyMessage && <QuickReplyIcon className="w-5 h-5" />}
-                                                                    {type === NodeType.MediaMessage && <ImageFileIcon className="w-5 h-5" />}
-                                                                    {type === NodeType.ListMessage && <ListIcon className="w-5 h-5" />}
-                                                                    {type === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}
-                                                                    {type === NodeType.SendFlow && <FlowIcon className="w-5 h-5" />}
-                                                                    {type === NodeType.TextMessage && <MessageIcon className="w-5 h-5" />}
-                                                                </div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-sm font-bold text-slate-800">{reply.name}</span>
-                                                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{type.replace('Message', '')}</span>
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-bold border border-slate-200 font-mono">
-                                                                {trigger}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border bg-emerald-100 text-emerald-700 border-emerald-200">
-                                                                <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-emerald-500 animate-pulse"></span>
-                                                                Active
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 font-medium">
-                                                            {new Date(reply.updatedAt).toLocaleDateString()}
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                            <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={() => handleEditClick(reply)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all" title="Edit Template"><EditIcon className="w-4 h-4" /></button>
-                                                                <button onClick={() => handleDeleteClick(reply.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Template"><TrashIcon className="w-4 h-4" /></button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
+                        ) : (() => {
+                            const filteredReplies = replies.filter(r => 
+                                r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                r.nodes[0]?.data?.triggerName?.toLowerCase().includes(searchQuery.toLowerCase())
+                            );
+                            
+                            const totalPages = Math.ceil(filteredReplies.length / itemsPerPage);
+                            const startIndex = (currentPage - 1) * itemsPerPage;
+                            const currentReplies = filteredReplies.slice(startIndex, startIndex + itemsPerPage);
 
-                                {/* Table Mobile Cards */}
-                                <div className="md:hidden divide-y divide-slate-100">
-                                    {filteredReplies.map((reply) => (
-                                        <div key={reply.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 font-bold text-xs uppercase">
-                                                        {reply.nodes[0]?.type?.[0] || 'T'}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-bold text-slate-900 text-base leading-tight">{reply.name}</h4>
-                                                        <div className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black rounded uppercase mt-1 inline-block">
-                                                            {reply.nodes[0]?.data?.triggerName || reply.name}
+                            if (filteredReplies.length === 0) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200 m-4">
+                                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-300 mb-4 shadow-sm"><QuickReplyIcon className="w-8 h-8" /></div>
+                                        <p className="text-slate-500 font-medium mb-4">No Quick Replies found</p>
+                                        <button onClick={handleCreateNewClick} className="text-[#0D9668] font-bold hover:underline text-sm">+ Create New Reply</button>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <>
+                                    <div className="hidden md:block overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-slate-100">
+                                            <thead className="bg-[#0D9668] text-white shadow-md">
+                                                <tr>
+                                                    <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-[#0D9668] whitespace-nowrap">Name</th>
+                                                    <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-[#0D9668] whitespace-nowrap">Trigger</th>
+                                                    <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-[#0D9668] whitespace-nowrap">Status</th>
+                                                    <th className="px-6 py-5 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-[#0D9668] whitespace-nowrap">Last Updated</th>
+                                                    <th className="px-6 py-5 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-[#0D9668] whitespace-nowrap">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {currentReplies.map((reply) => {
+                                                    const type = reply.nodes[0]?.type || NodeType.TextMessage;
+                                                    const trigger = reply.nodes[0]?.data?.triggerName || reply.name;
+                                                    
+                                                    return (
+                                                        <tr key={reply.id} className="hover:bg-slate-50 transition-colors group cursor-default">
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="flex items-center">
+                                                                    <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mr-3 border border-slate-200 group-hover:bg-[#0D9668]/5 group-hover:text-[#0D9668] group-hover:border-[#0D9668]/20 transition-all">
+                                                                        {type === NodeType.QuickReplyMessage && <QuickReplyIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.MediaMessage && <ImageFileIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.ListMessage && <ListIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.CTAMessage && <CtaIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.SendFlow && <FlowIcon className="w-5 h-5" />}
+                                                                        {type === NodeType.TextMessage && <MessageIcon className="w-5 h-5" />}
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-sm font-bold text-slate-800">{reply.name}</span>
+                                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{type.replace('Message', '')}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-md text-[11px] font-bold border border-slate-200 font-mono">
+                                                                    {trigger || 'None'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border bg-emerald-100 text-[#0D9668] border-emerald-200">
+                                                                    <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-[#0D9668] animate-pulse"></span>
+                                                                    Active
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-slate-500 font-medium">
+                                                                {new Date(reply.updatedAt).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                                <div className="flex items-center justify-end gap-1">
+                                                                    <button onClick={() => handleEditClick(reply)} className="p-2 text-slate-400 hover:text-[#0D9668] hover:bg-[#0D9668]/5 rounded-lg transition-all" title="Edit Template"><EditIcon className="w-4 h-4" /></button>
+                                                                    <button onClick={() => handleDeleteClick(reply.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Delete Template"><TrashIcon className="w-4 h-4" /></button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Mobile cards view integrated into pagination logic */}
+                                    <div className="md:hidden divide-y divide-slate-100">
+                                        {currentReplies.map((reply) => (
+                                            <div key={reply.id} className="p-4 bg-white active:bg-slate-50 transition-colors">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 font-bold text-xs uppercase">
+                                                            {reply.nodes[0]?.type?.[0] || 'T'}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-bold text-slate-900 text-sm leading-tight">{reply.name}</h4>
+                                                            <div className="px-1.5 py-0.5 bg-slate-100 text-slate-500 text-[9px] font-black rounded uppercase mt-1 inline-block">
+                                                                {reply.nodes[0]?.data?.triggerName || 'None'}
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                    <span className="w-2 h-2 rounded-full bg-[#0D9668]"></span>
                                                 </div>
-                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                <div className="flex justify-end gap-3 mt-3">
+                                                    <button onClick={() => handleEditClick(reply)} className="text-xs font-bold text-[#0D9668] uppercase">Edit</button>
+                                                    <button onClick={() => handleDeleteClick(reply.id)} className="text-xs font-bold text-red-500 uppercase">Delete</button>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-end gap-3 mt-3">
-                                                <button onClick={() => handleEditClick(reply)} className="text-xs font-bold text-brand-600 uppercase">Edit</button>
-                                                <button onClick={() => handleDeleteClick(reply.id)} className="text-xs font-bold text-red-500 uppercase">Delete</button>
+                                        ))}
+                                    </div>
+
+                                    {/* Pagination Controls */}
+                                    {totalPages > 1 && (
+                                        <div className="px-6 py-4 flex items-center justify-between bg-white border-t border-slate-50">
+                                            <div className="flex-1 flex justify-between sm:hidden">
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                    className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                                >
+                                                    Previous
+                                                </button>
+                                                <button
+                                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm text-slate-700">
+                                                        Showing <span className="font-semibold">{startIndex + 1}</span> to <span className="font-semibold">{Math.min(startIndex + itemsPerPage, filteredReplies.length)}</span> of <span className="font-semibold">{filteredReplies.length}</span> results
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                            disabled={currentPage === 1}
+                                                            className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                                                        >
+                                                            <span className="sr-only">Previous</span>
+                                                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </button>
+                                                        {[...Array(totalPages)].map((_, i) => (
+                                                            <button
+                                                                key={i + 1}
+                                                                onClick={() => setCurrentPage(i + 1)}
+                                                                className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${currentPage === i + 1 ? 'z-10 bg-[#0D9668] border-[#0D9668] text-white' : 'bg-white border-slate-300 text-slate-500 hover:bg-slate-50'}`}
+                                                            >
+                                                                {i + 1}
+                                                            </button>
+                                                        ))}
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                            disabled={currentPage === totalPages}
+                                                            className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                                                        >
+                                                            <span className="sr-only">Next</span>
+                                                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                                                            </svg>
+                                                        </button>
+                                                    </nav>
+                                                </div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
             </div>
@@ -900,9 +975,9 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
                         { type: NodeType.TextMessage, label: 'Plain Text', icon: <MessageIcon />, description: 'Simple text-only message' },
                         { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon />, description: 'Chain another interaction flow' }
                     ].map((item) => (
-                        <button key={item.type} onClick={() => handleTypeSelect(item.type as any)} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-brand-300 hover:shadow-xl hover:shadow-brand-500/5 transition-all text-left group">
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-brand-600 shadow-sm shrink-0 border border-slate-100">{React.cloneElement(item.icon as any, { className: 'w-6 h-6' })}</div>
-                            <div><h4 className="font-bold text-slate-800 mb-1 group-hover:text-brand-600">{item.label}</h4><p className="text-[11px] text-slate-500 leading-tight">{item.description}</p></div>
+                        <button key={item.type} onClick={() => handleTypeSelect(item.type as any)} className="flex items-start gap-4 p-5 rounded-2xl border border-slate-100 bg-slate-50 hover:bg-white hover:border-[#0D9668] hover:shadow-xl hover:shadow-emerald-500/5 transition-all text-left group">
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 group-hover:text-[#0D9668] shadow-sm shrink-0 border border-slate-100">{React.cloneElement(item.icon as any, { className: 'w-6 h-6' })}</div>
+                            <div><h4 className="font-bold text-slate-800 mb-1 group-hover:text-[#0D9668]">{item.label}</h4><p className="text-[11px] text-slate-500 leading-tight">{item.description}</p></div>
                         </button>
                     ))}
                 </div>
