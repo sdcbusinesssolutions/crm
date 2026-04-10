@@ -1638,15 +1638,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => setQuickFilter('Quick Reply')}
-                                className={`p-2 rounded-lg transition-colors ${quickFilter === 'Quick Reply' ? 'bg-brand-100 text-brand-600' : 'text-slate-400 hover:text-brand-600 hover:bg-slate-50'}`}
-                                title="Quick Replies"
-                            >
-                                <QuickReplyIcon className="w-5 h-5" />
-                            </button>
-                            <button
                                 onClick={handleExportContactList}
-                                className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                                className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95"
                                 title="Export Contact List"
                             >
                                 <DownloadIcon className="w-5 h-5" />
@@ -1654,7 +1647,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                                    className={`p-2 rounded-lg transition-colors ${isFilterMenuOpen || filterTag ? 'bg-brand-50 text-brand-600' : 'text-slate-400 hover:bg-slate-50'}`}
+                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag ? 'bg-brand-600 text-white shadow-brand-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                                     title="Filter"
                                 >
                                     <FilterIcon className="w-5 h-5" />
@@ -1695,11 +1688,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'Mine', 'Unassigned'].map(f => (
+                        {['All', 'Unassigned', 'Quick Reply'].map(f => (
                             <button
                                 key={f}
                                 onClick={() => setQuickFilter(f as any)}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-brand-600 text-white translate-y-[-1px] shadow-brand-200' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}
+                                className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-gradient-to-r from-[#00684a] to-[#00a67d] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px]' : 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:scale-105'}`}
                             >
                                 {f}
                             </button>
@@ -2080,6 +2073,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <button onClick={() => handleAttachmentClick('audio')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
                                             <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><AudioFileIcon className="w-4 h-4" /></div> Audio
                                         </button>
+                                        <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                        <button 
+                                            onClick={() => { setQuickFilter('Quick Reply'); setIsAttachmentOpen(false); }} 
+                                            className="flex items-center gap-3 px-3 py-2 hover:bg-brand-50 rounded-lg text-sm text-brand-600 font-bold transition-colors w-full text-left"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
+                                        </button>
                                     </div>
                                 </>
                             )}
@@ -2149,7 +2149,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <div className="flex-1 bg-slate-100 rounded-2xl border border-[#00684a] focus-within:ring-1 focus-within:ring-[#00684a] flex items-center px-4 py-2">
                                     <textarea
                                         rows={1}
-                                        placeholder="Type a message..."
+                                        placeholder="Type a message or '/' for Quick Replies..."
                                         value={messageInput}
                                         onChange={(e) => {
                                             const val = e.target.value;
