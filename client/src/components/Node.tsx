@@ -486,7 +486,7 @@ const ContactPipelineNodeUI: React.FC<NodeUIProps<ContactPipelineData>> = ({ nod
   return (
     <NodeContainer color="blue" className="group">
       <NodeHeader color="blue" title={data.label} onTitleSave={(t) => onUpdateNode(node.id, { ...data, label: t })} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<BookmarkIcon className="w-4 h-4" />} />
-      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2 cursor-pointer" onClick={onSettingsClick}>
+      <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2 cursor-pointer">
         <div className="space-y-1">
           <span className="font-bold text-slate-500 uppercase block text-[10px]">Pipeline</span>
           <div className="text-xs text-slate-300 truncate font-medium">{pipelineName || <span className="text-slate-500 italic">Not Selected</span>}</div>
@@ -522,7 +522,7 @@ const GmailNodeUI: React.FC<InteractiveNodeUIProps<GmailData>> = ({ node, onUpda
     <NodeContainer color="rose" className="group">
       <NodeHeader color="rose" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<GmailIcon className="w-4 h-4" />} />
       <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
-        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors">
           <div className="space-y-1">
             <span className="font-bold text-slate-500 uppercase block text-[10px]">To</span>
             <div className="text-xs text-slate-300 truncate font-mono">{data.to || <span className="text-slate-600 italic">Configure recipient</span>}</div>
@@ -563,7 +563,7 @@ const SmtpNodeUI: React.FC<InteractiveNodeUIProps<SmtpData>> = ({ node, onUpdate
     <NodeContainer color="slate" className="group">
       <NodeHeader color="slate" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<MessageIcon className="w-4 h-4" />} />
       <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
-        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors">
           <div className="space-y-1">
             <span className="font-bold text-slate-500 uppercase block text-[10px]">To</span>
             <div className="text-xs text-slate-300 truncate font-mono">{data.to || <span className="text-slate-600 italic">Configure recipient</span>}</div>
@@ -604,7 +604,7 @@ const NotifyNodeUI: React.FC<InteractiveNodeUIProps<NotifyData>> = ({ node, onUp
     <NodeContainer color="amber" className="group">
       <NodeHeader color="amber" title={data.label} onTitleSave={(t) => handleDataChange('label', t)} onDelete={() => onDeleteNode(node.id)} onDuplicate={() => onDuplicateNode(node.id)} onSettingsClick={onSettingsClick} icon={<UsersIcon className="w-4 h-4" />} />
       <div className="p-2.5 bg-slate-900/95 flex-1 space-y-2">
-        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors" onClick={onSettingsClick}>
+        <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800 space-y-2 cursor-pointer hover:border-slate-600 transition-colors">
           <div className="space-y-1">
             <span className="font-bold text-slate-500 uppercase block text-[10px]">Notify Numbers</span>
             <div className="text-xs text-slate-300 truncate font-mono">{data.mobileNumbers || <span className="text-slate-600 italic">No numbers</span>}</div>
@@ -638,14 +638,42 @@ const NotifyNodeUI: React.FC<InteractiveNodeUIProps<NotifyData>> = ({ node, onUp
 };
 
 const NodeComponent: React.FC<NodeProps> = ({ node, isConnecting, connectingSourceNodeId, onNodeDragStart, onNodeTouchStart, onUpdateNode, onDeleteNode, onDuplicateNode, onSourceHandleMouseDown, onSourceHandleTouchStart, onNodeSettingsClick, onNodeClick, onNodeMouseUp }) => {
+  const dragStartPos = React.useRef({ x: 0, y: 0 });
   const nodeStyles = { left: `${node.position.x}px`, top: `${node.position.y}px` };
+  
+  const handleMouseDown = (e: React.MouseEvent) => {
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    onNodeDragStart(e, node.id);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    onNodeTouchStart(e, node.id);
+  };
+
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    
+    const clientX = 'clientX' in e ? e.clientX : (e as any).changedTouches?.[0]?.clientX;
+    const clientY = 'clientY' in e ? e.clientY : (e as any).changedTouches?.[0]?.clientY;
+
+    if (clientX !== undefined && clientY !== undefined) {
+      const dx = Math.abs(clientX - dragStartPos.current.x);
+      const dy = Math.abs(clientY - dragStartPos.current.y);
+      // If moved more than 5 pixels, treat as drag and don't open settings
+      if (dx > 5 || dy > 5) return;
+    }
+    
+    onNodeClick(node.id);
+  };
+
   const renderNodeUI = () => {
     const props = { node: node as any, onUpdateNode: onUpdateNode as any, onDeleteNode, onDuplicateNode, onSettingsClick: () => onNodeSettingsClick(node.id), onSourceHandleMouseDown, onSourceHandleTouchStart };
     switch (node.type) { case NodeType.OnMessage: return <OnMessageNodeUI {...props} />; case NodeType.MediaMessage: return <MediaMessageNodeUI {...props} />; case NodeType.SetWebhook: return <SetWebhookNodeUI {...props} />; case NodeType.WriteAttribute: return <WriteAttributeNodeUI {...props} />; case NodeType.AskAnything: return <AskAnythingNodeUI {...props} />; case NodeType.AskInput: return <AskInputNodeUI {...props} />; case NodeType.ListMessage: return <ListMessageNodeUI {...props} />; case NodeType.CTAMessage: return <CTAMessageNodeUI {...props} />; case NodeType.QuickReplyMessage: return <QuickReplyMessageNodeUI {...props} />; case NodeType.CheckCondition: return <CheckConditionNodeUI {...props} />; case NodeType.Switch: return <SwitchNodeUI {...props} />; case NodeType.SendFlow: return <SendFlowNodeUI {...props} />; case NodeType.CallApi: return <CallApiNodeUI {...props} />; case NodeType.TemplateMessage: return <TemplateMessageNodeUI {...props} />; case NodeType.ManageTags: return <ManageTagsNodeUI {...props} />; case NodeType.ManageGroups: return <ManageGroupsNodeUI {...props} />; case NodeType.NewLead: return <NewLeadNodeUI {...props} />; case NodeType.ContactPipeline: return <ContactPipelineNodeUI {...props} />; case NodeType.Gmail: return <GmailNodeUI {...props} />; case NodeType.Smtp: return <SmtpNodeUI {...props} />; case NodeType.Notify: return <NotifyNodeUI {...props} />; default: return <GenericNodeUI {...props} />; }
   }
   const isConnectionSource = connectingSourceNodeId === node.id;
   return (
-    <div id={node.id} data-node-id={node.id} className={`absolute transition-transform duration-200 ease-out ${isConnectionSource ? 'z-50 scale-105' : ''} ${isConnecting ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'} touch-none select-none`} style={nodeStyles} onMouseDown={(e) => onNodeDragStart(e, node.id)} onTouchStart={(e) => onNodeTouchStart(e, node.id)} onClick={(e) => { e.stopPropagation(); onNodeClick(node.id); }} onMouseUp={(e) => { onNodeMouseUp(node.id); }}>
+    <div id={node.id} data-node-id={node.id} className={`absolute transition-transform duration-200 ease-out ${isConnectionSource ? 'z-50 scale-105' : ''} ${isConnecting ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'} touch-none select-none`} style={nodeStyles} onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onClick={handleClick} onMouseUp={(e) => { onNodeMouseUp(node.id); }}>
       {renderNodeUI()}
       {!CUSTOM_HANDLE_NODES.includes(node.type) && (<div id={`h-${node.id}-default`} className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-slate-400 rounded-full border-2 border-slate-900 hover:bg-white hover:border-brand-500 hover:scale-125 transition-all cursor-pointer touch-none shadow-md" onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'default')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'default')} />)}
       {node.type !== NodeType.OnMessage && (<div id={`h-${node.id}-target`} onMouseUp={(e) => { e.stopPropagation(); onNodeMouseUp(node.id); }} className={`absolute -left-1.5 top-[2rem] -translate-y-1/2 w-3 h-3 rounded-full border-2 border-slate-900 transition-all z-10 ${isConnecting ? 'bg-white scale-150 shadow-[0_0_10px_rgba(255,255,255,0.8)] animate-pulse' : 'bg-slate-600'}`} />)}
