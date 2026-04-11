@@ -1695,15 +1695,23 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'Unassigned', 'Quick Reply'].map(f => (
-                            <button
-                                key={f}
-                                onClick={() => setQuickFilter(f as any)}
-                                className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${quickFilter === f ? 'bg-[#0D9668] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px]' : 'bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 hover:scale-105'}`}
-                            >
-                                {f}
-                            </button>
-                        ))}
+                        {['All', 'Unassigned', 'Quick Reply'].map(f => {
+                            const isActive = quickFilter === f;
+                            
+                            return (
+                                <button
+                                    key={f}
+                                    onClick={() => setQuickFilter(f as any)}
+                                    className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${
+                                        isActive 
+                                            ? 'bg-[#00684a] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px] border border-[#00684a]' 
+                                            : 'bg-emerald-50 text-[#00684a] border border-emerald-100 hover:bg-emerald-100 hover:scale-105'
+                                    }`}
+                                >
+                                    {f}
+                                </button>
+                            );
+                        })}
                     </div>
                     <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><SearchIcon /></div>
@@ -1840,7 +1848,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     }}
                 />
                 {quickFilter === 'Quick Reply' ? (
-                    <div className="flex-1 h-full overflow-hidden relative z-10 bg-white animate-fade-in border border-[#0D9668] m-3 rounded-2xl shadow-lg">
+                    <div className="flex-1 h-full overflow-hidden relative z-10 bg-[#F8FAFC] animate-fade-in border-4 border-[#00684a] m-3 rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,104,74,0.15)] ring-1 ring-black/5">
                         <QuickReply onToggleSidebar={onToggleSidebar} />
                     </div>
                 ) : activeChat ? (
@@ -2195,47 +2203,86 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                                     {/* Quick Replies Dropdown */}
                                     {isQuickReplyOpen && (
-                                        <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden z-[100] animate-slide-up">
-                                            <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quick Replies</span>
-                                                <span className="text-[10px] text-slate-400">↑↓ to navigate • Enter to send</span>
-                                            </div>
-                                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                                                {filteredQuickReplies.length > 0 ? (
-                                                    filteredQuickReplies.map((reply, index) => (
-                                                        <button
-                                                            key={reply.id}
-                                                            onClick={() => handleSendQuickReply(reply)}
-                                                            onMouseEnter={() => setSelectedQuickReplyIndex(index)}
-                                                            className={`w-full text-left px-4 py-3 flex items-center justify-between transition-colors ${index === selectedQuickReplyIndex ? 'bg-brand-50 text-brand-700' : 'hover:bg-slate-50'}`}
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${index === selectedQuickReplyIndex ? 'bg-brand-100' : 'bg-slate-100'}`}>
-                                                                    <span className="text-xs font-bold text-slate-500">/</span>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-sm font-bold truncate">{reply.name}</p>
-                                                                    <p className="text-[10px] text-slate-400 truncate max-w-[200px]">
-                                                                        {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || 'Interactive Message'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono">/{reply.name.toLowerCase().replace(/\s+/g, '-')}</span>
-                                                        </button>
-                                                    ))
-                                                ) : (
-                                                    <div className="p-8 text-center">
-                                                        <p className="text-xs text-slate-400 italic">No matching quick replies</p>
+                                        <div className="absolute bottom-full left-0 mb-4 w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,104,74,0.3)] border-2 border-[#00684a] overflow-hidden z-[100] animate-slide-up ring-1 ring-black/10">
+                                            {/* Header */}
+                                            <div className="px-5 py-4 bg-[#00684a] flex justify-between items-center relative overflow-hidden">
+                                                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '200px' }} />
+                                                <div className="flex items-center gap-2.5 relative z-10">
+                                                    <div className="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                                                        <QuickReplyIcon className="w-3.5 h-3.5 text-white" />
                                                     </div>
-                                                )}
+                                                    <span className="text-[12px] font-bold text-white tracking-wide">Quick Library</span>
+                                                </div>
+                                                <div className="px-2.5 py-1 bg-white/15 rounded-lg backdrop-blur-sm relative z-10 border border-white/10">
+                                                    <span className="text-[9px] text-white/90 font-bold tracking-wider uppercase">Navigate: ↑↓ • Send: Enter</span>
+                                                </div>
                                             </div>
-                                            <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 flex justify-center">
+                                            
+                                            <div className="max-h-80 overflow-y-auto custom-scrollbar relative bg-slate-50/50">
+                                                {/* Subtle Pattern Overlay */}
+                                                <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '300px' }} />
+                                                
+                                                <div className="relative z-10">
+                                                    {filteredQuickReplies.length > 0 ? (
+                                                        filteredQuickReplies.map((reply, index) => (
+                                                            <button
+                                                                key={reply.id}
+                                                                onClick={() => handleSendQuickReply(reply)}
+                                                                onMouseEnter={() => setSelectedQuickReplyIndex(index)}
+                                                                className={`w-full text-left px-5 py-5 flex items-center justify-between transition-all border-b border-slate-100 last:border-0 ${
+                                                                    index === selectedQuickReplyIndex 
+                                                                        ? 'bg-white text-[#00684a] border-l-[6px] border-l-[#00684a] pl-[14px] shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] scale-[1.01] z-10 relative' 
+                                                                        : 'hover:bg-white/50 border-l-[6px] border-l-transparent'
+                                                                }`}
+                                                            >
+                                                                <div className="flex items-center gap-4 min-w-0">
+                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 transition-all ${
+                                                                        index === selectedQuickReplyIndex 
+                                                                            ? 'bg-[#00684a] border-[#00684a] text-white rotate-3 shadow-md' 
+                                                                            : 'bg-white border-slate-100 text-slate-300'
+                                                                    }`}>
+                                                                        <span className="text-sm font-black">/</span>
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className={`text-[14px] font-semibold truncate tracking-tight mb-0.5 ${
+                                                                            index === selectedQuickReplyIndex ? 'text-[#00684a]' : 'text-slate-900'
+                                                                        }`}>{reply.name}</p>
+                                                                        <p className={`text-[12px] truncate max-w-[200px] leading-tight ${
+                                                                            index === selectedQuickReplyIndex ? 'text-[#00684a]/70 font-medium' : 'text-slate-500 font-normal'
+                                                                        }`}>
+                                                                            {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || reply.nodes?.[0]?.data?.caption || 'Ready to send...'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
+                                                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
+                                                                        index === selectedQuickReplyIndex ? 'bg-[#00684a]/10 text-[#00684a]' : 'bg-slate-100 text-slate-400'
+                                                                    }`}>
+                                                                        {reply.nodes?.[0]?.type?.replace('Message', '') || 'Reply'}
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-16 text-center">
+                                                            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
+                                                                <SearchIcon className="w-8 h-8 text-slate-200" />
+                                                            </div>
+                                                            <p className="text-sm font-black text-slate-300 uppercase tracking-widest">No Matches</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold mt-1">Try a different keyword</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Footer */}
+                                            <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex justify-center shadow-[inset_0_4px_12px_rgba(0,0,0,0.03)]">
                                                 <button
                                                     onClick={() => { setQuickFilter('Quick Reply'); setIsQuickReplyOpen(false); }}
-                                                    className="text-[10px] font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
+                                                    className="group flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[12px] font-bold text-white bg-[#00684a] hover:bg-[#005c42] hover:shadow-xl hover:shadow-[#00684a]/20 transition-all active:scale-95 border border-[#00684a]"
                                                 >
-                                                    <PlusIcon className="w-3 h-3" />
-                                                    Create New Quick Reply
+                                                    <PlusIcon className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
+                                                    <span>Manage Full Library</span>
                                                 </button>
                                             </div>
                                         </div>
