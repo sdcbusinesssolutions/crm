@@ -1,4 +1,4 @@
-const { supabase } = require('../lib/supabaseClient');
+const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 
 /**
  * Authentication Middleware
@@ -20,11 +20,42 @@ const requireAuth = async (req, res, next) => {
 
     try {
         const authHeader = req.headers.authorization;
+        const xApiKey = req.headers['x-api-key'];
 
+        // 1. Check for API Key (Long-lived)
+        const apiKey = xApiKey || (authHeader?.startsWith('ApiKey ') ? authHeader.split(' ')[1] : null);
+        
+        if (apiKey) {
+            const { data: security, error: securityError } = await supabaseAdmin
+                .from('user_security')
+                .select('user_id')
+                .eq('api_key', apiKey)
+                .maybeSingle();
+
+            if (!securityError && security && security.user_id) {
+                // Fetch full user record to be consistent with auth.getUser
+                // Using supabaseAdmin to ensure we can get the user even if RLS is tight on auth schema
+                const { data: userData, error: userError } = await supabaseAdmin
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', security.user_id)
+                    .single();
+
+                if (!userError && userData) {
+                    req.user = { id: security.user_id, ...userData };
+                    return next();
+                }
+            }
+            
+            // If API key was provided but failed, we continue to check Bearer token 
+            // but might eventually return 401.
+        }
+
+        // 2. Check for Bearer Token (Short-lived Supabase JWT)
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 error: 'Unauthorized',
-                message: 'Missing or invalid Authorization header'
+                message: 'Missing or invalid Authorization header. Use Bearer <token> or X-API-Key <key>'
             });
         }
 

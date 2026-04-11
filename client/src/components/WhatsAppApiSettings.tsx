@@ -52,6 +52,7 @@ const WhatsAppApiSettings: React.FC = () => {
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
     const [params, setParams] = useState<ParamField[]>([]);
     const [token, setToken] = useState('');
+    const [apiKey, setApiKey] = useState<string | null>(null);
 
     // Transactional Specific
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -140,7 +141,19 @@ const WhatsAppApiSettings: React.FC = () => {
 
     const fetchSession = async () => {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) setToken(session.access_token);
+        if (session) {
+            setToken(session.access_token);
+            // Fetch stable API key for production snippets
+            try {
+                const res = await fetch('/api/settings/api-key', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                });
+                const data = await res.json();
+                if (data.apiKey) setApiKey(data.apiKey);
+            } catch (e) {
+                console.warn('Failed to fetch API key');
+            }
+        }
     }
 
     const fetchTemplates = async () => {
@@ -151,6 +164,29 @@ const WhatsAppApiSettings: React.FC = () => {
             .order('name');
 
         if (data) setTemplates(data);
+    };
+
+    const generateApiKey = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
+            
+            setSending(true);
+            const res = await fetch('/api/settings/api-key', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            const data = await res.json();
+            if (data.apiKey) {
+                setApiKey(data.apiKey);
+                setResponse({ success: true, message: 'API Key generated successfully' });
+            }
+        } catch (error: any) {
+            console.error('API Key Error:', error);
+            setResponse({ error: error.message });
+        } finally {
+            setSending(false);
+        }
     };
 
     const fetchGroups = async () => {
@@ -633,18 +669,21 @@ const WhatsAppApiSettings: React.FC = () => {
 
         if (lang === 'curl') {
             return `curl -X POST "${url}" \\
-  -H "Authorization: Bearer ${token}" \\
+  ${apiKey ? `-H "X-API-Key: ${apiKey}" \\` : `-H "Authorization: Bearer ${token}" \\`}
   -H "Content-Type: application/json" \\
   -d '${jsonString}'`;
         }
         if (lang === 'python') {
-            return `import requests\n\nurl = "${url}"\nheaders = {\n    "Authorization": "Bearer ${token}",\n    "Content-Type": "application/json"\n}\ndata = ${jsonString}\n\nresponse = requests.post(url, headers=headers, json=data)\nprint(response.json())`;
+            const authHeader = apiKey ? `"X-API-Key": "${apiKey}"` : `"Authorization": "Bearer ${token}"`;
+            return `import requests\n\nurl = "${url}"\nheaders = {\n    ${authHeader},\n    "Content-Type": "application/json"\n}\ndata = ${jsonString}\n\nresponse = requests.post(url, headers=headers, json=data)\nprint(response.json())`;
         }
         if (lang === 'java') {
-            return `// Java example using HttpClient (Java 11+)\nimport java.net.URI;\nimport java.net.http.HttpClient;\nimport java.net.http.HttpRequest;\nimport java.net.http.HttpResponse;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        String json = ${JSON.stringify(jsonString)};\n        \n        HttpClient client = HttpClient.newHttpClient();\n        HttpRequest request = HttpRequest.newBuilder()\n            .uri(URI.create("${url}"))\n            .header("Authorization", "Bearer ${token}")\n            .header("Content-Type", "application/json")\n            .POST(HttpRequest.BodyPublishers.ofString(json))\n            .build();\n\n        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());\n        System.out.println(response.body());\n    }\n}`;
+            const authHeader = apiKey ? `.header("X-API-Key", "${apiKey}")` : `.header("Authorization", "Bearer ${token}")`;
+            return `// Java example using HttpClient (Java 11+)\nimport java.net.URI;\nimport java.net.http.HttpClient;\nimport java.net.http.HttpRequest;\nimport java.net.http.HttpResponse;\n\npublic class Program {\n    public static void main(String[] args) throws Exception {\n        String json = ${JSON.stringify(jsonString)};\n        \n        HttpClient client = HttpClient.newHttpClient();\n        HttpRequest request = HttpRequest.newBuilder()\n            .uri(URI.create("${url}"))\n            ${authHeader}\n            .header("Content-Type", "application/json")\n            .POST(HttpRequest.BodyPublishers.ofString(json))\n            .build();\n\n        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());\n        System.out.println(response.body());\n    }\n}`;
         }
         if (lang === 'csharp') {
-            return `using System;\nusing System.Net.Http;\nusing System.Text;\nusing System.Threading.Tasks;\n\nclass Program {\n    static async Task Main(String[] args) {\n        using (var client = new HttpClient()) {\n            client.DefaultRequestHeaders.Add("Authorization", "Bearer ${token}");\n            \n            var json = ${JSON.stringify(jsonString)};\n            var content = new StringContent(json, Encoding.UTF8, "application/json");\n            \n            var response = await client.PostAsync("${url}", content);\n            var result = await response.Content.ReadAsStringAsync();\n            Console.WriteLine(result);\n        }\n    }\n}`;
+            const authHeader = apiKey ? `client.DefaultRequestHeaders.Add("X-API-Key", "${apiKey}");` : `client.DefaultRequestHeaders.Add("Authorization", "Bearer ${token}");`;
+            return `using System;\nusing System.Net.Http;\nusing System.Text;\nusing System.Threading.Tasks;\n\nclass Program {\n    static async Task Main(String[] args) {\n        using (var client = new HttpClient()) {\n            ${authHeader}\n            \n            var json = ${JSON.stringify(jsonString)};\n            var content = new StringContent(json, Encoding.UTF8, "application/json");\n            \n            var response = await client.PostAsync("${url}", content);\n            var result = await response.Content.ReadAsStringAsync();\n            Console.WriteLine(result);\n        }\n    }\n}`;
         }
         return '';
     };
@@ -1084,6 +1123,48 @@ const WhatsAppApiSettings: React.FC = () => {
                                         </code>
                                     </pre>
                                 </div>
+                            </div>
+
+                            {/* Production Auth Section */}
+                            <div className="mt-4 p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                        <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Production API Key</h3>
+                                    </div>
+                                    <button 
+                                        onClick={generateApiKey}
+                                        disabled={sending}
+                                        className="text-[9px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-tighter bg-emerald-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                                    >
+                                        {apiKey ? 'Rotate Key' : 'Generate Key'}
+                                    </button>
+                                </div>
+                                
+                                {apiKey ? (
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100 group transition-all hover:border-slate-200">
+                                            <code className="flex-1 text-[10px] font-mono text-slate-600 truncate bg-white px-1.5 py-0.5 rounded border border-slate-100">{apiKey}</code>
+                                            <button 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(apiKey);
+                                                    setResponse({ success: true, message: 'API Key copied to clipboard' });
+                                                }}
+                                                className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-all"
+                                                title="Copy Key"
+                                            >
+                                                <CopyIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                        <p className="text-[9px] text-slate-400 leading-relaxed italic">
+                                            Use this key for stable, long-term automated scripts. It does not expire unlike session tokens.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="py-2 text-center">
+                                        <p className="text-[10px] text-slate-400 italic">No API key generated yet.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

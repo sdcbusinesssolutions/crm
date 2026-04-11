@@ -4,6 +4,7 @@ const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const speakeasy = require('speakeasy');
 const axios = require('axios');
 const qrcode = require('qrcode');
+const crypto = require('crypto');
 const { logOnboardingEvent } = require('../utils/logger');
 
 // Helper to get user ID from request (populated by requireAuth middleware)
@@ -1248,6 +1249,65 @@ router.post('/whatsapp/mm-lite/transition/:id', async (req, res) => {
     } catch (err) {
         console.error('MM Lite Transition Route Error:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ==========================================
+// 8. API Key Management
+// ==========================================
+
+/**
+ * GET /api/settings/api-key
+ * Fetch current stable API key
+ */
+router.get('/api-key', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+
+        const { data, error } = await supabase
+            .from('user_security')
+            .select('api_key')
+            .eq('user_id', userId)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+
+        res.json({ apiKey: data?.api_key || null });
+    } catch (error) {
+        console.error('Error fetching API key:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /api/settings/api-key
+ * Generate or Rotate stable API key
+ */
+router.post('/api-key', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        
+        // Generate a clean prefix-based API key
+        const newApiKey = `ak_${crypto.randomBytes(24).toString('hex')}`;
+
+        // Update user_security record
+        const { error } = await supabase
+            .from('user_security')
+            .upsert({ 
+                user_id: userId, 
+                api_key: newApiKey,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+
+        if (error) throw error;
+
+        res.json({ apiKey: newApiKey });
+    } catch (error) {
+        console.error('Error generating API key:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
