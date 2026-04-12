@@ -1455,7 +1455,13 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
 
     // On template ID change (or templates load), find and parse template
     React.useEffect(() => {
-        if (!data.templateId || templates.length === 0) return;
+        if (!data.templateId || templates.length === 0) {
+            setDetectedVariables([]);
+            setHeaderType(null);
+            setCarouselCards([]);
+            setSelectedTemplateObj(null);
+            return;
+        }
         const tpl = templates.find(t => t.id === data.templateId);
         if (tpl) {
             setSelectedTemplateObj(tpl);
@@ -1468,9 +1474,9 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
         let hType: string | null = null;
         let cCards: any[] = [];
 
-        tpl.components.forEach((comp: any) => {
+        (tpl.components || []).forEach((comp: any) => {
             if (comp.type === 'BODY') {
-                const text = comp.text;
+                const text = comp.text || '';
                 // Detect {{1}}, {{name}}, etc.
                 const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
                 if (matches) {
@@ -1482,16 +1488,13 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
             if (comp.type === 'HEADER') {
                 hType = comp.format;
             }
-            if (comp.type === 'CAROUSEL') {
-                // For carousel, usually cards are in 'cards' property or handled specifically
-                if (comp.cards) {
-                    cCards = comp.cards;
-                }
+            if (comp.type === 'CAROUSEL' && comp.cards) {
+                cCards = comp.cards;
             }
             // Button variables (URL params)
-            if (comp.type === 'BUTTONS') {
+            if (comp.type === 'BUTTONS' && comp.buttons) {
                 comp.buttons.forEach((btn: any) => {
-                    if (btn.type === 'URL' && btn.url.includes('{{1}}')) {
+                    if (btn.type === 'URL' && btn.url && btn.url.includes('{{1}}')) {
                         variables.push('url_param_1'); // Simplified for now, usually it's positional
                     }
                 });
@@ -1559,6 +1562,16 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
                                     mediaUrl: '',
                                     carouselMediaUrls: {},
                                     components: tpl.components || []
+                                });
+                            } else {
+                                handleUpdate({
+                                    templateId: '',
+                                    templateName: '',
+                                    language: '',
+                                    variableMapping: {},
+                                    mediaUrl: '',
+                                    carouselMediaUrls: {},
+                                    components: []
                                 });
                             }
                         }}
@@ -1717,7 +1730,7 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
         let hType: string | null = null;
         let cCards: any[] = [];
 
-        tpl.components.forEach((comp: any) => {
+        (tpl.components || []).forEach((comp: any) => {
             if (comp.type === 'BODY') {
                 const text = comp.text || '';
                 const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
@@ -1733,7 +1746,7 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
             if (comp.type === 'CAROUSEL' && comp.cards) {
                 cCards = comp.cards;
             }
-            if (comp.type === 'BUTTONS') {
+            if (comp.type === 'BUTTONS' && comp.buttons) {
                 comp.buttons.forEach((btn: any) => {
                     if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
                         const bMatches = btn.url.match(/{{([a-zA-Z0-9_]+)}}/g);
@@ -1842,6 +1855,16 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
                                             mediaUrl: '',
                                             carouselMediaUrls: {},
                                             components: tpl.components || []
+                                        });
+                                    } else {
+                                        handleUpdate({
+                                            templateId: '',
+                                            templateName: '',
+                                            language: '',
+                                            variableMapping: {},
+                                            mediaUrl: '',
+                                            carouselMediaUrls: {},
+                                            components: []
                                         });
                                     }
                                 }}
