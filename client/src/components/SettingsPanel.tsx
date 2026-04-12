@@ -1474,34 +1474,50 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
         let hType: string | null = null;
         let cCards: any[] = [];
 
-        (tpl.components || []).forEach((comp: any) => {
-            if (comp.type === 'BODY') {
-                const text = comp.text || '';
-                // Detect {{1}}, {{name}}, etc.
-                const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
+        const components = Array.isArray(tpl.components) ? tpl.components : [];
+        if (components.length > 0) {
+            components.forEach((comp: any) => {
+                if (comp.type === 'BODY') {
+                    const text = comp.text || '';
+                    const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
+                    if (matches) {
+                        matches.forEach((m: string) => {
+                            variables.push(m.replace(/{{|}}/g, ''));
+                        });
+                    }
+                }
+                if (comp.type === 'HEADER') {
+                    hType = comp.format || null;
+                }
+                if (comp.type === 'CAROUSEL' && comp.cards) {
+                    cCards = comp.cards;
+                }
+                if (comp.type === 'BUTTONS' && comp.buttons) {
+                    comp.buttons.forEach((btn: any) => {
+                        if (btn.type === 'URL' && btn.url && btn.url.includes('{{1}}')) {
+                            variables.push('url_param_1');
+                        }
+                    });
+                }
+            });
+        } else {
+            // Fallback for when components array is missing (e.g. from local DB cache)
+            if (tpl.body_text) {
+                const matches = tpl.body_text.match(/{{([a-zA-Z0-9_]+)}}/g);
                 if (matches) {
                     matches.forEach((m: string) => {
                         variables.push(m.replace(/{{|}}/g, ''));
                     });
                 }
             }
-            if (comp.type === 'HEADER') {
-                hType = comp.format;
+            if (tpl.template_type && tpl.template_type !== 'TEXT') {
+                hType = tpl.template_type;
             }
-            if (comp.type === 'CAROUSEL' && comp.cards) {
-                cCards = comp.cards;
+            if (tpl.buttons && tpl.buttons.type === 'MEDIA_CARD_CAROUSEL') {
+                cCards = tpl.buttons.cards || [];
             }
-            // Button variables (URL params)
-            if (comp.type === 'BUTTONS' && comp.buttons) {
-                comp.buttons.forEach((btn: any) => {
-                    if (btn.type === 'URL' && btn.url && btn.url.includes('{{1}}')) {
-                        variables.push('url_param_1'); // Simplified for now, usually it's positional
-                    }
-                });
-            }
-        });
+        }
 
-        // Remove duplicates
         setDetectedVariables([...new Set(variables)]);
         setHeaderType(hType);
         setCarouselCards(cCards);
@@ -1730,31 +1746,47 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
         let hType: string | null = null;
         let cCards: any[] = [];
 
-        (tpl.components || []).forEach((comp: any) => {
-            if (comp.type === 'BODY') {
-                const text = comp.text || '';
-                const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
+        const components = Array.isArray(tpl.components) ? tpl.components : [];
+        if (components.length > 0) {
+            components.forEach((comp: any) => {
+                if (comp.type === 'BODY') {
+                    const text = comp.text || '';
+                    const matches = text.match(/{{([a-zA-Z0-9_]+)}}/g);
+                    if (matches) matches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+                }
+                if (comp.type === 'HEADER') {
+                    hType = comp.format || null;
+                    if (comp.text && comp.text.match(/{{/)) {
+                        const hMatches = comp.text.match(/{{([a-zA-Z0-9_]+)}}/g);
+                        if (hMatches) hMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+                    }
+                }
+                if (comp.type === 'CAROUSEL' && comp.cards) {
+                    cCards = comp.cards;
+                }
+                if (comp.type === 'BUTTONS' && comp.buttons) {
+                    comp.buttons.forEach((btn: any) => {
+                        if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
+                            const bMatches = btn.url.match(/{{([a-zA-Z0-9_]+)}}/g);
+                            if (bMatches) bMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
+                        }
+                    });
+                }
+            });
+        } else {
+            // Fallback for when components array is missing (e.g. from local DB cache)
+            if (tpl.body_text) {
+                const matches = tpl.body_text.match(/{{([a-zA-Z0-9_]+)}}/g);
                 if (matches) matches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
             }
-            if (comp.type === 'HEADER') {
-                hType = comp.format;
-                if (comp.text && comp.text.match(/{{/)) {
-                    const hMatches = comp.text.match(/{{([a-zA-Z0-9_]+)}}/g);
-                    if (hMatches) hMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
-                }
+            if (tpl.template_type && tpl.template_type !== 'TEXT') {
+                hType = tpl.template_type;
             }
-            if (comp.type === 'CAROUSEL' && comp.cards) {
-                cCards = comp.cards;
+            if (tpl.buttons && tpl.buttons.type === 'MEDIA_CARD_CAROUSEL') {
+                cCards = tpl.buttons.cards || [];
             }
-            if (comp.type === 'BUTTONS' && comp.buttons) {
-                comp.buttons.forEach((btn: any) => {
-                    if (btn.type === 'URL' && btn.url && btn.url.includes('{{')) {
-                        const bMatches = btn.url.match(/{{([a-zA-Z0-9_]+)}}/g);
-                        if (bMatches) bMatches.forEach((m: string) => variables.push(m.replace(/{{|}}/g, '')));
-                    }
-                });
-            }
-        });
+        }
+
         setDetectedVariables([...new Set(variables)]);
         setHeaderType(hType);
         setCarouselCards(cCards);
