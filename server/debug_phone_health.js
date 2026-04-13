@@ -36,8 +36,8 @@ async function run() {
     console.log(`Found config for Phone ID: ${phoneId}`);
     console.log(`Using Access Token: ${accessToken.substring(0, 10)}...`);
 
-    // 2. Fetch Phone Health from Meta (v21.0)
-    const url = `https://graph.facebook.com/v21.0/${phoneId}?fields=display_phone_number,quality_rating,messaging_limit_tier,status,name_status`;
+    // 2. Fetch Phone Health from Meta (v25.0)
+    const url = `https://graph.facebook.com/v25.0/${phoneId}?fields=display_phone_number,quality_rating,whatsapp_business_manager_messaging_limit,status,name_status`;
 
     try {
         const res = await axios.get(url, {

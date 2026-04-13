@@ -4,6 +4,7 @@ const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 const facebookService = require('../services/FacebookLeadService');
+const GRAPH_API_URL = 'https://graph.facebook.com/v25.0';
 
 // ============================================================
 // In-memory JSON cache — shared per user, held in-process RAM
@@ -365,7 +366,7 @@ router.get('/connections', requireAuth, async (req, res) => {
                 // messaging_limit_tier is deprecated and returns TIER_50 incorrectly.
                 // Use v25.0 as shown in Meta's official example.
                 // Reference: https://developers.facebook.com/documentation/business-messaging/whatsapp/messaging-limits
-                const metaUrl = `https://graph.facebook.com/v25.0/${whatsAppId}?fields=quality_rating,whatsapp_business_manager_messaging_limit,status,name_status,display_phone_number`;
+                const metaUrl = `${GRAPH_API_URL}/${whatsAppId}?fields=quality_rating,whatsapp_business_manager_messaging_limit,status,name_status,display_phone_number`;
 
                 const metaRes = await axios.get(metaUrl, axiosOpts).then(r => r.data).catch(e => {
                     console.error(`[Dashboard] Meta API failed for ID ${whatsAppId}:`, e.response?.data || e.message);

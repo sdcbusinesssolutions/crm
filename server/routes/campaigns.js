@@ -4,7 +4,7 @@ const axios = require('axios');
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const { logCampaignRequest } = require('../utils/logger');
 
-const GRAPH_API_URL = 'https://graph.facebook.com/v21.0';
+const GRAPH_API_URL = 'https://graph.facebook.com/v25.0';
 
 /* =========================================================================
    1. Helper Functions
@@ -28,10 +28,16 @@ function isValidE164(phone) {
 
 async function getMetaLimits(phoneNumberId, accessToken) {
     try {
-        const response = await axios.get(
-            `${GRAPH_API_URL}/${phoneNumberId}?fields=messaging_limit_tier`,
-            { headers: { 'Authorization': `Bearer ${accessToken}` } }
-        );
+        // Per Meta docs: whatsapp_business_manager_messaging_limit is the correct (non-deprecated) field.
+        // messaging_limit_tier is deprecated and often returns TIER_50/250 incorrectly.
+        // Use v25.0 as shown in Meta's official example.
+        const metaUrl = `${GRAPH_API_URL}/${phoneNumberId}?fields=whatsapp_business_manager_messaging_limit`;
+        
+        const response = await axios.get(metaUrl, { 
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+            timeout: 10000 
+        });
+
         const limits = {
             'TIER_50': 50,
             'TIER_250': 250,
@@ -45,11 +51,15 @@ async function getMetaLimits(phoneNumberId, accessToken) {
             'TIER_3': 100000,
             'TIER_4': 1000000000
         };
-        const tier = response.data.messaging_limit_tier || 'TIER_250';
-        console.log(`[Meta Limits] Phone ID: ${phoneNumberId}, Verified Tier: ${tier}, Limit: ${limits[tier] || 250}`);
-        return { tier, limit: limits[tier] || 250 };
+
+        const tier = response.data.whatsapp_business_manager_messaging_limit || 'TIER_250';
+        const limitValue = limits[tier] || 250;
+
+        console.log(`[Meta Limits] Phone ID: ${phoneNumberId}, Verified Tier: ${tier}, Limit: ${limitValue}`);
+        return { tier, limit: limitValue };
     } catch (error) {
-        console.error('Error fetching limits:', error.message);
+        console.error('[Meta Limits] Error fetching limits:', error.response?.data || error.message);
+        // Fallback to a safe minimum
         return { tier: 'UNKNOWN', limit: 250 };
     }
 }
