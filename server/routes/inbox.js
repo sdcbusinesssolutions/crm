@@ -123,7 +123,9 @@ router.post('/messages/:conversationId', async (req, res) => {
 
         // 2. Prepare Content for WhatsApp Service
         let content = {};
-        if (type === 'text') {
+        if (type === 'template') {
+            content = req.body.template;
+        } else if (type === 'text') {
             content = { body: text };
         } else if (['image', 'video', 'audio', 'document', 'sticker'].includes(type)) {
             // Check if media_url is local
@@ -233,10 +235,11 @@ router.post('/messages/:conversationId', async (req, res) => {
         if (msgError) throw msgError;
 
         // 5. Update conversation last_message
+        const previewText = type === 'template' ? `📄 Template: ${content.name}` : (text || `[${type}]`);
         await supabase
             .from('conversations')
             .update({
-                last_message: text || `[${type}]`,
+                last_message: previewText,
                 updated_at: new Date().toISOString()
             })
             .eq('id', conversationId);
