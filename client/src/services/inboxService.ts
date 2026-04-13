@@ -44,7 +44,7 @@ export const inboxService = {
         }
     },
 
-    sendMessage: async (conversationId: string, data: { text?: string, type?: string, media_url?: string }): Promise<Message | null> => {
+    sendMessage: async (conversationId: string, data: { text?: string, type?: string, media_url?: string, template?: any }): Promise<Message | null> => {
         try {
             const headers = getAuthHeaders();
             const response = await fetch(`${API_BASE}/messages/${conversationId}`, {
