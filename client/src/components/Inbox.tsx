@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
+import InboxTemplateModal from './InboxTemplateModal';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -50,6 +51,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [messageInput, setMessageInput] = useState('');
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [hasOpenedEmoji, setHasOpenedEmoji] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
@@ -485,6 +487,29 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         } catch (error) {
             console.error("Error sending message:", error);
             setMessages(prev => prev.filter(m => m.id !== tempId)); // Remove optimistic message on error
+        } finally {
+            isSendingRef.current = false;
+        }
+    };
+
+    const handleSendTemplate = async (templatePayload: any) => {
+        if (!activeChatId || isSendingRef.current) return;
+
+        isSendingRef.current = true;
+        try {
+            const sentMsg = await inboxService.sendMessage(activeChatId, { 
+                type: 'template', 
+                template: templatePayload 
+            });
+            if (sentMsg) {
+                setMessages(prev => {
+                    const updated = [...prev, sentMsg];
+                    // Critical Deduplication: Ensure no duplicate IDs exist
+                    return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                });
+            }
+        } catch (error) {
+            console.error("Error sending template:", error);
         } finally {
             isSendingRef.current = false;
         }
@@ -2095,6 +2120,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         >
                                             <div className="w-8 h-8 rounded-full bg-green-100 text-[#0D9668] flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
                                         </button>
+                                        <button 
+                                            onClick={() => { setIsTemplateModalOpen(true); setIsAttachmentOpen(false); }} 
+                                            className="flex items-center gap-3 px-3 py-2 hover:bg-brand-50 rounded-lg text-sm text-brand-600 font-bold transition-colors w-full text-left"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><MessageIcon className="w-4 h-4" /></div> Template
+                                        </button>
                                     </div>
                                 </>
                             )}
@@ -2470,23 +2501,28 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <div className="flex gap-3 w-full">
                                 <button
                                     onClick={() => setIsClearChatModalOpen(false)}
-                                    className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors"
+                                    className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={confirmClearChat}
-                                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm shadow-red-200 transition-colors"
+                                    onClick={handleClearChat}
+                                    className="flex-1 px-4 py-2 bg-red-600 rounded-lg text-sm font-bold text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-100"
                                 >
-                                    Delete
+                                    Clear History
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-        </div >
+
+            <InboxTemplateModal 
+                isOpen={isTemplateModalOpen}
+                onClose={() => setIsTemplateModalOpen(false)}
+                onSend={handleSendTemplate}
+            />
+        </div>
     );
 };
-
 export default Inbox;
