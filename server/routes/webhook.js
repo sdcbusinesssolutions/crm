@@ -1159,11 +1159,12 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                     console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
 
-                    // --- TYPING INDICATOR START ---
-                    // Show typing indicator in UI while bot is "thinking"
-                    const whatsappService = require('../services/whatsappService');
-                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
-                    // --- TYPING INDICATOR END ---
+                    // --- TYPING INDICATOR REMOVED TO PREVENT PREMATURE BLUE TICKS ---
+                    // WhatsApp Cloud API bundles typing indicators with 'read' status.
+                    // To keep messages 'unread' until the human agent opens the inbox, we skip this.
+                    // const whatsappService = require('../services/whatsappService');
+                    // whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
+                    // -----------------------------------------------------------------
 
                     flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
                         .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
@@ -1240,10 +1241,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                                     console.log(`[Webhook] BG: Triggering Flow Engine for ${savedMessageId} post-download`);
 
-                                    // --- TYPING INDICATOR START ---
-                                    const whatsappService = require('../services/whatsappService');
-                                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
-                                    // --- TYPING INDICATOR END ---
+                                    // --- TYPING INDICATOR REMOVED ---
+                    // const whatsappService = require('../services/whatsappService');
+                    // whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
+                    // ---------------------------------
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
@@ -1251,10 +1252,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
                                 // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
                                 if (inputPayload && !isStale) {
-                                    // --- TYPING INDICATOR START ---
-                                    const whatsappService = require('../services/whatsappService');
-                                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
-                                    // --- TYPING INDICATOR END ---
+                                    // --- TYPING INDICATOR REMOVED ---
+                                    // const whatsappService = require('../services/whatsappService');
+                                    // whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
+                                    // ---------------------------------
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
                                 }
