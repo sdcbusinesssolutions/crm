@@ -69,49 +69,94 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
         }
 
         // 2. Legacy/Top-level Field Bridge (If components array is missing or empty)
+        const upperType = (template.template_type || '').toUpperCase();
         if (components.length === 0) {
-            if (template.header_text) components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+            // Handle Media Header from template_type or mapping fields
+            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
+                const mediaUrl = template.image_url || template.video_url || template.document_url || template.header_url;
+                components.push({ 
+                    type: 'HEADER', 
+                    format: upperType,
+                    example: mediaUrl ? { header_url: [mediaUrl] } : undefined
+                });
+            } else if (template.header_text) {
+                components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+            }
+            
+            // Handle Carousel Bridge
+            if (upperType.includes('CAROUSEL') || Array.isArray(template.cards)) {
+                const cards = Array.isArray(template.cards) ? template.cards : [];
+                if (cards.length > 0) {
+                    components.push({ 
+                        type: 'CAROUSEL', 
+                        cards: cards.map(card => {
+                            const cardMediaUrl = card.image_url || card.video_url || card.header_url;
+                            return {
+                                components: [
+                                    { 
+                                        type: 'HEADER', 
+                                        format: (card.header_type || card.header?.format || card.header_format || 'IMAGE').toUpperCase(),
+                                        text: card.header_text || card.header?.text || '',
+                                        example: cardMediaUrl ? { header_url: [cardMediaUrl] } : undefined
+                                    },
+                                    { type: 'BODY', text: card.body || card.body_text || '' },
+                                    ...(Array.isArray(card.buttons) ? [{ type: 'BUTTONS', buttons: card.buttons }] : [])
+                                ]
+                            };
+                        })
+                    });
+                }
+            }
+
             if (template.body_text) components.push({ type: 'BODY', text: template.body_text });
             if (template.footer_text) components.push({ type: 'FOOTER', text: template.footer_text });
             
-            // Handle Top-level Buttons if they exist
-            if (template.buttons && template.buttons.buttons) {
-                components.push({ type: 'BUTTONS', buttons: template.buttons.buttons });
-            } else if (Array.isArray(template.buttons)) {
-                components.push({ type: 'BUTTONS', buttons: template.buttons });
+            // Handle Top-level Buttons
+            if (template.buttons) {
+                const btns = template.buttons.buttons || (Array.isArray(template.buttons) ? template.buttons : []);
+                if (btns.length > 0) components.push({ type: 'BUTTONS', buttons: btns });
             }
         }
 
         const vars: Record<string, string> = {};
-        components.forEach(comp => {
-            const type = (comp.type || '').toUpperCase();
-            if (comp.text && typeof comp.text === 'string') {
-                const matches = comp.text.match(/\{\{\d+\}\}/g);
+        
+        // 3. Robust Variable Discovery
+        const discoverVars = (obj: any, prefix = '') => {
+            if (!obj) return;
+            if (typeof obj === 'string') {
+                const matches = obj.match(/\{\{\d+\}\}/g);
                 if (matches) {
-                    matches.forEach((match: string) => {
-                        const num = match.replace(/[{}]/g, '');
-                        vars[`${type}_${num}`] = '';
+                    matches.forEach(m => {
+                        const num = m.replace(/[{}]/g, '');
+                        const key = prefix ? `${prefix}_${num}` : `BODY_${num}`; // Default to BODY if no prefix
+                        if (!vars[key]) vars[key] = '';
                     });
                 }
-            }
-            if (type === 'CAROUSEL' && Array.isArray(comp.cards)) {
-                comp.cards.forEach((card, cardIdx) => {
-                    const cardComps = Array.isArray(card.components) ? card.components : [];
-                    cardComps.forEach(cc => {
-                        const ccType = (cc.type || '').toUpperCase();
-                        if (cc.text && typeof cc.text === 'string') {
-                            const matches = cc.text.match(/\{\{\d+\}\}/g);
-                            if (matches) {
-                                matches.forEach((match: string) => {
-                                    const num = match.replace(/[{}]/g, '');
-                                    vars[`CARD_${cardIdx + 1}_${ccType}_${num}`] = '';
-                                });
-                            }
-                        }
-                    });
+            } else if (Array.isArray(obj)) {
+                obj.forEach((item, i) => {
+                    // Special handling for carousel cards to give better labels
+                    const newPrefix = prefix.startsWith('CARD_') ? prefix : (obj === template.cards ? `CARD_${i + 1}` : prefix);
+                    discoverVars(item, newPrefix);
+                });
+            } else if (typeof obj === 'object') {
+                Object.entries(obj).forEach(([key, value]) => {
+                    let newPrefix = prefix;
+                    const upperKey = key.toUpperCase();
+                    if (['HEADER', 'BODY', 'FOOTER'].includes(upperKey)) {
+                        newPrefix = prefix ? `${prefix}_${upperKey}` : upperKey;
+                    }
+                    discoverVars(value, newPrefix);
                 });
             }
-        });
+        };
+
+        // Start discovery from components and top-level fields
+        discoverVars(components);
+        if (components.length === 0) {
+            discoverVars(template.header_text, 'HEADER');
+            discoverVars(template.body_text, 'BODY');
+        }
+
         setVariables(vars);
     };
 
@@ -318,7 +363,30 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             }
 
                                             if (components.length === 0 && selectedTemplate) {
-                                                if (selectedTemplate.header_text) components.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
+                                                const upperType = (selectedTemplate.template_type || '').toUpperCase();
+                                                
+                                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
+                                                    components.push({ type: 'HEADER', format: upperType });
+                                                } else if (selectedTemplate.header_text) {
+                                                    components.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
+                                                }
+
+                                                if (upperType === 'CAROUSEL' || upperType === 'MEDIA_CARD_CAROUSEL' || Array.isArray(selectedTemplate.cards)) {
+                                                    const cards = Array.isArray(selectedTemplate.cards) ? selectedTemplate.cards : [];
+                                                    if (cards.length > 0) {
+                                                        components.push({ 
+                                                            type: 'CAROUSEL', 
+                                                            cards: cards.map(card => ({
+                                                                components: [
+                                                                    ...(card.header ? [card.header] : []),
+                                                                    { type: 'BODY', text: card.body || card.body_text || '' },
+                                                                    ...(Array.isArray(card.buttons) ? [{ type: 'BUTTONS', buttons: card.buttons }] : [])
+                                                                ]
+                                                            }))
+                                                        });
+                                                    }
+                                                }
+
                                                 if (selectedTemplate.body_text) components.push({ type: 'BODY', text: selectedTemplate.body_text });
                                                 if (selectedTemplate.footer_text) components.push({ type: 'FOOTER', text: selectedTemplate.footer_text });
                                                 if (selectedTemplate.buttons) components.push({ type: 'BUTTONS', buttons: selectedTemplate.buttons.buttons || selectedTemplate.buttons });
@@ -340,10 +408,22 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                 )
                                                             ) : (
                                                                 <div className="flex flex-col items-center gap-1 opacity-40">
-                                                                    {components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format?.toUpperCase() === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
-                                                                     components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format?.toUpperCase() === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
-                                                                     <DocumentFileIcon className="w-8 h-8" />}
-                                                                    <span className="text-[10px] font-bold">HEADER {components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format}</span>
+                                                                    {(() => {
+                                                                        const hComp = components.find(c => (c.type || '').toUpperCase() === 'HEADER');
+                                                                        const mediaUrl = hComp?.example?.header_url?.[0] || hComp?.example?.header_handle?.[0];
+                                                                        const format = hComp?.format?.toUpperCase();
+                                                                        
+                                                                        if (mediaUrl && format === 'IMAGE') return <img src={mediaUrl} className="w-full h-full object-cover" />;
+                                                                        
+                                                                        return (
+                                                                            <>
+                                                                                {format === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
+                                                                                 format === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
+                                                                                 <DocumentFileIcon className="w-8 h-8" />}
+                                                                                <span className="text-[10px] font-bold">HEADER {format}</span>
+                                                                            </>
+                                                                        );
+                                                                    })()}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -354,8 +434,13 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                         <div className="flex gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar-horizontal mb-2 snap-x">
                                                             {(components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL')?.cards || []).map((card: any, cIdx: number) => (
                                                                 <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm snap-start">
-                                                                    <div className="aspect-square bg-slate-200 flex items-center justify-center">
-                                                                        <ImageFileIcon className="w-8 h-8 text-slate-400" />
+                                                                    <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden">
+                                                                        {(() => {
+                                                                            const h = (card.components || []).find((cc: any) => cc.type === 'HEADER');
+                                                                            const mUrl = h?.example?.header_url?.[0] || h?.example?.header_handle?.[0];
+                                                                            if (mUrl) return <img src={mUrl} className="w-full h-full object-cover" />;
+                                                                            return <ImageFileIcon className="w-8 h-8 text-slate-300" />;
+                                                                        })()}
                                                                     </div>
                                                                     <div className="p-2 space-y-1">
                                                                         {(card.components || []).map((cc: any, ccIdx: number) => {
@@ -451,27 +536,46 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                     
                                     <div className="grid grid-cols-1 gap-4">
                                         {/* Media Selector */}
-                                        {Array.isArray(selectedTemplate?.components) && selectedTemplate.components.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase())) && (
-                                            <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media</label>
-                                                <input
-                                                    type="file"
-                                                    id="template-media"
-                                                    className="hidden"
-                                                    onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
-                                                />
-                                                <label htmlFor="template-media" className="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                                                    {headerFile ? (
-                                                        <span className="text-xs font-bold text-brand-600 truncate max-w-[200px]">{headerFile.name}</span>
-                                                    ) : (
-                                                        <>
-                                                            <PlusIcon className="w-4 h-4 text-slate-400" />
-                                                            <span className="text-xs font-bold text-slate-500">Choose Media File</span>
-                                                        </>
-                                                    )}
-                                                </label>
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            let comps: any[] = [];
+                                            if (Array.isArray(selectedTemplate?.components)) {
+                                                comps = selectedTemplate.components;
+                                            } else if (typeof selectedTemplate?.components === 'string') {
+                                                try { comps = JSON.parse(selectedTemplate.components); } catch (e) { comps = []; }
+                                            }
+                                            if (comps.length === 0 && selectedTemplate) {
+                                                const upperType = (selectedTemplate.template_type || '').toUpperCase();
+                                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
+                                                    comps.push({ type: 'HEADER', format: upperType });
+                                                }
+                                            }
+                                            
+                                            const hasMediaHeader = comps.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase()));
+                                            
+                                            if (!hasMediaHeader) return null;
+                                            
+                                            return (
+                                                <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media</label>
+                                                    <input
+                                                        type="file"
+                                                        id="template-media"
+                                                        className="hidden"
+                                                        onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
+                                                    />
+                                                    <label htmlFor="template-media" className="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
+                                                        {headerFile ? (
+                                                            <span className="text-xs font-bold text-brand-600 truncate max-w-[200px]">{headerFile.name}</span>
+                                                        ) : (
+                                                            <>
+                                                                <PlusIcon className="w-4 h-4 text-slate-400" />
+                                                                <span className="text-xs font-bold text-slate-500">Choose {hasMediaHeader.format} File</span>
+                                                            </>
+                                                        )}
+                                                    </label>
+                                                </div>
+                                            );
+                                        })()}
 
                                         {Object.keys(variables).sort((a, b) => {
                                             const partsA = a.split('_');
