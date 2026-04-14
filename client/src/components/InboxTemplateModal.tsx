@@ -12,6 +12,12 @@ interface Template {
     header_text?: string;
     body_text?: string;
     footer_text?: string;
+    template_type?: string;
+    cards?: any[];
+    image_url?: string;
+    video_url?: string;
+    document_url?: string;
+    header_url?: string;
     buttons?: any;
     status: string;
 }
@@ -29,7 +35,10 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
     const [variables, setVariables] = useState<Record<string, string>>({});
     const [headerFile, setHeaderFile] = useState<File | null>(null);
+    const [headerUrl, setHeaderUrlState] = useState('');
+    const [cardMedia, setCardMedia] = useState<Record<number, { file: File | null; url: string }>>({});
     const [uploading, setUploading] = useState(false);
+    const [components, setComponents] = useState<any[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -59,63 +68,82 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
         setSelectedTemplate(template);
         setVariables({});
         setHeaderFile(null);
+        setHeaderUrlState('');
+        setCardMedia({});
         
         // 1. Normalize Components (Handle Array or Stringified JSON)
-        let components: any[] = [];
+        let normalized: any[] = [];
         if (Array.isArray(template?.components)) {
-            components = template.components;
+            normalized = JSON.parse(JSON.stringify(template.components)); // Deep copy to avoid mutations
         } else if (typeof template?.components === 'string') {
-            try { components = JSON.parse(template.components); } catch (e) { components = []; }
+            try { normalized = JSON.parse(template.components); } catch (e) { normalized = []; }
         }
 
-        // 2. Legacy/Top-level Field Bridge (If components array is missing or empty)
+        // 2. Comprehensive Additive Bridge
         const upperType = (template.template_type || '').toUpperCase();
-        if (components.length === 0) {
-            // Handle Media Header from template_type or mapping fields
-            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
-                const mediaUrl = template.image_url || template.video_url || template.document_url || template.header_url;
-                components.push({ 
+        
+        // Header Bridge (Additive)
+        if (!normalized.some(c => (c.type || '').toUpperCase() === 'HEADER')) {
+            const mediaUrl = template.image_url || template.video_url || template.document_url || template.header_url;
+            let format = upperType;
+            // Robust format identification
+            if (!['IMAGE', 'VIDEO', 'DOCUMENT', 'TEXT'].includes(format)) {
+                if (template.image_url) format = 'IMAGE';
+                else if (template.video_url) format = 'VIDEO';
+                else if (template.document_url) format = 'DOCUMENT';
+                else if (template.header_text) format = 'TEXT';
+                else format = 'TEXT'; // Default fallback
+            }
+            
+            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+                normalized.unshift({ 
                     type: 'HEADER', 
-                    format: upperType,
+                    format: format,
                     example: mediaUrl ? { header_url: [mediaUrl] } : undefined
                 });
             } else if (template.header_text) {
-                components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+                normalized.unshift({ type: 'HEADER', format: 'TEXT', text: template.header_text });
             }
-            
-            // Handle Carousel Bridge
-            if (upperType.includes('CAROUSEL') || Array.isArray(template.cards)) {
-                const cards = Array.isArray(template.cards) ? template.cards : [];
-                if (cards.length > 0) {
-                    components.push({ 
-                        type: 'CAROUSEL', 
-                        cards: cards.map(card => {
-                            const cardMediaUrl = card.image_url || card.video_url || card.header_url;
-                            return {
-                                components: [
-                                    { 
-                                        type: 'HEADER', 
-                                        format: (card.header_type || card.header?.format || card.header_format || 'IMAGE').toUpperCase(),
-                                        text: card.header_text || card.header?.text || '',
-                                        example: cardMediaUrl ? { header_url: [cardMediaUrl] } : undefined
-                                    },
-                                    { type: 'BODY', text: card.body || card.body_text || '' },
-                                    ...(Array.isArray(card.buttons) ? [{ type: 'BUTTONS', buttons: card.buttons }] : [])
-                                ]
-                            };
-                        })
-                    });
-                }
+        }
+        
+        // Carousel Bridge (Additive)
+        const hasCarousel = normalized.some(c => (c.type || '').toUpperCase() === 'CAROUSEL');
+        const carouselCards = template.cards || (template.buttons?.type === 'MEDIA_CARD_CAROUSEL' ? template.buttons.cards : null) || (typeof template.buttons === 'object' && template.buttons?.cards);
+        
+        if (!hasCarousel && (upperType.includes('CAROUSEL') || Array.isArray(carouselCards))) {
+            const cards = Array.isArray(carouselCards) ? carouselCards : [];
+            if (cards.length > 0) {
+                normalized.push({ 
+                    type: 'CAROUSEL', 
+                    cards: cards.map(card => {
+                        const cardMediaUrl = card.image_url || card.video_url || card.header_url;
+                        return {
+                            components: [
+                                { 
+                                    type: 'HEADER', 
+                                    format: (card.header_type || card.header?.format || card.header_format || 'IMAGE').toUpperCase(),
+                                    text: card.header_text || card.header?.text || '',
+                                    example: cardMediaUrl ? { header_url: [cardMediaUrl] } : undefined
+                                },
+                                { type: 'BODY', text: card.body || card.body_text || '' },
+                                ...(Array.isArray(card.buttons) ? [{ type: 'BUTTONS', buttons: card.buttons }] : [])
+                            ]
+                        };
+                    })
+                });
             }
+        }
 
-            if (template.body_text) components.push({ type: 'BODY', text: template.body_text });
-            if (template.footer_text) components.push({ type: 'FOOTER', text: template.footer_text });
-            
-            // Handle Top-level Buttons
-            if (template.buttons) {
-                const btns = template.buttons.buttons || (Array.isArray(template.buttons) ? template.buttons : []);
-                if (btns.length > 0) components.push({ type: 'BUTTONS', buttons: btns });
-            }
+        // Body & Footer Bridge (Additive)
+        if (!normalized.some(c => (c.type || '').toUpperCase() === 'BODY') && template.body_text) {
+            normalized.push({ type: 'BODY', text: template.body_text });
+        }
+        if (!normalized.some(c => (c.type || '').toUpperCase() === 'FOOTER') && template.footer_text) {
+            normalized.push({ type: 'FOOTER', text: template.footer_text });
+        }
+        if (!normalized.some(c => (c.type || '').toUpperCase() === 'BUTTONS') && template.buttons) {
+            const btns = template.buttons.buttons || (Array.isArray(template.buttons) ? template.buttons : []);
+            if (btns.length > 0) normalized.push({ type: 'BUTTONS', buttons: btns });
         }
 
         const vars: Record<string, string> = {};
@@ -124,40 +152,40 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
         const discoverVars = (obj: any, prefix = '') => {
             if (!obj) return;
             if (typeof obj === 'string') {
-                const matches = obj.match(/\{\{\d+\}\}/g);
+                const matches = obj.match(/\{\{(\d+)\}\}/g);
                 if (matches) {
                     matches.forEach(m => {
                         const num = m.replace(/[{}]/g, '');
-                        const key = prefix ? `${prefix}_${num}` : `BODY_${num}`; // Default to BODY if no prefix
+                        const key = prefix ? `${prefix}_${num}` : num;
                         if (!vars[key]) vars[key] = '';
                     });
                 }
             } else if (Array.isArray(obj)) {
                 obj.forEach((item, i) => {
-                    // Special handling for carousel cards to give better labels
-                    const newPrefix = prefix.startsWith('CARD_') ? prefix : (obj === template.cards ? `CARD_${i + 1}` : prefix);
-                    discoverVars(item, newPrefix);
+                    discoverVars(item, prefix);
                 });
             } else if (typeof obj === 'object') {
-                Object.entries(obj).forEach(([key, value]) => {
-                    let newPrefix = prefix;
-                    const upperKey = key.toUpperCase();
-                    if (['HEADER', 'BODY', 'FOOTER'].includes(upperKey)) {
-                        newPrefix = prefix ? `${prefix}_${upperKey}` : upperKey;
-                    }
-                    discoverVars(value, newPrefix);
-                });
+                // Special handling for Carousel cards to add CARD_N prefix
+                if (obj.type === 'CAROUSEL' && Array.isArray(obj.cards)) {
+                    obj.cards.forEach((card: any, i: number) => {
+                        discoverVars(card.components, `CARD_${i + 1}`);
+                    });
+                } else {
+                    Object.entries(obj).forEach(([key, value]) => {
+                        let newPrefix = prefix;
+                        const upperKey = key.toUpperCase();
+                        if (['HEADER', 'BODY', 'FOOTER'].includes(upperKey)) {
+                            newPrefix = prefix ? `${prefix}_${upperKey}` : (prefix.startsWith('CARD_') ? `${prefix}_${upperKey}` : upperKey);
+                        }
+                        discoverVars(value, newPrefix);
+                    });
+                }
             }
         };
 
-        // Start discovery from components and top-level fields
-        discoverVars(components);
-        if (components.length === 0) {
-            discoverVars(template.header_text, 'HEADER');
-            discoverVars(template.body_text, 'BODY');
-        }
-
+        discoverVars(normalized);
         setVariables(vars);
+        setComponents(normalized);
     };
 
     const handleVariableChange = (key: string, value: string) => {
@@ -169,59 +197,69 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
 
         setUploading(true);
         try {
-            let headerUrl = '';
+            const normalizedComps = components;
+            const upperType = (selectedTemplate.template_type || '').toUpperCase();
+
+            // 2. Upload Header Media if present
+            let finalHeaderUrl = headerUrl;
             if (headerFile) {
-                headerUrl = await inboxService.uploadMedia(headerFile) || '';
+                const uploaded = await inboxService.uploadMedia(headerFile);
+                if (uploaded) finalHeaderUrl = uploaded;
             }
 
-            // 1. Normalize Components for Payload Generation
-            let normalizedComps: any[] = [];
-            if (Array.isArray(selectedTemplate?.components)) {
-                normalizedComps = selectedTemplate.components;
-            } else if (typeof selectedTemplate?.components === 'string') {
-                try { normalizedComps = JSON.parse(selectedTemplate.components); } catch (e) { normalizedComps = []; }
-            }
-            if (normalizedComps.length === 0) {
-                if (selectedTemplate.header_text) normalizedComps.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
-                if (selectedTemplate.body_text) normalizedComps.push({ type: 'BODY', text: selectedTemplate.body_text });
-                if (selectedTemplate.footer_text) normalizedComps.push({ type: 'FOOTER', text: selectedTemplate.footer_text });
+            // 3. Upload Carousel Card Media
+            const finalCardUrls: Record<number, string> = {};
+            for (const idx in cardMedia) {
+                const mediaObj = cardMedia[idx];
+                if (mediaObj.file) {
+                    const uploaded = await inboxService.uploadMedia(mediaObj.file);
+                    if (uploaded) finalCardUrls[idx] = uploaded;
+                } else if (mediaObj.url) {
+                    finalCardUrls[idx] = mediaObj.url;
+                }
             }
 
             // Construct template payload for Meta API
-            const components: any[] = [];
+            const payloadComp: any[] = [];
             
-            // Handle Header variables or media
+            // Handle Header
             const headerComp = normalizedComps.find(c => (c.type || '').toUpperCase() === 'HEADER');
             if (headerComp) {
                 const format = (headerComp.format || '').toUpperCase();
                 if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
-                    components.push({
-                        type: 'header',
-                        parameters: [{
-                            type: format.toLowerCase(),
-                            [format.toLowerCase()]: { link: headerUrl }
-                        }]
-                    });
+                    if (finalHeaderUrl) {
+                        payloadComp.push({
+                            type: 'header',
+                            parameters: [{
+                                type: format.toLowerCase(),
+                                [format.toLowerCase()]: { link: finalHeaderUrl }
+                            }]
+                        });
+                    }
                 } else if (format === 'TEXT') {
                     const headerVars = Object.keys(variables)
-                        .filter(k => k.startsWith('HEADER_'))
-                        .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+                        .filter(k => k.startsWith('HEADER_') || (!isNaN(Number(k)) && headerComp.text?.includes(`{{${k}}}`)))
+                        .sort((a, b) => {
+                            const numA = parseInt(a.replace('HEADER_', ''));
+                            const numB = parseInt(b.replace('HEADER_', ''));
+                            return numA - numB;
+                        })
                         .map(k => ({ type: 'text', text: variables[k] }));
-                    
+
                     if (headerVars.length > 0) {
-                        components.push({ type: 'header', parameters: headerVars });
+                        payloadComp.push({ type: 'header', parameters: headerVars });
                     }
                 }
             }
 
             // Handle Body variables
             const bodyVars = Object.keys(variables)
-                .filter(k => k.startsWith('BODY_'))
-                .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
+                .filter(k => (!isNaN(Number(k)) && !k.includes('_')) || k.startsWith('BODY_'))
+                .sort((a, b) => parseInt(a.replace('BODY_', '')) - parseInt(b.replace('BODY_', '')))
                 .map(k => ({ type: 'text', text: variables[k] }));
 
             if (bodyVars.length > 0) {
-                components.push({ type: 'body', parameters: bodyVars });
+                payloadComp.push({ type: 'body', parameters: bodyVars });
             }
 
             // Handle Carousel
@@ -230,21 +268,42 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                 const cards = carouselComp.cards.map((card, i) => {
                     const cardComponents: any[] = [];
                     const cardIndex = i + 1;
+                    const cardPrefix = `CARD_${cardIndex}`;
 
-                    // Header variables for this card
+                    // Card Header Media
+                    const cardH = (card.components || []).find((cc: any) => (cc.type || '').toUpperCase() === 'HEADER');
+                    const cardHFormat = (cardH?.format || 'IMAGE').toLowerCase();
+                    const cardHUrl = finalCardUrls[cardIndex];
+
+                    if (cardHUrl) {
+                        cardComponents.push({
+                            type: 'header',
+                            parameters: [{
+                                type: cardHFormat,
+                                [cardHFormat]: { link: cardHUrl }
+                            }]
+                        });
+                    }
+
+                    // Card Header variables (if text)
                     const cardHeaderVars = Object.keys(variables)
-                        .filter(k => k.startsWith(`CARD_${cardIndex}_HEADER_`))
+                        .filter(k => k.startsWith(`${cardPrefix}_HEADER_`))
                         .sort((a, b) => parseInt(a.split('_')[3]) - parseInt(b.split('_')[3]))
                         .map(k => ({ type: 'text', text: variables[k] }));
 
                     if (cardHeaderVars.length > 0) {
-                        cardComponents.push({ type: 'header', parameters: cardHeaderVars });
+                        const existingHeader = cardComponents.find(c => c.type === 'header');
+                        if (existingHeader) existingHeader.parameters.push(...cardHeaderVars);
+                        else cardComponents.push({ type: 'header', parameters: cardHeaderVars });
                     }
 
-                    // Body variables for this card
+                    // Card Body variables
                     const cardBodyVars = Object.keys(variables)
-                        .filter(k => k.startsWith(`CARD_${cardIndex}_BODY_`))
-                        .sort((a, b) => parseInt(a.split('_')[3]) - parseInt(b.split('_')[3]))
+                        .filter(k => k.startsWith(`${cardPrefix}_BODY_`) || (k.startsWith(`${cardPrefix}_`) && !k.includes('HEADER')))
+                        .sort((a, b) => {
+                            const parts = a.split('_');
+                            return parseInt(parts[parts.length - 1]);
+                        })
                         .map(k => ({ type: 'text', text: variables[k] }));
 
                     if (cardBodyVars.length > 0) {
@@ -258,21 +317,20 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                 });
                 
                 if (cards.length > 0) {
-                    components.push({ type: 'carousel', cards });
+                    payloadComp.push({ type: 'carousel', cards });
                 }
             }
 
             const templatePayload = {
                 name: selectedTemplate.name,
                 language: { code: selectedTemplate.language },
-                components
+                components: payloadComp
             };
 
             onSend(templatePayload);
             onClose();
         } catch (error) {
-            console.error('Error sending template:', error);
-            alert('Failed to process template variables');
+            console.error('Error in handleSend:', error);
         } finally {
             setUploading(false);
         }
@@ -353,45 +411,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                 {/* Preview Card */}
                                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 max-w-sm mx-auto shadow-inner">
                                     <div className="bg-white rounded-xl p-4 shadow-sm relative overflow-hidden">
-                                        {/* Normalize Components for Preview */}
-                                        {(() => {
-                                            let components: any[] = [];
-                                            if (Array.isArray(selectedTemplate?.components)) {
-                                                components = selectedTemplate.components;
-                                            } else if (typeof selectedTemplate?.components === 'string') {
-                                                try { components = JSON.parse(selectedTemplate.components); } catch (e) { components = []; }
-                                            }
-
-                                            if (components.length === 0 && selectedTemplate) {
-                                                const upperType = (selectedTemplate.template_type || '').toUpperCase();
-                                                
-                                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
-                                                    components.push({ type: 'HEADER', format: upperType });
-                                                } else if (selectedTemplate.header_text) {
-                                                    components.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
-                                                }
-
-                                                if (upperType === 'CAROUSEL' || upperType === 'MEDIA_CARD_CAROUSEL' || Array.isArray(selectedTemplate.cards)) {
-                                                    const cards = Array.isArray(selectedTemplate.cards) ? selectedTemplate.cards : [];
-                                                    if (cards.length > 0) {
-                                                        components.push({ 
-                                                            type: 'CAROUSEL', 
-                                                            cards: cards.map(card => ({
-                                                                components: [
-                                                                    ...(card.header ? [card.header] : []),
-                                                                    { type: 'BODY', text: card.body || card.body_text || '' },
-                                                                    ...(Array.isArray(card.buttons) ? [{ type: 'BUTTONS', buttons: card.buttons }] : [])
-                                                                ]
-                                                            }))
-                                                        });
-                                                    }
-                                                }
-
-                                                if (selectedTemplate.body_text) components.push({ type: 'BODY', text: selectedTemplate.body_text });
-                                                if (selectedTemplate.footer_text) components.push({ type: 'FOOTER', text: selectedTemplate.footer_text });
-                                                if (selectedTemplate.buttons) components.push({ type: 'BUTTONS', buttons: selectedTemplate.buttons.buttons || selectedTemplate.buttons });
-                                            }
-
+                                        {components.length > 0 && (() => {
                                             return (
                                                 <>
                                                     {/* Dynamic Header Preview */}
@@ -535,77 +555,131 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                     </h3>
                                     
                                     <div className="grid grid-cols-1 gap-4">
-                                        {/* Media Selector */}
                                         {(() => {
-                                            let comps: any[] = [];
-                                            if (Array.isArray(selectedTemplate?.components)) {
-                                                comps = selectedTemplate.components;
-                                            } else if (typeof selectedTemplate?.components === 'string') {
-                                                try { comps = JSON.parse(selectedTemplate.components); } catch (e) { comps = []; }
-                                            }
-                                            if (comps.length === 0 && selectedTemplate) {
-                                                const upperType = (selectedTemplate.template_type || '').toUpperCase();
-                                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(upperType)) {
-                                                    comps.push({ type: 'HEADER', format: upperType });
-                                                }
-                                            }
+                                            const comps = components;
+                                            const hasMediaHeader = comps.find((c: any) => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase()));
                                             
-                                            const hasMediaHeader = comps.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase()));
-                                            
-                                            if (!hasMediaHeader) return null;
+                                            // Hide if carousel media exists (usually carousels have card headers, not main header media)
+                                            const hasCarousel = comps.find((c: any) => (c.type || '').toUpperCase() === 'CAROUSEL');
+                                            if (!hasMediaHeader || hasCarousel) return null;
                                             
                                             return (
-                                                <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media</label>
+                                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 mt-4">
+                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media ({hasMediaHeader.format})</label>
+                                                    <div className="flex gap-3">
+                                                        <input
+                                                            type="file"
+                                                            id="template-media"
+                                                            className="hidden"
+                                                            onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
+                                                        />
+                                                        <label htmlFor="template-media" className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg cursor-pointer hover:bg-brand-700 transition-colors text-[10px] font-bold">
+                                                            Choose File
+                                                        </label>
+                                                        <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] text-slate-400 truncate">
+                                                            {headerFile?.name || 'No file chosen'}
+                                                        </div>
+                                                    </div>
+
                                                     <input
-                                                        type="file"
-                                                        id="template-media"
-                                                        className="hidden"
-                                                        onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
+                                                        type="text"
+                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                        placeholder="Or enter direct URL for header..."
+                                                        value={headerUrl}
+                                                        onChange={(e) => setHeaderUrlState(e.target.value)}
                                                     />
-                                                    <label htmlFor="template-media" className="flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-100 transition-colors">
-                                                        {headerFile ? (
-                                                            <span className="text-xs font-bold text-brand-600 truncate max-w-[200px]">{headerFile.name}</span>
-                                                        ) : (
-                                                            <>
-                                                                <PlusIcon className="w-4 h-4 text-slate-400" />
-                                                                <span className="text-xs font-bold text-slate-500">Choose {hasMediaHeader.format} File</span>
-                                                            </>
-                                                        )}
-                                                    </label>
                                                 </div>
                                             );
                                         })()}
 
-                                        {Object.keys(variables).sort((a, b) => {
-                                            const partsA = a.split('_');
-                                            const partsB = b.split('_');
-                                            
-                                            // Handle CARD_X format
-                                            if (partsA[0] === 'CARD' && partsB[0] === 'CARD') {
-                                                if (partsA[1] !== partsB[1]) return parseInt(partsA[1]) - parseInt(partsB[1]);
-                                                return (partsA[2] === 'HEADER' ? -1 : 1);
-                                            }
-                                            if (partsA[0] === 'CARD') return 1;
-                                            if (partsB[0] === 'CARD') return -1;
+                                        {(() => {
+                                            const comps = components;
+                                            const carousel = comps.find((c: any) => (c.type || '').toUpperCase() === 'CAROUSEL');
+                                            if (!carousel || !Array.isArray(carousel.cards)) return null;
 
-                                            const typeOrder: Record<string, number> = { 'HEADER': 1, 'BODY': 2, 'FOOTER': 3 };
-                                            if (partsA[0] !== partsB[0]) return (typeOrder[partsA[0]] || 99) - (typeOrder[partsB[0]] || 99);
-                                            return parseInt(partsA[1] || '0') - parseInt(partsB[1] || '0');
-                                        }).map(key => (
-                                            <div key={key}>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1 tracking-widest">
-                                                    {key.replace(/_/g, ' ')}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
-                                                    placeholder={`Enter value for ${key.replace(/_/g, ' ')}`}
-                                                    value={variables[key]}
-                                                    onChange={(e) => handleVariableChange(key, e.target.value)}
-                                                />
+                                            return (
+                                                <div className="space-y-4 mt-4">
+                                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Carousel Cards Media</h4>
+                                                    {carousel.cards.map((card: any, idx: number) => {
+                                                        const cardIndex = idx + 1;
+                                                        const h = (card.components || []).find((cc: any) => (cc.type || '').toUpperCase() === 'HEADER');
+                                                        const format = (h?.format || card.header_type || 'IMAGE').toUpperCase();
+                                                        
+                                                        return (
+                                                            <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                                                                <div className="flex justify-between items-center">
+                                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Card {cardIndex} Media ({format})</label>
+                                                                    <span className="text-[9px] text-slate-300 font-bold uppercase">{format}</span>
+                                                                </div>
+                                                                
+                                                                <div className="flex gap-3">
+                                                                    <input
+                                                                        type="file"
+                                                                        id={`card-media-${cardIndex}`}
+                                                                        className="hidden"
+                                                                        onChange={(e) => {
+                                                                            const file = e.target.files?.[0] || null;
+                                                                            setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], file } }));
+                                                                        }}
+                                                                    />
+                                                                    <label htmlFor={`card-media-${cardIndex}`} className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg cursor-pointer hover:bg-brand-700 transition-colors text-[10px] font-bold">
+                                                                        Choose File
+                                                                    </label>
+                                                                    <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] text-slate-400 truncate">
+                                                                        {cardMedia[cardIndex]?.file?.name || 'No file chosen'}
+                                                                    </div>
+                                                                </div>
+
+                                                                <input
+                                                                    type="text"
+                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                                    placeholder={`Or enter direct URL for Card ${cardIndex}...`}
+                                                                    value={cardMedia[cardIndex]?.url || ''}
+                                                                    onChange={(e) => setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], url: e.target.value } }))}
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Variable Mapping Section (Reference Style) */}
+                                        {Object.keys(variables).length > 0 && (
+                                            <div className="space-y-4 pt-2">
+                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Variable mapping</h4>
+                                                {Object.keys(variables).sort((a, b) => {
+                                                    const partsA = a.split('_');
+                                                    const partsB = b.split('_');
+                                                    
+                                                    // Card variables
+                                                    if (partsA[0] === 'CARD' && partsB[0] === 'CARD') {
+                                                        if (partsA[1] !== partsB[1]) return parseInt(partsA[1]) - parseInt(partsB[1]);
+                                                        return partsA[partsA.length - 1].localeCompare(partsB[partsB.length - 1]);
+                                                    }
+                                                    if (partsA[0] === 'CARD') return 1;
+                                                    if (partsB[0] === 'CARD') return -1;
+
+                                                    // Standard positional variables {{1}}, {{2}}...
+                                                    if (!isNaN(Number(a)) && !isNaN(Number(b))) return Number(a) - Number(b);
+                                                    
+                                                    return a.localeCompare(b);
+                                                }).map(key => (
+                                                    <div key={key} className="space-y-1.5">
+                                                        <label className="block text-[11px] font-bold text-slate-600 ml-1">
+                                                            {key.startsWith('CARD_') ? `Card ${key.split('_')[1]} {{${key.split('_').pop()}}}` : `{{${key}}}`}
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                            placeholder={`Value for ${key.startsWith('CARD_') ? `{{${key.split('_').pop()}}}` : `{{${key}}}`}`}
+                                                            value={variables[key]}
+                                                            onChange={(e) => handleVariableChange(key, e.target.value)}
+                                                        />
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
+                                        )}
                                     </div>
                                 </div>
                             </div>
