@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { CloseIcon, SearchIcon, ImageFileIcon, VideoFileIcon, DocumentFileIcon, CheckIcon, PlusIcon, BadgeIcon } from './icons';
+import { CloseIcon, SearchIcon, ImageFileIcon, VideoFileIcon, DocumentFileIcon, CheckIcon, PlusIcon, BadgeIcon, UploadIcon } from './icons';
 import { inboxService } from '../services/inboxService';
 
 interface Template {
@@ -65,6 +65,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     };
 
     const handleSelectTemplate = (template: Template) => {
+        setComponents([]); // Immediate reset to prevent UI splash/glitch
         setSelectedTemplate(template);
         setVariables({});
         setHeaderFile(null);
@@ -185,7 +186,10 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
 
         discoverVars(normalized);
         setVariables(vars);
-        setComponents(normalized);
+        // 5. Final State Update with micro-delay to ensure loading UI renders
+        setTimeout(() => {
+            setComponents(normalized);
+        }, 100);
     };
 
     const handleVariableChange = (key: string, value: string) => {
@@ -416,147 +420,147 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                     {/* Right Side: Preview & Variables */}
                     <div className="flex-1 flex flex-col bg-[#0f172a]">
                         {selectedTemplate ? (
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#0f172a]">
                                 {/* Preview Card */}
-                                <div className="bg-slate-900 shadow-2xl rounded-[32px] p-6 border border-slate-800 max-w-sm mx-auto relative overflow-hidden group">
-                                    <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-brand-500/5 to-transparent pointer-events-none"></div>
-                                    <div className="bg-white rounded-2xl p-4 shadow-xl relative z-10">
-                                        {components.length > 0 && (() => {
-                                            return (
-                                                <>
-                                                    {/* Dynamic Header Preview */}
-                                                    {components.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase())) && (
-                                                        <div className="aspect-video bg-slate-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-slate-200">
-                                                            {headerFile ? (
-                                                                headerFile.type.startsWith('image/') ? (
-                                                                    <img src={URL.createObjectURL(headerFile)} className="w-full h-full object-cover" />
-                                                                ) : (
-                                                                    <div className="flex flex-col items-center gap-2">
-                                                                        {headerFile.type.startsWith('video/') ? <VideoFileIcon className="w-8 h-8 text-brand-500" /> : <DocumentFileIcon className="w-8 h-8 text-red-500" />}
-                                                                        <span className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">{headerFile.name}</span>
-                                                                    </div>
-                                                                )
-                                                            ) : (
-                                                                <div className="flex flex-col items-center gap-1 opacity-40">
-                                                                    {(() => {
-                                                                        const hComp = components.find(c => (c.type || '').toUpperCase() === 'HEADER');
-                                                                        const mediaUrl = hComp?.example?.header_url?.[0] || hComp?.example?.header_handle?.[0];
-                                                                        const format = hComp?.format?.toUpperCase();
-                                                                        
-                                                                        if (mediaUrl && format === 'IMAGE') return <img src={mediaUrl} className="w-full h-full object-cover" />;
-                                                                        
-                                                                        return (
-                                                                            <>
-                                                                                {format === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
-                                                                                 format === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
-                                                                                 <DocumentFileIcon className="w-8 h-8" />}
-                                                                                <span className="text-[10px] font-bold">HEADER {format}</span>
-                                                                            </>
-                                                                        );
-                                                                    })()}
-                                                                </div>
-                                                            )}
+                                {components.length > 0 ? (
+                                    <div className="bg-slate-900 shadow-2xl rounded-[32px] p-6 border border-slate-800 max-w-sm mx-auto relative overflow-hidden group animate-fade-in">
+                                        <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-brand-500/5 to-transparent pointer-events-none"></div>
+                                        <div className="bg-white rounded-2xl p-4 shadow-xl relative z-10">
+                                            {/* Dynamic Header Preview */}
+                                            {components.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase())) && (
+                                                <div className="aspect-video bg-slate-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-slate-200">
+                                                    {headerFile ? (
+                                                        headerFile.type.startsWith('image/') ? (
+                                                            <img src={URL.createObjectURL(headerFile)} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="flex flex-col items-center gap-2">
+                                                                {headerFile.type.startsWith('video/') ? <VideoFileIcon className="w-8 h-8 text-brand-500" /> : <DocumentFileIcon className="w-8 h-8 text-red-500" />}
+                                                                <span className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">{headerFile.name}</span>
+                                                            </div>
+                                                        )
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-1 opacity-40">
+                                                            {(() => {
+                                                                const hComp = components.find(c => (c.type || '').toUpperCase() === 'HEADER');
+                                                                const mediaUrl = hComp?.example?.header_url?.[0] || hComp?.example?.header_handle?.[0];
+                                                                const format = hComp?.format?.toUpperCase();
+                                                                
+                                                                if (mediaUrl && format === 'IMAGE') return <img src={mediaUrl} className="w-full h-full object-cover" />;
+                                                                
+                                                                return (
+                                                                    <>
+                                                                        {format === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
+                                                                         format === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
+                                                                         <DocumentFileIcon className="w-8 h-8" />}
+                                                                        <span className="text-[10px] font-bold">HEADER {format}</span>
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     )}
+                                                </div>
+                                            )}
                                                     
-                                                    {/* Carousel Preview */}
-                                                    {components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL') && (
-                                                        <div className="flex gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar-horizontal mb-2 snap-x">
-                                                            {(components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL')?.cards || []).map((card: any, cIdx: number) => (
-                                                                <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm snap-start">
-                                                                    <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden">
-                                                                        {(() => {
-                                                                            const h = (card.components || []).find((cc: any) => cc.type === 'HEADER');
-                                                                            const mUrl = h?.example?.header_url?.[0] || h?.example?.header_handle?.[0];
-                                                                            if (mUrl) return <img src={mUrl} className="w-full h-full object-cover" />;
-                                                                            return <ImageFileIcon className="w-8 h-8 text-slate-300" />;
-                                                                        })()}
-                                                                    </div>
-                                                                    <div className="p-2 space-y-1">
-                                                                        {(card.components || []).map((cc: any, ccIdx: number) => {
-                                                                            const type = cc.type.toUpperCase();
-                                                                            if (type === 'HEADER' && cc.format === 'TEXT') {
-                                                                                let text = String(cc.text || '');
-                                                                                const matches = text.match(/\{\{\d+\}\}/g);
-                                                                                if (matches) {
-                                                                                    matches.forEach((m: string) => {
-                                                                                        const num = m.replace(/[{}]/g, '');
-                                                                                        text = text.replace(m, variables[`CARD_${cIdx + 1}_HEADER_${num}`] || `[V${num}]`);
-                                                                                    });
-                                                                                }
-                                                                                return <div key={ccIdx} className="text-[11px] font-bold truncate leading-tight text-slate-800">{text}</div>;
-                                                                            }
-                                                                            if (type === 'BODY') {
-                                                                                let text = String(cc.text || '');
-                                                                                const matches = text.match(/\{\{\d+\}\}/g);
-                                                                                if (matches) {
-                                                                                    matches.forEach((m: string) => {
-                                                                                        const num = m.replace(/[{}]/g, '');
-                                                                                        text = text.replace(m, variables[`CARD_${cIdx + 1}_BODY_${num}`] || `[V${num}]`);
-                                                                                    });
-                                                                                }
-                                                                                return <div key={ccIdx} className="text-[10px] text-slate-600 line-clamp-2 leading-snug">{text}</div>;
-                                                                            }
-                                                                            return null;
-                                                                        })}
-                                                                    </div>
+                                            {/* Carousel Preview */}
+                                            {components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL') && (
+                                                <div className="flex gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar-horizontal mb-2 snap-x">
+                                                    {(components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL')?.cards || []).map((card: any, cIdx: number) => (
+                                                        <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm snap-start">
+                                                            <div className="aspect-square bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800">
+                                                                {(() => {
+                                                                    const h = (card.components || []).find((cc: any) => cc.type === 'HEADER');
+                                                                    const mUrl = h?.example?.header_url?.[0] || h?.example?.header_handle?.[0];
+                                                                    if (mUrl) return <img src={mUrl} className="w-full h-full object-cover opacity-80" />;
+                                                                    return <ImageFileIcon className="w-8 h-8 text-slate-700" />;
+                                                                })()}
+                                                            </div>
+                                                            <div className="p-2.5 space-y-1.5">
+                                                                {(card.components || []).map((cc: any, ccIdx: number) => {
+                                                                    const type = cc.type.toUpperCase();
+                                                                    if (type === 'HEADER' && cc.format === 'TEXT') {
+                                                                        let text = String(cc.text || '');
+                                                                        const matches = text.match(/\{\{\d+\}\}/g);
+                                                                        if (matches) {
+                                                                            matches.forEach((m: string) => {
+                                                                                const num = m.replace(/[{}]/g, '');
+                                                                                text = text.replace(m, variables[`CARD_${cIdx + 1}_HEADER_${num}`] || `[V${num}]`);
+                                                                            });
+                                                                        }
+                                                                        return <div key={ccIdx} className="text-[10px] font-bold truncate leading-tight text-white/90">{text}</div>;
+                                                                    }
+                                                                    if (type === 'BODY') {
+                                                                        let text = String(cc.text || '');
+                                                                        const matches = text.match(/\{\{\d+\}\}/g);
+                                                                        if (matches) {
+                                                                            matches.forEach((m: string) => {
+                                                                                const num = m.replace(/[{}]/g, '');
+                                                                                text = text.replace(m, variables[`CARD_${cIdx + 1}_BODY_${num}`] || `[V${num}]`);
+                                                                            });
+                                                                        }
+                                                                        return <div key={ccIdx} className="text-[9px] text-slate-400 line-clamp-2 leading-snug">{text}</div>;
+                                                                    }
+                                                                    return null;
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {components.map((comp, idx) => {
+                                                const type = (comp.type || '').toUpperCase();
+                                                const format = (comp.format || '').toUpperCase();
+
+                                                if (type === 'HEADER' && format === 'TEXT') {
+                                                    let text = String(comp.text || '');
+                                                    const matches = text.match(/\{\{\d+\}\}/g);
+                                                    if (matches) {
+                                                        matches.forEach((match: string) => {
+                                                            const num = match.replace(/[{}]/g, '');
+                                                            text = text.replace(match, variables[`HEADER_${num}`] || `[Variable ${num}]`);
+                                                        });
+                                                    }
+                                                    return <h4 key={idx} className="font-bold text-slate-800 mb-2">{text}</h4>;
+                                                }
+                                                if (type === 'BODY') {
+                                                    let text = String(comp.text || '');
+                                                    const matches = text.match(/\{\{\d+\}\}/g);
+                                                    if (matches) {
+                                                        matches.forEach((match: string) => {
+                                                            const num = match.replace(/[{}]/g, '');
+                                                            text = text.replace(match, variables[`BODY_${num}`] || `[Variable ${num}]`);
+                                                        });
+                                                    }
+                                                    return <p key={idx} className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
+                                                }
+                                                if (type === 'FOOTER') {
+                                                    return <p key={idx} className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">{String(comp.text || '')}</p>;
+                                                }
+                                                if (type === 'BUTTONS' && Array.isArray(comp.buttons)) {
+                                                    return (
+                                                        <div key={idx} className="mt-5 space-y-2 border-t border-slate-100 -mx-4 pt-1">
+                                                            {comp.buttons.map((btn: any, bIdx: number) => (
+                                                                <div key={bIdx} className="w-full py-2.5 text-center text-brand-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-default">
+                                                                    {btn.text}
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                    )}
-
-                                                    {components.map((comp, idx) => {
-                                                        const type = (comp.type || '').toUpperCase();
-                                                        const format = (comp.format || '').toUpperCase();
-
-                                                        if (type === 'HEADER' && format === 'TEXT') {
-                                                            let text = String(comp.text || '');
-                                                            const matches = text.match(/\{\{\d+\}\}/g);
-                                                            if (matches) {
-                                                                matches.forEach((match: string) => {
-                                                                    const num = match.replace(/[{}]/g, '');
-                                                                    text = text.replace(match, variables[`HEADER_${num}`] || `[Variable ${num}]`);
-                                                                });
-                                                            }
-                                                            return <h4 key={idx} className="font-bold text-slate-800 mb-2">{text}</h4>;
-                                                        }
-                                                        if (type === 'BODY') {
-                                                            let text = String(comp.text || '');
-                                                            const matches = text.match(/\{\{\d+\}\}/g);
-                                                            if (matches) {
-                                                                matches.forEach((match: string) => {
-                                                                    const num = match.replace(/[{}]/g, '');
-                                                                    text = text.replace(match, variables[`BODY_${num}`] || `[Variable ${num}]`);
-                                                                });
-                                                            }
-                                                            return <p key={idx} className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
-                                                        }
-                                                        if (type === 'FOOTER') {
-                                                            return <p key={idx} className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">{String(comp.text || '')}</p>;
-                                                        }
-                                                        if (type === 'BUTTONS' && Array.isArray(comp.buttons)) {
-                                                            return (
-                                                                <div key={idx} className="mt-5 space-y-2 border-t border-slate-100 -mx-4 pt-1">
-                                                                    {comp.buttons.map((btn: any, bIdx: number) => (
-                                                                        <div key={bIdx} className="w-full py-2.5 text-center text-brand-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-default">
-                                                                            {btn.text}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })}
-                                                </>
-                                            );
-                                        })()}
-                                        
-                                        <div className="absolute bottom-1.5 right-3">
-                                            <span className="text-[10px] text-slate-300 font-medium tracking-tighter">12:00 PM</span>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                            
+                                            <div className="absolute bottom-1.5 right-3">
+                                                <span className="text-[10px] text-slate-300 font-medium tracking-tighter">12:00 PM</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
- 
+                                ) : (
+                                    <div className="bg-slate-900/50 rounded-3xl p-12 border border-slate-800/50 flex flex-col items-center justify-center text-center animate-pulse">
+                                        <div className="w-12 h-12 border-2 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+
                                 {/* Variable Inputs */}
                                 <div className="space-y-6">
                                     <h3 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-[0.2em] ml-1">
