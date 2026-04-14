@@ -343,74 +343,84 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border border-slate-800">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                    <div>
-                        <h2 className="text-xl font-bold text-slate-800">Send WhatsApp Template</h2>
-                        <p className="text-xs text-slate-500 font-medium">Select a pre-approved template to start a conversation</p>
+                <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-[#1e293b]/40">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
+                            <BadgeIcon className="w-5 h-5 text-brand-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-white tracking-tight">Send WhatsApp Template</h2>
+                            <p className="text-xs text-slate-400 font-medium tracking-wide">Select and configure your message for dispatch</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-white">
                         <CloseIcon className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
                     {/* Left Side: Template List */}
-                    <div className="w-1/3 border-r border-slate-100 flex flex-col bg-slate-50/30">
-                        <div className="p-4">
-                            <div className="relative">
-                                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <div className="w-1/3 border-r border-slate-800 flex flex-col bg-[#1e293b]/20">
+                        <div className="p-6">
+                            <div className="relative group">
+                                <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-500 transition-colors" />
                                 <input
                                     type="text"
                                     placeholder="Search templates..."
-                                    className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto px-2 pb-4 h-[500px] custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto px-4 pb-6 h-[500px] custom-scrollbar">
                             {loading ? (
-                                <div className="flex flex-col items-center justify-center py-10 text-slate-400 space-y-2">
-                                    <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-xs font-medium">Loading...</span>
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
+                                    <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">Loading Library...</span>
                                 </div>
                             ) : filteredTemplates.length > 0 ? (
                                 filteredTemplates.map(t => (
                                     <button
                                         key={t.id}
                                         onClick={() => handleSelectTemplate(t)}
-                                        className={`w-full text-left p-3 rounded-2xl mb-1 transition-all duration-200 group ${selectedTemplate?.id === t.id ? 'bg-brand-50 border-brand-100 shadow-sm' : 'hover:bg-slate-100 border-transparent border'}`}
+                                        className={`w-full text-left p-4 rounded-2xl mb-2 transition-all duration-300 group relative border ${selectedTemplate?.id === t.id ? 'bg-brand-500/10 border-brand-500/30 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'hover:bg-slate-800/40 border-transparent'}`}
                                     >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${selectedTemplate?.id === t.id ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500'}`}>
+                                        {selectedTemplate?.id === t.id && (
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-500 rounded-r-full"></div>
+                                        )}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${selectedTemplate?.id === t.id ? 'bg-brand-500/20 text-brand-400' : 'bg-slate-800 text-slate-400'}`}>
                                                 {(t.category || 'OTHER').replace(/_/g, ' ')}
                                             </span>
-                                            <span className="text-[10px] text-slate-400 font-mono">{t.language}</span>
+                                            <span className="text-[9px] text-slate-600 font-mono font-bold">{t.language}</span>
                                         </div>
-                                        <span className={`text-sm font-bold block truncate ${selectedTemplate?.id === t.id ? 'text-brand-700' : 'text-slate-700'}`}>
+                                        <span className={`text-xs font-bold block truncate tracking-tight ${selectedTemplate?.id === t.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
                                             {t.name}
                                         </span>
                                     </button>
                                 ))
                             ) : (
-                                <div className="text-center py-10 text-slate-400 uppercase text-[10px] font-bold tracking-widest">
-                                    No templates found
+                                <div className="text-center py-20 px-6">
+                                    <SearchIcon className="w-10 h-10 text-slate-800 mx-auto mb-3" />
+                                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">No matching templates found</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Right Side: Preview & Variables */}
-                    <div className="flex-1 flex flex-col bg-white">
+                    <div className="flex-1 flex flex-col bg-[#0f172a]">
                         {selectedTemplate ? (
                             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
                                 {/* Preview Card */}
-                                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 max-w-sm mx-auto shadow-inner">
-                                    <div className="bg-white rounded-xl p-4 shadow-sm relative overflow-hidden">
+                                <div className="bg-slate-900 shadow-2xl rounded-[32px] p-6 border border-slate-800 max-w-sm mx-auto relative overflow-hidden group">
+                                    <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-brand-500/5 to-transparent pointer-events-none"></div>
+                                    <div className="bg-white rounded-2xl p-4 shadow-xl relative z-10">
                                         {components.length > 0 && (() => {
                                             return (
                                                 <>
@@ -548,9 +558,9 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                 </div>
  
                                 {/* Variable Inputs */}
-                                <div className="space-y-4">
-                                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                                        <div className="w-1.5 h-4 bg-brand-500 rounded-full"></div>
+                                <div className="space-y-6">
+                                    <h3 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-[0.2em] ml-1">
+                                        <div className="w-1.5 h-4 bg-brand-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
                                         Fill Variables
                                     </h3>
                                     
@@ -564,8 +574,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             if (!hasMediaHeader || hasCarousel) return null;
                                             
                                             return (
-                                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 mt-4">
-                                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media ({hasMediaHeader.format})</label>
+                                                <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-4 shadow-sm">
+                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Header Media ({hasMediaHeader.format})</label>
                                                     <div className="flex gap-3">
                                                         <input
                                                             type="file"
@@ -573,18 +583,19 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                             className="hidden"
                                                             onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
                                                         />
-                                                        <label htmlFor="template-media" className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg cursor-pointer hover:bg-brand-700 transition-colors text-[10px] font-bold">
+                                                        <label htmlFor="template-media" className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl cursor-pointer hover:bg-brand-500 transition-all text-[10px] font-bold shadow-lg shadow-brand-500/20 active:scale-95">
+                                                            <UploadIcon className="w-3.5 h-3.5" />
                                                             Choose File
                                                         </label>
-                                                        <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] text-slate-400 truncate">
-                                                            {headerFile?.name || 'No file chosen'}
+                                                        <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-[10px] text-slate-400 truncate flex items-center">
+                                                            {headerFile?.name || 'No file selected...'}
                                                         </div>
                                                     </div>
 
                                                     <input
                                                         type="text"
-                                                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
-                                                        placeholder="Or enter direct URL for header..."
+                                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                        placeholder="Or paste direct media URL..."
                                                         value={headerUrl}
                                                         onChange={(e) => setHeaderUrlState(e.target.value)}
                                                     />
@@ -598,18 +609,18 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             if (!carousel || !Array.isArray(carousel.cards)) return null;
 
                                             return (
-                                                <div className="space-y-4 mt-4">
-                                                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Carousel Cards Media</h4>
+                                                <div className="space-y-4 mt-6">
+                                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Carousel Cards Media</h4>
                                                     {carousel.cards.map((card: any, idx: number) => {
                                                         const cardIndex = idx + 1;
                                                         const h = (card.components || []).find((cc: any) => (cc.type || '').toUpperCase() === 'HEADER');
                                                         const format = (h?.format || card.header_type || 'IMAGE').toUpperCase();
                                                         
                                                         return (
-                                                            <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                                                            <div key={idx} className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-4 shadow-sm group/card">
                                                                 <div className="flex justify-between items-center">
-                                                                    <label className="text-[10px] font-bold text-slate-500 uppercase">Card {cardIndex} Media ({format})</label>
-                                                                    <span className="text-[9px] text-slate-300 font-bold uppercase">{format}</span>
+                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Card {cardIndex} Content ({format})</label>
+                                                                    <span className="text-[9px] bg-slate-800 text-brand-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">{format}</span>
                                                                 </div>
                                                                 
                                                                 <div className="flex gap-3">
@@ -622,18 +633,19 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                             setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], file } }));
                                                                         }}
                                                                     />
-                                                                    <label htmlFor={`card-media-${cardIndex}`} className="flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg cursor-pointer hover:bg-brand-700 transition-colors text-[10px] font-bold">
-                                                                        Choose File
+                                                                    <label htmlFor={`card-media-${cardIndex}`} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600/10 text-brand-400 border border-brand-500/20 rounded-xl cursor-pointer hover:bg-brand-600 hover:text-white transition-all text-[10px] font-bold active:scale-95">
+                                                                        <UploadIcon className="w-3.5 h-3.5" />
+                                                                        Upload
                                                                     </label>
-                                                                    <div className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] text-slate-400 truncate">
-                                                                        {cardMedia[cardIndex]?.file?.name || 'No file chosen'}
+                                                                    <div className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-2.5 text-[10px] text-slate-500 truncate flex items-center">
+                                                                        {cardMedia[cardIndex]?.file?.name || 'No file selected'}
                                                                     </div>
                                                                 </div>
 
                                                                 <input
                                                                     type="text"
-                                                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
-                                                                    placeholder={`Or enter direct URL for Card ${cardIndex}...`}
+                                                                    className="w-full px-4 py-3 bg-slate-930 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                                    placeholder={`Or Card ${cardIndex} Media URL...`}
                                                                     value={cardMedia[cardIndex]?.url || ''}
                                                                     onChange={(e) => setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], url: e.target.value } }))}
                                                                 />
@@ -646,8 +658,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
 
                                         {/* Variable Mapping Section (Reference Style) */}
                                         {Object.keys(variables).length > 0 && (
-                                            <div className="space-y-4 pt-2">
-                                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Variable mapping</h4>
+                                            <div className="space-y-5 pt-4">
+                                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Variable mapping</h4>
                                                 {Object.keys(variables).sort((a, b) => {
                                                     const partsA = a.split('_');
                                                     const partsB = b.split('_');
@@ -665,13 +677,13 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                     
                                                     return a.localeCompare(b);
                                                 }).map(key => (
-                                                    <div key={key} className="space-y-1.5">
-                                                        <label className="block text-[11px] font-bold text-slate-600 ml-1">
+                                                    <div key={key} className="space-y-2 group/var">
+                                                        <label className="block text-[11px] font-bold text-slate-400 ml-1 transition-colors group-focus-within/var:text-brand-400">
                                                             {key.startsWith('CARD_') ? `Card ${key.split('_')[1]} {{${key.split('_').pop()}}}` : `{{${key}}}`}
                                                         </label>
                                                         <input
                                                             type="text"
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                            className="w-full px-5 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl text-sm text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none placeholder:text-slate-700"
                                                             placeholder={`Value for ${key.startsWith('CARD_') ? `{{${key.split('_').pop()}}}` : `{{${key}}}`}`}
                                                             value={variables[key]}
                                                             onChange={(e) => handleVariableChange(key, e.target.value)}
@@ -684,37 +696,41 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                 </div>
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 p-10 text-center">
-                                <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center mb-4">
-                                    <BadgeIcon className="w-10 h-10 opacity-20" />
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-700 p-20 text-center">
+                                <div className="w-24 h-24 rounded-[32px] bg-slate-900 flex items-center justify-center mb-6 border border-slate-800 shadow-xl overflow-hidden relative group">
+                                    <div className="absolute inset-0 bg-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <BadgeIcon className="w-10 h-10 text-slate-800 transition-transform group-hover:scale-110" />
                                 </div>
-                                <p className="text-sm font-bold uppercase tracking-widest">Select a template to preview</p>
-                                <p className="text-xs mt-2 max-w-[200px]">Approved templates by Meta will appear in the list on the left.</p>
+                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-[0.3em] mb-3">Initialize Preview</h3>
+                                <p className="text-[11px] text-slate-600 font-medium leading-relaxed max-w-[280px]">
+                                    Select an approved WhatsApp template from the library to begin configuring your message.
+                                </p>
                             </div>
                         )}
 
                         {/* Footer Actions */}
-                        <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/20">
+                        <div className="p-6 border-t border-slate-800 flex items-center justify-end gap-4 bg-slate-900/40">
                             <button
                                 onClick={onClose}
-                                className="px-6 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-colors"
+                                className="px-6 py-3 text-xs font-bold text-slate-500 hover:text-white transition-all uppercase tracking-widest"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSend}
                                 disabled={!selectedTemplate || uploading}
-                                className={`px-8 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${!selectedTemplate || uploading ? 'bg-slate-300 cursor-not-allowed' : 'bg-brand-500 hover:bg-brand-600 active:scale-95'}`}
+                                className={`px-10 py-3 rounded-2xl text-xs font-bold text-white shadow-xl transition-all flex items-center gap-2 group relative overflow-hidden ${!selectedTemplate || uploading ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700' : 'bg-brand-600 hover:bg-brand-500 active:scale-95 shadow-brand-500/20'}`}
                             >
                                 {uploading ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                        Processing...
+                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                        <span>Synchronizing...</span>
                                     </>
                                 ) : (
                                     <>
+                                        <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
                                         <CheckIcon className="w-4 h-4" />
-                                        Send Message
+                                        <span className="uppercase tracking-widest">Send Message</span>
                                     </>
                                 )}
                             </button>
