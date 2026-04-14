@@ -78,10 +78,11 @@ const requireAuth = async (req, res, next) => {
         }
 
         if (error || !data || !data.user) {
-            // console.error('Auth validation failed:', error?.message); // Reduce noise
+            const isExpired = error?.message?.toLowerCase().includes('expired') || error?.status === 401;
             return res.status(401).json({
                 error: 'Unauthorized',
-                message: `Invalid or expired token`
+                message: isExpired ? 'Token expired. Please sign in again.' : 'Invalid authentication token',
+                code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
             });
         }
 

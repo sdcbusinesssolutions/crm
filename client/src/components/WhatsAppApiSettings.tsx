@@ -117,11 +117,14 @@ const WhatsAppApiSettings: React.FC = () => {
         formData.append('file', file);
 
         try {
+            // ALWAYS get fresh session before sensitive calls
             const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Session expired. Please sign in again.');
+
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${session?.access_token}`
+                    'Authorization': `Bearer ${session.access_token}`
                 },
                 body: formData
             });
@@ -140,7 +143,9 @@ const WhatsAppApiSettings: React.FC = () => {
     };
 
     const fetchSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) console.error('Session fetch error:', error);
+        
         if (session) {
             setToken(session.access_token);
             // Fetch stable API key for production snippets
@@ -168,8 +173,12 @@ const WhatsAppApiSettings: React.FC = () => {
 
     const generateApiKey = async () => {
         try {
+            // ALWAYS get fresh session before sensitive calls
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return;
+            if (!session) {
+                setResponse({ error: 'Session expired. Please sign in again.' });
+                return;
+            };
             
             setSending(true);
             const res = await fetch('/api/settings/api-key', {
@@ -180,6 +189,10 @@ const WhatsAppApiSettings: React.FC = () => {
             if (data.apiKey) {
                 setApiKey(data.apiKey);
                 setResponse({ success: true, message: 'API Key generated successfully' });
+                // Also update the local token state for snippets
+                setToken(session.access_token);
+            } else {
+                setResponse({ error: data.error || 'Failed to generate API key' });
             }
         } catch (error: any) {
             console.error('API Key Error:', error);
@@ -692,6 +705,10 @@ const WhatsAppApiSettings: React.FC = () => {
         setSending(true);
         setResponse(null);
         try {
+            // ALWAYS get fresh session before sensitive test calls
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Session expired. Please sign in again.');
+
             const isCampaign = mode === 'campaign' && !forceTransactional;
             const endpoint = isCampaign ? '/api/campaigns/create' : '/api/external/send-template';
             let payload: any = isCampaign ? generateCampaignPayload() : generateTransactionalPayload();
@@ -709,13 +726,16 @@ const WhatsAppApiSettings: React.FC = () => {
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
+                    'Authorization': `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
             setResponse(data);
+            
+            // Sync current token state for code snippets
+            setToken(session.access_token);
         } catch (e: any) {
             setResponse({ error: e.message });
         } finally {
