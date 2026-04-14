@@ -802,7 +802,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                         // UNIVERSAL AUTO-HEAL FOR 131053 (Media Upload Error)
                                         // This handles Image, Video, Audio, and Document types by downloading the binary 
                                         // and re-uploading to Meta as a Media ID, which is much more reliable than link-delivery.
-                                        
+
                                         console.log(`[Auto-Heal] Starting recovery for ${origMsg.type} (Message: ${waMessageId})`);
 
                                         // 3. Download the raw file binary
@@ -887,7 +887,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                                 // Standard Media Message
                                                 finalType = origMsg.type;
                                                 finalContent = { id: newMediaId };
-                                                
+
                                                 // Captions only allowed for non-audio/non-sticker
                                                 if (!['audio', 'sticker'].includes(finalType)) {
                                                     finalContent.caption = origMsg.message_text || origMsg.text || '';
@@ -1162,7 +1162,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     // --- TYPING INDICATOR START ---
                     // Show typing indicator in UI while bot is "thinking"
                     const whatsappService = require('../services/whatsappService');
-                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
+                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
                     // --- TYPING INDICATOR END ---
 
                     flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId))
@@ -1242,7 +1242,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                                     // --- TYPING INDICATOR START ---
                                     const whatsappService = require('../services/whatsappService');
-                                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
+                                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
                                     // --- TYPING INDICATOR END ---
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));
@@ -1253,7 +1253,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 if (inputPayload && !isStale) {
                                     // --- TYPING INDICATOR START ---
                                     const whatsappService = require('../services/whatsappService');
-                                    whatsappService.sendTypingIndicator(userId, extracted.from).catch(err => console.error('Typing indicator error:', err));
+                                    whatsappService.sendTypingIndicator(userId, extracted.from, extracted.id).catch(err => console.error('Typing indicator error:', err));
                                     // --- TYPING INDICATOR END ---
 
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId));

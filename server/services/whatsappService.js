@@ -233,7 +233,7 @@ class WhatsAppService {
                     if (hydrated) content = hydrated;
                 } catch (e) { console.warn('Template hydration failed:', e); }
                 textBody = JSON.stringify(content);
-                
+
                 // Extract mediaUrl from template components if present
                 if (content.components) {
                     const headerComp = content.components.find(c => c.type === 'header');
@@ -490,13 +490,16 @@ class WhatsAppService {
         }
     }
 
-    // --- TYPING INDICATOR START ---
     /**
-     * Send typing indicator
-     * @param {string} userId 
-     * @param {string} to - Recipient phone number
-     */
-    async sendTypingIndicator(userId, to) {
+        * Send typing indicator
+        * NOTE: In Cloud API, typing indicators are extensions of the 'read' status 
+        * and REQUIRE a message_id to respond to.
+        * @param {string} userId 
+        * @param {string} to - Recipient phone number (kept for signature compatibility, though not used by Meta for this endpoint)
+        * @param {string} messageId - The ID of the message you are "typing" in response to
+        */
+    async sendTypingIndicator(userId, to, messageId) {
+        if (!messageId) return false;
         try {
             const config = await this.getConfig(userId);
             const fromPhoneId = config.phone_number_id;
@@ -506,11 +509,10 @@ class WhatsAppService {
 
             const body = {
                 messaging_product: 'whatsapp',
-                recipient_type: 'individual',
-                to: to,
-                type: 'action',
-                action: {
-                    name: 'typing'
+                status: 'read',
+                message_id: messageId,
+                typing_indicator: {
+                    type: "text"
                 }
             };
 
@@ -522,9 +524,13 @@ class WhatsAppService {
                 httpsAgent: httpsAgent
             });
 
-            console.log(`Typing indicator sent to ${to}.`);
+            console.log(`Typing indicator sent for message ${messageId}.`);
             return true;
         } catch (error) {
+            // Suppress code 100 which happens for old messages
+            const errorData = error.response?.data?.error;
+            if (errorData?.code === 100) return false;
+
             console.error('WhatsAppService sendTypingIndicator Error:', error.response?.data || error.message);
             return false;
         }
