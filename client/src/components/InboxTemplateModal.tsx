@@ -8,7 +8,11 @@ interface Template {
     name: string;
     language: string;
     category: string;
-    components: any[];
+    components?: any[] | string;
+    header_text?: string;
+    body_text?: string;
+    footer_text?: string;
+    buttons?: any;
     status: string;
 }
 
@@ -56,17 +60,56 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
         setVariables({});
         setHeaderFile(null);
         
-        // Extract variables from components
+        // 1. Normalize Components (Handle Array or Stringified JSON)
+        let components: any[] = [];
+        if (Array.isArray(template?.components)) {
+            components = template.components;
+        } else if (typeof template?.components === 'string') {
+            try { components = JSON.parse(template.components); } catch (e) { components = []; }
+        }
+
+        // 2. Legacy/Top-level Field Bridge (If components array is missing or empty)
+        if (components.length === 0) {
+            if (template.header_text) components.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+            if (template.body_text) components.push({ type: 'BODY', text: template.body_text });
+            if (template.footer_text) components.push({ type: 'FOOTER', text: template.footer_text });
+            
+            // Handle Top-level Buttons if they exist
+            if (template.buttons && template.buttons.buttons) {
+                components.push({ type: 'BUTTONS', buttons: template.buttons.buttons });
+            } else if (Array.isArray(template.buttons)) {
+                components.push({ type: 'BUTTONS', buttons: template.buttons });
+            }
+        }
+
         const vars: Record<string, string> = {};
-        template.components.forEach(comp => {
-            if (comp.text) {
+        components.forEach(comp => {
+            const type = (comp.type || '').toUpperCase();
+            if (comp.text && typeof comp.text === 'string') {
                 const matches = comp.text.match(/\{\{\d+\}\}/g);
                 if (matches) {
                     matches.forEach((match: string) => {
                         const num = match.replace(/[{}]/g, '');
-                        vars[${comp.type}_] = '';
+                        vars[`${type}_${num}`] = '';
                     });
                 }
+            }
+            if (type === 'CAROUSEL' && Array.isArray(comp.cards)) {
+                comp.cards.forEach((card, cardIdx) => {
+                    const cardComps = Array.isArray(card.components) ? card.components : [];
+                    cardComps.forEach(cc => {
+                        const ccType = (cc.type || '').toUpperCase();
+                        if (cc.text && typeof cc.text === 'string') {
+                            const matches = cc.text.match(/\{\{\d+\}\}/g);
+                            if (matches) {
+                                matches.forEach((match: string) => {
+                                    const num = match.replace(/[{}]/g, '');
+                                    vars[`CARD_${cardIdx + 1}_${ccType}_${num}`] = '';
+                                });
+                            }
+                        }
+                    });
+                });
             }
         });
         setVariables(vars);
@@ -86,21 +129,35 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                 headerUrl = await inboxService.uploadMedia(headerFile) || '';
             }
 
+            // 1. Normalize Components for Payload Generation
+            let normalizedComps: any[] = [];
+            if (Array.isArray(selectedTemplate?.components)) {
+                normalizedComps = selectedTemplate.components;
+            } else if (typeof selectedTemplate?.components === 'string') {
+                try { normalizedComps = JSON.parse(selectedTemplate.components); } catch (e) { normalizedComps = []; }
+            }
+            if (normalizedComps.length === 0) {
+                if (selectedTemplate.header_text) normalizedComps.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
+                if (selectedTemplate.body_text) normalizedComps.push({ type: 'BODY', text: selectedTemplate.body_text });
+                if (selectedTemplate.footer_text) normalizedComps.push({ type: 'FOOTER', text: selectedTemplate.footer_text });
+            }
+
             // Construct template payload for Meta API
             const components: any[] = [];
             
             // Handle Header variables or media
-            const headerComp = selectedTemplate.components.find(c => c.type === 'HEADER');
+            const headerComp = normalizedComps.find(c => (c.type || '').toUpperCase() === 'HEADER');
             if (headerComp) {
-                if (headerComp.format === 'IMAGE' || headerComp.format === 'VIDEO' || headerComp.format === 'DOCUMENT') {
+                const format = (headerComp.format || '').toUpperCase();
+                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
                     components.push({
                         type: 'header',
                         parameters: [{
-                            type: headerComp.format.toLowerCase(),
-                            [headerComp.format.toLowerCase()]: { link: headerUrl }
+                            type: format.toLowerCase(),
+                            [format.toLowerCase()]: { link: headerUrl }
                         }]
                     });
-                } else if (headerComp.format === 'TEXT') {
+                } else if (format === 'TEXT') {
                     const headerVars = Object.keys(variables)
                         .filter(k => k.startsWith('HEADER_'))
                         .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
@@ -115,15 +172,49 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
             // Handle Body variables
             const bodyVars = Object.keys(variables)
                 .filter(k => k.startsWith('BODY_'))
-                .sort((a, b) => {
-                    const numA = parseInt(a.split('_')[1]);
-                    const numB = parseInt(b.split('_')[1]);
-                    return numA - numB;
-                })
+                .sort((a, b) => parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]))
                 .map(k => ({ type: 'text', text: variables[k] }));
 
             if (bodyVars.length > 0) {
                 components.push({ type: 'body', parameters: bodyVars });
+            }
+
+            // Handle Carousel
+            const carouselComp = normalizedComps.find(c => (c.type || '').toUpperCase() === 'CAROUSEL');
+            if (carouselComp && Array.isArray(carouselComp.cards)) {
+                const cards = carouselComp.cards.map((card, i) => {
+                    const cardComponents: any[] = [];
+                    const cardIndex = i + 1;
+
+                    // Header variables for this card
+                    const cardHeaderVars = Object.keys(variables)
+                        .filter(k => k.startsWith(`CARD_${cardIndex}_HEADER_`))
+                        .sort((a, b) => parseInt(a.split('_')[3]) - parseInt(b.split('_')[3]))
+                        .map(k => ({ type: 'text', text: variables[k] }));
+
+                    if (cardHeaderVars.length > 0) {
+                        cardComponents.push({ type: 'header', parameters: cardHeaderVars });
+                    }
+
+                    // Body variables for this card
+                    const cardBodyVars = Object.keys(variables)
+                        .filter(k => k.startsWith(`CARD_${cardIndex}_BODY_`))
+                        .sort((a, b) => parseInt(a.split('_')[3]) - parseInt(b.split('_')[3]))
+                        .map(k => ({ type: 'text', text: variables[k] }));
+
+                    if (cardBodyVars.length > 0) {
+                        cardComponents.push({ type: 'body', parameters: cardBodyVars });
+                    }
+
+                    return {
+                        card_index: i,
+                        components: cardComponents
+                    };
+                });
+                
+                if (cards.length > 0) {
+                    components.push({ type: 'carousel', cards });
+                }
             }
 
             const templatePayload = {
@@ -142,8 +233,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
         }
     };
 
-    const filteredTemplates = templates.filter(t => 
-        t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredTemplates = (templates || []).filter(t => 
+        (t.name || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     if (!isOpen) return null;
@@ -189,15 +280,15 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                     <button
                                         key={t.id}
                                         onClick={() => handleSelectTemplate(t)}
-                                        className={w-full text-left p-3 rounded-2xl mb-1 transition-all duration-200 group }
+                                        className={`w-full text-left p-3 rounded-2xl mb-1 transition-all duration-200 group ${selectedTemplate?.id === t.id ? 'bg-brand-50 border-brand-100 shadow-sm' : 'hover:bg-slate-100 border-transparent border'}`}
                                     >
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className={	ext-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded }>
-                                                {t.category.replace(/_/g, ' ')}
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${selectedTemplate?.id === t.id ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500'}`}>
+                                                {(t.category || 'OTHER').replace(/_/g, ' ')}
                                             </span>
                                             <span className="text-[10px] text-slate-400 font-mono">{t.language}</span>
                                         </div>
-                                        <span className={	ext-sm font-bold block truncate }>
+                                        <span className={`text-sm font-bold block truncate ${selectedTemplate?.id === t.id ? 'text-brand-700' : 'text-slate-700'}`}>
                                             {t.name}
                                         </span>
                                     </button>
@@ -217,51 +308,140 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                 {/* Preview Card */}
                                 <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 max-w-sm mx-auto shadow-inner">
                                     <div className="bg-white rounded-xl p-4 shadow-sm relative overflow-hidden">
-                                        {/* Dynamic Header Preview */}
-                                        {selectedTemplate.components.find(c => c.type === 'HEADER')?.format === 'IMAGE' && (
-                                            <div className="aspect-video bg-slate-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                                                {headerFile ? (
-                                                    <img src={URL.createObjectURL(headerFile)} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <ImageFileIcon className="w-8 h-8 text-slate-300" />
-                                                )}
-                                            </div>
-                                        )}
+                                        {/* Normalize Components for Preview */}
+                                        {(() => {
+                                            let components: any[] = [];
+                                            if (Array.isArray(selectedTemplate?.components)) {
+                                                components = selectedTemplate.components;
+                                            } else if (typeof selectedTemplate?.components === 'string') {
+                                                try { components = JSON.parse(selectedTemplate.components); } catch (e) { components = []; }
+                                            }
+
+                                            if (components.length === 0 && selectedTemplate) {
+                                                if (selectedTemplate.header_text) components.push({ type: 'HEADER', format: 'TEXT', text: selectedTemplate.header_text });
+                                                if (selectedTemplate.body_text) components.push({ type: 'BODY', text: selectedTemplate.body_text });
+                                                if (selectedTemplate.footer_text) components.push({ type: 'FOOTER', text: selectedTemplate.footer_text });
+                                                if (selectedTemplate.buttons) components.push({ type: 'BUTTONS', buttons: selectedTemplate.buttons.buttons || selectedTemplate.buttons });
+                                            }
+
+                                            return (
+                                                <>
+                                                    {/* Dynamic Header Preview */}
+                                                    {components.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase())) && (
+                                                        <div className="aspect-video bg-slate-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden border border-slate-200">
+                                                            {headerFile ? (
+                                                                headerFile.type.startsWith('image/') ? (
+                                                                    <img src={URL.createObjectURL(headerFile)} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <div className="flex flex-col items-center gap-2">
+                                                                        {headerFile.type.startsWith('video/') ? <VideoFileIcon className="w-8 h-8 text-brand-500" /> : <DocumentFileIcon className="w-8 h-8 text-red-500" />}
+                                                                        <span className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">{headerFile.name}</span>
+                                                                    </div>
+                                                                )
+                                                            ) : (
+                                                                <div className="flex flex-col items-center gap-1 opacity-40">
+                                                                    {components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format?.toUpperCase() === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
+                                                                     components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format?.toUpperCase() === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
+                                                                     <DocumentFileIcon className="w-8 h-8" />}
+                                                                    <span className="text-[10px] font-bold">HEADER {components.find(c => (c.type || '').toUpperCase() === 'HEADER')?.format}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {/* Carousel Preview */}
+                                                    {components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL') && (
+                                                        <div className="flex gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar-horizontal mb-2 snap-x">
+                                                            {(components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL')?.cards || []).map((card: any, cIdx: number) => (
+                                                                <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-slate-50 border border-slate-200 rounded-xl overflow-hidden shadow-sm snap-start">
+                                                                    <div className="aspect-square bg-slate-200 flex items-center justify-center">
+                                                                        <ImageFileIcon className="w-8 h-8 text-slate-400" />
+                                                                    </div>
+                                                                    <div className="p-2 space-y-1">
+                                                                        {(card.components || []).map((cc: any, ccIdx: number) => {
+                                                                            const type = cc.type.toUpperCase();
+                                                                            if (type === 'HEADER' && cc.format === 'TEXT') {
+                                                                                let text = String(cc.text || '');
+                                                                                const matches = text.match(/\{\{\d+\}\}/g);
+                                                                                if (matches) {
+                                                                                    matches.forEach((m: string) => {
+                                                                                        const num = m.replace(/[{}]/g, '');
+                                                                                        text = text.replace(m, variables[`CARD_${cIdx + 1}_HEADER_${num}`] || `[V${num}]`);
+                                                                                    });
+                                                                                }
+                                                                                return <div key={ccIdx} className="text-[11px] font-bold truncate leading-tight text-slate-800">{text}</div>;
+                                                                            }
+                                                                            if (type === 'BODY') {
+                                                                                let text = String(cc.text || '');
+                                                                                const matches = text.match(/\{\{\d+\}\}/g);
+                                                                                if (matches) {
+                                                                                    matches.forEach((m: string) => {
+                                                                                        const num = m.replace(/[{}]/g, '');
+                                                                                        text = text.replace(m, variables[`CARD_${cIdx + 1}_BODY_${num}`] || `[V${num}]`);
+                                                                                    });
+                                                                                }
+                                                                                return <div key={ccIdx} className="text-[10px] text-slate-600 line-clamp-2 leading-snug">{text}</div>;
+                                                                            }
+                                                                            return null;
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {components.map((comp, idx) => {
+                                                        const type = (comp.type || '').toUpperCase();
+                                                        const format = (comp.format || '').toUpperCase();
+
+                                                        if (type === 'HEADER' && format === 'TEXT') {
+                                                            let text = String(comp.text || '');
+                                                            const matches = text.match(/\{\{\d+\}\}/g);
+                                                            if (matches) {
+                                                                matches.forEach((match: string) => {
+                                                                    const num = match.replace(/[{}]/g, '');
+                                                                    text = text.replace(match, variables[`HEADER_${num}`] || `[Variable ${num}]`);
+                                                                });
+                                                            }
+                                                            return <h4 key={idx} className="font-bold text-slate-800 mb-2">{text}</h4>;
+                                                        }
+                                                        if (type === 'BODY') {
+                                                            let text = String(comp.text || '');
+                                                            const matches = text.match(/\{\{\d+\}\}/g);
+                                                            if (matches) {
+                                                                matches.forEach((match: string) => {
+                                                                    const num = match.replace(/[{}]/g, '');
+                                                                    text = text.replace(match, variables[`BODY_${num}`] || `[Variable ${num}]`);
+                                                                });
+                                                            }
+                                                            return <p key={idx} className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
+                                                        }
+                                                        if (type === 'FOOTER') {
+                                                            return <p key={idx} className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">{String(comp.text || '')}</p>;
+                                                        }
+                                                        if (type === 'BUTTONS' && Array.isArray(comp.buttons)) {
+                                                            return (
+                                                                <div key={idx} className="mt-5 space-y-2 border-t border-slate-100 -mx-4 pt-1">
+                                                                    {comp.buttons.map((btn: any, bIdx: number) => (
+                                                                        <div key={bIdx} className="w-full py-2.5 text-center text-brand-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-default">
+                                                                            {btn.text}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })}
+                                                </>
+                                            );
+                                        })()}
                                         
-                                        {selectedTemplate.components.map((comp, idx) => {
-                                            if (comp.type === 'HEADER' && comp.format === 'TEXT') {
-                                                let text = comp.text;
-                                                const matches = text.match(/\{\{\d+\}\}/g);
-                                                if (matches) {
-                                                    matches.forEach((match: string) => {
-                                                        const num = match.replace(/[{}]/g, '');
-                                                        text = text.replace(match, variables[HEADER_] || [Variable ]);
-                                                    });
-                                                }
-                                                return <h4 key={idx} className="font-bold text-slate-800 mb-2">{text}</h4>;
-                                            }
-                                            if (comp.type === 'BODY') {
-                                                let text = comp.text;
-                                                const matches = text.match(/\{\{\d+\}\}/g);
-                                                if (matches) {
-                                                    matches.forEach((match: string) => {
-                                                        const num = match.replace(/[{}]/g, '');
-                                                        text = text.replace(match, variables[BODY_] || [Variable ]);
-                                                    });
-                                                }
-                                                return <p key={idx} className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
-                                            }
-                                            if (comp.type === 'FOOTER') {
-                                                return <p key={idx} className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">{comp.text}</p>;
-                                            }
-                                            return null;
-                                        })}
-                                        <div className="absolute bottom-1 right-2">
-                                            <span className="text-[9px] text-slate-300">12:00 PM</span>
+                                        <div className="absolute bottom-1.5 right-3">
+                                            <span className="text-[10px] text-slate-300 font-medium tracking-tighter">12:00 PM</span>
                                         </div>
                                     </div>
                                 </div>
-
+ 
                                 {/* Variable Inputs */}
                                 <div className="space-y-4">
                                     <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -271,7 +451,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                     
                                     <div className="grid grid-cols-1 gap-4">
                                         {/* Media Selector */}
-                                        {selectedTemplate.components.find(c => c.type === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(c.format)) && (
+                                        {Array.isArray(selectedTemplate?.components) && selectedTemplate.components.find(c => (c.type || '').toUpperCase() === 'HEADER' && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes((c.format || '').toUpperCase())) && (
                                             <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300">
                                                 <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Header Media</label>
                                                 <input
@@ -294,19 +474,29 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                         )}
 
                                         {Object.keys(variables).sort((a, b) => {
-                                            const typeA = a.split('_')[0];
-                                            const typeB = b.split('_')[0];
-                                            if (typeA !== typeB) return typeA === 'HEADER' ? -1 : 1;
-                                            return parseInt(a.split('_')[1]) - parseInt(b.split('_')[1]);
+                                            const partsA = a.split('_');
+                                            const partsB = b.split('_');
+                                            
+                                            // Handle CARD_X format
+                                            if (partsA[0] === 'CARD' && partsB[0] === 'CARD') {
+                                                if (partsA[1] !== partsB[1]) return parseInt(partsA[1]) - parseInt(partsB[1]);
+                                                return (partsA[2] === 'HEADER' ? -1 : 1);
+                                            }
+                                            if (partsA[0] === 'CARD') return 1;
+                                            if (partsB[0] === 'CARD') return -1;
+
+                                            const typeOrder: Record<string, number> = { 'HEADER': 1, 'BODY': 2, 'FOOTER': 3 };
+                                            if (partsA[0] !== partsB[0]) return (typeOrder[partsA[0]] || 99) - (typeOrder[partsB[0]] || 99);
+                                            return parseInt(partsA[1] || '0') - parseInt(partsB[1] || '0');
                                         }).map(key => (
                                             <div key={key}>
                                                 <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1 tracking-widest">
-                                                    {key.replace('_', ' ')}
+                                                    {key.replace(/_/g, ' ')}
                                                 </label>
                                                 <input
                                                     type="text"
                                                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
-                                                    placeholder={Enter value for }
+                                                    placeholder={`Enter value for ${key.replace(/_/g, ' ')}`}
                                                     value={variables[key]}
                                                     onChange={(e) => handleVariableChange(key, e.target.value)}
                                                 />
@@ -336,8 +526,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                             <button
                                 onClick={handleSend}
                                 disabled={!selectedTemplate || uploading}
-                                className={px-8 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2
-                                    }
+                                className={`px-8 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all flex items-center gap-2 ${!selectedTemplate || uploading ? 'bg-slate-300 cursor-not-allowed' : 'bg-brand-500 hover:bg-brand-600 active:scale-95'}`}
                             >
                                 {uploading ? (
                                     <>
