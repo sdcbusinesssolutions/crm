@@ -849,6 +849,26 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                     <TrashIcon className="w-4 h-4 mr-2" /> 
                                     Wipe Entire CRM ({contacts.length})
                                 </button>
+
+                                <div className="h-px bg-slate-100 my-1"></div>
+
+                                {/* Copy Numbers (New) */}
+                                <button 
+                                    onClick={() => {
+                                        const numbers = Array.from(new Set(filteredContacts.map(c => c.phone).filter(Boolean)));
+                                        if (numbers.length === 0) {
+                                            setToast({ type: 'warning', title: 'No Numbers', message: 'No phone numbers found in the current filter.' });
+                                            return;
+                                        }
+                                        navigator.clipboard.writeText(numbers.join(', '));
+                                        setToast({ type: 'success', title: 'Copied!', message: `${numbers.length} unique numbers copied to clipboard.` });
+                                        setIsBulkDropdownOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2.5 text-sm text-brand-600 hover:bg-brand-50 font-bold flex items-center transition-colors"
+                                >
+                                    <PhoneIcon className="w-4 h-4 mr-2" /> 
+                                    Copy Filtered Numbers ({Array.from(new Set(filteredContacts.map(c => c.phone).filter(Boolean))).length})
+                                </button>
                             </div>
                         )}
                     </div>
