@@ -777,6 +777,25 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
         // We need the system App ID for the record (DOMAIN AWARE)
         const sysSettings = await MetaOnboardingService.getSystemSettings(domain);
 
+        // 7.5 Exchange for Long-Lived Token (Critical for preventing 1-hour expiration)
+        let longLivedToken = accessToken;
+        try {
+            if (sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+                console.log('[Embedded Signup] Extending access token for 60-day longevity...');
+                const extended = await MetaOnboardingService.extendAccessToken(
+                    accessToken,
+                    sysSettings.embedded_app_id,
+                    sysSettings.embedded_app_secret
+                );
+                if (extended && extended.access_token) {
+                    longLivedToken = extended.access_token;
+                    console.log('[Embedded Signup] Token extended successfully.');
+                }
+            }
+        } catch (extendErr) {
+            console.warn('[Embedded Signup] Token extension failed (non-fatal):', extendErr.message);
+        }
+
         const { data, error } = await supabase
             .from('whatsapp_config')
             .insert({
@@ -786,7 +805,7 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
                 phone_number_id: phone_number_id,
                 whatsapp_business_account_id: waba_id,
                 meta_app_id: sysSettings.embedded_app_id,
-                meta_access_token: accessToken,
+                meta_access_token: longLivedToken,
                 verify_token: verifyToken
             })
             .select()
