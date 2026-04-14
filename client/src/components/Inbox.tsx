@@ -497,9 +497,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
         isSendingRef.current = true;
         try {
+            const { text, ...metaPayload } = templatePayload;
             const sentMsg = await inboxService.sendMessage(activeChatId, { 
                 type: 'template', 
-                template: templatePayload 
+                template: metaPayload,
+                text: text
             });
             if (sentMsg) {
                 setMessages(prev => {

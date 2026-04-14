@@ -325,10 +325,26 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                 }
             }
 
+            // 4. Construct Preview Text for UI (fallback for chat bubbles)
+            const bodyComp = normalizedComps.find(c => (c.type || '').toUpperCase() === 'BODY');
+            let previewText = bodyComp?.text || '';
+            if (!previewText && selectedTemplate.name) {
+                previewText = `Template: ${selectedTemplate.name}`;
+            } else if (previewText) {
+                const matches = previewText.match(/\{\{\d+\}\}/g);
+                if (matches) {
+                    matches.forEach(m => {
+                        const num = m.replace(/[{}]/g, '');
+                        previewText = previewText.replace(m, variables[num] || variables[`BODY_${num}`] || m);
+                    });
+                }
+            }
+
             const templatePayload = {
                 name: selectedTemplate.name,
                 language: { code: selectedTemplate.language },
-                components: payloadComp
+                components: payloadComp,
+                text: previewText // Added for display preview
             };
 
             onSend(templatePayload);
