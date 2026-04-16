@@ -21,12 +21,26 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
     try {
         const rpcClient = supabaseAdmin || supabase;
 
+        // A. Identify User ID by Phone ID for logging (to support Capture Response UI)
+        let loggingUserId = null;
+        try {
+            const { data: config } = await rpcClient
+                .from('whatsapp_config')
+                .select('user_id')
+                .eq('phone_number_id', phoneNumberId)
+                .maybeSingle();
+            if (config) loggingUserId = config.user_id;
+        } catch (e) {
+            console.error('[IncomingWebhook] Error looking up logging user:', e);
+        }
+
         // 0. Log the incoming webhook immediately for debugging/capture
         // ONLY log if it is explicitly a debug request OR if global status logging is ON.
         // We keep it on for 'flow_trigger' message type to support the 'Capture Response' UI.
         try {
             if (process.env.ENABLE_STATUS_LOGGING === 'true' || req.query.debug === 'true' || true) { // Defaulting 'true' for now to protect UI
                 await rpcClient.rpc('log_webhook_event', {
+                    p_user_id: loggingUserId, // <-- REQUIRED FIX
                     p_phone_number_id: phoneNumberId,
                     p_webhook_id: webhookId,
                     p_http_method: 'POST',
@@ -59,6 +73,7 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
         let session = null;
         let flow = null;
         let currentNode = null;
+        let isResumed = false;
 
         if (sessions && sessions.length > 0) {
             // --- SCENARIO A: RESUME EXISTING SESSION ---
@@ -70,14 +85,20 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
             if (flowError || !flowData || flowData.length === 0) return res.status(500).json({ error: 'Flow definition not found.' });
             flow = flowData[0];
             currentNode = flow.nodes.find(n => n.id === session.current_node_id);
+            isResumed = true;
 
             // Verify Webhook ID match
             if (currentNode?.data?.webhookId !== webhookId) {
-                console.warn(`[IncomingWebhook] Mismatch: Session at ${currentNode?.id} (Webhook: ${currentNode?.data?.webhookId}), req: ${webhookId}`);
-                return res.status(409).json({ error: 'User is in a different flow step.' });
+                console.log(`[IncomingWebhook] Mismatch: Session ${session.id} is at ${currentNode?.id} (Webhook: ${currentNode?.data?.webhookId}), but request is for ${webhookId}. Treating as a fresh trigger.`);
+                session = null; 
+                flow = null;
+                currentNode = null;
+                isResumed = false;
             }
 
-        } else {
+        }
+        
+        if (!session) {
             // --- SCENARIO B: START NEW SESSION (TRIGGER) ---
             console.log(`[IncomingWebhook] No active session. Attempting to trigger new flow for ${webhookId}`);
 
@@ -197,7 +218,7 @@ router.post('/:phoneNumberId/:webhookId/webhook', async (req, res) => {
         // --- COMMON: EXECUTE NEXT STEP ---
 
         // If we resumed, we need to update variables with the payload
-        if (sessions && sessions.length > 0) {
+        if (isResumed && session) {
             const context = session.variables || {};
             // Flatten payload for resumed session
             const flattenedPayload = flattenObject(payload);

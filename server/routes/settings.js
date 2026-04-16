@@ -85,6 +85,29 @@ router.post('/whatsapp', async (req, res) => {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
+        // --- FIX: Exchange for Long-Lived Token (Prevent 1-hour expiration) ---
+        let longLivedToken = meta_access_token;
+        try {
+            const MetaOnboardingService = require('../services/MetaOnboardingService');
+            const targetDomain = getTargetDomain(req);
+            const sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
+            
+            if (sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+                console.log('[Settings] Attempting to extend manual token...');
+                const extended = await MetaOnboardingService.extendAccessToken(
+                    meta_access_token,
+                    sysSettings.embedded_app_id,
+                    sysSettings.embedded_app_secret
+                );
+                if (extended && extended.access_token) {
+                    longLivedToken = extended.access_token;
+                    console.log('[Settings] Token extended successfully.');
+                }
+            }
+        } catch (extendErr) {
+            console.warn('[Settings] Token extension failed (using original):', extendErr.message);
+        }
+
         // Insert new account
         const { data, error } = await supabase
             .from('whatsapp_config')
@@ -95,7 +118,7 @@ router.post('/whatsapp', async (req, res) => {
                 phone_number_id,
                 whatsapp_business_account_id,
                 meta_app_id,
-                meta_access_token
+                meta_access_token: longLivedToken
             })
             .select()
             .single();
@@ -128,6 +151,28 @@ router.put('/whatsapp/:id', async (req, res) => {
             return res.status(400).json({ error: 'All fields are required' });
         }
 
+        // --- FIX: Exchange for Long-Lived Token (Prevent 1-hour expiration) ---
+        let longLivedToken = meta_access_token;
+        try {
+            const MetaOnboardingService = require('../services/MetaOnboardingService');
+            const targetDomain = getTargetDomain(req);
+            const sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
+            
+            if (sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+                console.log('[Settings] Attempting to extend manual token update...');
+                const extended = await MetaOnboardingService.extendAccessToken(
+                    meta_access_token,
+                    sysSettings.embedded_app_id,
+                    sysSettings.embedded_app_secret
+                );
+                if (extended && extended.access_token) {
+                    longLivedToken = extended.access_token;
+                }
+            }
+        } catch (extendErr) {
+            console.warn('[Settings] Token extension failed:', extendErr.message);
+        }
+
         const { data, error } = await supabase
             .from('whatsapp_config')
             .update({
@@ -136,11 +181,11 @@ router.put('/whatsapp/:id', async (req, res) => {
                 phone_number_id,
                 whatsapp_business_account_id,
                 meta_app_id,
-                meta_access_token,
+                meta_access_token: longLivedToken,
                 updated_at: new Date().toISOString()
             })
             .eq('id', accountId)
-            .eq('user_id', userId) // Ensure ownership
+            .eq('user_id', userId)
             .select()
             .single();
 

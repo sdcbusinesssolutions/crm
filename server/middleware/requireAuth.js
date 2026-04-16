@@ -32,9 +32,13 @@ const requireAuth = async (req, res, next) => {
                 .eq('api_key', apiKey)
                 .maybeSingle();
 
-            if (!securityError && security && security.user_id) {
+            if (securityError) {
+                console.error('API Key Lookup Error:', securityError);
+                return res.status(401).json({ error: 'Unauthorized', message: 'API validation service error.' });
+            }
+
+            if (security && security.user_id) {
                 // Fetch full user record to be consistent with auth.getUser
-                // Using supabaseAdmin to ensure we can get the user even if RLS is tight on auth schema
                 const { data: userData, error: userError } = await supabaseAdmin
                     .from('profiles')
                     .select('*')
@@ -44,11 +48,12 @@ const requireAuth = async (req, res, next) => {
                 if (!userError && userData) {
                     req.user = { id: security.user_id, ...userData };
                     return next();
+                } else {
+                    return res.status(401).json({ error: 'Unauthorized', message: 'User profile not found for this API Key.' });
                 }
+            } else {
+                return res.status(401).json({ error: 'Unauthorized', message: 'Invalid API Key.' });
             }
-            
-            // If API key was provided but failed, we continue to check Bearer token 
-            // but might eventually return 401.
         }
 
         // 2. Check for Bearer Token (Short-lived Supabase JWT)
