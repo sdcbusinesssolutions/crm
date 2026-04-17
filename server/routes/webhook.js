@@ -919,7 +919,19 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                                         updated_at: new Date().toISOString()
                                                     })
                                                     .eq('whatsapp_message_id', waMessageId);
-                                                console.log(`[Auto-Heal] Row healed & updated with new WAMID: ${healedWaMessageId}`);
+
+                                                // Update campaign queue as well
+                                                await supabaseAdmin
+                                                    .from('campaign_queue')
+                                                    .update({
+                                                        message_id: healedWaMessageId,
+                                                        status: 'SENT',
+                                                        updated_at: new Date().toISOString(),
+                                                        error_message: null
+                                                    })
+                                                    .eq('message_id', waMessageId);
+
+                                                console.log(`[Auto-Heal] Row & Queue healed and updated with new WAMID: ${healedWaMessageId}`);
                                             }
                                         } catch (uploadOrSendErr) {
                                             console.error(`[Auto-Heal] Critical recovery failure:`, uploadOrSendErr.message);

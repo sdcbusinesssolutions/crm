@@ -26,6 +26,11 @@ const RATE_LIMIT_DELAY_MS = 200; // 200ms between chunks = ~5 msg/sec (safe for 
 const TEMPLATE_CACHE = new Map();
 const TEMPLATE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// --- Healed Media Cache (Optimization for Campaigns) ---
+// Key: campaignId, Value: mediaId
+// Prevents re-transcoding same video for every recipient in a batch
+const HEALED_MEDIA_CACHE = new Map();
+
 // --- Rate Limit State (per-WABA, SHARED ACROSS ALL CONTAINERS via Supabase DB) ---
 // 
 // ⚠️ PROBLEM with in-memory Map: Each Docker container has its OWN RATE_LIMIT_MAP.
@@ -461,6 +466,79 @@ class CampaignWorker {
             return;
         }
 
+        // --- PROACTIVE MEDIA HEALING (2026-04-17) ---
+        // We proactively transcode and upload media to Meta to ensure 100% video playback compatibility.
+        // This prevents the "Something is wrong with the video file" error on WhatsApp.
+        let proactivelyHealedMediaId = null;
+        if (campaign.media_url && !campaign.location_header) {
+            proactivelyHealedMediaId = HEALED_MEDIA_CACHE.get(campaign.id);
+            
+            if (!proactivelyHealedMediaId) {
+                console.log(`[Proactive-Heal] Starting proactive media prep for campaign ${campaign.id}...`);
+                try {
+                    const mType = campaign.media_type?.toLowerCase() || 'video';
+                    
+                    // 1. Download raw file
+                    const dlRes = await axios.get(campaign.media_url.trim(), {
+                        responseType: 'arraybuffer',
+                        maxBodyLength: Infinity,
+                        maxContentLength: Infinity
+                    });
+                    const rawBuffer = Buffer.from(dlRes.data);
+                    
+                    let finalBuffer = rawBuffer;
+                    let ext = campaign.media_url.split(/[#?]/)[0].split('.').pop().trim().toLowerCase();
+                    
+                    let finalMime = 'application/pdf';
+                    if (mType === 'image') finalMime = 'image/jpeg';
+                    else if (mType === 'video') finalMime = 'video/mp4';
+                    else {
+                        const mimeMap = {
+                            'pdf': 'application/pdf',
+                            'doc': 'application/msword',
+                            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                            'xls': 'application/vnd.ms-excel',
+                            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                            'ppt': 'application/vnd.ms-powerpoint',
+                            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                            'txt': 'text/plain',
+                            'csv': 'text/csv'
+                        };
+                        finalMime = mimeMap[ext] || 'application/pdf';
+                    }
+
+                    let finalFilename = `campaign_${Date.now()}.${ext || (mType === 'video' ? 'mp4' : (mType === 'image' ? 'jpg' : 'pdf'))}`;
+
+                    // 2. Transcode if Video
+                    if (mType === 'video') {
+                        const { transcodeToWhatsAppVideo } = require('../utils/videoTranscoder');
+                        try {
+                            finalBuffer = await transcodeToWhatsAppVideo(rawBuffer);
+                            finalMime = 'video/mp4';
+                            finalFilename = 'native_fixed_video.mp4';
+                            console.log('[Proactive-Heal] Video transcoded to H.264/AAC successfully.');
+                        } catch (tErr) {
+                            console.warn('[Proactive-Heal] Transcode failed, will attempt raw upload fallback:', tErr.message);
+                        }
+                    }
+
+                    // 3. Upload to Meta
+                    proactivelyHealedMediaId = await whatsappService.uploadMediaToWhatsApp(
+                        campaign.user_id,
+                        finalBuffer,
+                        finalMime,
+                        finalFilename
+                    );
+
+                    HEALED_MEDIA_CACHE.set(campaign.id, proactivelyHealedMediaId);
+                    console.log(`[Proactive-Heal] Media ready! ID: ${proactivelyHealedMediaId}. All messages in this batch will use this ID.`);
+                } catch (pErr) {
+                    console.error('[Proactive-Heal] Critical failure in proactive prep:', pErr.message);
+                    // Fall back to link-based delivery (original behavior)
+                }
+            }
+        }
+
         // Template vars
         let templateDef = null;
         let localButtons = null;
@@ -724,7 +802,7 @@ class CampaignWorker {
             console.log(`[Worker] Processing chunk of ${chunk.length} items...`);
             const promises = chunk.map(item => {
                 console.log(`[Worker] Calling sendMessage for ${item.phone_number}`);
-                return this.sendMessage(item, campaign, config, templateDef);
+                return this.sendMessage(item, campaign, config, templateDef, proactivelyHealedMediaId);
             });
             await Promise.all(promises);
             await sleep(RATE_LIMIT_DELAY_MS * chunk.length);
@@ -734,8 +812,8 @@ class CampaignWorker {
         triggerGC('batch complete');
     }
 
-    async sendMessage(item, campaign, config, templateDef) {
-        console.log(`[Worker] Inside sendMessage() for ${item.phone_number}`);
+    async sendMessage(item, campaign, config, templateDef, healedMediaId = null) {
+        console.log(`[Worker] Inside sendMessage() for ${item.phone_number} (Healed Media: ${!!healedMediaId})`);
         try {
             const components = [];
             const bodyParams = [];
@@ -744,23 +822,28 @@ class CampaignWorker {
             // Robust finding of Header Component (Case-insensitive)
             const headerDef = templateDef?.components?.find(c => c.type?.toUpperCase() === 'HEADER');
 
-            if (campaign.media_url && campaign.media_type) {
+            if ((campaign.media_url || healedMediaId) && campaign.media_type) {
                 // Formatting Check:
                 // 1. We must have a header definition in the template.
                 // 2. The header format must match the media type (Case Insensitive).
                 const mediaType = campaign.media_type.toUpperCase();
 
                 if (headerDef && headerDef.format?.toUpperCase() === mediaType) {
+                    const mediaParam = {
+                        type: campaign.media_type.toLowerCase(),
+                        [campaign.media_type.toLowerCase()]: {}
+                    };
+
+                    // PRIORITIZE HEALED MEDIA ID (Optimized & Pre-transcoded)
+                    if (healedMediaId) {
+                        mediaParam[campaign.media_type.toLowerCase()].id = healedMediaId;
+                    } else {
+                        mediaParam[campaign.media_type.toLowerCase()].link = campaign.media_url.trim();
+                    }
+
                     components.push({
                         type: "header",
-                        parameters: [
-                            {
-                                type: campaign.media_type.toLowerCase(),
-                                [campaign.media_type.toLowerCase()]: {
-                                    link: campaign.media_url.trim()
-                                }
-                            }
-                        ]
+                        parameters: [mediaParam]
                     });
                 } else if (headerDef) {
                     console.warn(`[Worker] Header Mismatch or Skip. Template expects ${headerDef.format}, got ${mediaType}`);
@@ -1338,6 +1421,125 @@ class CampaignWorker {
             const errorMsg = errorData.message || error.message;
             const errorCode = errorData.code;
             const errorSubcode = errorData.error_subcode;
+
+            // =========================================================================
+            // 🚨 UNIVERSAL CAMPAIGN AUTO-HEALING ENGINE (FIX: 2026-04-17) 🚨
+            // =========================================================================
+            // If Meta synchronously rejects a video due to codec issues (Code 131053),
+            // we catch it here, transcode it to flawless H.264/AAC, and RESEND it!
+            if (errorCode === 131053 || errorCode === 131052) {
+                console.warn(`[Auto-Heal] Detected media upload error 131053 for ${item.phone_number}. Attempting recovery...`);
+                
+                if (campaign.media_url) {
+                    try {
+                        const mType = campaign.media_type?.toLowerCase() || 'video';
+                        let mediaId = HEALED_MEDIA_CACHE.get(campaign.id);
+
+                        if (!mediaId) {
+                            console.log(`[Auto-Heal] No cached Media ID for campaign ${campaign.id}. Generating fresh one...`);
+                            
+                            // 1. Download raw file
+                            const dlResponse = await axios.get(campaign.media_url.trim(), {
+                                responseType: 'arraybuffer',
+                                maxBodyLength: Infinity,
+                                maxContentLength: Infinity
+                            });
+                            let rawBuffer = Buffer.from(dlResponse.data);
+                            console.log(`[Auto-Heal] Downloaded ${rawBuffer.length} bytes from URL.`);
+
+                            let finalBuffer = rawBuffer;
+                            let finalMime = mType === 'image' ? 'image/jpeg' : (mType === 'video' ? 'video/mp4' : 'application/pdf');
+                            let finalFilename = `recovered_${Date.now()}.${mType === 'video' ? 'mp4' : (mType === 'image' ? 'jpg' : 'pdf')}`;
+
+                            // 2. Transcode if Video
+                            if (mType === 'video') {
+                                console.log('[Auto-Heal] Performing high-speed H.264 Transcode...');
+                                const { transcodeToWhatsAppVideo } = require('../utils/videoTranscoder');
+                                try {
+                                    finalBuffer = await transcodeToWhatsAppVideo(rawBuffer);
+                                    finalMime = 'video/mp4';
+                                    finalFilename = 'auto_fixed_campaign_video.mp4';
+                                    console.log('[Auto-Heal] Transcode successful.');
+                                } catch (transErr) {
+                                    console.error('[Auto-Heal] Transcode failed. Cannot recover.', transErr.message);
+                                    throw transErr;
+                                }
+                            }
+
+                            // 3. Upload to Meta
+                            mediaId = await whatsappService.uploadMediaToWhatsApp(
+                                campaign.user_id,
+                                finalBuffer,
+                                finalMime,
+                                finalFilename
+                            );
+                            
+                            // 4. Cache for other items in this batch/campaign
+                            HEALED_MEDIA_CACHE.set(campaign.id, mediaId);
+                            console.log(`[Auto-Heal] Cached Media ID ${mediaId} for Campaign ${campaign.id}`);
+                        } else {
+                            console.log(`[Auto-Heal] Reusing cached Media ID ${mediaId} for campaign ${campaign.id}`);
+                        }
+
+                        // 5. Build HEALED Payload (Swap link -> id)
+                        const healedComponents = JSON.parse(JSON.stringify(components));
+                        const hComp = healedComponents.find(c => c.type?.toLowerCase() === 'header');
+                        if (hComp && hComp.parameters) {
+                            const pType = mType === 'video' ? 'video' : 'image';
+                            const mParam = hComp.parameters.find(p => p.type === pType);
+                            if (mParam && mParam[pType]) {
+                                delete mParam[pType].link;
+                                mParam[pType].id = mediaId;
+                            }
+                        }
+
+                        const healedPayload = {
+                            ...payload,
+                            template: {
+                                ...payload.template,
+                                components: healedComponents
+                            }
+                        };
+
+                        // 6. Resend
+                        console.log(`[Auto-Heal] Resending healed payload to ${item.phone_number}...`);
+                        const retryResponse = await axios.post(url, healedPayload, {
+                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                            httpsAgent: httpsAgent
+                        });
+
+                        // 7. Success! Update DB and Log normally
+                        const newWaId = retryResponse.data.messages[0].id;
+                        await this.supabase.from('campaign_queue').update({
+                            status: 'SENT',
+                            message_id: newWaId,
+                            sent_at: new Date().toISOString(),
+                            error_message: null
+                        }).eq('id', item.id);
+
+                        await this.supabase.rpc('increment_campaign_success', { row_id: campaign.id });
+
+                        // Log to Inbox
+                        try {
+                            await whatsappService.logOutboundMessage(
+                                campaign.user_id,
+                                item.phone_number,
+                                'template',
+                                { ...healedPayload.template, _rendered_body: 'Recovered Video Message' },
+                                'sent',
+                                newWaId
+                            );
+                        } catch (e) { }
+
+                        console.log(`[Auto-Heal] ✅ Recovery SUCCESS for ${item.phone_number}`);
+                        return; // Exit sendMessage gracefully
+
+                    } catch (healErr) {
+                        console.error(`[Auto-Heal] 🚨 Recovery CRITICAL FAILURE for ${item.phone_number}:`, healErr.message);
+                        // Fall through to default error handling (marked as FAILED)
+                    }
+                }
+            }
 
             // LOG ERROR RESPONSE
             try {
