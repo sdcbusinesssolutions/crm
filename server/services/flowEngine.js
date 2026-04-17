@@ -340,6 +340,7 @@ class FlowEngine {
 
             // TRIGGER TYPING INDICATOR
             if (this._currentWaMessageId) {
+                console.log(`[FlowEngine] Keyword Match Found ('${messageText}'). Sending Typing Indicator/Read Status.`);
                 whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
             }
 
@@ -357,6 +358,7 @@ class FlowEngine {
 
             // TRIGGER TYPING INDICATOR
             if (this._currentWaMessageId) {
+                console.log(`[FlowEngine] Active Session Found (${session[0].id}). Sending Typing Indicator/Read Status.`);
                 whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
             }
 
@@ -384,6 +386,7 @@ class FlowEngine {
 
             // TRIGGER TYPING INDICATOR
             if (this._currentWaMessageId) {
+                console.log(`[FlowEngine] Default/Wildcard Flow Found. Sending Typing Indicator/Read Status.`);
                 whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
             }
 
