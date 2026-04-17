@@ -338,11 +338,10 @@ class FlowEngine {
             // TODO: Ideally, we should mark any existing 'waiting_input' sessions for this phone as 'aborted' 
             // to avoid ghost sessions, but for now, starting a new one works.
 
-            // TRIGGER TYPING INDICATOR
-            if (this._currentWaMessageId) {
-                console.log(`[FlowEngine] Keyword Match Found ('${messageText}'). Sending Typing Indicator/Read Status.`);
-                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
-            }
+            console.log(`[FlowEngine] Triggering Flow: ${flow.name} (${flow.id})`);
+
+            // TODO: Ideally, we should mark any existing 'waiting_input' sessions for this phone as 'aborted' 
+            // to avoid ghost sessions, but for now, starting a new one works.
 
             return this.startFlow(userId, contactPhone, flow, messageInput);
         }
@@ -356,11 +355,7 @@ class FlowEngine {
         if (session && session.length > 0) {
             console.log(`[FlowEngine] Found active session: ${session[0].id}`);
 
-            // TRIGGER TYPING INDICATOR
-            if (this._currentWaMessageId) {
-                console.log(`[FlowEngine] Active Session Found (${session[0].id}). Sending Typing Indicator/Read Status.`);
-                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
-            }
+            console.log(`[FlowEngine] Found active session: ${session[0].id}`);
 
             return this.continueFlow(session[0], messageInput, interactionId);
         }
@@ -383,12 +378,6 @@ class FlowEngine {
 
         if (wildcardFlows && wildcardFlows.length > 0) {
             console.log(`[FlowEngine] Triggering Wildcard/Default Flow: ${wildcardFlows[0].name}`);
-
-            // TRIGGER TYPING INDICATOR
-            if (this._currentWaMessageId) {
-                console.log(`[FlowEngine] Default/Wildcard Flow Found. Sending Typing Indicator/Read Status.`);
-                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
-            }
 
             return this.startFlow(userId, contactPhone, wildcardFlows[0], messageInput);
         }
@@ -525,6 +514,12 @@ class FlowEngine {
      * Start a new flow session
      */
     async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null) {
+        // TRIGGER TYPING INDICATOR (Confirmation that we are handling this flow)
+        if (this._currentWaMessageId) {
+            console.log(`[FlowEngine] Bot starting flow '${flow.name}'. Sending Typing Indicator/Read Status.`);
+            const whatsappService = require('./whatsappService');
+            whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
+        }
         console.log(`[FlowEngine] Starting Flow: ${flow.name}`);
 
         // Normalize Input: If object, extract string for keyword matching
@@ -846,6 +841,13 @@ class FlowEngine {
                     interactionId = recognizedInteractionId;
                 }
             }
+        }
+
+        // TRIGGER TYPING INDICATOR (Confirmation that the input is valid and we are processing the next step)
+        if (this._currentWaMessageId) {
+            console.log(`[FlowEngine] Input validated for session ${session.id}. Sending Typing Indicator/Read Status.`);
+            const whatsappService = require('./whatsappService');
+            whatsappService.sendTypingIndicator(session.user_id, session.contact_phone, this._currentWaMessageId).catch(() => {});
         }
 
         const executor = EXECUTORS[node ? node.type : null];
