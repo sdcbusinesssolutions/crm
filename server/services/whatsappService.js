@@ -500,6 +500,7 @@ class WhatsAppService {
         */
     async sendTypingIndicator(userId, to, messageId) {
         if (!messageId) return false;
+        console.log(`[WhatsAppService DEBUG] Typing Indicator/Read Status requested for message: ${messageId} (Recipient: ${to})`);
         try {
             const config = await this.getConfig(userId);
             const fromPhoneId = config.phone_number_id;
