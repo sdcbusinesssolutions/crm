@@ -1,6 +1,7 @@
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 const contextManager = require('./flow/context');
 const { logFlowEvent } = require('../utils/logger');
+const whatsappService = require('./whatsappService');
 
 // Import Executors
 const textMessageExecutor = require('./flow/executors/textMessage');
@@ -302,7 +303,9 @@ class FlowEngine {
     /**
      * Main Entry Point: Process an incoming message
      */
-    async processMessage(userId, contactPhone, messageInput, messageType = 'text', interactionId = null) {
+    async processMessage(userId, contactPhone, messageInput, messageType = 'text', interactionId = null, waMessageId = null) {
+        // Store waMessageId in the class for use in startFlow/continueFlow during this execution cycle
+        this._currentWaMessageId = waMessageId;
         // messageInput can be a string OR an object (for interactives)
         let messageText = '';
         if (typeof messageInput === 'string') {
@@ -335,6 +338,11 @@ class FlowEngine {
             // TODO: Ideally, we should mark any existing 'waiting_input' sessions for this phone as 'aborted' 
             // to avoid ghost sessions, but for now, starting a new one works.
 
+            // TRIGGER TYPING INDICATOR
+            if (this._currentWaMessageId) {
+                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
+            }
+
             return this.startFlow(userId, contactPhone, flow, messageInput);
         }
 
@@ -346,6 +354,12 @@ class FlowEngine {
 
         if (session && session.length > 0) {
             console.log(`[FlowEngine] Found active session: ${session[0].id}`);
+
+            // TRIGGER TYPING INDICATOR
+            if (this._currentWaMessageId) {
+                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
+            }
+
             return this.continueFlow(session[0], messageInput, interactionId);
         }
 
@@ -367,6 +381,12 @@ class FlowEngine {
 
         if (wildcardFlows && wildcardFlows.length > 0) {
             console.log(`[FlowEngine] Triggering Wildcard/Default Flow: ${wildcardFlows[0].name}`);
+
+            // TRIGGER TYPING INDICATOR
+            if (this._currentWaMessageId) {
+                whatsappService.sendTypingIndicator(userId, contactPhone, this._currentWaMessageId).catch(() => {});
+            }
+
             return this.startFlow(userId, contactPhone, wildcardFlows[0], messageInput);
         }
 
