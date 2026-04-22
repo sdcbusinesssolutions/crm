@@ -50,23 +50,40 @@ exports.getUsers = async (req, res) => {
             console.log(`[UsersController] Super Admin Access - Showing ALL ${profiles.length} users.`);
         }
 
+        const TRIAL_DAYS = parseInt(process.env.TRIAL_DAYS || '7', 10);
+        const DELETE_WINDOW_DAYS = parseInt(process.env.TENANT_ADMIN_DELETE_WINDOW_DAYS || '9', 10);
+        const now = new Date();
+
         const mappedUsers = targetProfiles.map(u => {
-            const createdDate = new Date(u.created_at);
+            const createdDate = new Date(u.created_at || now);
             const formattedDate = createdDate.toLocaleDateString('en-GB', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             });
+
+            const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+            const daysSinceCreation = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            // Map plan_status to UI status
+            let uiStatus = 'Active';
+            if (u.plan_status === 'suspended' || u.plan_status === 'banned') uiStatus = 'Inactive';
+
+            // Determination of Trial and Delete Eligibility
+            const isTrialUser = (u.plan_name === 'Free Trial' || u.plan_name === 'Free') && daysSinceCreation <= TRIAL_DAYS;
+            const canTenantDelete = !u.plan_assigned_by_admin && daysSinceCreation <= DELETE_WINDOW_DAYS;
 
             return {
                 id: u.id,
                 name: u.full_name || u.name || 'User',
                 email: u.email,
-                status: 'Active',
+                status: uiStatus,
                 mobile: u.phone || u.mobile || 'N/A',
-                // Add domain info so Super Admin knows where they came from
                 signupDomain: u.signup_domain,
                 adminStatus: u.role || 'Standard',
                 current_plan: u.plan_name || 'Free',
                 createdOn: formattedDate,
+                daysOld: daysSinceCreation,
+                isTrialUser,
+                canTenantDelete,
                 lastSignIn: null
             };
         });
@@ -105,8 +122,6 @@ exports.createUser = async (req, res) => {
         const isSuperAdmin = requesterDomain === MASTER_DOMAIN || requesterDomain.includes('localhost');
 
         // 2. Determine Target Domain
-        // If Super Admin AND providing a specific domain, use it.
-        // Otherwise, force the user to be created in the current domain.
         let targetDomain = requesterDomain;
         if (req.body.signupDomain && isSuperAdmin) {
             console.log(`[Super Admin] Explicitly creating user for domain: ${req.body.signupDomain}`);
@@ -115,17 +130,23 @@ exports.createUser = async (req, res) => {
 
         const userRole = role === 'admin' ? 'admin' : 'user';
 
+        // --- TRIAL PERIOD CONFIG ---
+        // Configurable via TRIAL_DAYS env variable (default: 7 days)
+        const TRIAL_DAYS = parseInt(process.env.TRIAL_DAYS || '7', 10);
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + TRIAL_DAYS);
+
         // 3. Create User in Supabase Auth
         const { data, error } = await supabaseAdmin.auth.admin.createUser({
-            email: email,
-            password: password,
-            email_confirm: true, // Auto-confirm email
+            email,
+            password,
+            email_confirm: true,
             phone: mobile,
             user_metadata: {
                 full_name: name || '',
                 phone: mobile || '',
                 signup_domain: targetDomain,
-                role: userRole // Pass role to metadata
+                role: userRole
             }
         });
 
@@ -134,24 +155,31 @@ exports.createUser = async (req, res) => {
             return res.status(400).json({ message: 'Failed to create user.', error: error.message });
         }
 
-        // 4. Force Update Profile (To ensure correct Role & Domain)
-        // The trigger 'handle_new_user' might run async or might miss the role default.
-        // We explicitly set it here to be safe and immediate.
+        // 4. Stamp profile with domain, role AND the default Free Trial expiry.
+        //    The DB trigger (handle_new_user) may have already created the row;
+        //    we upsert here to guarantee correct values.
         const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .update({
                 signup_domain: targetDomain,
-                role: userRole
+                role: userRole,
+                plan_name: 'Free Trial',
+                plan_status: 'active',
+                plan_expires_at: trialExpiry.toISOString(),
+                plan_assigned_by_admin: false   // no paid plan yet
             })
             .eq('id', data.user.id);
 
         if (profileError) {
-            console.error('Profile Update Warning:', profileError);
-            // Verify if row exists, if not insert it? Trigger should have handled it.
+            console.warn('[createUser] Profile update warning:', profileError.message);
         }
+
+        console.log(`[createUser] User ${email} created on ${targetDomain} with ${TRIAL_DAYS}-day trial.`);
 
         res.status(201).json({
             message: 'User created successfully.',
+            trialDays: TRIAL_DAYS,
+            trialExpiresAt: trialExpiry,
             user: {
                 id: data.user.id,
                 email: data.user.email,
@@ -216,27 +244,39 @@ exports.toggleUserStatus = async (req, res) => {
             });
         }
 
-        let updateData = {};
+        let authUpdateData = {};
+        let dbStatus = 'active';
+
         if (action === 'activate') {
-            updateData = { ban_duration: 'none' }; // 'none' lifts the ban in Supabase
+            authUpdateData = { ban_duration: 'none' };
+            dbStatus = 'active';
         } else if (action === 'deactivate') {
-            updateData = { ban_duration: '876000h' }; // Approx 100 years
+            authUpdateData = { ban_duration: '876000h' }; // Approx 100 years
+            dbStatus = 'suspended';
         } else {
             return res.status(400).json({ message: 'Invalid action. Use "activate" or "deactivate".' });
         }
 
-        const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, updateData);
+        // 4. Update Supabase Auth (Native Ban)
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdateData);
 
-        if (error) {
-            console.error('Supabase Update Error:', error);
-            // Fallback for mock users
-            if (userId.toString().length < 5) {
-                return res.json({ message: `Mock user ${action}d successfully` });
-            }
-            return res.status(400).json({ message: 'Failed to update user status.', error: error.message });
+        if (authError) {
+            console.error('Supabase Auth Update Error:', authError);
+            if (userId.toString().length < 5) return res.json({ message: `Mock user ${action}d successfully` });
+            return res.status(400).json({ message: `Failed to update Auth status: ${authError.message}` });
         }
 
-        res.json({ message: `User ${action}d successfully`, user: data.user });
+        // 5. Sync with Profiles Table (for listing and DB checks)
+        const { error: profileError } = await supabaseAdmin
+            .from('profiles')
+            .update({ plan_status: dbStatus })
+            .eq('id', userId);
+
+        if (profileError) {
+            console.warn('[toggleUserStatus] DB Profile sync warning:', profileError.message);
+        }
+
+        res.json({ message: `User account has been ${action === 'activate' ? 'unblocked' : 'blocked'} successfully.` });
 
     } catch (err) {
         console.error('Toggle Status Error:', err);
@@ -287,19 +327,87 @@ exports.deleteUser = async (req, res) => {
         console.log('Delete User Request:', userId);
 
         if (!userId) return res.status(400).json({ message: 'User ID is required' });
+        if (!supabaseAdmin) return res.status(500).json({ message: 'Server configuration error.' });
 
-        const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        // ── Identify the requesting admin ────────────────────────────────────
+        const adminDomain = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole   = req.admin?.role;
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL
+            ? new URL(process.env.VITE_MASTER_URL).hostname
+            : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin'
+            || adminDomain === MASTER_DOMAIN
+            || (adminDomain || '').includes('localhost');
 
-        if (error) {
-            console.error('Supabase Delete Error:', error);
-            // Fallback for mock users
+        // ── Load the target user's profile ───────────────────────────────────
+        const { data: profile, error: profileFetchError } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain, plan_name, plan_assigned_by_admin, created_at')
+            .eq('id', userId)
+            .single();
+
+        if (profileFetchError || !profile) {
+            // Handle mock/test users with short IDs
             if (userId.toString().length < 5) {
                 return res.json({ message: 'Mock user deleted successfully' });
             }
-            return res.status(400).json({ message: 'Failed to delete user', error: error.message });
+            return res.status(404).json({ message: 'User not found.' });
         }
 
-        res.json({ message: 'User deleted successfully' });
+        // ── SUPER ADMIN: unrestricted delete ─────────────────────────────────
+        if (isSuperAdmin) {
+            console.log(`[deleteUser] Super Admin deleting user ${userId}`);
+            const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+            if (error) {
+                console.error('Supabase Delete Error (Super Admin):', error);
+                return res.status(400).json({ 
+                    message: 'Error: Platform was unable to delete the user account.', 
+                    details: error.message 
+                });
+            }
+            return res.json({ 
+                message: 'Super Admin: User account and all associated data have been deleted successfully.' 
+            });
+        }
+
+        // ── TENANT ADMIN: restricted delete ──────────────────────────────────
+        // Rule 1 – Can only manage users from their own domain
+        if (profile.signup_domain !== adminDomain) {
+            console.warn(`[deleteUser] Domain mismatch: admin ${adminDomain} tried to delete user from ${profile.signup_domain}`);
+            return res.status(403).json({ 
+                message: 'Security Alert: You do not have permission to delete users from other workspaces.' 
+            });
+        }
+
+        // Rule 2 – Cannot delete a user who has a paid plan assigned
+        const hasPaidPlan = profile.plan_assigned_by_admin === true;
+        if (hasPaidPlan) {
+            return res.status(403).json({
+                message: 'Action Denied: This user has a paid plan assigned. To protect customer data, only a Super Admin can delete active subscribers.'
+            });
+        }
+
+        // Rule 3 – Can only delete trial users within the configurable window
+        const DELETE_WINDOW_DAYS = parseInt(process.env.TENANT_ADMIN_DELETE_WINDOW_DAYS || '9', 10);
+        const createdAt = new Date(profile.created_at);
+        const nowMs     = Date.now();
+        const daysSinceCreation = Math.floor((nowMs - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (daysSinceCreation > DELETE_WINDOW_DAYS) {
+            return res.status(403).json({
+                message: `Action Denied: The ${DELETE_WINDOW_DAYS}-day deletion window for this trial user has expired (Account Age: ${daysSinceCreation} days). Please contact Support or the Super Admin to request deletion.`
+            });
+        }
+
+        // All checks passed — proceed with deletion
+        console.log(`[deleteUser] Tenant Admin (${adminDomain}) deleting trial user ${userId} (${daysSinceCreation} days old).`);
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (deleteError) {
+            console.error('Supabase Delete Error (Tenant Admin):', deleteError);
+            return res.status(400).json({ message: 'Failed to delete user.', error: deleteError.message });
+        }
+
+        res.json({ message: 'User deleted successfully.' });
 
     } catch (err) {
         console.error('Delete User Exception:', err);
@@ -478,11 +586,13 @@ exports.assignPlan = async (req, res) => {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + finalDuration);
 
-        // 4. Update Profile
+        // 4. Update Profile — also flag plan_assigned_by_admin = TRUE
+        //    This prevents Tenant Admin from deleting the user going forward.
         const updateData = {
             plan_name: plan.name,
             plan_status: 'active',
-            plan_expires_at: expiryDate.toISOString()
+            plan_expires_at: expiryDate.toISOString(),
+            plan_assigned_by_admin: true   // ← locks out tenant-admin delete
         };
 
         const { error: updateError } = await supabaseAdmin
@@ -495,7 +605,7 @@ exports.assignPlan = async (req, res) => {
             return res.status(400).json({ message: 'Failed to update user profile with plan.', error: updateError.message });
         }
 
-        // 5. Add strictly to history
+        // 5. Record subscription history
         const subscriptionData = {
             user_id: userId,
             plan_id: planId,
@@ -506,6 +616,7 @@ exports.assignPlan = async (req, res) => {
 
         await supabaseAdmin.from('user_subscriptions').insert([subscriptionData]);
 
+        console.log(`[assignPlan] Plan "${plan.name}" assigned to user ${userId} by admin ${adminDomain}. plan_assigned_by_admin = true.`);
         res.json({ message: 'Plan assigned successfully', plan: plan.name, expiresAt: expiryDate });
 
     } catch (err) {

@@ -49,6 +49,13 @@ foreach ($entry in $domains) {
     $imageTag = "prod-$safeName"            # Unique Image Tag (Crucial for Frontend VITE vars)
     $appUrl = "https://$domain"
 
+    # Extract Trial/Delete Configuration (with fallbacks)
+    $trialDays = $entry.TrialDays
+    if ([string]::IsNullOrWhiteSpace($trialDays)) { $trialDays = "7" }
+    
+    $deleteWindow = $entry.DeleteWindowDays
+    if ([string]::IsNullOrWhiteSpace($deleteWindow)) { $deleteWindow = "9" }
+
     # 3. Generate Domain-Specific .env File
     # ------------------------------------------------------------------------------
     $envFileName = ".env.$safeName"
@@ -63,6 +70,8 @@ SUPABASE_URL=$sbUrl
 SUPABASE_KEY=$sbKey
 SUPABASE_SERVICE_KEY=$sbServiceKey
 APP_REPLICAS=$replicas
+TRIAL_DAYS=$trialDays
+TENANT_ADMIN_DELETE_WINDOW_DAYS=$deleteWindow
 "@
     
     $envContent | Out-File -FilePath $envFileName -Encoding utf8 -Force

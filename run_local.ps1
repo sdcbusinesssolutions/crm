@@ -52,6 +52,13 @@ if (Test-Path $csvFile) {
     $sbKey = $selectedRow.SupabaseKey
     $sbService = $selectedRow.SupabaseServiceKey
     $master = $selectedRow.MasterDomain
+    
+    # Extract Trial/Delete Configuration (with fallbacks)
+    $trialDays = $selectedRow.TrialDays
+    if ([string]::IsNullOrWhiteSpace($trialDays)) { $trialDays = "7" }
+    
+    $deleteWindow = $selectedRow.DeleteWindowDays
+    if ([string]::IsNullOrWhiteSpace($deleteWindow)) { $deleteWindow = "9" }
 
     # Handle defaults or missing columns if any
     if ([string]::IsNullOrWhiteSpace($master)) { $master = "https://$domain" }
@@ -75,6 +82,8 @@ VITE_API_URL=http://localhost:5000
 VITE_MASTER_URL=$master
 BRIDGE_DOMAIN=$master
 JWT_SECRET=super-secret-dev-jwt-key-change-in-prod
+TRIAL_DAYS=$trialDays
+TENANT_ADMIN_DELETE_WINDOW_DAYS=$deleteWindow
 "@
 
     Write-Host "Updating local .env files..." -ForegroundColor Cyan

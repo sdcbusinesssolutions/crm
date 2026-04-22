@@ -20,6 +20,7 @@ const Users = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage] = useState(10);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [activeTab, setActiveTab] = useState<'all' | 'trial'>('all');
 
     // Domain / Tenant State (Super Admin Only)
     const [domains, setDomains] = useState<any[]>([]);
@@ -283,6 +284,9 @@ const Users = () => {
 
     // Filter Logic
     const filteredUsers = users.filter(user => {
+        // Tab Filter
+        if (activeTab === 'trial' && !user.canTenantDelete) return false;
+
         if (!searchTerm) return true;
         const search = searchTerm.toLowerCase();
         return (
@@ -292,6 +296,8 @@ const Users = () => {
             (user.status?.toLowerCase() || '').includes(search)
         );
     });
+
+    const trialUsersCount = users.filter(u => u.canTenantDelete).length;
 
     const totalPages = Math.ceil(filteredUsers.length / entriesPerPage);
     const currentEntries = filteredUsers.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
@@ -399,6 +405,23 @@ const Users = () => {
 
     return (
         <div className="space-y-6 animate-fade-in">
+            {/* Tab Navigation */}
+            <div className="flex border-b border-slate-200">
+                <button 
+                    onClick={() => { setActiveTab('all'); setCurrentPage(1); }}
+                    className={`px-6 py-3 text-sm font-bold transition-all border-b-2 ${activeTab === 'all' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    All Users ({users.length})
+                </button>
+                <button 
+                    onClick={() => { setActiveTab('trial'); setCurrentPage(1); }}
+                    className={`px-6 py-3 text-sm font-bold transition-all border-b-2 flex items-center gap-2 ${activeTab === 'trial' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                    Recent Signups / Trial ({trialUsersCount})
+                    {trialUsersCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+                </button>
+            </div>
+
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 lg:max-w-2xl">
                     <div className="relative group flex-1">
@@ -407,7 +430,7 @@ const Users = () => {
                         </div>
                         <input
                             type="text"
-                            placeholder="Search users by name, email, mobile..."
+                            placeholder="Search users..."
                             value={searchTerm}
                             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             className="pl-10 pr-4 py-2.5 w-full bg-white border border-slate-200 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm shadow-sm outline-none transition-all"
@@ -474,11 +497,16 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${user.canTenantDelete ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                         {user.name?.charAt(0) || 'U'}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-slate-900">{user.name || 'N/A'}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-sm font-bold text-slate-900">{user.name || 'N/A'}</div>
+                                                            {user.isTrialUser && (
+                                                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-amber-100 text-amber-700 border border-amber-200">Trial</span>
+                                                            )}
+                                                        </div>
                                                         <div className="text-xs text-slate-500">{user.email}</div>
                                                     </div>
                                                 </div>
@@ -516,12 +544,27 @@ const Users = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-xs text-slate-500">{user.createdOn}</div>
+                                                {user.canTenantDelete && (
+                                                    <div className="text-[10px] font-bold text-amber-600 mt-0.5">
+                                                        Can delete for {9 - (user.daysOld || 0)} more days
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => handleAction('Login', user)} className="px-2 py-1 text-xs font-bold text-brand-600 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Login</button>
+                                                    <button 
+                                                        onClick={() => handleAction('Login', user)} 
+                                                        disabled={user.status === 'Inactive'}
+                                                        className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
+                                                            user.status === 'Inactive' 
+                                                            ? 'text-slate-400 bg-slate-100 cursor-not-allowed' 
+                                                            : 'text-brand-600 bg-brand-50 hover:bg-brand-100'
+                                                        }`}
+                                                    >
+                                                        Login
+                                                    </button>
                                                     {user.status === 'Inactive' ? (
-                                                        <button onClick={() => handleAction('activate', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">Unblock</button>
+                                                        <button onClick={() => handleAction('activate', user)} className="px-2 py-1 text-xs font-bold text-white bg-emerald-600 rounded hover:bg-emerald-700 shadow-sm transition-colors animate-pulse-subtle">Unblock</button>
                                                     ) : (
                                                         <button onClick={() => handleAction('deactivate', user)} className="px-2 py-1 text-xs font-bold text-amber-600 bg-amber-50 rounded hover:bg-amber-100 transition-colors">Block</button>
                                                     )}

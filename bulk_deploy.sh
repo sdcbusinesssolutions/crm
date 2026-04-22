@@ -71,7 +71,7 @@ declare -A GROUP_ORDER           # to preserve insertion order
 GROUP_COUNT=0
 
 echo "📋 Reading and grouping domains from '$CSV_FILE'..."
-while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal; do
+while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays; do
 
     # Clean all variables
     domain=$(echo "$domain"       | tr -d '\r' | xargs)
@@ -84,6 +84,8 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
     certResolver=$(echo "$certResolver" | tr -d '\r' | xargs)
     masterDomain=$(echo "$masterDomain" | tr -d '\r' | xargs)
     runLocal=$(echo "$runLocal"   | tr -d '\r' | xargs)
+    trialDays=$(echo "$trialDays" | tr -d '\r' | xargs)
+    deleteWindowDays=$(echo "$deleteWindowDays" | tr -d '\r' | xargs)
 
     # Skip blank lines
     if [ -z "$domain" ]; then continue; fi
@@ -97,6 +99,8 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
     # Default values
     if [ -z "$certResolver" ]; then certResolver="mytlschallenge"; fi
     if [ -z "$masterDomain" ]; then masterDomain="https://$domain"; fi
+    if [ -z "$trialDays" ]; then trialDays="7"; fi
+    if [ -z "$deleteWindowDays" ]; then deleteWindowDays="9"; fi
 
     # Build group key: extract the Supabase project ref from the URL
     # e.g. https://ssckorsnhjhzqxyukexm.supabase.co → ssckorsnhjhzqxyukexm
@@ -114,6 +118,8 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
         GROUP_SB_SERVICE_KEY[$groupKey]="$sbServiceKey"
         GROUP_CERT_RESOLVER[$groupKey]="$certResolver"
         GROUP_MASTER_DOMAIN[$groupKey]="$masterDomain"
+        GROUP_TRIAL_DAYS[$groupKey]="$trialDays"
+        GROUP_DELETE_WINDOW[$groupKey]="$deleteWindowDays"
         GROUP_DOMAINS[$groupKey]="$domain"
     else
         # Additional domain in same group — append to domain list
@@ -139,6 +145,8 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     sbServiceKey="${GROUP_SB_SERVICE_KEY[$groupKey]}"
     certResolver="${GROUP_CERT_RESOLVER[$groupKey]}"
     masterDomain="${GROUP_MASTER_DOMAIN[$groupKey]}"
+    trialDays="${GROUP_TRIAL_DAYS[$groupKey]}"
+    deleteWindowDays="${GROUP_DELETE_WINDOW[$groupKey]}"
 
     # Build Traefik Host() rule from the pipe-delimited domain list
     # Input: "clickube.com|apiautomation.in|chatmat.in"
@@ -203,6 +211,8 @@ SUPABASE_KEY="$sbKey"
 SUPABASE_SERVICE_KEY="$sbServiceKey"
 BRIDGE_DOMAIN="$bridgeDomain"
 VITE_MASTER_URL=$masterDomain
+TRIAL_DAYS=$trialDays
+TENANT_ADMIN_DELETE_WINDOW_DAYS=$deleteWindowDays
 EOF
 
     echo "   📄 Config: $envFileName generated"
