@@ -510,6 +510,94 @@ const Dashboard = () => {
                 </div>
             )}
 
+            {/* Trial User Monitoring - NEW SECTION */}
+            {stats && (stats as any).trialUsers && (stats as any).trialUsers.length > 0 && (
+                <div className="mb-8 animate-slide-up animation-delay-700">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                        <span className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        </span>
+                        Trial User Monitoring (9-Day Window)
+                    </h3>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        {(stats as any).trialUsers.slice(0, 6).map((user: any) => (
+                            <div key={user.id} className="bg-white rounded-2xl p-5 shadow-lg border border-slate-100 hover:border-amber-200 transition-all group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative">
+                                            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-bold text-lg">
+                                                {user.name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-gray-900 group-hover:text-amber-600 transition-colors">{user.name}</p>
+                                            <p className="text-xs text-gray-500">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                            user.daysLeftToDelete <= 2 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'
+                                        }`}>
+                                            Day {user.daysOld} of 9
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs font-bold text-slate-500">
+                                        <span>Safety Deletion Window</span>
+                                        <span className={user.daysLeftToDelete <= 2 ? 'text-red-500' : 'text-amber-500'}>
+                                            {user.daysLeftToDelete} days remaining
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-1000 ${
+                                                user.daysLeftToDelete <= 2 ? 'bg-red-500' : 'bg-amber-500'
+                                            }`}
+                                            style={{ width: `${(user.daysOld / 9) * 100}%` }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 flex gap-2">
+                                    <button 
+                                        onClick={() => window.location.href = '/admin/users'}
+                                        className="flex-1 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-bold rounded-lg transition-colors"
+                                    >
+                                        Manage User
+                                    </button>
+                                    <button 
+                                        disabled={user.daysLeftToDelete <= 0}
+                                        onClick={() => window.location.href = '/admin/users'}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
+                                            user.daysLeftToDelete <= 0 
+                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                                            : 'bg-red-50 hover:bg-red-100 text-red-600'
+                                        }`}
+                                    >
+                                        Quick Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {(stats as any).trialUsers.length > 6 && (
+                        <div className="mt-6 text-center">
+                            <button 
+                                onClick={() => window.location.href = '/admin/users?tab=trial'}
+                                className="px-6 py-2 bg-white border border-slate-200 text-slate-600 hover:text-brand-600 hover:border-brand-600 rounded-full text-sm font-bold shadow-sm transition-all"
+                            >
+                                View all {(stats as any).trialUsers.length} trial users →
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Quick Actions Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up animation-delay-700">
                 {/* Recent Activity Card */}

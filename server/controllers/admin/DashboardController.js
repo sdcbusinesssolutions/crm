@@ -206,6 +206,26 @@ exports.getDashboardStats = async (req, res) => {
         // Generate signup trends data
         const signupTrends = await generateSignupTrends(profiles, null);
 
+        // 🟢 --- TRIAL USERS STATS LOGIC ---
+        const DELETE_WINDOW_DAYS = 9; 
+        const trialUsersList = profiles.filter(p => {
+            const createdAt = new Date(p.created_at);
+            const daysOld = Math.ceil((nowMs - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+            return daysOld <= DELETE_WINDOW_DAYS;
+        }).map(p => {
+            const createdAt = new Date(p.created_at);
+            const daysOld = Math.ceil((nowMs - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+            return {
+                id: p.id,
+                email: p.email,
+                name: p.email ? p.email.split('@')[0] : 'User',
+                created: p.created_at,
+                domain: p.signup_domain,
+                daysOld: daysOld,
+                daysLeftToDelete: DELETE_WINDOW_DAYS - daysOld
+            };
+        }).sort((a, b) => b.daysOld - a.daysOld); 
+
         const stats = {
             totalUsers,
             activeUsers,
@@ -219,7 +239,8 @@ exports.getDashboardStats = async (req, res) => {
                 plan_name: tenantInfo.plan,
                 days_left: tenantInfo.daysLeft
             },
-            planExpiryStats
+            planExpiryStats,
+            trialUsers: trialUsersList
         };
 
         res.setHeader('Cache-Control', 'no-cache');
