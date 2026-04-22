@@ -267,13 +267,13 @@ exports.toggleUserStatus = async (req, res) => {
         }
 
         // 5. Sync with Profiles Table (for listing and DB checks)
-        const { error: profileError } = await supabaseAdmin
+        const { error: syncError } = await supabaseAdmin
             .from('profiles')
             .update({ plan_status: dbStatus })
             .eq('id', userId);
 
-        if (profileError) {
-            console.warn('[toggleUserStatus] DB Profile sync warning:', profileError.message);
+        if (syncError) {
+            console.warn('[toggleUserStatus] DB Profile sync warning:', syncError.message);
         }
 
         res.json({ message: `User account has been ${action === 'activate' ? 'unblocked' : 'blocked'} successfully.` });
