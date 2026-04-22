@@ -80,21 +80,6 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
--- Step 3: Backfill existing users who have NULL plan_expires_at
---         (they were created before this migration).
---         Sets them to 7-day trial from NOW() so they are not
---         immediately locked out. Adjust as needed.
-UPDATE public.profiles
-SET
-    plan_name               = 'Free Trial',
-    plan_status             = 'active',
-    plan_expires_at         = NOW() + INTERVAL '7 days',
-    plan_assigned_by_admin  = FALSE
-WHERE
-    plan_expires_at IS NULL
-    AND plan_name IS DISTINCT FROM 'active' -- skip already-set records
-;
-
 -- =================================================================
 -- HOW TO RUN:
 --   Paste this entire file into your Supabase SQL Editor and execute.
