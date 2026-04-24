@@ -289,21 +289,44 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 bg-white h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
                 >
                     {/* Header */}
-                    <div className="absolute top-4 w-full flex items-center justify-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
-                        <h3 className="font-bold text-slate-800 text-[11px]">Lead CRM Pipeline</h3>
+                    <div className="absolute top-1 w-full flex flex-col items-center z-20">
+                        {/* Title - Untouched layout structure */}
+                        <div className="w-full flex items-center justify-center gap-2 mb-0">
+                            <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
+                            <h3 className="font-bold text-[#1e293b] text-[12px] tracking-wide">Lead CRM Pipeline</h3>
+                        </div>
+
+                        {/* Branching Line SVG - Connected Upwards to Title */}
+                        <div className="w-[85%] h-[22px] relative mt-[-2px]">
+                            <svg viewBox="0 0 300 22" className="w-full h-full overflow-visible">
+                                <path 
+                                    d="M150,0 V10 M40,10 H260 M40,10 V22 M150,10 V22 M260,10 V22" 
+                                    fill="none" 
+                                    stroke="#84cc16" 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                />
+                            </svg>
+                        </div>
+
+                        {/* Logic Hub Labels */}
+                        <div className="flex justify-between w-[85%] px-0 mt-0.5">
+                            <span className="text-[14px] font-black text-[#0f172a] tracking-tight">Engaged</span>
+                            <span className="text-[14px] font-black text-[#0f172a] tracking-tight">FollowUp</span>
+                            <span className="text-[14px] font-black text-[#0f172a] tracking-tight">Automation</span>
+                        </div>
                     </div>
 
                     {/* Funnel Container - Centered */}
-                    <div className="w-full relative h-[340px] flex justify-center scale-[0.85] mt-8">
+                    <div className="w-full relative h-[340px] flex justify-center scale-[0.85] mt-12">
 
                         {/* 1. Top Icon - Centered in 'Middle of Circle' */}
-                        <div className="absolute top-[-10px] left-1/2 -translate-x-1/2 z-20">
+                        <div className="absolute top-[-14px] left-1/2 -translate-x-1/2 z-20">
                             <Icons.ServerUserGroup />
                         </div>
 
                         {/* 2. Top Disc */}
-                        <div className="w-[300px] h-[50px] absolute top-[30px] z-10">
+                        <div className="w-[300px] h-[50px] absolute top-[26px] z-10">
                             <svg viewBox="0 0 300 50" className="w-full h-full drop-shadow-md overflow-visible">
                                 <ellipse cx="150" cy="25" rx="148" ry="24" fill="#cbd5e1" stroke="#94a3b8" strokeWidth="1" />
                                 {/* Rotating Dashed Border Overlay */}
@@ -332,7 +355,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         </div>
 
                         {/* 3. Funnel Body */}
-                        <div className="w-[300px] h-[340px] absolute top-[54px] z-0 filter drop-shadow-xl">
+                        <div className="w-[300px] h-[340px] absolute top-[48px] z-0 filter drop-shadow-xl">
+                            {/* KEY FIX: viewBox reverted to 0 0 300 340 to prevent the massive gap caused by vertical centering of a wider SVG */}
                             <svg viewBox="0 0 300 340" className="w-full h-full overflow-visible">
                                 <defs>
                                     <marker id="arrowhead-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -342,55 +366,58 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                 {/* Level 1: Navy Blue */}
                                 <path d="M0,0 L300,0 L260,86 L40,86 Z" fill="#172554" stroke="white" strokeWidth="2" />
-                                <text x="150" y="48" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[0].label}</text>
-                                <text x="150" y="78" textAnchor="middle" fill="white" className="text-2xl font-bold animate-soft-blink">{Number(funnelSteps[0].value).toLocaleString()}</text>
+                                <text x="150" y="48" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Leads:</text>
+                                <text x="150" y="78" textAnchor="middle" fill="white" className="text-2xl font-black animate-soft-blink">{Number(funnelSteps[0].value).toLocaleString()}</text>
 
                                 {/* Level 2: Lime Green */}
                                 <path d="M40,86 L260,86 L226,172 L74,172 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
-                                <text x="150" y="117" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[1].label}</text>
-                                <text x="150" y="147" textAnchor="middle" fill="white" className="text-2xl font-bold">{funnelSteps[1].value}</text>
+                                <text x="150" y="117" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Active:</text>
+                                <text x="150" y="147" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[1].value}</text>
 
                                 {/* Level 3: Navy Blue */}
                                 <path d="M74,172 L226,172 L200,258 L100,258 Z" fill="#172554" stroke="white" strokeWidth="2" />
-                                <text x="150" y="202" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[2].label}</text>
-                                <text x="150" y="232" textAnchor="middle" fill="white" className="text-2xl font-bold">{funnelSteps[2].value}</text>
+                                <text x="150" y="202" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Warm:</text>
+                                <text x="150" y="232" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[2].value}</text>
 
                                 {/* Level 4: Lime Green (Rounded Cup Bottom) */}
                                 <path d="M100,258 L200,258 L195,300 Q150,340 105,300 L100,258 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
-                                <text x="150" y="285" textAnchor="middle" fill="white" className="text-sm font-medium">{funnelSteps[3].label}</text>
-                                <text x="150" y="310" textAnchor="middle" fill="white" className="text-2xl font-bold">{funnelSteps[3].value}</text>
+                                <text x="150" y="285" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Won / Lost:</text>
+                                <text x="150" y="310" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[3].value}</text>
 
                                 {/* --- Side Percentage Markers (Reference Image Style - Alternating) --- */}
                                 {/* Row 1 Marker (Right) */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="304" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="304" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
-                                    <line x1="283" y1="72" x2="277" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M272,72 L278,69 L278,75 Z" fill="#3b82f6" />
+                                    <circle cx="340" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="340" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
+                                    <text x="340" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
+                                    <line x1="319" y1="72" x2="305" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M300,72 L306,69 L306,75 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 2 Marker (Left) */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="26" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="26" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
-                                    <line x1="47" y1="129" x2="52" y2="129" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M57,129 L51,126 L51,132 Z" fill="#3b82f6" />
+                                    <circle cx="-40" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="-40" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
+                                    <text x="-40" y="162" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Interseted</text>
+                                    <line x1="-19" y1="129" x2="5" y2="129" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M10,129 L4,126 L4,132 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 3 Marker (Right) */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '1000ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="246" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="246" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
-                                    <line x1="225" y1="215" x2="218" y2="215" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M213,215 L219,212 L219,218 Z" fill="#3b82f6" />
+                                    <circle cx="320" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="320" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
+                                    <text x="320" y="248" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Connect</text>
+                                    <line x1="299" y1="215" x2="270" y2="215" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M265,215 L271,212 L271,218 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 4 Marker (Left) */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '1200ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="71" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="71" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
-                                    <line x1="92" y1="300" x2="98" y2="300" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M103,300 L97,297 L97,303 Z" fill="#3b82f6" />
+                                    <circle cx="-15" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="-15" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
+                                    <line x1="6" y1="300" x2="45" y2="300" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M50,300 L44,297 L44,303 Z" fill="#3b82f6" />
                                 </g>
                             </svg>
                         </div>
