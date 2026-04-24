@@ -283,6 +283,7 @@ const MultiLineChart: React.FC<{ data: any[]; categories: string[]; colors: stri
             {safeData.map((d, i) => {
                 const x = (i / (safeData.length - 1)) * (width - padding * 2) + padding;
                 if (isNaN(x)) return null;
+                if (safeData.length > 14 && i % Math.ceil(safeData.length / 7) !== 0) return null;
                 return (
                     <text key={i} x={x} y={height - 10} textAnchor="middle" className="text-[10px] fill-slate-500 font-medium uppercase tracking-wide">{d.date}</text>
                 );
@@ -350,9 +351,11 @@ const LeadsBarChart: React.FC<{ data: any[]; days: number }> = ({ data, days }) 
                             {d.count}
                         </text>
                         {/* Date Label */}
-                        <text x={x + barWidth / 2} y={height - 15} textAnchor="middle" className="text-[9px] fill-slate-500 font-medium uppercase tracking-wide">
-                            {d.date}
-                        </text>
+                        {(displayData.length <= 14 || i % Math.ceil(displayData.length / 7) === 0) && (
+                            <text x={x + barWidth / 2} y={height - 15} textAnchor="middle" className="text-[9px] fill-slate-500 font-medium uppercase tracking-wide">
+                                {d.date}
+                            </text>
+                        )}
                     </g>
                 );
             })}
@@ -1040,7 +1043,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     </div>
 
                     {/* 2. Visual Analytics Section */}
-                    {/* 2. Visual Analytics Section */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 my-10 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
 
                         {/* 1. Message Volume (Top Left) */}
@@ -1048,9 +1050,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="relative z-10 flex-1 flex flex-col justify-between">
                                 <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h3 className="font-bold text-[15px] text-violet-950">Message Volume</h3>
-                                        <p className="text-[12px] font-semibold text-violet-500/80">7 Days Traffic</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                            <Icons.WhatsApp className="w-5 h-5 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-[15px] text-violet-950">Message Volume</h3>
+                                            <p className="text-[12px] font-semibold text-violet-500/80">7 Days Traffic</p>
+                                        </div>
                                     </div>
                                     <div className="flex gap-2">
                                         <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 border border-slate-200">
@@ -1077,9 +1084,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         <div className="bg-white border border-[#67e8f9] rounded-3xl p-8 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-cyan-500/5 transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="flex justify-between items-start mb-6 relative z-10 shrink-0">
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-cyan-950">Leads Growth</h3>
-                                    <p className="text-[12px] font-semibold text-cyan-600/80">New contacts joining over time</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-cyan-50 border border-cyan-100 flex items-center justify-center shrink-0">
+                                        <Icons.Users className="w-5 h-5 text-cyan-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-[15px] text-cyan-950">Leads Growth</h3>
+                                        <p className="text-[12px] font-semibold text-cyan-600/80">New contacts joining over time</p>
+                                    </div>
                                 </div>
                                 <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
                                     <button
@@ -1108,9 +1120,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         <div className="bg-white border border-[#f9a8d4] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-indigo-500/5 transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-pink-950">Pipeline Name</h3>
-                                    <p className="text-[12px] font-semibold text-pink-500/80">Total Leads Breakdown</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center shrink-0">
+                                        <Icons.Flow className="w-5 h-5 text-pink-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-[15px] text-pink-950">Pipeline Name</h3>
+                                        <p className="text-[12px] font-semibold text-pink-500/80">Total Leads Breakdown</p>
+                                    </div>
                                 </div>
                             </div>
                             <div className="flex-1 w-full relative min-h-0 overflow-y-auto custom-scrollbar">
@@ -1123,9 +1140,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
 
                             <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
-                                <div>
-                                    <h3 className="font-bold text-[15px] text-orange-950">Priority Follow-ups</h3>
-                                    <p className="text-[12px] font-semibold text-orange-500/80">Tasks requiring attention</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center shrink-0">
+                                        <Icons.Check className="w-5 h-5 text-orange-500" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-[15px] text-orange-950">Priority Follow-ups</h3>
+                                        <p className="text-[12px] font-semibold text-orange-500/80">Tasks requiring attention</p>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold">{stats?.taskStats?.today || 0} Today</div>
@@ -1147,11 +1169,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             {/* A. Conversion Funnel */}
                             <div className="bg-white border border-[#93c5fd] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm">
                                 <div className="flex justify-between items-center mb-4">
-                                    <div>
-                                        <h3 className="font-bold text-[15px] text-blue-950">Engagement Overview</h3>
-                                        <p className="text-[12px] font-semibold text-blue-500/80">Recent Campaigns & Drips</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                                            <Icons.Campaign className="w-5 h-5 text-blue-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-[15px] text-blue-950">Engagement Overview</h3>
+                                            <p className="text-[12px] font-semibold text-blue-500/80">Recent Campaigns & Drips</p>
+                                        </div>
                                     </div>
-                                    <Icons.Campaign className="text-blue-500 w-5 h-5 opacity-80" />
                                 </div>
                                 <div className="flex-1 flex flex-col gap-4 overflow-y-auto custom-scrollbar px-1">
                                     <EngagementCard stats={stats} />
@@ -1159,7 +1185,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             </div>
 
                             <div className="bg-white border border-[#6ee7b7] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm hover:shadow-emerald-500/5 transition-shadow">
-                                <h3 className="font-bold text-[15px] text-emerald-950 shrink-0">Revenue Forecast</h3>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                        <Icons.Chart className="w-5 h-5 text-emerald-500" />
+                                    </div>
+                                    <h3 className="font-bold text-[15px] text-emerald-950">Revenue Forecast</h3>
+                                </div>
                                 <div className="flex-1 flex flex-col items-center justify-center mt-2">
                                     <div className="relative mb-8 mt-4">
                                         <svg className="w-32 h-32 transform -rotate-90 overflow-visible" viewBox="0 0 128 128">
@@ -1194,11 +1225,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             {/* C. Integrations */}
                             <div className="bg-white border border-[#f0abfc] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm group hover:shadow-emerald-500/5 transition-shadow">
                                 <div className="flex justify-between items-start mb-6">
-                                    <div>
-                                        <h3 className="font-bold text-[15px] text-fuchsia-950">Integrations</h3>
-                                        <p className="text-[12px] font-semibold text-fuchsia-500/80">Active Connections</p>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-2xl bg-fuchsia-50 border border-fuchsia-100 flex items-center justify-center shrink-0">
+                                            <Icons.Link className="w-5 h-5 text-fuchsia-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-[15px] text-fuchsia-950">Integrations</h3>
+                                            <p className="text-[12px] font-semibold text-fuchsia-500/80">Active Connections</p>
+                                        </div>
                                     </div>
-                                    {/* Icon removed as requested */}
                                 </div>
                                 <div className="flex-1 w-full min-h-0">
                                     <IntegrationsBarChart
