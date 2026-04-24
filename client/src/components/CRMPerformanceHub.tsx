@@ -293,12 +293,12 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* Title */}
                         <div className="w-full flex items-center justify-center gap-2 mb-0">
                             <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
-                            <h3 className="font-bold text-slate-800 text-[12px] tracking-wide">Lead CRM Pipeline</h3>
+                            <h3 className="font-black text-[#1e293b] text-[13px] tracking-wide">Lead CRM Pipeline</h3>
                         </div>
 
-                        {/* Branching Line SVG - Flowing Dash Animation */}
-                        <div className="w-[85%] h-[22px] relative mt-[-2px]">
-                            <svg viewBox="0 0 300 22" className="w-full h-full overflow-visible">
+                        {/* Branching Line SVG & Labels - Perfectly Aligned */}
+                        <div className="w-[85%] h-[42px] relative mt-[-2px]">
+                            <svg viewBox="0 0 300 42" className="w-full h-full overflow-visible">
                                 <style>
                                     {`
                                         @keyframes flowOut {
@@ -310,7 +310,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     `}
                                 </style>
                                 <path 
-                                    d="M150,0 L150,10 M150,10 L40,10 M150,10 L260,10 M40,10 L40,22 M150,10 L150,22 M260,10 L260,22" 
+                                    d="M150,0 L150,10 M150,10 L40,10 M150,10 L260,10 M40,10 L40,20 M150,10 L150,20 M260,10 L260,20" 
                                     fill="none" 
                                     stroke="#84cc16" 
                                     strokeWidth="2" 
@@ -318,14 +318,11 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     strokeDasharray="4 4"
                                     className="animate-flow-out"
                                 />
+                                {/* Labels positioned precisely beneath the downward strokes */}
+                                <text x="40" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">Engaged</text>
+                                <text x="150" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">FollowUp</text>
+                                <text x="260" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">Automation</text>
                             </svg>
-                        </div>
-
-                        {/* Logic Hub Labels - Uniform Font and Color */}
-                        <div className="flex justify-between w-[85%] px-0 mt-0.5">
-                            <span className="font-bold text-slate-800 text-[12px] tracking-wide">Engaged</span>
-                            <span className="font-bold text-slate-800 text-[12px] tracking-wide">FollowUp</span>
-                            <span className="font-bold text-slate-800 text-[12px] tracking-wide">Automation</span>
                         </div>
                     </div>
 
