@@ -301,23 +301,35 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             <svg viewBox="0 0 300 42" className="w-full h-full overflow-visible">
                                 <style>
                                     {`
-                                        @keyframes flowOut {
-                                            to { stroke-dashoffset: -8; }
+                                        @keyframes flowOutLight {
+                                            to { stroke-dashoffset: -16; }
                                         }
-                                        .animate-flow-out {
-                                            animation: flowOut 0.5s linear infinite;
+                                        .animate-flow-out-light {
+                                            animation: flowOutLight 1.5s linear infinite;
                                         }
                                     `}
                                 </style>
+                                
+                                {/* Base Faint Track */}
                                 <path 
                                     d="M150,0 L150,10 M150,10 L40,10 M150,10 L260,10 M40,10 L40,20 M150,10 L150,20 M260,10 L260,20" 
                                     fill="none" 
-                                    stroke="#84cc16" 
-                                    strokeWidth="2" 
+                                    stroke="#e2e8f0" 
+                                    strokeWidth="1.5" 
                                     strokeLinecap="round"
-                                    strokeDasharray="4 4"
-                                    className="animate-flow-out"
                                 />
+
+                                {/* Center Stem (Starts the flow) */}
+                                <path d="M150,0 L150,10" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
+                                
+                                {/* Left Branch (Engaged) - Indigo Flow */}
+                                <path d="M150,10 L40,10 M40,10 L40,20" fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
+
+                                {/* Center Branch (FollowUp) - Teal Flow */}
+                                <path d="M150,10 L150,20" fill="none" stroke="#14b8a6" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
+
+                                {/* Right Branch (Automation) - Rose Flow */}
+                                <path d="M150,10 L260,10 M260,10 L260,20" fill="none" stroke="#f43f5e" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
                                 {/* Labels positioned precisely beneath the downward strokes */}
                                 <text x="40" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">Engaged</text>
                                 <text x="150" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">FollowUp</text>
