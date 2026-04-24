@@ -389,7 +389,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
                                     <circle cx="303" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
                                     <text x="303" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
-                                    <text x="303" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
+                                    <text x="285" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
                                     <line x1="282" y1="72" x2="272" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M266,72 L272,69 L272,75 Z" fill="#3b82f6" />
                                 </g>
