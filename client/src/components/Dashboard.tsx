@@ -861,7 +861,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
                     {/* Engagement Card Skeleton */}
                     <div className="md:col-span-4 lg:col-span-3 h-[400px]">
-                        <div className="h-full bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                        <div className="h-full bg-white border border-[#c4b5fd] rounded-[24px] p-6 animate-pulse">
                             <div className="h-4 bg-slate-200 rounded w-1/3 mb-8 mx-auto"></div>
                             <div className="h-32 bg-slate-200 rounded-full w-32 mx-auto mb-8"></div>
                             <div className="space-y-4 mt-8">
@@ -873,7 +873,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
                     {/* CRM Hub Skeleton */}
                     <div className="md:col-span-8 lg:col-span-9 h-[400px]">
-                        <div className="h-full bg-white border border-slate-200/60 rounded-[24px] p-4 grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 animate-pulse">
+                        <div className="h-full bg-white border border-[#c4b5fd] rounded-[24px] p-4 grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 animate-pulse">
                             <div className="col-span-1 bg-slate-100/50 rounded-xl flex flex-col gap-4 p-2">
                                 <div className="flex-1 bg-slate-200 rounded-lg"></div>
                                 <div className="flex-1 bg-slate-200 rounded-lg"></div>
@@ -903,15 +903,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
 
                 {/* Bottom Charts Skeleton */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                    <div className="h-64 bg-white border border-[#c4b5fd] rounded-[24px] p-6 animate-pulse">
                         <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
                         <div className="h-full bg-slate-50/50 rounded-xl"></div>
                     </div>
-                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                    <div className="h-64 bg-white border border-[#c4b5fd] rounded-[24px] p-6 animate-pulse">
                         <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
                         <div className="h-full bg-slate-50/50 rounded-xl"></div>
                     </div>
-                    <div className="h-64 bg-white border border-slate-200/60 rounded-[24px] p-6 animate-pulse">
+                    <div className="h-64 bg-white border border-[#c4b5fd] rounded-[24px] p-6 animate-pulse">
                         <div className="h-4 w-1/3 bg-slate-200 rounded mb-4"></div>
                         <div className="h-full bg-slate-50/50 rounded-xl"></div>
                     </div>
@@ -1044,7 +1044,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 my-10 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
 
                         {/* 1. Message Volume (Top Left) */}
-                        <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-indigo-500/5 transition-shadow duration-300">
+                        <div className="bg-white border border-[#c4b5fd] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-indigo-500/5 transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="relative z-10 flex-1 flex flex-col justify-between">
                                 <div className="flex justify-between items-start mb-4">
@@ -1074,7 +1074,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         </div>
 
                         {/* 2. Leads Growth (Top Right) */}
-                        <div className="bg-white border border-slate-200/60 rounded-3xl p-8 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-cyan-500/5 transition-shadow duration-300">
+                        <div className="bg-white border border-[#67e8f9] rounded-3xl p-8 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-cyan-500/5 transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="flex justify-between items-start mb-6 relative z-10 shrink-0">
                                 <div>
@@ -1105,7 +1105,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         </div>
 
                         {/* 3. Pipeline Activity (Bottom Left) */}
-                        <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-indigo-500/5 transition-shadow duration-300">
+                        <div className="bg-white border border-[#f9a8d4] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm hover:shadow-indigo-500/5 transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
                             <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
                                 <div>
@@ -1119,7 +1119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         </div>
 
                         {/* 4. Priority Follow-ups (Bottom Right) */}
-                        <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm transition-shadow duration-300">
+                        <div className="bg-white border border-[#fdba74] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] group shadow-sm transition-shadow duration-300">
                             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-slate-50 opacity-40 shine-effect" />
 
                             <div className="flex justify-between items-center mb-6 shrink-0 relative z-10">
@@ -1145,7 +1145,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                         {/* 5. [NEW] Advanced Analytics Row (Replaces Integrations Card) */}
                         <div className="lg:col-span-2 xl:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
                             {/* A. Conversion Funnel */}
-                            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm">
+                            <div className="bg-white border border-[#93c5fd] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm">
                                 <div className="flex justify-between items-center mb-4">
                                     <div>
                                         <h3 className="font-bold text-lg text-slate-800">Engagement Overview</h3>
@@ -1158,7 +1158,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                                 </div>
                             </div>
 
-                            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm hover:shadow-emerald-500/5 transition-shadow">
+                            <div className="bg-white border border-[#6ee7b7] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm hover:shadow-emerald-500/5 transition-shadow">
                                 <h3 className="font-bold text-lg text-slate-800 shrink-0">Revenue Forecast</h3>
                                 <div className="flex-1 flex flex-col items-center justify-center mt-2">
                                     <div className="relative mb-8 mt-4">
@@ -1192,7 +1192,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             </div>
 
                             {/* C. Integrations */}
-                            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm group hover:shadow-emerald-500/5 transition-shadow">
+                            <div className="bg-white border border-[#f0abfc] rounded-3xl p-6 relative overflow-hidden flex flex-col h-[400px] shadow-sm group hover:shadow-emerald-500/5 transition-shadow">
                                 <div className="flex justify-between items-start mb-6">
                                     <div>
                                         <h3 className="font-bold text-lg text-slate-800">Integrations</h3>
