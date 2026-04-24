@@ -387,32 +387,36 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 {/* --- Side Percentage Markers (Tightly aligned to prevent bleeding) --- */}
                                 {/* Row 1 Marker (Right) */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="289" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="289" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
-                                    <text x="289" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
+                                    <circle cx="303" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="303" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
+                                    <text x="303" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
+                                    <line x1="282" y1="72" x2="272" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M266,72 L272,69 L272,75 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 2 Marker (Left) */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="34" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="34" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
-                                    <text x="34" y="162" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Interseted</text>
+                                    <circle cx="20" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="20" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
+                                    <text x="20" y="162" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Interseted</text>
+                                    <line x1="41" y1="129" x2="51" y2="129" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M57,129 L51,126 L51,132 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 3 Marker (Right) */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '1000ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="236" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="236" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
-                                    <text x="236" y="248" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Connect</text>
+                                    <circle cx="250" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="250" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
+                                    <text x="250" y="248" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Connect</text>
+                                    <line x1="229" y1="215" x2="219" y2="215" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M213,215 L219,212 L219,218 Z" fill="#3b82f6" />
                                 </g>
 
                                 {/* Row 4 Marker (Left) */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '1200ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="81" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="81" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
+                                    <circle cx="67" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
+                                    <text x="67" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
+                                    <line x1="88" y1="300" x2="98" y2="300" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M104,300 L98,297 L98,303 Z" fill="#3b82f6" />
                                 </g>
                             </svg>
