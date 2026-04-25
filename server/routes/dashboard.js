@@ -99,7 +99,7 @@ router.get('/stats', requireAuth, async (req, res) => {
         ]);
 
         const allLeads = allLeadsResponse?.data;
-        const config = configRes?.data;
+        const waConfig = configRes?.data;
         const totalContacts = contactsCountRes?.count;
         const totalFlows = flowsCountRes?.count;
         const totalGroups = groupsCountRes?.count;
