@@ -557,11 +557,23 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
         let logId = null;
         if (!isStatusUpdate || hasFailedStatus || process.env.ENABLE_STATUS_LOGGING === 'true') {
+            // OPTIMIZATION: Prune payload for failed statuses to save DB storage
+            let payloadToLog = rawBody;
+            if (hasFailedStatus && !process.env.DEBUG_RAW_WEBHOOKS) {
+                payloadToLog = {
+                    pruned: true,
+                    status: statuses[0].status,
+                    errors: statuses[0].errors,
+                    id: statuses[0].id,
+                    timestamp: statuses[0].timestamp
+                };
+            }
+
             const { data: createdLogId, error: logError } = await supabase.rpc('log_webhook_event', {
                 p_user_id: userId,
                 p_phone_number_id: phoneNumberId,
                 p_http_method: 'POST',
-                p_raw_payload: rawBody,
+                p_raw_payload: payloadToLog,
                 p_processed_status: 'processing',
                 p_message_type: null,
                 p_sender_phone: null,

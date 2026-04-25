@@ -62,15 +62,13 @@ router.get('/', async (req, res) => {
             query = query.order('created_at', { ascending: false });
         }
 
-        // Add Pagination
+        // Add Pagination (Always Enforced to Prevent Egress Spikes)
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 50; // Default 50
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
-        if (req.query.page || req.query.limit) {
-            query = query.range(from, to);
-        }
+        query = query.range(from, to);
 
         const { data, error } = await query;
 

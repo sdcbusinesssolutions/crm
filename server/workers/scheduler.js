@@ -6,16 +6,56 @@ class Scheduler {
     constructor(supabaseUrl, serviceKey) {
         this.supabase = createClient(supabaseUrl, serviceKey);
         this.interval = null;
+        this.triggerUpdateInterval = null;
         this.isRunning = false;
+        this.upcomingOffsets = [];
+        this.overdueOffsets = [];
     }
 
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
         console.log('⏰ Scheduler Started (Task Reminders)');
+        // Update flow triggers every 5 minutes
+        this.updateTaskTriggers();
+        this.triggerUpdateInterval = setInterval(() => this.updateTaskTriggers(), 5 * 60000);
+
         // Run every 15 seconds for more responsive timeouts
         this.interval = setInterval(() => this.checkAllReminders(), 15000);
         this.checkAllReminders(); // Run immediately on start
+    }
+
+    async updateTaskTriggers() {
+        try {
+            const { data: flows, error } = await this.supabase
+                .from('flows')
+                .select('nodes')
+                .eq('status', 'published');
+
+            if (error) throw error;
+
+            const upcoming = new Set();
+            const overdue = new Set();
+
+            flows.forEach(flow => {
+                if (flow.nodes) {
+                    flow.nodes.forEach(node => {
+                        if (node.type === 'taskReminder') {
+                            const trigger = node.data.triggerEvent || 'task_due';
+                            const offset = node.data.timeOffset || 60;
+                            if (trigger === 'task_upcoming') upcoming.add(parseInt(offset));
+                            if (trigger === 'task_overdue') overdue.add(parseInt(offset));
+                        }
+                    });
+                }
+            });
+
+            this.upcomingOffsets = Array.from(upcoming);
+            this.overdueOffsets = Array.from(overdue);
+            // console.log(`[Scheduler] Updated active task triggers: Upcoming [${this.upcomingOffsets.join(',')}], Overdue [${this.overdueOffsets.join(',')}]`);
+        } catch (e) {
+            console.error('❌ [Scheduler] Error updating task triggers:', e.message);
+        }
     }
 
     async checkAllReminders() {
@@ -69,64 +109,46 @@ class Scheduler {
     }
 
     async checkDynamicUpcoming(now) {
+        if (!this.upcomingOffsets || this.upcomingOffsets.length === 0) return;
+
         try {
-            // "Batch Processing" to handle 5,000+ tasks
-            let lastId = '00000000-0000-0000-0000-000000000000';
-            let hasMore = true;
+            for (const offset of this.upcomingOffsets) {
+                // Target due date is exactly `now + offset` minutes
+                const targetMs = now.getTime() + offset * 60000;
+                // 2 min window to ensure we catch it within the 15s interval
+                const start = new Date(targetMs - 60000).toISOString();
+                const end = new Date(targetMs + 60000).toISOString();
 
-            // Look ahead 7 days
-            const lookAheadLimit = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
-
-            while (hasMore) {
-                // Fetch next batch of 500
                 const { data: tasks, error } = await this.supabase
                     .from('tasks')
                     .select('id, user_id, lead_id, title, description, due_date, metadata')
                     .eq('is_completed', false)
-                    .gt('due_date', now.toISOString())
-                    .lt('due_date', lookAheadLimit)
-                    .gt('id', lastId) // Cursor: Get tasks with ID greater than last processed
-                    .order('id', { ascending: true })
+                    .gte('due_date', start)
+                    .lte('due_date', end)
                     .limit(500);
 
-                if (error || !tasks || tasks.length === 0) {
-                    hasMore = false;
-                    break;
-                }
+                if (error) continue;
+                if (!tasks || tasks.length === 0) continue;
 
-                // Process this batch
                 for (const task of tasks) {
-                    lastId = task.id; // Update cursor
-
-                    const dueDate = new Date(task.due_date);
-                    const diffMs = dueDate.getTime() - now.getTime();
-                    const minutesRemaining = Math.round(diffMs / 60000);
-
-                    if (minutesRemaining <= 0) continue;
-
-                    const key = `upcoming_${minutesRemaining}_sent`;
+                    const key = `upcoming_${offset}_sent`;
                     const meta = task.metadata || {};
 
-                    if (meta[key]) continue; // Already sent for this minute
+                    if (meta[key]) continue; // Already sent for this offset
 
-                    // ATOMIC CLAIM: Update metadata and check if we succeeded
+                    // ATOMIC CLAIM: Update metadata
                     const newMeta = { ...meta, [key]: true };
                     const { data: claimed, error: claimError } = await this.supabase
                         .from('tasks')
                         .update({ metadata: newMeta })
                         .eq('id', task.id)
-                        // Ensure another container didn't just update it (Optimistic Locking)
-                        .filter('metadata', 'cs', `{"${key}": true}`) // 'cs' is "contains" - wait, supabase JS filter for NOT contains is hard
-                        // Better: Use a dedicated RPC or just trust that the metadata field didn't change in between
-                        // Since we are in a loop, it's safer to re-fetch or use a specific condition.
-                        // For metadata, we check if the key is still missing.
                         .is(`metadata->>${key}`, null) 
                         .select();
 
                     if (!claimError && claimed && claimed.length > 0) {
-                        console.log(`[Scheduler] Claimed Upcoming(${minutesRemaining}m) Task ${task.id}`);
+                        console.log(`[Scheduler] Claimed Upcoming(${offset}m) Task ${task.id}`);
                         // Trigger Flow
-                        await this.processTask(task, 'task_upcoming', { timeOffset: minutesRemaining });
+                        await this.processTask(task, 'task_upcoming', { timeOffset: offset });
                     }
                 }
             }
@@ -136,39 +158,29 @@ class Scheduler {
     }
 
     async checkDynamicOverdue(now) {
+        if (!this.overdueOffsets || this.overdueOffsets.length === 0) return;
+
         try {
-            let lastId = '00000000-0000-0000-0000-000000000000';
-            let hasMore = true;
+            for (const offset of this.overdueOffsets) {
+                // Target due date is exactly `now - offset` minutes
+                const targetMs = now.getTime() - offset * 60000;
+                // 2 min window
+                const start = new Date(targetMs - 60000).toISOString();
+                const end = new Date(targetMs + 60000).toISOString();
 
-            // Look back 7 days
-            const lookBackLimit = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-            while (hasMore) {
                 const { data: tasks, error } = await this.supabase
                     .from('tasks')
                     .select('id, user_id, lead_id, title, description, due_date, metadata')
                     .eq('is_completed', false)
-                    .lt('due_date', now.toISOString())
-                    .gt('due_date', lookBackLimit)
-                    .gt('id', lastId)
-                    .order('id', { ascending: true })
+                    .gte('due_date', start)
+                    .lte('due_date', end)
                     .limit(500);
 
-                if (error || !tasks || tasks.length === 0) {
-                    hasMore = false;
-                    break;
-                }
+                if (error) continue;
+                if (!tasks || tasks.length === 0) continue;
 
                 for (const task of tasks) {
-                    lastId = task.id;
-
-                    const dueDate = new Date(task.due_date);
-                    const diffMs = now.getTime() - dueDate.getTime();
-                    const minutesOverdue = Math.round(diffMs / 60000);
-
-                    if (minutesOverdue <= 0) continue;
-
-                    const key = `overdue_${minutesOverdue}_sent`;
+                    const key = `overdue_${offset}_sent`;
                     const meta = task.metadata || {};
 
                     if (meta[key]) continue;
@@ -183,8 +195,8 @@ class Scheduler {
                         .select();
 
                     if (!claimError && claimed && claimed.length > 0) {
-                        console.log(`[Scheduler] Claimed Overdue(${minutesOverdue}m) Task ${task.id}`);
-                        await this.processTask(task, 'task_overdue', { timeOffset: minutesOverdue });
+                        console.log(`[Scheduler] Claimed Overdue(${offset}m) Task ${task.id}`);
+                        await this.processTask(task, 'task_overdue', { timeOffset: offset });
                     }
                 }
             }

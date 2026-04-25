@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-
-// Uploads directory creation removed for Serverless/Netlify compatibility
+const sharp = require('sharp'); // Make sure to npm install sharp
 
 const { supabaseAdmin } = require('../lib/supabaseClient');
 
@@ -13,7 +11,7 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: { fileSize: 16 * 1024 * 1024 } // 16MB limit matches WhatsApp Video Max Limit
 });
 
 // POST /api/upload
@@ -23,28 +21,49 @@ router.post('/', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const userId = req.user ? req.user.id : 'anonymous';
+        // Security: Block anonymous uploads
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ error: 'Unauthorized: User authentication required.' });
+        }
+
+        const userId = req.user.id;
         const dateStr = new Date().toISOString().split('T')[0];
-        const fileExt = path.extname(req.file.originalname);
         const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+
+        let buffer = req.file.buffer;
+        let mimetype = req.file.mimetype;
+        let fileExt = path.extname(req.file.originalname).toLowerCase();
+
+        // ✅ WhatsApp Safe Compression
+        // WhatsApp API only accepts image/jpeg and image/png for image messages.
+        // WebP is strictly for stickers. Converting to WebP will break your campaigns.
+        if (mimetype.startsWith('image/') && mimetype !== 'image/gif') {
+            buffer = await sharp(buffer)
+                .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+                .jpeg({ quality: 80, progressive: true }) // Highly compressed JPEG
+                .toBuffer();
+            mimetype = 'image/jpeg';
+            fileExt = '.jpg';
+        }
 
         // path: userId/outbound/date/filename
         const fileName = `${userId}/outbound/${dateStr}/${uniqueSuffix}${fileExt}`;
 
         // Upload to Supabase Storage
-        const { data, error } = await supabaseAdmin
+        const { error } = await supabaseAdmin
             .storage
             .from('campaign-media')
-            .upload(fileName, req.file.buffer, {
-                contentType: req.file.mimetype,
-                upsert: false
+            .upload(fileName, buffer, {
+                contentType: mimetype,
+                upsert: false,
+                cacheControl: '31536000' // 1 Year Cache for ALL media to eliminate egress
             });
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
-        // Get Public URL
+        // ✅ Get Public URL
+        // We MUST use a public URL. If we use a 1-hour Signed URL here, 
+        // scheduled campaigns will fail because the URL will expire before they run!
         const { data: publicUrlData } = supabaseAdmin
             .storage
             .from('campaign-media')
@@ -54,8 +73,7 @@ router.post('/', upload.single('file'), async (req, res) => {
             success: true,
             url: publicUrlData.publicUrl,
             filename: fileName,
-            mimetype: req.file.mimetype,
-            // Echo back contextual params for frontend mapping
+            mimetype: mimetype,
             variable_key: req.body.variable_key,
             card_index: req.body.card_index
         });

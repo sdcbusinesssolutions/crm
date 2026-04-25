@@ -42,39 +42,24 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         // ── ALL queries in ONE parallel batch (no sequential await blocks) ──────
         // 11 total queries (was 19). whatsapp_templates/campaigns counts derived from data.
+        // 🚀 OPTIMIZATION: Try to use the RPC first to offload the 10,000 leads calculation to Postgres
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_dashboard_stats', { p_user_id: userId });
+        const hasRpc = !rpcError && rpcData;
+
+        // Fetch parallel lightweight queries
         const [
-            { count: totalContacts },
-            { count: totalFlows },
-            { data: waConfig },
-            { data: allLeads },
-            { data: pipelines },
-            { data: stagesData },
-            { data: integrations },
-            { data: allTasksData },
-            { data: templatesStatusData },
-            { data: lastCampaigns },
-            { count: totalGroups },
+            allTasksData,
+            templatesStatusData,
+            integrations,
+            lastCampaigns,
+            pipelines,
+            stagesData,
+            allLeadsResponse,
+            contactsCountRes,
+            flowsCountRes,
+            configRes,
+            groupsCountRes
         ] = await Promise.all([
-            // Fast COUNT with DB index
-            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('flows').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-
-            // Config — 1 row
-            supabase.from('whatsapp_config').select('phone_number, phone_number_id').eq('user_id', userId).limit(1),
-
-            // Leads — ONE query replaces 5 separate lead queries
-            supabase.from('leads')
-                .select('id, name, created_at, status, pipeline_id, stage_id, estimated_value')
-                .eq('user_id', userId)
-                .limit(10000),
-
-            // Structure
-            supabase.from('pipelines').select('id, name').eq('user_id', userId),
-            supabase.from('pipeline_stages').select('id, name, pipeline_id').eq('user_id', userId),
-
-            // Integrations
-            supabase.from('user_integrations').select('provider').eq('user_id', userId).limit(200),
-
             // Tasks (count + due logic from data)
             supabase.from('tasks').select('is_completed, due_date').eq('user_id', userId).limit(5000),
 
@@ -84,6 +69,9 @@ router.get('/stats', requireAuth, async (req, res) => {
                 .eq('user_id', userId)
                 .limit(2000),
 
+            // Integrations
+            supabase.from('user_integrations').select('provider').eq('user_id', userId).limit(200),
+
             // Campaigns: fetch rows + exact count in one request
             supabase.from('campaigns')
                 .select('id, title, success_count, failed_count', { count: 'exact' })
@@ -91,9 +79,31 @@ router.get('/stats', requireAuth, async (req, res) => {
                 .order('created_at', { ascending: false })
                 .limit(200),
 
-            // Groups count only
-            supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            // Structure
+            supabase.from('pipelines').select('id, name').eq('user_id', userId),
+            supabase.from('pipeline_stages').select('id, name, pipeline_id').eq('user_id', userId),
+
+            // Leads — Only fetch if the RPC is NOT installed!
+            hasRpc 
+                ? Promise.resolve({ data: null }) 
+                : supabase.from('leads')
+                    .select('id, name, created_at, status, pipeline_id, stage_id, estimated_value')
+                    .eq('user_id', userId)
+                    .limit(10000),
+            
+            // Counts
+            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            supabase.from('flows').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+            supabase.from('whatsapp_config').select('phone_number, phone_number_id').eq('user_id', userId).limit(1),
+            supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId)
         ]);
+
+        const allLeads = allLeadsResponse?.data;
+        const config = configRes?.data;
+        const totalContacts = contactsCountRes?.count;
+        const totalFlows = flowsCountRes?.count;
+        const totalGroups = groupsCountRes?.count;
+        const totalPipelines = (pipelines?.data || []).length;
 
         // Counts derived from already-fetched row data (no extra DB calls)
         // Limits (2000 templates, 200 campaigns) are generous for most users
@@ -108,56 +118,82 @@ router.get('/stats', requireAuth, async (req, res) => {
         const campaignRows    = lastCampaigns        || [];
 
 
-        // Derive recent leads from allLeads (CPU sort — no extra DB query)
-        const recentLeads = (allLeads || [])
-            .slice()
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-            .slice(0, 5)
-            .map(l => ({ id: l.id, name: l.name, created_at: l.created_at, status: l.status, pipeline_id: l.pipeline_id }));
-
-        // ── CPU aggregations on the single leads array ─────────────────
-        const leads = allLeads || [];
+        let recentLeads = [];
         let totalPipelineValue = 0, wonValue = 0, wonCount = 0;
         let activeLeads = 0, newLeadsToday = 0;
+        let pipelineStats = [];
+        let totalLeadsCount = 0;
 
-        // Build pipeline map from separate pipelines + stages arrays
-        const pipelineMap = {};
-        (pipelines || []).forEach(p => {
-            pipelineMap[p.id] = { id: p.id, name: p.name, stages: [] };
-        });
-        (stagesData || []).forEach(s => {
-            if (pipelineMap[s.pipeline_id]) {
-                pipelineMap[s.pipeline_id].stages.push({ id: s.id, name: s.name });
-            }
-        });
-        const pipelineList = Object.values(pipelineMap);
-        const totalPipelines = pipelineList.length;
+        if (hasRpc) {
+            // ✅ Use ultra-fast Postgres aggregated stats
+            const r = rpcData;
+            recentLeads = r.recentLeads || [];
+            totalPipelineValue = r.summary?.totalPipelineValue || 0;
+            wonValue = r.summary?.wonValue || 0;
+            wonCount = r.summary?.wonCount || 0;
+            activeLeads = r.summary?.activeLeads || 0;
+            newLeadsToday = r.summary?.newLeadsToday || 0;
+            totalLeadsCount = r.summary?.totalLeads || 0;
+            
+            // Format pipeline stats to match frontend expected structure
+            pipelineStats = (r.pipelineStats || []).map(p => ({
+                id: p.pipeline_id,
+                name: p.pipeline_name,
+                totalLeads: p.total_leads || 0,
+                stages: (p.stages || []).map(s => ({
+                    name: s.name,
+                    count: s.count || 0
+                }))
+            }));
+        } else {
+            // ⚠️ FALLBACK: CPU aggregations on the single leads array (old method)
+            const leads = allLeads || [];
+            totalLeadsCount = leads.length;
 
-        leads.forEach(l => {
-            const val = Number(l.estimated_value) || 0;
-            totalPipelineValue += val;
-            const isWon = (l.status && l.status.toLowerCase() === 'won') || (l.stage_id && l.stage_id.toLowerCase().includes('won'));
-            if (isWon) { wonValue += val; wonCount++; }
-            if (l.status === 'active') activeLeads++;
-            if (l.created_at >= todayISO && l.created_at < tomorrowISO) newLeadsToday++;
-        });
+            recentLeads = leads
+                .slice()
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, 5)
+                .map(l => ({ id: l.id, name: l.name, created_at: l.created_at, status: l.status, pipeline_id: l.pipeline_id }));
+
+            // Build pipeline map from separate pipelines + stages arrays
+            const pipelineMap = {};
+            (pipelines?.data || []).forEach(p => {
+                pipelineMap[p.id] = { id: p.id, name: p.name, stages: [] };
+            });
+            (stagesData?.data || []).forEach(s => {
+                if (pipelineMap[s.pipeline_id]) {
+                    pipelineMap[s.pipeline_id].stages.push({ id: s.id, name: s.name });
+                }
+            });
+            const pipelineList = Object.values(pipelineMap);
+
+            leads.forEach(l => {
+                const val = Number(l.estimated_value) || 0;
+                totalPipelineValue += val;
+                const isWon = (l.status && l.status.toLowerCase() === 'won') || (l.stage_id && l.stage_id.toLowerCase().includes('won'));
+                if (isWon) { wonValue += val; wonCount++; }
+                if (l.status === 'active') activeLeads++;
+                if (l.created_at >= todayISO && l.created_at < tomorrowISO) newLeadsToday++;
+            });
+
+            // Pipeline breakdown — CPU only, no extra DB hits
+            pipelineStats = pipelineList.map(p => {
+                const pLeads = leads.filter(l => l.pipeline_id === p.id);
+                return {
+                    id: p.id, name: p.name, totalLeads: pLeads.length,
+                    stages: p.stages.map(s => ({
+                        name: s.name, count: pLeads.filter(l => l.stage_id === s.id).length
+                    }))
+                };
+            });
+        }
 
         const revenueStats = {
             totalValue: totalPipelineValue,
             wonValue,
-            conversionRate: Math.round((wonCount / Math.max(leads.length, 1)) * 100) + '%'
+            conversionRate: Math.round((wonCount / Math.max(totalLeadsCount, 1)) * 100) + '%'
         };
-
-        // Pipeline breakdown — CPU only, no extra DB hits
-        const pipelineStats = pipelineList.map(p => {
-            const pLeads = leads.filter(l => l.pipeline_id === p.id);
-            return {
-                id: p.id, name: p.name, totalLeads: pLeads.length,
-                stages: p.stages.map(s => ({
-                    name: s.name, count: pLeads.filter(l => l.stage_id === s.id).length
-                }))
-            };
-        });
 
         // Template stats
         const templateStats = { approved: 0, pending: 0, rejected: 0 };

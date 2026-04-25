@@ -285,16 +285,22 @@ class CampaignWorker {
                 if (!this.isProcessing) {
                     this.isProcessing = true;
 
-                    // ✅ STAGGERED MAINTENANCE: Only ~1% of containers run heavy maintenance per tick.
-                    // At 100 containers, this means ~1 container does recovery every 2s tick.
-                    // Without this, all 100 containers run recoverStaleLocks simultaneously.
+                    // ✅ STAGGERED MAINTENANCE
                     const shouldRunMaintenance = Math.random() < (1 / Math.max(1, this.estimatedContainerCount));
                     if (shouldRunMaintenance) {
                         await this.recoverStaleLocks();
                         await this.processScheduledCampaigns();
                     }
 
-                    await this.processQueue();
+                    const hasWork = await this.processQueue();
+                    
+                    if (hasWork) {
+                        this.idleMultiplier = 1; // Reset backoff when work is found
+                    } else {
+                        // Max 4x multiplier (approx 8-20s sleep max)
+                        this.idleMultiplier = Math.min(4, (this.idleMultiplier || 1) + 1); 
+                    }
+
                     this.isProcessing = false;
                 }
             } catch (error) {
@@ -302,9 +308,9 @@ class CampaignWorker {
                 this.isProcessing = false;
             }
 
-            // ✅ JITTER ON EVERY TICK: Base 2s + random 0-3s extra.
-            // Spreads 100 container ticks across a 5s window instead of all hitting at once.
-            const tickJitter = 2000 + Math.floor(Math.random() * 3000);
+            // ✅ ADAPTIVE JITTER: Base 2s + random 0-3s extra. Multiplied by idle backoff.
+            // Spreads container ticks across a wider window when idle to save DB load.
+            const tickJitter = (2000 + Math.floor(Math.random() * 3000)) * (this.idleMultiplier || 1);
             await sleep(tickJitter);
         }
     }
@@ -371,7 +377,7 @@ class CampaignWorker {
             .select('id, user_id, title, template_name, language_code, variable_mapping, media_url, media_type, location_header')
             .eq('status', 'PROCESSING');
 
-        if (!activeCampaigns || activeCampaigns.length === 0) return;
+        if (!activeCampaigns || activeCampaigns.length === 0) return false;
 
         // ✅ SCALE: Update estimated container count based on active campaigns volume.
         // This self-tunes the maintenance probability in loop().
@@ -382,6 +388,8 @@ class CampaignWorker {
 
         // Process campaigns in parallel — each claims exclusive ownership before working.
         await Promise.all(shuffled.map(campaign => this.processCampaignBatch(campaign)));
+        
+        return true;
     }
 
     async processCampaignBatch(campaign) {

@@ -203,12 +203,13 @@ class FlowEngine {
                     }
 
                     // 2. Handle WAITING_INPUT sessions (Unresponsive)
+                    // We only fetch 100 to prevent massive egress if there are thousands of stuck sessions.
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
                         .select('id, status, current_node_id, variables, flow_id, user_id')
                         .eq('status', 'waiting_input')
-                        .order('last_interaction_at', { ascending: false })
-                        .limit(500);
+                        .order('last_interaction_at', { ascending: true }) // CRITICAL: Must be true to fetch oldest (timed out) first
+                        .limit(100);
 
                     if (!waitingError && waitingSessions && waitingSessions.length > 0) {
                         for (const session of waitingSessions) {

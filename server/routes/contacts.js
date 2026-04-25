@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
       let query = supabaseAdmin
         .from('contacts')
-        .select('*', { count: 'exact' })
+        .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at', { count: 'exact' })
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -80,7 +80,7 @@ router.get('/', async (req, res) => {
 
       let chunkQuery = clientToUse
         .from('contacts')
-        .select('*')
+        .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .range(from, to);
