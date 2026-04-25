@@ -2371,7 +2371,7 @@ const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMe
 
                         <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Caption (Optional)</label>
-                            <PanelTextInput value={data.caption || ''} onChange={val => handleUpdate({ caption: val })} placeholder="Caption text" />
+                            <PanelTextarea value={data.caption || ''} onChange={val => handleUpdate({ caption: val })} placeholder="Caption text" maxLength={1024} rows={3} />
                         </div>
                     </div>
                 </div>
