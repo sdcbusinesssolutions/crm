@@ -579,7 +579,7 @@ class CampaignWorker {
                 // Step 2: Check dedicated components cache table
                 const { data: cachedComp } = await this.supabase
                     .from('template_components_cache')
-                    .select('components')
+                    .select('components, category')
                     .eq('user_id', campaign.user_id)
                     .eq('template_name', campaign.template_name)
                     .single();
@@ -590,6 +590,7 @@ class CampaignWorker {
                         name: campaign.template_name,
                         language: localTmpl.language,
                         components: cachedComp.components,
+                        category: cachedComp.category || 'UNKNOWN',
                         buttons: localTmpl.buttons || [],
                         body_text: localTmpl.body_text,
                         header_text: localTmpl.header_text,
@@ -627,6 +628,7 @@ class CampaignWorker {
                                         user_id: campaign.user_id,
                                         template_name: campaign.template_name,
                                         components: metaDef.components,
+                                        category: metaDef.category,
                                         updated_at: new Date().toISOString()
                                     }, { onConflict: 'user_id,template_name' });
 
@@ -830,6 +832,56 @@ class CampaignWorker {
             // Robust finding of Header Component (Case-insensitive)
             const headerDef = templateDef?.components?.find(c => c.type?.toUpperCase() === 'HEADER');
 
+            // --- RESOLVE VARIABLE VALUE HELPER ---
+            const resolveVariableValue = (key, mapping, contacts, phone) => {
+                const field = mapping[key];
+                if (!field) return '';
+                
+                // Helper to resolve nested paths (e.g. custom_data.Age)
+                const resolvePath = (obj, path) => {
+                    if (!obj || !path) return undefined;
+                    const parts = path.split('.');
+                    let current = obj;
+                    for (const part of parts) {
+                        if (current === null || current === undefined) return undefined;
+                        if (current[part] !== undefined) {
+                            current = current[part];
+                            continue;
+                        }
+                        if (typeof current === 'object' && !Array.isArray(current)) {
+                            const keys = Object.keys(current);
+                            const foundKey = keys.find(k => k.toLowerCase() === part.toLowerCase());
+                            if (foundKey) {
+                                current = current[foundKey];
+                                continue;
+                            }
+                        }
+                        return undefined;
+                    }
+                    return current;
+                };
+
+                let value = '';
+                if (contacts) {
+                    let resolved = resolvePath(contacts, field);
+                    if ((resolved === undefined || resolved === null) && field.startsWith('custom_data.')) {
+                        const leaf = field.split('.')[1];
+                        if (['name', 'phone', 'email', 'status', 'source'].includes(leaf)) {
+                            resolved = contacts[leaf];
+                        }
+                    }
+                    if (resolved !== undefined && resolved !== null) value = resolved;
+                }
+
+                if (!value && field === 'phone') value = phone;
+
+                if (value === undefined || value === '' || value === null) {
+                    const isLikelyPath = (field.toLowerCase().startsWith('custom_data.') || ['name', 'email', 'phone', 'status', 'source'].includes(field.toLowerCase()));
+                    value = isLikelyPath ? '' : (field || '');
+                }
+                return String(value);
+            };
+
             if ((campaign.media_url || healedMediaId) && campaign.media_type) {
                 // Formatting Check:
                 // 1. We must have a header definition in the template.
@@ -876,105 +928,37 @@ class CampaignWorker {
                 }
             }
 
-            // Handle Variable Mapping (Assumed for BODY)
+            // Handle Variable Mapping (Header & Body)
             if (campaign.variable_mapping) {
-                // Only process keys that are actually present in the template text
-                // We need to parse the template body to find {{1}}, {{2}} etc.
+                // Handle TEXT Header Variables
+                if (headerDef && headerDef.format === 'TEXT') {
+                    const matches = headerDef.text?.match(/{{(\d+|[a-zA-Z0-9_]+)}}/g);
+                    if (matches) {
+                        const headerParams = matches.map(m => {
+                            const key = m.replace(/{{|}}/g, '');
+                            return { type: 'text', text: resolveVariableValue(key, campaign.variable_mapping, item.contacts, item.phone_number) };
+                        });
+                        if (headerParams.length > 0) {
+                            components.push({ type: 'header', parameters: headerParams });
+                        }
+                    }
+                }
+
+                // Handle BODY Variables
                 const bodyText = templateDef?.components?.find(c => c.type === 'BODY')?.text;
                 if (bodyText) {
                     const matches = bodyText.match(/{{(\d+|[a-zA-Z0-9_]+)}}/g);
                     if (matches) {
-                        const requiredKeys = matches.map(m => m.replace(/{{|}}/g, ''));
-
-                        requiredKeys.forEach(key => {
-                            const field = campaign.variable_mapping[key];
-                            let value = '';
-
-                            // Helper to resolve nested paths (e.g. custom_data.Age)
-                            // or direct properties (e.g. email, name)
-                            // Helper to resolve nested paths (e.g. custom_data.Age)
-                            // or direct properties (e.g. email, name)
-                            // Enhanced with Case-Insensitive fallback
-                            const resolvePath = (obj, path) => {
-                                if (!obj || !path) return undefined;
-                                const parts = path.split('.');
-
-                                let current = obj;
-                                for (const part of parts) {
-                                    if (current === null || current === undefined) return undefined;
-
-                                    // 1. Try Exact Match
-                                    if (current[part] !== undefined) {
-                                        current = current[part];
-                                        continue;
-                                    }
-
-                                    // 2. Try Case-Insensitive Match (only if current is an object)
-                                    if (typeof current === 'object' && !Array.isArray(current)) {
-                                        const keys = Object.keys(current);
-                                        const foundKey = keys.find(k => k.toLowerCase() === part.toLowerCase());
-                                        if (foundKey) {
-                                            current = current[foundKey];
-                                            continue;
-                                        }
-                                    }
-
-                                    return undefined; // Not found
-                                }
-                                return current;
-                            };
-
-                            if (field && item.contacts) {
-                                let resolved = resolvePath(item.contacts, field);
-
-                                // Fallback for common mis-mapping (e.g. custom_data.name -> name) created by Input Builder duplicates
-                                if ((resolved === undefined || resolved === null) && field.startsWith('custom_data.')) {
-                                    const leaf = field.split('.')[1];
-                                    // If we failed to find it in custom_data, check if it exists at root levels for valid standards
-                                    if (['name', 'phone', 'email', 'status', 'source'].includes(leaf)) {
-                                        resolved = item.contacts[leaf];
-                                    }
-                                }
-
-                                if (resolved !== undefined && resolved !== null) {
-                                    value = resolved;
-                                }
-                            }
-
-                            // Fallbacks
-                            if (!value && field === 'phone') {
-                                value = item.phone_number;
-                            }
-
-                            // Handling missing values
-                            if (value === undefined || value === '' || value === null) {
-                                // If the field looks like a path (e.g. custom_data.X or name/email), send empty string to avoid leaking technical keys
-                                const isLikelyPath = field && (
-                                    field.toLowerCase().startsWith('custom_data.') ||
-                                    ['name', 'email', 'phone', 'status', 'source'].includes(field.toLowerCase())
-                                );
-                                if (isLikelyPath) {
-                                    value = '';
-                                } else {
-                                    // Otherwise, assume it's a static text string the user typed (e.g. "Welcome")
-                                    value = field || '';
-                                }
-                            }
-
-                            bodyParams.push({
-                                type: "text",
-                                text: String(value)
-                            });
+                        const bodyParams = matches.map(m => {
+                            const key = m.replace(/{{|}}/g, '');
+                            return { type: "text", text: resolveVariableValue(key, campaign.variable_mapping, item.contacts, item.phone_number) };
                         });
+
+                        if (bodyParams.length > 0) {
+                            components.push({ type: "body", parameters: bodyParams });
+                        }
                     }
                 }
-            }
-
-            if (bodyParams.length > 0) {
-                components.push({
-                    type: "body",
-                    parameters: bodyParams
-                });
             }
 
             // Handle Carousel Media (stored in variable_mapping._carousel_media)
@@ -1087,15 +1071,19 @@ class CampaignWorker {
                                 type: "button",
                                 sub_type: "flow",
                                 index: index,
-                                parameters: [
-                                    {
-                                        type: "action",
-                                        action: {
-                                            flow_token: btn.flow_id || "unused_token"
-                                        }
-                                    }
-                                ]
+                                parameters: [{ type: "action", action: { flow_token: btn.flow_id || "unused_token" } }]
                             });
+                        } else if (btn.type === 'URL' && btn.url && /\{\{\d+\}\}/.test(btn.url) && campaign.variable_mapping) {
+                            const btnMatches = btn.url.match(/{{(\d+|[a-zA-Z0-9_]+)}}/g);
+                            if (btnMatches) {
+                                const btnParams = btnMatches.map(m => {
+                                    const key = m.replace(/{{|}}/g, '');
+                                    return { type: 'text', text: resolveVariableValue(key, campaign.variable_mapping, item.contacts, item.phone_number) };
+                                });
+                                if (btnParams.length > 0) {
+                                    components.push({ type: 'button', sub_type: 'url', index: index, parameters: btnParams });
+                                }
+                            }
                         }
                     });
                 }
@@ -1107,7 +1095,7 @@ class CampaignWorker {
                 type: "template",
                 template: {
                     name: campaign.template_name,
-                    language: { code: campaign.language_code },
+                    language: { code: campaign.language_code || 'en_US' },
                     components: components.length > 0 ? components : undefined
                 }
             };

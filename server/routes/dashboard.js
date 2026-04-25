@@ -107,15 +107,15 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         // Counts derived from already-fetched row data (no extra DB calls)
         // Limits (2000 templates, 200 campaigns) are generous for most users
-        const totalTemplates = (templatesStatusData || []).length;
-        const totalCampaigns = (lastCampaigns || []).length;
+        const totalTemplates = templatesStatusData?.count || (templatesStatusData?.data || []).length;
+        const totalCampaigns = lastCampaigns?.count || (lastCampaigns?.data || []).length;
 
 
 
-        const allTasks        = allTasksData        || [];
-        const templatesStatus = templatesStatusData  || [];
-        const integrList      = integrations         || [];
-        const campaignRows    = lastCampaigns        || [];
+        const allTasks        = allTasksData?.data        || [];
+        const templatesStatus = templatesStatusData?.data || [];
+        const integrList      = integrations?.data        || [];
+        const campaignRows    = lastCampaigns?.data       || [];
 
 
         let recentLeads = [];
