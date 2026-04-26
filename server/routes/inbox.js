@@ -362,12 +362,29 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
 // ==========================================
 router.delete('/messages/:conversationId', async (req, res) => {
     try {
+        const userId = getUserId(req);
         const { conversationId } = req.params;
         const { supabaseAdmin } = require('../lib/supabaseClient'); // Use Admin execution to bypass RLS
 
-        console.log(`[Inbox] Clearing chat history for ${conversationId}...`);
+        // 1. VERIFY OWNERSHIP
+        const { data: conversation, error: convErr } = await supabaseAdmin
+            .from('conversations')
+            .select('user_id')
+            .eq('id', conversationId)
+            .single();
 
-        // Delete all messages for this conversation
+        if (convErr || !conversation) {
+            return res.status(404).json({ error: 'Conversation not found' });
+        }
+
+        if (conversation.user_id !== userId) {
+            console.warn(`[Inbox] Unauthorized clear attempt by ${userId} for conversation ${conversationId}`);
+            return res.status(403).json({ error: 'Unauthorized: You do not own this conversation' });
+        }
+
+        console.log(`[Inbox] User ${userId} clearing chat history for ${conversationId}...`);
+
+        // 2. Delete all messages for this conversation
         const { error, count } = await supabaseAdmin
             .from('messages')
             .delete({ count: 'exact' })
@@ -375,7 +392,7 @@ router.delete('/messages/:conversationId', async (req, res) => {
 
         if (error) throw error;
 
-        // Reset Last Message string in conversation
+        // 3. Reset Last Message string in conversation
         await supabaseAdmin
             .from('conversations')
             .update({ last_message: null, updated_at: new Date().toISOString() })

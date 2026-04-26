@@ -65,6 +65,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
     const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const [isInitialScrollDone, setIsInitialScrollDone] = useState(true);
     // Use ref for synchronous locking to prevent double-submit
     const isSendingRef = useRef(false);
 
@@ -414,6 +415,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     useEffect(() => {
         shouldForceScrollRef.current = true;
         isAtBottomRef.current = true;
+        setIsInitialScrollDone(false); // Hide chat until scrolled
     }, [activeChatId]);
 
     // Smart scroll on new messages - INSTANT for initial load, smooth for new messages
@@ -434,8 +436,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             // Retry after DOM updates (for images/media loading)
             setTimeout(scrollToBottomInstant, 0);
-            setTimeout(scrollToBottomInstant, 50);
-            setTimeout(scrollToBottomInstant, 200);
+            setTimeout(scrollToBottomInstant, 30);
+            setTimeout(scrollToBottomInstant, 80);
+            
+            // Mark as done early for better feel, but keep scrolling in background
+            setTimeout(() => setIsInitialScrollDone(true), 100);
+
             setTimeout(() => {
                 scrollToBottomInstant();
                 shouldForceScrollRef.current = false; // Reset flag
@@ -2022,8 +2028,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             onScroll={handleScroll}
                             className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative z-10"
                             style={{
-                                opacity: isLoadingMessages ? 0 : 1,
-                                transition: 'opacity 0.15s ease-in',
+                                opacity: (isLoadingMessages || !isInitialScrollDone) ? 0 : 1,
+                                transition: 'opacity 0.1s ease-in',
                                 willChange: 'scroll-position',
                                 transform: 'translateZ(0)',
                                 backfaceVisibility: 'hidden' as const,
