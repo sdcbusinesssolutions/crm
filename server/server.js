@@ -1,6 +1,6 @@
-
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const serverless = require('serverless-http');
 const path = require('path');
 
@@ -43,6 +43,7 @@ if (!PORT) {
 
 // --- Middleware ---
 app.use(cors());
+app.use(compression());
 
 // --- Supabase Reverse Proxy (Must be BEFORE express.json) ---
 try {
