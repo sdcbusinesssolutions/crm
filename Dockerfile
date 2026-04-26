@@ -6,56 +6,31 @@ WORKDIR /app/client
 COPY client/package*.json ./
 RUN npm install --legacy-peer-deps --quiet
 COPY client/ ./
-
-# NOTE: We DO NOT bake env vars here anymore.
-# They are injected at runtime via config.js
 RUN npm run build
 
 # ==========================================
-# 📦 Stage 2: Build the Server Binary (Security Layer)
+# 🚀 Stage 2: Production Image (High Performance)
 # ==========================================
-FROM node:20 AS server-builder
-WORKDIR /build
-
-# Copy manifest and dependencies
-COPY server/package*.json ./
-RUN npm install
-
-# Copy source code
-COPY server/ ./
-
-# Install pkg to compile the app
-RUN npm install -g pkg
-
-# Compile into a binary
-# This hides the source code inside the executable 'server-app'
-# We use --compress GZip to reduce size
-RUN pkg package.json --targets node20-linux-x64 --output server-app --compress GZip --public > /dev/null 2>&1 || true
-RUN echo "✅ Compilation Successful (Warnings above are normal)"
-
-# ==========================================
-# 🚀 Stage 3: Production Image (Secure)
-# ==========================================
-# Using -slim for wider compatibility with pkg binaries (glibc vs musl)
 FROM node:20-slim
 
+# Set Timezone and Install ffmpeg (for video transcoding)
 ENV TZ="Asia/Kolkata"
-
-# Install TZ Data, curl, and ffmpeg (for video transcoding)
 RUN apt-get update && \
-    apt-get install -y tzdata curl ffmpeg && \
+    apt-get install -y tzdata curl ffmpeg python3 make g++ && \
     ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
     echo "Asia/Kolkata" > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# 1. Copy the Server Binary from Stage 2
-# This ensures NO source code (JS files) exists in the final image
-COPY --from=server-builder /build/server-app ./server-app
+# 1. Copy Server package files and install production dependencies
+COPY server/package*.json ./
+# We install with --omit=dev to keep the image small
+# We use --build-from-source for sharp to ensure linux-x64 compatibility
+RUN npm install --omit=dev
 
-# 2. Add Execute Permissions (Critical for Linux execution)
-RUN chmod +x ./server-app
+# 2. Copy Server source code
+COPY server/ ./
 
 # 3. Copy the Built Client from Stage 1
 COPY --from=frontend-builder /app/client/dist ./public_html
@@ -63,22 +38,23 @@ COPY --from=frontend-builder /app/client/dist ./public_html
 # 4. Create necessary mutable directories
 RUN mkdir -p logs uploads
 
-# Copy Entrypoint Script
+# 5. Copy Entrypoint Script
 COPY entrypoint.sh ./entrypoint.sh
-# Fix line endings (CRLF -> LF) for Windows builds
 RUN sed -i 's/\r$//' ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
-# 5. Set Environment Variables
+# 6. Set Environment Variables
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV CLIENT_BUILD_PATH=/app/public_html
 
-# Expose Port
+# EXPOSE PORT
 EXPOSE 5000
 
 # Use Entrypoint to inject config before starting
 ENTRYPOINT ["./entrypoint.sh"]
 
-# Run the binary
-CMD ["./server-app"]
+# RUN THE SERVER
+# We use --max-old-space-size to allow Node to use more of your 32GB RAM
+# We use node_dns_order to fix Meta CDN IPv6 issues
+CMD ["node", "--max-old-space-size=3072", "server.js"]
