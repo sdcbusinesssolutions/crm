@@ -21,6 +21,22 @@ router.post('/', upload.single('file'), async (req, res) => {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
+        // --- Video Validation ---
+        const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB
+        if (req.file.mimetype.startsWith('video/')) {
+            // 1. Check Size
+            if (req.file.size > MAX_VIDEO_SIZE) {
+                return res.status(400).json({ 
+                    error: `Video too large (${(req.file.size / 1024 / 1024).toFixed(2)}MB). WhatsApp limit is 16MB.` 
+                });
+            }
+
+            // 2. Check Extension (WhatsApp prefers MP4)
+            if (path.extname(req.file.originalname).toLowerCase() !== '.mp4') {
+                return res.status(400).json({ error: 'Please upload video in MP4 format.' });
+            }
+        }
+
         // Security: Block anonymous uploads
         if (!req.user || !req.user.id) {
             return res.status(401).json({ error: 'Unauthorized: User authentication required.' });
