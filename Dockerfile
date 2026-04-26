@@ -14,7 +14,7 @@ RUN npm run build
 # ==========================================
 # 📦 Stage 2: Build the Server Binary (Security Layer)
 # ==========================================
-FROM node:18 AS server-builder
+FROM node:20 AS server-builder
 WORKDIR /build
 
 # Copy manifest and dependencies
@@ -30,14 +30,14 @@ RUN npm install -g pkg
 # Compile into a binary
 # This hides the source code inside the executable 'server-app'
 # We use --compress GZip to reduce size
-RUN pkg package.json --targets node18-linux-x64 --output server-app --compress GZip --public > /dev/null 2>&1 || true
+RUN pkg package.json --targets node20-linux-x64 --output server-app --compress GZip --public > /dev/null 2>&1 || true
 RUN echo "✅ Compilation Successful (Warnings above are normal)"
 
 # ==========================================
 # 🚀 Stage 3: Production Image (Secure)
 # ==========================================
 # Using -slim for wider compatibility with pkg binaries (glibc vs musl)
-FROM node:18-slim
+FROM node:20-slim
 
 ENV TZ="Asia/Kolkata"
 
