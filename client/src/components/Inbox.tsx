@@ -54,6 +54,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [hasOpenedEmoji, setHasOpenedEmoji] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+    const [convPage, setConvPage] = useState(1);
+    const [hasMoreConvs, setHasMoreConvs] = useState(true);
+    const [isLoadingMoreConvs, setIsLoadingMoreConvs] = useState(false);
 
     // Recording State
     const [isRecording, setIsRecording] = useState(false);
@@ -99,27 +102,54 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [availableTagsList]);
 
     // Load Conversations
-    useEffect(() => {
-        const loadConversations = async () => {
-            try {
-                const data = await inboxService.getConversations();
-                // Deduplicate by id
-                const unique = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                console.log('Loaded conversations:', unique.length);
-                setConversations(unique);
-            } catch (error) {
-                console.error('Failed to load conversations:', error);
+    const loadConversations = async (page = 1, append = false) => {
+        if (isLoadingMoreConvs || (!hasMoreConvs && append)) return;
+        
+        if (append) setIsLoadingMoreConvs(true);
+        try {
+            const result = await inboxService.getConversations(page);
+            // Result is data array directly from inboxService.getConversations
+            const newData = result || [];
+            
+            if (newData.length < 20) {
+                setHasMoreConvs(false);
+            } else {
+                setHasMoreConvs(true);
             }
-        };
-        loadConversations();
 
-        // Load tags
-        tagService.getTags().then(tags => setAvailableTagsList(tags || [])).catch(console.error);
+            setConversations(prev => {
+                const combined = append ? [...prev, ...newData] : newData;
+                // Deduplicate by id
+                return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+            });
+            
+            if (!append) {
+                // Load tags only on initial load
+                tagService.getTags().then(tags => setAvailableTagsList(tags || [])).catch(console.error);
+            }
+        } catch (error) {
+            console.error('Failed to load conversations:', error);
+        } finally {
+            if (append) setIsLoadingMoreConvs(false);
+        }
+    };
 
-        // Poll for new conversations
-        const interval = setInterval(loadConversations, 5000);
+    useEffect(() => {
+        loadConversations(1, false);
+
+        // Poll for new conversations (only refresh the first page to catch new chats)
+        const interval = setInterval(() => loadConversations(1, false), 5000);
         return () => clearInterval(interval);
-    }, []);
+    }, [quickFilter, filterTag]); // Reload when filters change
+
+    const handleConvScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop - clientHeight < 100 && hasMoreConvs && !isLoadingMoreConvs) {
+            const nextPage = convPage + 1;
+            setConvPage(nextPage);
+            loadConversations(nextPage, true);
+        }
+    };
 
     // Load Quick Replies
     useEffect(() => {
@@ -1753,7 +1783,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 </div>
 
                 {/* Chat List */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar" onScroll={handleConvScroll}>
                     {filteredChats.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-slate-400 text-center p-4">
                             <SearchIcon className="w-8 h-8 mb-2 opacity-50" />
@@ -1853,6 +1883,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 </div>
                             </div>
                         ))
+                    )}
+                    {isLoadingMoreConvs && (
+                        <div className="p-4 flex justify-center">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-600"></div>
+                        </div>
                     )}
                 </div>
             </div>
