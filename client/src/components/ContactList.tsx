@@ -22,6 +22,7 @@ interface ContactListProps {
 
 const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGroupFilter, onContactCountUpdate }) => {
     const [contacts, setContacts] = useState<Contact[]>([]);
+    const [totalContacts, setTotalContacts] = useState(0); // Added for server-side pagination
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [entriesPerPage, setEntriesPerPage] = useState(10);
@@ -29,21 +30,17 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
 
-
     // Sync count with parent
     useEffect(() => {
         if (onContactCountUpdate) {
-            onContactCountUpdate(contacts.length);
+            onContactCountUpdate(totalContacts);
         }
-    }, [contacts, onContactCountUpdate]); // Dependencies
+    }, [totalContacts, onContactCountUpdate]);
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
         return new Date(dateStr).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
-
-    // ... (rest of the component)
-
 
     const [availableGroups, setAvailableGroups] = useState<ContactGroup[]>([]);
     const [allTags, setAllTags] = useState<Tag[]>([]);
@@ -89,57 +86,10 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
 
-    // Derived state
-    const filteredContacts = contacts.filter(c => {
-        // Search filter - search across all fields
-        let matchesSearch = true;
-        if (searchTerm) {
-            const search = searchTerm.toLowerCase();
-            matchesSearch =
-                (c.name || '').toLowerCase().includes(search) ||
-                (c.phone || '').includes(search) ||
-                (c.email && c.email.toLowerCase().includes(search)) ||
-                (c.status && c.status.toLowerCase().includes(search)) ||
-                (c.source && c.source.toLowerCase().includes(search)) ||
-                (c.tags || []).some(tag => (tag || '').toLowerCase().includes(search)) ||
-                (c.groupIds || []).some(gid => {
-                    const group = availableGroups.find(g => g.id === gid);
-                    return group && group.name.toLowerCase().includes(search);
-                }) ||
-                Object.values(c.customData || {}).some(val =>
-                    String(val || '').toLowerCase().includes(search)
-                );
-        }
-
-        // Group filter
-        const matchesGroup = !selectedGroupFilter || (c.groupIds || []).includes(selectedGroupFilter);
-
-        // Tag filter
-        const matchesTag = !selectedTagFilter || (c.tags || []).includes(selectedTagFilter);
-
-        // Date filter
-        let matchesDate = true;
-        if (c.createdAt && (startDate || endDate)) {
-            const contactDate = new Date(c.createdAt);
-            contactDate.setHours(0, 0, 0, 0);
-
-            if (startDate) {
-                const sDate = new Date(startDate);
-                sDate.setHours(0, 0, 0, 0);
-                if (contactDate < sDate) matchesDate = false;
-            }
-            if (endDate) {
-                const eDate = new Date(endDate);
-                eDate.setHours(23, 59, 59, 999);
-                if (contactDate > eDate) matchesDate = false;
-            }
-        }
-
-        return matchesSearch && matchesGroup && matchesTag && matchesDate;
-
-    });
-    const totalPages = Math.ceil(filteredContacts.length / entriesPerPage);
-    const currentEntries = filteredContacts.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
+    // SERVER-SIDE FILTERING: We no longer filter in memory.
+    // The 'contacts' state now only holds the current page of records.
+    const totalPages = Math.ceil(totalContacts / entriesPerPage);
+    const currentEntries = contacts; // The contacts array IS the current page now.
 
     const getPageNumbers = () => {
         const pages = [];
@@ -169,7 +119,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     const availableTags = useMemo(() => {
         const tags = new Set<string>();
-        // Add existing tags from contacts
+        // Add existing tags from currently loaded contacts
         contacts.forEach(c => (c.tags || []).forEach(t => tags.add(t)));
         // Add tags from database
         allTags.forEach(t => tags.add(t.name));
@@ -184,6 +134,11 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
         return () => clearTimeout(timer);
     }, []);
+
+    // Effect to reload contacts when page or filters change
+    useEffect(() => {
+        loadContacts();
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -202,16 +157,16 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const loadInitialData = async () => {
         setIsLoading(true);
         try {
-            const [contactsData, groupsData, inputsData, tagsData] = await Promise.all([
-                contactService.getContacts(),
+            const [groupsData, inputsData, tagsData] = await Promise.all([
                 contactGroupService.getGroups(),
                 inputFieldService.getInputs(),
                 tagService.getTags()
             ]);
-            setContacts(contactsData || []);
             setAvailableGroups(groupsData || []);
             setCustomInputFields(inputsData || []);
             setAllTags(tagsData || []);
+            
+            // Initial contacts load happens in the other useEffect
         } catch (e) {
             console.error("Error loading data", e);
         } finally {
@@ -220,8 +175,22 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     };
 
     const loadContacts = async () => {
-        const data = await contactService.getContacts();
-        setContacts(data || []);
+        setIsLoading(true);
+        try {
+            const result = await contactService.getContactsPaginated(currentPage, entriesPerPage, {
+                search: searchTerm,
+                groupId: selectedGroupFilter || undefined,
+                tag: selectedTagFilter || undefined,
+                startDate,
+                endDate
+            });
+            setContacts(result.data || []);
+            setTotalContacts(result.total || 0);
+        } catch (e) {
+            console.error("Failed to load contacts", e);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
 
@@ -547,50 +516,71 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         }
     };
 
-    const handleExport = () => {
-        if (contacts.length === 0) return;
-
-        // If something is selected, export ONLY those. Otherwise, export everything.
-        const contactsToExport = selectedIds.size > 0 
-            ? contacts.filter(c => selectedIds.has(c.id))
-            : contacts;
-
-        if (contactsToExport.length === 0) return;
-
-        const csvData = contactsToExport.map(c => {
-            const groupNames = (c.groupIds || [])
-                .map(gid => availableGroups.find(g => g.id === gid)?.name)
-                .filter(Boolean)
-                .join(', ');
-
-            const row: any = {
-                Name: c.name,
-                Phone: c.phone,
-                Email: c.email || '',
-                Status: c.status,
-                Tags: (c.tags || []).join(', '),
-                Groups: groupNames,
-                Source: c.source || ''
-            };
-
-            // Add custom fields
-            customInputFields.forEach(field => {
-                row[field.name] = c.customData?.[field.name] || '';
+    const handleExport = async () => {
+        setIsLoading(true);
+        try {
+            // 1. Fetch ALL contacts matching filters for export
+            const contactsToExport = await contactService.exportContacts({
+                search: searchTerm,
+                groupId: selectedGroupFilter || undefined,
+                tag: selectedTagFilter || undefined,
+                startDate,
+                endDate
             });
 
-            return row;
-        });
+            if (contactsToExport.length === 0) {
+                setToast({ type: 'info', title: 'No Data', message: 'No contacts found to export.' });
+                return;
+            }
 
-        const csv = Papa.unparse(csvData);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
-        link.setAttribute('download', selectedIds.size > 0 ? 'selected_contacts.csv' : 'contacts_export.csv');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            // 2. If user has specifically selected IDs, filter the export list to those
+            const finalData = selectedIds.size > 0 
+                ? contactsToExport.filter(c => selectedIds.has(c.id))
+                : contactsToExport;
+
+            if (finalData.length === 0) return;
+
+            // 3. Convert to CSV
+            const csvData = finalData.map(c => {
+                const groupNames = (c.groupIds || [])
+                    .map(gid => availableGroups.find(g => g.id === gid)?.name)
+                    .filter(Boolean)
+                    .join(', ');
+
+                const row: any = {
+                    Name: c.name,
+                    Phone: c.phone,
+                    Email: c.email || '',
+                    Status: c.status,
+                    Tags: (c.tags || []).join(', '),
+                    Groups: groupNames,
+                    Source: c.source || ''
+                };
+
+                // Add custom fields
+                customInputFields.forEach(field => {
+                    row[field.name] = c.customData?.[field.name] || '';
+                });
+
+                return row;
+            });
+
+            const csv = Papa.unparse(csvData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', selectedIds.size > 0 ? 'selected_contacts.csv' : 'contacts_export.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (e) {
+            console.error("Export failed", e);
+            setToast({ type: 'error', title: 'Export Failed', message: 'Could not generate export file.' });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

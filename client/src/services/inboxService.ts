@@ -13,12 +13,13 @@ const getAuthHeaders = () => {
 };
 
 export const inboxService = {
-    getConversations: async (): Promise<Conversation[]> => {
+    getConversations: async (page: number = 1, limit: number = 20): Promise<Conversation[]> => {
         try {
             const headers = getAuthHeaders();
-            const response = await fetch(`${API_BASE}/conversations`, { headers });
+            const response = await fetch(`${API_BASE}/conversations?page=${page}&limit=${limit}`, { headers });
             if (!response.ok) throw new Error('Failed to fetch conversations');
-            return await response.json();
+            const result = await response.json();
+            return result.data || []; // Extract data from paginated response
         } catch (e) {
             console.error("Failed to load conversations", e);
             return [];

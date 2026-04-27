@@ -10,22 +10,33 @@ const multer = require('multer');
 const getUserId = (req) => req.user.id;
 
 // ==========================================
-// 1. Get Conversations
+// 1. Get Conversations (Paginated)
 // ==========================================
 router.get('/conversations', async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
+        
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
 
-        const { data, error } = await supabase
+        const { data, count, error } = await supabase
             .from('conversations')
-            .select('*')
+            .select('*', { count: 'exact' })
             .eq('user_id', userId)
-            .order('updated_at', { ascending: false });
+            .order('updated_at', { ascending: false })
+            .range(from, to);
 
         if (error) throw error;
 
-        res.json(data);
+        res.json({
+            data,
+            total: count || 0,
+            page,
+            limit
+        });
     } catch (error) {
         console.error('Error fetching conversations:', error);
         res.status(500).json({ error: error.message });

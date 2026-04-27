@@ -29,20 +29,46 @@ export const contactService = {
         }
     },
 
-    getContactsPaginated: async (page: number, limit: number, search?: string): Promise<{ data: Contact[], total: number }> => {
+    getContactsPaginated: async (
+        page: number, 
+        limit: number, 
+        filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}
+    ): Promise<{ data: Contact[], total: number }> => {
         try {
             const headers = await getHeaders();
             let url = `/api/contacts?page=${page}&limit=${limit}`;
-            if (search) {
-                // Remove commas client-side too just in case, though backend handles it
-                url += `&search=${encodeURIComponent(search.replace(/,/g, ''))}`;
-            }
+            
+            if (filters.search) url += `&search=${encodeURIComponent(filters.search.replace(/,/g, ''))}`;
+            if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
+            if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+            if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
+            if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+
             const res = await fetch(url, { headers });
             if (!res.ok) throw new Error('Failed to fetch paginated contacts');
             return await res.json();
         } catch (e) {
             console.error("Failed to load paginated contacts", e);
             return { data: [], total: 0 };
+        }
+    },
+
+    exportContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<Contact[]> => {
+        try {
+            const headers = await getHeaders();
+            let url = `/api/contacts/export?`;
+            if (filters.search) url += `&search=${encodeURIComponent(filters.search.replace(/,/g, ''))}`;
+            if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
+            if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+            if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
+            if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+
+            const res = await fetch(url, { headers });
+            if (!res.ok) throw new Error('Failed to export contacts');
+            return await res.json();
+        } catch (e) {
+            console.error("Failed to export contacts", e);
+            return [];
         }
     },
 

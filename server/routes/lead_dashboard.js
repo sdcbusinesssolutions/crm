@@ -35,7 +35,10 @@ router.get('/stats', requireAuth, async (req, res) => {
         const supabase = supabaseAdmin;
 
         // --- 1. Fetch Core Data (Parallel) ---
-        // Split queries for maximum index efficiency to keep DB response < 100ms
+        // 🚀 OPTIMIZATION: Check if the optimization RPC is available first
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_dashboard_stats', { p_user_id: userId });
+        const hasRpc = !rpcError && rpcData;
+
         const [
             pipelinesRes,           // 0
             groupCountRes,          // 1
@@ -43,27 +46,32 @@ router.get('/stats', requireAuth, async (req, res) => {
             followUpCountRes,       // 3
             totalLeadsRes,          // 4
             recentLeadsRes,         // 5
-            pipeStatsRes,           // 6 (Partial: pipeline_id, stage_id, estimated_value)
-            sourceRes,              // 7 (Partial: source)
-            timeRes,                // 8 (Partial: created_at, last 7 days)
-            tagsRes,                // 9 (Partial: tags)
-            stagesRes,              // 10
-            tagsListRes             // 11
+            pipeStatsRes,           // 6 (Aggregated Leads Data)
+            timeRes,                // 7 (Last 7 days activity)
+            tagsRes,                // 8 (Tag distribution)
+            stagesRes,              // 9
+            tagsListRes             // 10
         ] = await Promise.all([
             supabase.from('pipelines').select('id, name, is_default').eq('user_id', userId).order('created_at'),
             supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('forms').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),
-            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId), // Total Audience (Contacts) count
+            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId), 
 
             // Recent Leads (Limit 5)
             supabase.from('leads').select('id, name, company, email, phone, status, created_at, source').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
 
-            // --- OPTIMIZED SPLIT QUERIES (Covering Indices) ---
-            supabase.from('leads').select('pipeline_id, stage_id, estimated_value').eq('user_id', userId),
-            supabase.from('leads').select('source').eq('user_id', userId),
-            supabase.from('leads').select('created_at').eq('user_id', userId).gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
-            supabase.from('leads').select('tags').eq('user_id', userId),
+            // --- OPTIMIZED AGGREGATION QUERY ---
+            // If we have RPC data, we skip these heavy fetches
+            hasRpc 
+                ? Promise.resolve({ data: [] }) 
+                : supabase.from('leads').select('pipeline_id, stage_id, estimated_value, source').eq('user_id', userId).limit(10000),
+            
+            supabase.from('leads').select('created_at').eq('user_id', userId).gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).limit(5000),
+            
+            hasRpc
+                ? Promise.resolve({ data: [] })
+                : supabase.from('leads').select('tags').eq('user_id', userId).limit(10000),
 
             // Meta Data
             supabase.from('pipeline_stages').select('id, name, color, pipeline_id').eq('user_id', userId),
@@ -74,10 +82,11 @@ router.get('/stats', requireAuth, async (req, res) => {
         const pipelines = pipelinesRes.data || [];
         const stages = stagesRes.data || [];
         const tagsList = tagsListRes.data || [];
+        const pipeStatsRaw = pipeStatsRes.data || [];
 
         // A. Leads By Source
         const sourceMap = {};
-        (sourceRes.data || []).forEach(l => {
+        pipeStatsRaw.forEach(l => {
             const src = l.source || 'manual';
             sourceMap[src] = (sourceMap[src] || 0) + 1;
         });
@@ -120,7 +129,6 @@ router.get('/stats', requireAuth, async (req, res) => {
             .slice(0, 5);
 
         // D. Pipeline Stats (Default Pipeline)
-        const pipeStatsRaw = pipeStatsRes.data || [];
         const pipelineStatsMap = {};
 
         pipelines.forEach(p => {

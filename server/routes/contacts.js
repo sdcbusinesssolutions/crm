@@ -7,115 +7,51 @@ const DripTriggerService = require('../services/DripTriggerService');
 // GET /api/contacts
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page);
-    const limit = parseInt(req.query.limit);
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Default 50, Max 100
     const userId = req.user.id;
 
-    if (page && limit) {
-      // --- PAGINATION MODE ---
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
+    // --- ENFORCED PAGINATION MODE ---
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
-      let query = supabaseAdmin
-        .from('contacts')
-        .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+    let query = supabaseAdmin
+      .from('contacts')
+      .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-      if (req.query.search) {
-        const s = req.query.search.replace(/,/g, '');
-        if (s) {
-          query = query.or(`name.ilike.%${s}%,phone.ilike.%${s}%`);
-        }
+    // --- SEARCH FILTERING ---
+    if (req.query.search) {
+      const s = req.query.search.replace(/,/g, '');
+      if (s) {
+        query = query.or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`);
       }
-
-      // --- DATE FILTERING ---
-      if (req.query.startDate) {
-        query = query.gte('created_at', req.query.startDate);
-      }
-      if (req.query.endDate) {
-        query = query.lte('created_at', req.query.endDate);
-      }
-
-      const { data: rawData, count, error } = await query.range(from, to);
-
-      if (error) throw error;
-
-      const formatted = (rawData || []).map(c => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone,
-        email: c.email,
-        status: c.status,
-        source: c.source,
-        tags: c.tags || [],
-        groupIds: c.group_ids || [],
-        customData: c.custom_data || {},
-        createdAt: c.created_at,
-        updatedAt: c.updated_at || (c.custom_data && c.custom_data.updated_at)
-      }));
-
-      // Return object with data and total
-      return res.json({
-        data: formatted,
-        total: count || 0,
-        page,
-        limit
-      });
     }
 
-    // --- LEGACY MODE (Fetch All) ---
-    // ROBUST STRATEGY: Loop to fetch ALL records regardless of 1000-row limits
-    let allContacts = [];
-    let pageIndex = 0;
-    const chunkSize = 1000;
-    let hasMore = true;
-
-    // Use Admin if available, else standard client (both will work with looping)
-    const clientToUse = supabaseAdmin || getAuthenticatedSupabase(req);
-
-    while (hasMore) {
-      const from = pageIndex * chunkSize;
-      const to = from + chunkSize - 1;
-
-      let chunkQuery = clientToUse
-        .from('contacts')
-        .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      // --- DATE FILTERING (Legacy Mode) ---
-      if (req.query.startDate) {
-        chunkQuery = chunkQuery.gte('created_at', req.query.startDate);
-      }
-      if (req.query.endDate) {
-        chunkQuery = chunkQuery.lte('created_at', req.query.endDate);
-      }
-
-      const { data: chunk, error } = await chunkQuery;
-
-      if (error) throw error;
-
-      if (chunk && chunk.length > 0) {
-        allContacts = allContacts.concat(chunk);
-        if (chunk.length < chunkSize) hasMore = false; // End of data
-        else pageIndex++; // Next page
-      } else {
-        hasMore = false;
-      }
-
-      // Safety break for sane limits (e.g. 150k)
-      if (allContacts.length > 150000) break;
+    // --- GROUP FILTERING ---
+    if (req.query.groupId) {
+      query = query.contains('group_ids', [req.query.groupId]);
     }
 
-    const data = allContacts;
-    console.log(`[DEBUG] GET /contacts for user ${userId} -> Fetched ${data.length} rows (Loop Strategy)`);
-    res.set('Cache-Control', 'no-store');
+    // --- TAG FILTERING ---
+    if (req.query.tag) {
+      query = query.contains('tags', [req.query.tag]);
+    }
 
-    // Direct mapping to preserve DB count (1025)
-    // No manual deduplication.
-    const formatted = data.map(c => ({
+    // --- DATE FILTERING ---
+    if (req.query.startDate) {
+      query = query.gte('created_at', req.query.startDate);
+    }
+    if (req.query.endDate) {
+      query = query.lte('created_at', req.query.endDate);
+    }
+
+    const { data: rawData, count, error } = await query.range(from, to);
+
+    if (error) throw error;
+
+    const formatted = (rawData || []).map(c => ({
       id: c.id,
       name: c.name,
       phone: c.phone,
@@ -129,7 +65,14 @@ router.get('/', async (req, res) => {
       updatedAt: c.updated_at || (c.custom_data && c.custom_data.updated_at)
     }));
 
-    res.json(formatted);
+    // Always return paginated structure to prevent frontend crashes
+    return res.json({
+      data: formatted,
+      total: count || 0,
+      page,
+      limit,
+      totalPages: Math.ceil((count || 0) / limit)
+    });
   } catch (err) {
     console.error('Error fetching contacts:', err);
     // Code 42P01 means table undefined. Return empty array instead of crashing.
@@ -137,6 +80,71 @@ router.get('/', async (req, res) => {
       if (req.query.page) return res.json({ data: [], total: 0 }); // pagination fallback
       return res.json([]);
     }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/contacts/export - Fetch all contacts for downloading
+router.get('/export', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    let allContacts = [];
+    let pageIndex = 0;
+    const chunkSize = 5000; // Larger chunks for export
+    let hasMore = true;
+
+    while (hasMore) {
+      const from = pageIndex * chunkSize;
+      const to = from + chunkSize - 1;
+
+      let query = supabaseAdmin
+        .from('contacts')
+        .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      // Apply same filters if present
+      if (req.query.search) {
+        const s = req.query.search.replace(/,/g, '');
+        query = query.or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`);
+      }
+      if (req.query.groupId) query = query.contains('group_ids', [req.query.groupId]);
+      if (req.query.tag) query = query.contains('tags', [req.query.tag]);
+      if (req.query.startDate) query = query.gte('created_at', req.query.startDate);
+      if (req.query.endDate) query = query.lte('created_at', req.query.endDate);
+
+      const { data: chunk, error } = await query;
+      if (error) throw error;
+
+      if (chunk && chunk.length > 0) {
+        allContacts = allContacts.concat(chunk);
+        if (chunk.length < chunkSize) hasMore = false;
+        else pageIndex++;
+      } else {
+        hasMore = false;
+      }
+
+      // Hard limit for safety (1 million)
+      if (allContacts.length > 1000000) break;
+    }
+
+    const formatted = allContacts.map(c => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      status: c.status,
+      source: c.source,
+      tags: c.tags || [],
+      groupIds: c.group_ids || [],
+      customData: c.custom_data || {},
+      createdAt: c.created_at
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error('Error exporting contacts:', err);
     res.status(500).json({ error: err.message });
   }
 });
