@@ -23,6 +23,8 @@ router.get('/conversations', async (req, res) => {
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
+        console.log(`[Inbox Debug] Fetching conversations for User: ${userId} (Page: ${page})`);
+
         const { data, count, error } = await supabase
             .from('conversations')
             .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags', { count: 'exact' })
@@ -30,7 +32,10 @@ router.get('/conversations', async (req, res) => {
             .order('updated_at', { ascending: false })
             .range(from, to);
 
-        if (error) throw error;
+        if (error) {
+            console.error('[Inbox Debug] DB Error Details:', JSON.stringify(error, null, 2));
+            throw error;
+        }
 
         res.json({
             data,
@@ -39,7 +44,7 @@ router.get('/conversations', async (req, res) => {
             limit
         });
     } catch (error) {
-        console.error('Error fetching conversations:', error);
+        console.error('[Inbox Debug] Final Catch Error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
