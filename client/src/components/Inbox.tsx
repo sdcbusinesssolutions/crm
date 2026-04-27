@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useLayoutEffect } from 'react';
 import {
     SearchIcon, FilterIcon, MoreVerticalIcon, PaperClipIcon, EmojiIcon,
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
@@ -418,42 +418,36 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         setIsInitialScrollDone(false); // Hide chat until scrolled
     }, [activeChatId]);
 
-    // Smart scroll on new messages - INSTANT for initial load, smooth for new messages
+    // Use LayoutEffect for the "Instant Snap" before the browser paints
+    useLayoutEffect(() => {
+        if (activeChatId && messages.length > 0 && shouldForceScrollRef.current) {
+            const container = chatContainerRef.current;
+            if (container) {
+                // Force the scroll position to the very bottom immediately
+                container.scrollTop = container.scrollHeight;
+                
+                // Use a slightly longer delay before showing the UI to ensure layout is solid
+                const timer = setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                    setIsInitialScrollDone(true);
+                    shouldForceScrollRef.current = false;
+                }, 150); // 150ms of "stealth" time
+
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [activeChatId, messages.length]);
+
+    // Secondary effect for media loading and new incoming messages
     useEffect(() => {
         if (messages.length === 0) return;
 
-        // If we just switched chats, INSTANT scroll to bottom (no animation)
-        if (shouldForceScrollRef.current) {
-            // Use direct DOM manipulation for instant, invisible scroll
-            const scrollToBottomInstant = () => {
-                if (chatContainerRef.current) {
-                    chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-                }
-            };
-
-            // Immediate scroll
-            scrollToBottomInstant();
-
-            // Retry after DOM updates (for images/media loading)
-            setTimeout(scrollToBottomInstant, 0);
-            setTimeout(scrollToBottomInstant, 30);
-            setTimeout(scrollToBottomInstant, 80);
-            
-            // Mark as done early for better feel, but keep scrolling in background
-            setTimeout(() => setIsInitialScrollDone(true), 100);
-
-            setTimeout(() => {
-                scrollToBottomInstant();
-                shouldForceScrollRef.current = false; // Reset flag
-            }, 500);
-        } else {
+        if (!shouldForceScrollRef.current) {
             // Normal behavior for new incoming messages (smooth scroll)
-
             const lastMessage = messages[messages.length - 1];
             const isMyMessage = lastMessage?.direction === 'out';
 
             if (isAtBottomRef.current || isMyMessage) {
-                // If I sent it, smooth scroll. If incoming and I'm at bottom, smooth scroll.
                 scrollToBottom(false);
             }
         }

@@ -15,7 +15,8 @@ const getUserId = (req) => req.user.id;
 router.get('/conversations', async (req, res) => {
     try {
         const userId = getUserId(req);
-        const supabase = getAuthenticatedSupabase(req);
+        const { supabaseAdmin } = require('../lib/supabaseClient');
+        const supabase = supabaseAdmin;
         
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
