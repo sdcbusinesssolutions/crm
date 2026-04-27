@@ -18,17 +18,36 @@ router.get('/conversations', async (req, res) => {
         const { supabaseAdmin } = require('../lib/supabaseClient');
         const supabase = supabaseAdmin;
         
+        const { search, quickFilter, filterTag } = req.query;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
-        console.log(`[Inbox Debug] Fetching conversations for User: ${userId} (Page: ${page})`);
+        console.log(`[Inbox Debug] Fetching conversations (Page: ${page}, Search: ${search || 'None'}, Filter: ${quickFilter || 'All'}, Tag: ${filterTag || 'None'})`);
 
-        const { data, count, error } = await supabase
+        let query = supabase
             .from('conversations')
-            .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags', { count: 'exact' })
-            .eq('user_id', userId)
+            .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to', { count: 'exact' })
+            .eq('user_id', userId);
+
+        if (search) {
+            query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`);
+        }
+
+        if (quickFilter === 'Unassigned') {
+            query = query.is('assigned_to', null);
+        } else if (quickFilter === 'Mine') {
+            // Note: In your DB 'me' might be the literal string 'me' or the actual userId.
+            // Based on frontend logic (chat.assigned_to !== 'me'), it looks like 'me' is a literal.
+            query = query.eq('assigned_to', 'me');
+        }
+
+        if (filterTag) {
+            query = query.contains('tags', [filterTag]);
+        }
+
+        const { data, count, error } = await query
             .order('updated_at', { ascending: false })
             .range(from, to);
 

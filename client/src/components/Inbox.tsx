@@ -102,12 +102,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [availableTagsList]);
 
     // Load Conversations
-    const loadConversations = async (page = 1, append = false) => {
+    const loadConversations = async (page = 1, append = false, sTerm = searchTerm, qFilter = quickFilter, fTag = filterTag) => {
         if (isLoadingMoreConvs || (!hasMoreConvs && append)) return;
         
         if (append) setIsLoadingMoreConvs(true);
         try {
-            const result = await inboxService.getConversations(page);
+            const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
             // Result is data array directly from inboxService.getConversations
             const newData = result || [];
             
@@ -135,19 +135,24 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     };
 
     useEffect(() => {
-        loadConversations(1, false);
+        setConvPage(1);
+        setHasMoreConvs(true);
+        loadConversations(1, false, searchTerm, quickFilter, filterTag);
 
-        // Poll for new conversations (only refresh the first page to catch new chats)
-        const interval = setInterval(() => loadConversations(1, false), 5000);
-        return () => clearInterval(interval);
-    }, [quickFilter, filterTag]); // Reload when filters change
+        // Poll for new conversations (only if NOT searching/filtering)
+        let interval: any;
+        if (!searchTerm && quickFilter === 'All' && !filterTag) {
+            interval = setInterval(() => loadConversations(1, false, '', 'All', ''), 5000);
+        }
+        return () => { if (interval) clearInterval(interval); };
+    }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
 
     const handleConvScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
         if (scrollHeight - scrollTop - clientHeight < 100 && hasMoreConvs && !isLoadingMoreConvs) {
             const nextPage = convPage + 1;
             setConvPage(nextPage);
-            loadConversations(nextPage, true);
+            loadConversations(nextPage, true, searchTerm, quickFilter, filterTag);
         }
     };
 
@@ -280,23 +285,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         loadContactStatus();
     }, [activeChat]);
 
-    const filteredChats = useMemo(() => {
-        return conversations.filter(chat => {
-            const matchesSearch =
-                (chat.contact_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                chat.contact_phone.includes(searchTerm) ||
-                (chat.last_message || '').toLowerCase().includes(searchTerm.toLowerCase());
-
-            if (!matchesSearch) return false;
-
-            if (quickFilter === 'Mine' && chat.assigned_to !== 'me') return false;
-            if (quickFilter === 'Unassigned' && chat.assigned_to !== null) return false;
-
-            if (filterTag && !chat.tags?.includes(filterTag)) return false;
-
-            return true;
-        });
-    }, [conversations, searchTerm, quickFilter, filterTag]);
+    // Now that we have server-side filtering, filteredChats is just conversations
+    const filteredChats = conversations;
 
     const filteredQuickReplies = useMemo(() => {
         if (!quickReplySearch) return quickReplies;

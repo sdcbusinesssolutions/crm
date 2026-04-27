@@ -8,13 +8,18 @@ const DripTriggerService = require('../services/DripTriggerService');
 // GET /api/leads
 router.get('/', async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
         const supabase = getAuthenticatedSupabase(req);
         const { pipeline_id, stage_id } = req.query;
 
         let query = supabase
             .from('leads')
-            .select('id, name, phone, email, company, status, pipeline_id, stage_id, estimated_value, created_at, source')
-            .eq('user_id', req.user.id)
+            .select('id, name, phone, email, company, status, pipeline_id, stage_id, estimated_value, created_at, source', { count: 'exact' })
+            .eq('user_id', req.user.id);
 
 
         if (pipeline_id) {

@@ -13,10 +13,15 @@ const getAuthHeaders = () => {
 };
 
 export const inboxService = {
-    getConversations: async (page: number = 1, limit: number = 20): Promise<Conversation[]> => {
+    getConversations: async (page: number = 1, limit: number = 20, search: string = '', quickFilter: string = 'All', filterTag: string = ''): Promise<Conversation[]> => {
         try {
             const headers = getAuthHeaders();
-            const response = await fetch(`${API_BASE}/conversations?page=${page}&limit=${limit}`, { headers });
+            let url = `${API_BASE}/conversations?page=${page}&limit=${limit}`;
+            if (search) url += `&search=${encodeURIComponent(search)}`;
+            if (quickFilter && quickFilter !== 'All') url += `&quickFilter=${encodeURIComponent(quickFilter)}`;
+            if (filterTag) url += `&filterTag=${encodeURIComponent(filterTag)}`;
+            
+            const response = await fetch(url, { headers });
             if (!response.ok) throw new Error('Failed to fetch conversations');
             const result = await response.json();
             return result.data || []; // Extract data from paginated response
