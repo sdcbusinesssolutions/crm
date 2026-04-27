@@ -160,5 +160,57 @@ export const contactService = {
             console.error("Failed to bulk delete contacts", e);
             throw e;
         }
+    },
+
+    deleteFilteredContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<number> => {
+        try {
+            const headers = await getHeaders();
+            let url = `/api/contacts/bulk-delete-filtered?`;
+            if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+            if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
+            if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+            if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
+            if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+
+            const res = await fetch(url, { method: 'POST', headers });
+            if (!res.ok) throw new Error('Failed to delete filtered contacts');
+            const result = await res.json();
+            return result.count || 0;
+        } catch (e) {
+            console.error("Failed to delete filtered contacts", e);
+            throw e;
+        }
+    },
+
+    deleteAllContacts: async (): Promise<number> => {
+        try {
+            const headers = await getHeaders();
+            const res = await fetch('/api/contacts/bulk-delete-all', { method: 'POST', headers });
+            if (!res.ok) throw new Error('Failed to wipe CRM');
+            const result = await res.json();
+            return result.count || 0;
+        } catch (e) {
+            console.error("Failed to wipe CRM", e);
+            throw e;
+        }
+    },
+
+    getFilteredPhones: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<string[]> => {
+        try {
+            const headers = await getHeaders();
+            let url = `/api/contacts/phones?`;
+            if (filters.search) url += `&search=${encodeURIComponent(filters.search)}`;
+            if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
+            if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
+            if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
+            if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+
+            const res = await fetch(url, { headers });
+            if (!res.ok) throw new Error('Failed to fetch filtered phones');
+            return await res.json();
+        } catch (e) {
+            console.error("Failed to fetch filtered phones", e);
+            return [];
+        }
     }
 };

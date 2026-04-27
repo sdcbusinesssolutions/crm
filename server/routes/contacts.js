@@ -149,6 +149,46 @@ router.get('/export', async (req, res) => {
   }
 });
 
+// GET /api/contacts/phones - Fetch ONLY phone numbers matching filters
+router.get('/phones', async (req, res) => {
+  try {
+    const supabase = getAuthenticatedSupabase(req);
+    const userId = req.user.id;
+    const { search, groupId, tag, startDate, endDate } = req.query;
+
+    let query = supabase.from('contacts').select('phone').eq('user_id', userId);
+
+    if (search) {
+      const searchTerms = search.split(' ').filter(t => t.length > 0);
+      if (searchTerms.length > 0) {
+        const orConditions = searchTerms.map(term => 
+          `name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`
+        ).join(',');
+        query = query.or(orConditions);
+      }
+    }
+    if (groupId) query = query.contains('group_ids', [groupId]);
+    if (tag) query = query.contains('tags', [tag]);
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Clean and Unique
+    const phones = Array.from(new Set(
+      data
+        .map(c => c.phone ? c.phone.toString().replace(/[^0-9+]/g, '') : null)
+        .filter(Boolean)
+    ));
+    
+    res.json(phones);
+  } catch (err) {
+    console.error('Error fetching phones:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/contacts
 router.post('/', async (req, res) => {
   try {
@@ -598,6 +638,102 @@ router.post('/bulk-delete', async (req, res) => {
     res.json({ success: true, count: deleted ? deleted.length : 0 });
   } catch (err) {
     console.error('Error bulk deleting contacts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/contacts/bulk-delete-filtered
+router.post('/bulk-delete-filtered', async (req, res) => {
+  try {
+    const supabase = getAuthenticatedSupabase(req);
+    const userId = req.user.id;
+    const { search, groupId, tag, startDate, endDate } = req.query;
+
+    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate });
+
+    // 1. Build Query to find IDs first (because we need to clear dependencies like campaign_queue)
+    let query = supabase.from('contacts').select('id').eq('user_id', userId);
+
+    if (search) {
+      const searchTerms = search.split(' ').filter(t => t.length > 0);
+      if (searchTerms.length > 0) {
+        const orConditions = searchTerms.map(term => 
+          `name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`
+        ).join(',');
+        query = query.or(orConditions);
+      }
+    }
+    if (groupId) query = query.contains('group_ids', [groupId]);
+    if (tag) query = query.contains('tags', [tag]);
+    if (startDate) query = query.gte('created_at', startDate);
+    if (endDate) query = query.lte('created_at', endDate);
+
+    const { data: contactsToDel, error: fetchErr } = await query;
+    if (fetchErr) throw fetchErr;
+
+    const ids = contactsToDel.map(c => c.id);
+    if (ids.length === 0) {
+      return res.json({ success: true, count: 0, message: 'No contacts matched filters' });
+    }
+
+    // 2. Clear Dependencies (Reuse admin bypass logic)
+    await supabaseAdmin.from('campaign_queue').delete().in('contact_id', ids);
+    await supabaseAdmin.from('whatsapp_flow_submissions').delete().in('contact_id', ids);
+
+    // 3. Final Delete
+    const { count, error: delErr } = await supabaseAdmin
+      .from('contacts')
+      .delete({ count: 'exact' })
+      .in('id', ids)
+      .eq('user_id', userId);
+
+    if (delErr) throw delErr;
+
+    console.log(`[Bulk Delete Filtered] Successfully deleted ${count} contacts for user ${userId}`);
+    res.json({ success: true, count: count || 0 });
+
+  } catch (err) {
+    console.error('Error in bulk-delete-filtered:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/contacts/bulk-delete-all
+router.post('/bulk-delete-all', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    console.log(`[Wipe CRM] User ${userId} requested full CRM wipeout.`);
+
+    // 1. We must clear dependencies first. 
+    // Since it's 'ALL', we can just filter by user_id in related tables IF they have it.
+    // Otherwise, we fetch all contact IDs for this user.
+    const { data: contactIds, error: idErr } = await supabaseAdmin
+      .from('contacts')
+      .select('id')
+      .eq('user_id', userId);
+    
+    if (idErr) throw idErr;
+    const ids = contactIds.map(c => c.id);
+
+    if (ids.length > 0) {
+      // Clear queues and submissions
+      await supabaseAdmin.from('campaign_queue').delete().in('contact_id', ids);
+      await supabaseAdmin.from('whatsapp_flow_submissions').delete().in('contact_id', ids);
+    }
+
+    // 2. Final Wipe
+    const { count, error } = await supabaseAdmin
+      .from('contacts')
+      .delete({ count: 'exact' })
+      .eq('user_id', userId);
+
+    if (error) throw error;
+
+    console.log(`[Wipe CRM] Successfully wiped ${count} contacts for user ${userId}`);
+    res.json({ success: true, count: count || 0 });
+
+  } catch (err) {
+    console.error('Error in bulk-delete-all:', err);
     res.status(500).json({ error: err.message });
   }
 });

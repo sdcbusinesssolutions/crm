@@ -365,25 +365,26 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     }
                     setToast({ type: 'success', title: 'Deleted', message: 'Contact deleted successfully' });
                 } else if (deleteModal.type === 'bulk') {
-                    let idsToDelete: string[] = [];
-                    
                     if (deleteModal.id === 'filtered') {
-                        idsToDelete = contacts.map(c => c.id);
-                    } else if (deleteModal.id === 'all') {
-                        idsToDelete = contacts.map(c => c.id);
-                    } else {
-                        idsToDelete = Array.from(selectedIds);
-                    }
-
-                    if (idsToDelete.length > 0) {
-                        await contactService.bulkDeleteContacts(idsToDelete);
-                        setSelectedIds(new Set());
-                        setToast({ 
-                            type: 'success', 
-                            title: 'Deleted', 
-                            message: `${idsToDelete.length} contacts deleted successfully` 
+                        const count = await contactService.deleteFilteredContacts({
+                            search: searchTerm,
+                            groupId: selectedGroupFilter || undefined,
+                            tag: selectedTagFilter || undefined,
+                            startDate,
+                            endDate
                         });
+                        setToast({ type: 'success', title: 'Deleted', message: `${count} filtered contacts deleted` });
+                    } else if (deleteModal.id === 'all') {
+                        const count = await contactService.deleteAllContacts();
+                        setToast({ type: 'success', title: 'CRM Wiped', message: `All ${count} contacts have been deleted` });
+                    } else {
+                        const idsToDelete = Array.from(selectedIds);
+                        if (idsToDelete.length > 0) {
+                            await contactService.bulkDeleteContacts(idsToDelete);
+                            setToast({ type: 'success', title: 'Deleted', message: `${idsToDelete.length} contacts deleted` });
+                        }
                     }
+                    setSelectedIds(new Set());
                 }
             }
 
@@ -827,7 +828,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
                                     >
                                         <TrashIcon className="w-4 h-4 mr-2" /> 
-                                        Delete All Matching Filters ({contacts.length})
+                                        Delete All Matching Filters ({totalContacts})
                                     </button>
                                 )}
 
@@ -837,27 +838,64 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                     className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
                                 >
                                     <TrashIcon className="w-4 h-4 mr-2" /> 
-                                    Wipe Entire CRM ({contacts.length})
+                                    Wipe Entire CRM ({totalContacts})
                                 </button>
 
                                 <div className="h-px bg-slate-100 my-1"></div>
 
-                                {/* Copy Numbers (New) */}
                                 <button 
-                                    onClick={() => {
-                                        const numbers = Array.from(new Set(contacts.map(c => c.phone).filter(Boolean)));
-                                        if (numbers.length === 0) {
-                                            setToast({ type: 'warning', title: 'No Numbers', message: 'No phone numbers found in the current filter.' });
-                                            return;
+                                    onClick={async () => {
+                                        setIsLoading(true);
+                                        try {
+                                            // 1. Try to get ALL filtered numbers from server
+                                            let numbers = await contactService.getFilteredPhones({
+                                                search: searchTerm,
+                                                groupId: selectedGroupFilter || undefined,
+                                                tag: selectedTagFilter || undefined,
+                                                startDate,
+                                                endDate
+                                            });
+
+                                            // 2. Fallback to visible contacts if server returned nothing but we see contacts
+                                            if (numbers.length === 0 && contacts.length > 0) {
+                                                numbers = Array.from(new Set(contacts.map(c => c.phone).filter(Boolean)));
+                                            }
+
+                                            if (numbers.length === 0) {
+                                                setToast({ type: 'warning', title: 'No Numbers', message: 'No phone numbers found to copy.' });
+                                                return;
+                                            }
+
+                                            // 3. Format as comma-separated string
+                                            const copyText = numbers.join(', ');
+                                            
+                                            // 4. Robust Copy
+                                            if (navigator.clipboard && window.isSecureContext) {
+                                                await navigator.clipboard.writeText(copyText);
+                                            } else {
+                                                // Fallback for non-secure contexts or older browsers
+                                                const textArea = document.createElement("textarea");
+                                                textArea.value = copyText;
+                                                document.body.appendChild(textArea);
+                                                textArea.focus();
+                                                textArea.select();
+                                                document.execCommand('copy');
+                                                document.body.removeChild(textArea);
+                                            }
+
+                                            setToast({ type: 'success', title: 'Copied!', message: `${numbers.length} unique numbers copied to clipboard.` });
+                                        } catch (e) {
+                                            console.error("Copy failed", e);
+                                            setToast({ type: 'error', title: 'Copy Failed', message: 'Could not copy numbers to clipboard.' });
+                                        } finally {
+                                            setIsLoading(false);
+                                            setIsBulkDropdownOpen(false);
                                         }
-                                        navigator.clipboard.writeText(numbers.join(', '));
-                                        setToast({ type: 'success', title: 'Copied!', message: `${numbers.length} unique numbers copied to clipboard.` });
-                                        setIsBulkDropdownOpen(false);
                                     }}
                                     className="w-full text-left px-4 py-2.5 text-sm text-brand-600 hover:bg-brand-50 font-bold flex items-center transition-colors"
                                 >
                                     <PhoneIcon className="w-4 h-4 mr-2" /> 
-                                    Copy Filtered Numbers ({Array.from(new Set(contacts.map(c => c.phone).filter(Boolean))).length})
+                                    Copy Filtered Numbers ({totalContacts})
                                 </button>
                             </div>
                         )}
