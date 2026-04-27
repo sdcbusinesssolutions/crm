@@ -115,7 +115,7 @@ const WhatsAppApiSettings: React.FC = () => {
         setUploadingState(prev => ({ ...prev, [paramId]: true }));
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('module', 'template');
+        formData.append('module', 'apiplayground');
 
         try {
             // ALWAYS get fresh session before sensitive calls

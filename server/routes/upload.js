@@ -65,7 +65,7 @@ router.post('/', upload.single('file'), async (req, res) => {
         // Determine subfolder based on module (campaign, flow, template, inbound, outbound)
         const moduleName = req.body.module || 'outbound';
         // path: userId/module/date/filename
-        const fileName = `${userId}/${moduleName}/${dateStr}/${uniqueSuffix}${fileExt}`;
+        const fileName = `${moduleName}/${userId}/${dateStr}/${uniqueSuffix}${fileExt}`;
 
         // Upload to Supabase Storage
         const { error } = await supabaseAdmin

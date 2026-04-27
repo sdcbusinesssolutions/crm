@@ -267,7 +267,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         const userId = req.user ? req.user.id : 'anonymous';
         const dateStr = new Date().toISOString().split('T')[0];
         const moduleName = req.body.module || 'outbound';
-        const filename = `${userId}/${moduleName}/${dateStr}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        const filename = `${moduleName}/${userId}/${dateStr}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
         // Upload to Supabase
         const { error: uploadError } = await supabaseAdmin.storage
