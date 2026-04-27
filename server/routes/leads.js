@@ -68,10 +68,6 @@ router.get('/', async (req, res) => {
         }
 
         // Add Pagination (Always Enforced to Prevent Egress Spikes)
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50; // Default 50
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
 
         query = query.range(from, to);
 
