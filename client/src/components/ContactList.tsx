@@ -316,8 +316,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     const handleDeleteAllFiltered = () => {
         setIsBulkDropdownOpen(false);
-        if (filteredContacts.length === 0) return;
-        setDeleteModal({ isOpen: true, type: 'bulk', count: filteredContacts.length, id: 'filtered' });
+        if (contacts.length === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'filtered' });
     };
 
     const handleDeleteEntireCRM = () => {
@@ -368,7 +368,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     let idsToDelete: string[] = [];
                     
                     if (deleteModal.id === 'filtered') {
-                        idsToDelete = filteredContacts.map(c => c.id);
+                        idsToDelete = contacts.map(c => c.id);
                     } else if (deleteModal.id === 'all') {
                         idsToDelete = contacts.map(c => c.id);
                     } else {
@@ -827,7 +827,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
                                     >
                                         <TrashIcon className="w-4 h-4 mr-2" /> 
-                                        Delete All Matching Filters ({filteredContacts.length})
+                                        Delete All Matching Filters ({contacts.length})
                                     </button>
                                 )}
 
@@ -845,7 +845,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 {/* Copy Numbers (New) */}
                                 <button 
                                     onClick={() => {
-                                        const numbers = Array.from(new Set(filteredContacts.map(c => c.phone).filter(Boolean)));
+                                        const numbers = Array.from(new Set(contacts.map(c => c.phone).filter(Boolean)));
                                         if (numbers.length === 0) {
                                             setToast({ type: 'warning', title: 'No Numbers', message: 'No phone numbers found in the current filter.' });
                                             return;
@@ -857,7 +857,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                     className="w-full text-left px-4 py-2.5 text-sm text-brand-600 hover:bg-brand-50 font-bold flex items-center transition-colors"
                                 >
                                     <PhoneIcon className="w-4 h-4 mr-2" /> 
-                                    Copy Filtered Numbers ({Array.from(new Set(filteredContacts.map(c => c.phone).filter(Boolean))).length})
+                                    Copy Filtered Numbers ({Array.from(new Set(contacts.map(c => c.phone).filter(Boolean))).length})
                                 </button>
                             </div>
                         )}
@@ -925,7 +925,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             )}
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                {isLoading ? (<div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center h-64"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>Loading...</div>) : filteredContacts.length === 0 ? (<div className="p-16 text-center"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><UsersIcon className="w-8 h-8 text-slate-300" /></div><h3 className="text-lg font-bold text-slate-900">No contacts found</h3></div>) : (
+                {isLoading ? (<div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center h-64"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>Loading...</div>) : totalContacts === 0 ? (<div className="p-16 text-center"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><UsersIcon className="w-8 h-8 text-slate-300" /></div><h3 className="text-lg font-bold text-slate-900">No contacts found</h3></div>) : (
                     <>
                         <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-slate-200">
@@ -1030,7 +1030,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col xl:flex-row justify-between items-center gap-4">
                     <div className="flex items-center gap-4 text-sm text-slate-500 font-medium order-2 xl:order-1">
                         <span>
-                            Showing <span className="font-bold text-slate-700">{filteredContacts.length > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * entriesPerPage, filteredContacts.length)}</span> of <span className="font-bold text-slate-700">{filteredContacts.length}</span> entries
+                            Showing <span className="font-bold text-slate-700">{totalContacts > 0 ? (currentPage - 1) * entriesPerPage + 1 : 0}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * entriesPerPage, totalContacts)}</span> of <span className="font-bold text-slate-700">{totalContacts}</span> entries
                         </span>
                         <select
                             value={entriesPerPage}
@@ -1074,7 +1074,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                         <button
                             onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                            disabled={currentPage === totalPages || totalPages === 0}
+                            disabled={currentPage >= Math.ceil(totalContacts / entriesPerPage) || totalContacts === 0}
                             className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs font-bold shadow-sm transition-all"
                         >
                             Next

@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
 
         let query = supabase
             .from('leads')
-            .select('*')
+            .select('id, name, phone, email, company, status, pipeline_id, stage_id, estimated_value, created_at, source')
             .eq('user_id', req.user.id)
 
 

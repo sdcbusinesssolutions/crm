@@ -24,7 +24,7 @@ router.get('/conversations', async (req, res) => {
 
         const { data, count, error } = await supabase
             .from('conversations')
-            .select('*', { count: 'exact' })
+            .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags', { count: 'exact' })
             .eq('user_id', userId)
             .order('updated_at', { ascending: false })
             .range(from, to);

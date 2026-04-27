@@ -77,8 +77,13 @@ router.get('/', async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
-        const { data } = await supabase.from('campaigns').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
-        res.json(data);
+        // Optimize: Only fetch columns needed for the list view
+        const { data } = await supabase
+            .from('campaigns')
+            .select('id, title, status, total_contacts, created_at, scheduled_at, template_name')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        res.json(data || []);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -140,25 +145,48 @@ router.post('/create', async (req, res) => {
         } else {
             // Group, Tags or All
             let pageIndex = 0;
-            const chunkSize = 1000;
+            const chunkSize = 2000; // Efficient chunk size
             let hasMore = true;
 
             while (hasMore) {
                 const from = pageIndex * chunkSize;
                 const to = from + chunkSize - 1;
 
-                let query = supabase.from('contacts').select('*').eq('user_id', user.id).range(from, to);
+                // Optimization: Only select columns needed for the campaign queue
+                let query = supabase.from('contacts')
+                    .select('id, phone, name, is_blocked, opted_out, tags, group_ids, language_code, custom_data')
+                    .eq('user_id', user.id)
+                    .range(from, to);
                 
-                // If specific group, we can filter in DB
+                // --- PUSH FILTERS TO DATABASE ---
                 if (recipientType === 'group' && contactGroupId && contactGroupId !== 'all') {
                     query = query.contains('group_ids', [contactGroupId]);
+                } else if (recipientType === 'tags') {
+                    const selectedTags = req.body.selectedTags || [];
+                    if (selectedTags.length > 0) {
+                        query = query.overlaps('tags', selectedTags);
+                    }
                 }
 
                 const { data: chunk, error: chunkErr } = await query;
                 if (chunkErr) throw chunkErr;
 
                 if (chunk && chunk.length > 0) {
-                    allContacts = allContacts.concat(chunk);
+                    // Quick Filter for Blocked/Opted-out
+                    const filteredChunk = chunk.filter(c => !c.is_blocked && !c.opted_out);
+
+                    // Language Restriction Filter (In-memory as it's complex/json)
+                    let finalChunk = filteredChunk;
+                    if (restrictLanguageCode && languageCode) {
+                        const targetLangPrefix = languageCode.toLowerCase().split('_')[0];
+                        finalChunk = filteredChunk.filter(c => {
+                            const contactLang = c.language_code || c.custom_data?.language_code;
+                            if (!contactLang) return true; 
+                            return contactLang.toLowerCase().split('_')[0] === targetLangPrefix;
+                        });
+                    }
+
+                    allContacts = allContacts.concat(finalChunk);
                     if (chunk.length < chunkSize) hasMore = false;
                     else pageIndex++;
                 } else {
@@ -167,27 +195,7 @@ router.post('/create', async (req, res) => {
                 if (allContacts.length > 250000) break; // Hard safety break
             }
 
-            // In-Memory Filtering for Tags & Language
-            if (recipientType === 'tags') {
-                const selectedTags = req.body.selectedTags || [];
-                allContacts = allContacts.filter(c => {
-                    if (!c.tags || !Array.isArray(c.tags)) return false;
-                    return selectedTags.some(tag => c.tags.includes(tag));
-                });
-            }
-
-            // Exclude Blocked/Opted-Out Contacts
-            allContacts = allContacts.filter(c => !c.is_blocked && !c.opted_out);
-
-            // Refuse Language Restriction if enabled
-            if (restrictLanguageCode && languageCode) {
-                allContacts = allContacts.filter(c => {
-                    const contactLang = c.language_code || c.custom_data?.language_code;
-                    if (!contactLang) return true; // Allow if unknown? Or restrict? 
-                    // To be safe, usually restriction only applies if we KNOW it's different.
-                    return contactLang.toLowerCase().split('_')[0] === languageCode.toLowerCase().split('_')[0];
-                });
-            }
+            // (Remaining filters were pushed to DB or handled in the chunk loop above)
         }
 
         // Final normalization and deduplication

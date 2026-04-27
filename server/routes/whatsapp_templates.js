@@ -110,10 +110,10 @@ router.get('/', async (req, res) => {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
 
-        // 1. Fetch from local DB
+        // 1. Fetch from local DB (Selective columns for the list table)
         const { data: localTemplates, error } = await supabase
             .from('whatsapp_templates')
-            .select('*')
+            .select('id, name, language, category, status, quality_score, updated_at, last_synced_at')
             .eq('user_id', user.id)
             .order('updated_at', { ascending: false });
 
