@@ -767,7 +767,7 @@ class CampaignWorker {
             })
             .in('id', candidateIds)
             .in('status', ['PENDING', 'RETRYING']) // Simpler status check
-            .select('*, contacts(id, name, phone, email, custom_fields)');
+            .select('*, contacts(id, name, phone, email, custom_data)');
 
         if (lockErr) {
             console.error('Error locking queue items:', lockErr);
