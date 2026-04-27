@@ -207,7 +207,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
             // 2. Upload Header Media if present
             let finalHeaderUrl = headerUrl;
             if (headerFile) {
-                const uploaded = await inboxService.uploadMedia(headerFile);
+                const uploaded = await inboxService.uploadMedia(headerFile, 'template');
                 if (uploaded) finalHeaderUrl = uploaded;
             }
 
@@ -216,7 +216,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
             for (const idx in cardMedia) {
                 const mediaObj = cardMedia[idx];
                 if (mediaObj.file) {
-                    const uploaded = await inboxService.uploadMedia(mediaObj.file);
+                    const uploaded = await inboxService.uploadMedia(mediaObj.file, 'template');
                     if (uploaded) finalCardUrls[idx] = uploaded;
                 } else if (mediaObj.url) {
                     finalCardUrls[idx] = mediaObj.url;

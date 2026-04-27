@@ -273,6 +273,7 @@ const QuickReply: React.FC<QuickReplyProps> = ({ onToggleSidebar }) => {
         const file = e.target.files[0];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'outbound');
         setIsUploading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();

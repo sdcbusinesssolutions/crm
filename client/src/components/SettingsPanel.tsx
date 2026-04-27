@@ -665,6 +665,7 @@ const CTAMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: CTAMessag
                                                 const file = e.target.files[0];
                                                 const formData = new FormData();
                                                 formData.append('file', file);
+                                                formData.append('module', 'flow');
                                                 try {
                                                     const { data: { session } } = await supabase.auth.getSession();
                                                     if (!session) return;
@@ -753,6 +754,7 @@ const QuickReplySettingsPanel: React.FC<{ selectedNode: Node & { data: QuickRepl
                                                 const file = e.target.files[0];
                                                 const formData = new FormData();
                                                 formData.append('file', file);
+                                                formData.append('module', 'flow');
                                                 try {
                                                     const { data: { session } } = await supabase.auth.getSession();
                                                     if (!session) return;
@@ -900,6 +902,7 @@ const CarouselSettingsPanel: React.FC<{ selectedNode: Node & { data: CarouselMes
                                                     const file = e.target.files[0];
                                                     const formData = new FormData();
                                                     formData.append('file', file);
+                                                    formData.append('module', 'flow');
                                                     try {
                                                         const { data: { session } } = await supabase.auth.getSession();
                                                         if (!session) return;
@@ -1530,6 +1533,7 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
         const file = e.target.files[0];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'template');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -1799,6 +1803,7 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
         const file = e.target.files[0];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'flow');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -2316,6 +2321,7 @@ const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMe
         const file = e.target.files[0];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'flow');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -4502,4 +4508,5 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
 
 export default SettingsPanel;
 // Force HMR Update for AskInput Node Settings
+
 

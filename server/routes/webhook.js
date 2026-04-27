@@ -318,7 +318,11 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from(bucketName)
-            .upload(storagePath, buffer, { contentType: mimeType, upsert: false });
+            .upload(storagePath, buffer, { 
+                contentType: mimeType, 
+                upsert: false,
+                cacheControl: '31536000'
+            });
 
         if (uploadError) {
             console.error(`downloadMedia: Supabase upload failed for ${mediaId}: ${uploadError.message}`);

@@ -61,10 +61,11 @@ export const inboxService = {
         }
     },
 
-    uploadMedia: async (file: File): Promise<string | null> => {
+    uploadMedia: async (file: File, module: string = 'outbound'): Promise<string | null> => {
         try {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('module', module);
 
             const token = tokenService.getAccessToken();
             if (!token) throw new Error('Not authenticated');

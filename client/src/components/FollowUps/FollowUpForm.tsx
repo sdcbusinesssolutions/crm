@@ -395,6 +395,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         const file = e.target.files[0];
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'template');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();

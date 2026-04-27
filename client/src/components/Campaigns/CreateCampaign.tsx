@@ -318,6 +318,7 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
         setUploading(true);
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('module', 'campaign');
 
         try {
             const { data: { session } } = await supabase.auth.getSession();
