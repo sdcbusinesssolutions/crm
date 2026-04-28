@@ -78,7 +78,9 @@ const Icons = {
     Link: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>,
     Menu: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>,
     Shield: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
-    Clock: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    Clock: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    Zap: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+    BadgeCheck: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" /></svg>
 };
 
 // --- Custom Complex Chart Components ---
@@ -542,13 +544,13 @@ const WhatsAppScannerCard: React.FC<{
     const formatLimit = (tier: string) => {
         if (!tier || tier === 'UNKNOWN' || tier === 'CHECKING') return tier || 'N/A';
         const map: any = {
-            'TIER_50':        '50 / 24h',
-            'TIER_250':       '250 / 24h',
-            'TIER_1K':        '1K / 24h',
-            'TIER_2K':        '2K / 24h',
-            'TIER_5K':        '5K / 24h',
-            'TIER_10K':       '10K / 24h',
-            'TIER_100K':      '100K / 24h',
+            'TIER_50': '50 / 24h',
+            'TIER_250': '250 / 24h',
+            'TIER_1K': '1K / 24h',
+            'TIER_2K': '2K / 24h',
+            'TIER_5K': '5K / 24h',
+            'TIER_10K': '10K / 24h',
+            'TIER_100K': '100K / 24h',
             'TIER_UNLIMITED': 'Unlimited',
         };
         return map[tier] || tier.replace('TIER_', '').replace('K', 'K / 24h');
@@ -558,63 +560,69 @@ const WhatsAppScannerCard: React.FC<{
     // If we have a phone number, the account IS connected regardless of Meta API status.
     // Only show 'Verifying...' when we truly have NO phone number AND status is LOADING.
     // This prevents the 'Verifying...' state from persisting if Meta API is slow.
-    const isConnected  = !!phone; // phone number = confirmed connected
-    const isLoading    = !phone && metaStatus === 'LOADING'; // only verifying if no phone yet
+    const isConnected = !!phone; // phone number = confirmed connected
+    const isLoading = !phone && metaStatus === 'LOADING'; // only verifying if no phone yet
     const isDisconnected = !phone && metaStatus !== 'LOADING';
 
     // Status badge config
     const statusLabel = isConnected
-        ? '● Connected'
+        ? 'Connected'
         : isLoading
-            ? '● Verifying...'
-            : '○ Disconnected';
+            ? 'Verifying...'
+            : 'Disconnected';
 
     const statusClass = isConnected
-        ? 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/50'
+        ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
         : isLoading
-            ? 'bg-blue-500/20 text-blue-300 ring-1 ring-blue-500/50 animate-pulse'
-            : 'bg-red-500/20 text-red-300 ring-1 ring-red-500/50';
+            ? 'bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30 animate-pulse'
+            : 'bg-red-500/10 text-red-400 ring-1 ring-red-500/30';
 
     // Quality/limit availability: show pending shimmer only if BOTH phone exists AND Meta has no data yet
     const metaPending = phone && metaStatus === 'LOADING';
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/20 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
-            {/* Shimmer on Hover */}
-            <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
-            {/* Background Blob Effects */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
+        <div className="bg-[#05342E] rounded-3xl p-4 relative overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.4)] text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/5 group transition-all duration-500 hover:border-emerald-500/20">
 
-            <div className="z-10 text-center w-full mt-2">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                    <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                        <Icons.WhatsApp />
+            <div className="z-10 text-center w-full mt-1">
+                <div className="flex items-center justify-center mb-2">
+                    <div className="relative group/icon">
+                        {/* High-intensity circular glow */}
+                        <div className="absolute inset-0 bg-[#25D366] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                        <div className="relative w-12 h-12 bg-[#25D366] rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(37,211,102,0.4)] transform transition-transform duration-500 hover:scale-110">
+                            <Icons.WhatsApp className="w-8 h-8 text-white drop-shadow-md" />
+                        </div>
                     </div>
                 </div>
-                <h3 className="font-bold text-lg tracking-tight mb-1">WhatsApp Business</h3>
+
+                <h3 className="font-black text-xl tracking-tight mb-1 flex items-center justify-center gap-1.5">
+                    <span className="text-white">WhatsApp</span>
+                    <span className="text-[#25D366]">Business</span>
+                </h3>
 
                 {/* Status Badge — uses phone as ground truth, not Meta API status */}
-                <p className={`text-xs font-medium px-3 py-1 rounded-full inline-block ${statusClass}`}>
+                <p className={`text-xs font-medium px-3 py-0.5 rounded-full inline-block ${statusClass}`}>
                     {statusLabel}
                 </p>
 
-                <p className="mt-4 font-mono text-xl tracking-wider text-slate-200">
+                <p className="mt-2 font-mono text-xl tracking-wider text-slate-200">
                     {phone ? formattedPhone : 'No Number Linked'}
                 </p>
 
-                {/* Health & Limits Block — only when phone exists */}
+                {/* Health & Limits Block — Compact Glassmorphic */}
                 {phone && (
-                    <div className="mt-2 flex items-center justify-center gap-3 bg-white/5 rounded-xl p-2 border border-white/20 w-full max-w-[280px]">
+                    <div className="mt-1.5 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2 border border-white/10 w-full max-w-[280px] shadow-xl">
                         {/* Quality Section */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
-                                <Icons.Shield className="w-4 h-4 text-emerald-400" />
+                            <div className="relative shrink-0">
+                                <div className="absolute inset-0 bg-[#84cc16]/20 blur-md rounded-full"></div>
+                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
+                                    <Icons.Shield className="w-4 h-4 text-white" />
+                                </div>
                             </div>
                             <div className="flex flex-col text-left min-w-0">
-                                <span className="text-[9px] text-slate-400 uppercase font-bold truncate">Quality</span>
-                                <span className="text-[11px] font-bold text-slate-200 truncate">
+                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-md bg-white text-[7px] text-[#05342E] uppercase font-black tracking-tighter leading-none">Quality</span>
+                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-1 leading-none">
                                     {metaPending && !quality ? '...' : (quality || 'GREEN')}
                                 </span>
                             </div>
@@ -624,12 +632,15 @@ const WhatsAppScannerCard: React.FC<{
 
                         {/* Limit Section */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20">
-                                <Icons.Clock className="w-4 h-4 text-blue-400" />
+                            <div className="relative shrink-0">
+                                <div className="absolute inset-0 bg-[#84cc16]/10 blur-md rounded-full"></div>
+                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
+                                    <Icons.Clock className="w-4 h-4 text-white" />
+                                </div>
                             </div>
                             <div className="flex flex-col text-left min-w-0">
-                                <span className="text-[9px] text-slate-400 uppercase font-bold truncate">Limit</span>
-                                <span className="text-[11px] font-bold text-slate-200 truncate">
+                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-md bg-white text-[7px] text-[#05342E] uppercase font-black tracking-tighter leading-none">Limit</span>
+                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-1 leading-none">
                                     {metaPending && !limit ? '...' : formatLimit(limit || '')}
                                 </span>
                             </div>
@@ -638,37 +649,64 @@ const WhatsAppScannerCard: React.FC<{
                 )}
             </div>
 
-            {/* QR Code Area — always show when phone number exists */}
-            <div className="flex-1 flex flex-col justify-center w-full items-center">
-                <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center border border-white/20">
-                    {phone ? (
-                        // QR always renders when phone is known — not gated by Meta API status
-                        <QRCodeCanvas
-                            value={qrLink}
-                            size={128}
-                            level={"H"}
-                            className="w-32 h-32 object-contain"
-                            fgColor="#0f172a"
-                            bgColor="#FFFFFF"
-                        />
-                    ) : isLoading ? (
-                        // Still getting phone number from server
-                        <div className="w-32 h-32 flex flex-col items-center justify-center bg-slate-50 gap-2">
-                            <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-[9px] text-slate-400 text-center">Connecting...</p>
-                        </div>
-                    ) : (
-                        // No phone configured
-                        <div className="w-32 h-32 flex items-center justify-center bg-slate-50 text-slate-400 text-[10px] text-center p-2">
-                            Configure in Settings
-                        </div>
-                    )}
+            {/* QR Code Area */}
+            <div className="flex-1 flex flex-col justify-center w-full items-center relative py-1">
+                <div onClick={onConnect} className="group/qr relative z-10 bg-white p-2 rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.3)] transform transition-all hover:scale-105 duration-500 cursor-pointer border border-emerald-500/30">
+                    <div className="absolute inset-0 bg-emerald-500/10 rounded-2xl blur-xl opacity-0 group-hover/qr:opacity-100 transition-opacity duration-500"></div>
+                    <div className="relative bg-white p-1 rounded-xl overflow-hidden">
+                        {phone ? (
+                            <QRCodeCanvas
+                                value={qrLink}
+                                size={128}
+                                level={"H"}
+                                className="w-32 h-32 object-contain"
+                                fgColor="#064e3b"
+                                bgColor="#FFFFFF"
+                            />
+                        ) : isLoading ? (
+                            <div className="w-32 h-32 flex flex-col items-center justify-center bg-slate-50 gap-3 rounded-xl">
+                                <div className="w-7 h-7 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Syncing...</p>
+                            </div>
+                        ) : (
+                            <div className="w-32 h-32 flex flex-col items-center justify-center bg-slate-50 text-slate-400 text-[10px] font-bold p-3 text-center rounded-xl">
+                                <Icons.Link className="w-5 h-5 mb-2 opacity-20" />
+                                NO ACCOUNT
+                            </div>
+                        )}
+                    </div>
+
                     {phone && (
-                        <div className="w-full bg-[#074e3c] text-white text-[10px] flex items-center justify-center gap-2 font-black py-1.5 mt-2 rounded-lg uppercase tracking-widest transition-all hover:bg-[#0a6b52] shadow-lg shadow-emerald-950/20">
-                            <Icons.WhatsApp className="w-3.5 h-3.5" />
-                            Scan to Chat
+                        <div className="mt-2 px-4 py-1.5 bg-[#052e24] rounded-xl flex items-center justify-center gap-2 shadow-lg border border-white/5 group-hover/qr:bg-[#074e3c] transition-colors">
+                            <Icons.WhatsApp className="w-3.5 h-3.5 text-white" />
+                            <span className="text-[9px] font-black text-white uppercase tracking-[0.2em]">Scan to Chat</span>
                         </div>
                     )}
+                </div>
+
+                {/* Compact Trust Signals Bar — Perfectly Balanced */}
+                <div className="w-full mt-2 pt-2 border-t border-white/10 grid grid-cols-3 divide-x divide-white/10 px-0.5">
+                    <div className="flex items-center justify-center gap-1.5 px-1">
+                        <Icons.Shield className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.3)] shrink-0" />
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-[10px] font-black text-white tracking-tight truncate">SECURE</span>
+                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Trusted</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 px-1">
+                        <Icons.Zap className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100 hack-0.3)] shrink-0" />
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-[10px] font-black text-white tracking-tight truncate">FAST</span>
+                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Response</span>
+                        </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 px-1">
+                        <Icons.BadgeCheck className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.3)] shrink-0" />
+                        <div className="flex flex-col leading-tight min-w-0">
+                            <span className="text-[10px] font-black text-white tracking-tight truncate">VERIFIED</span>
+                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Official</span>
+                        </div>
+                    </div>
                 </div>
 
                 {!phone && !isLoading && (
@@ -687,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
     // DISPLAY TTL: how long before we silently background-refresh (not show skeleton)
     // Skeleton only shows when there is ZERO cached data (true first visit)
     const CACHE_REFRESH_TTL = 5 * 60 * 1000;  // 5 min — background-refresh trigger
-    const CACHE_MAX_AGE     = 60 * 60 * 1000; // 60 min — max age before we discard data
+    const CACHE_MAX_AGE = 60 * 60 * 1000; // 60 min — max age before we discard data
 
     const readCache = (): { data: DashboardStats | null; userId?: string; fresh: boolean } => {
         try {
@@ -703,14 +741,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             // Fresh = within 5-min refresh window
             const fresh = !!(parsed.data && age < CACHE_REFRESH_TTL);
             return { data: parsed.data || null, userId: parsed.userId, fresh };
-        } catch {}
+        } catch { }
         return { data: null, fresh: false };
     };
 
     const writeCache = (data: DashboardStats, userId?: string) => {
         try {
             localStorage.setItem(CACHE_KEY, JSON.stringify({ data, userId, timestamp: Date.now() }));
-        } catch {}
+        } catch { }
     };
 
     const updateCacheField = (update: Partial<DashboardStats>) => {
@@ -719,7 +757,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
             const existing = raw ? JSON.parse(raw) : {};
             const merged = { ...existing, data: { ...(existing.data || {}), ...update }, timestamp: Date.now() };
             localStorage.setItem(CACHE_KEY, JSON.stringify(merged));
-        } catch {}
+        } catch { }
     };
 
     // ── Synchronous cache read on init ─────────────────────────────────────────
@@ -727,12 +765,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
     // Stale data? → show it immediately, refresh silently in background (no skeleton!)
     const initialCache = readCache();
 
-    const [stats, setStats]         = useState<DashboardStats | null>(initialCache.data);
-    const [loading, setLoading]     = useState<boolean>(!initialCache.data); // ← ONLY true when zero data
+    const [stats, setStats] = useState<DashboardStats | null>(initialCache.data);
+    const [loading, setLoading] = useState<boolean>(!initialCache.data); // ← ONLY true when zero data
     const [timeRange, setTimeRange] = useState('7d');
     const [chartPeriod, setChartPeriod] = useState('7days');
     const [leadTimeRange, setLeadTimeRange] = useState<7 | 30>(30);
-    const [revenueStats, setRevenueStats]   = useState(
+    const [revenueStats, setRevenueStats] = useState(
         initialCache.data?.revenueStats || { totalValue: 0, wonValue: 0, conversionRate: '0%' }
     );
 
