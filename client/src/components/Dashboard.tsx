@@ -577,17 +577,17 @@ const WhatsAppScannerCard: React.FC<{
             ? 'bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30 animate-pulse'
             : 'bg-red-500/10 text-red-400 ring-1 ring-red-500/30';
 
-    // Quality/limit availability: show pending shimmer only if BOTH phone exists AND Meta has no data yet
     const metaPending = phone && metaStatus === 'LOADING';
-    const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-[#05342E] rounded-3xl p-4 relative overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.4)] text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/5 group transition-all duration-500 hover:border-emerald-500/20">
+        <div className="bg-[#05342E] rounded-[2.5rem] p-4 relative overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.6),_inset_0_0_0_1px_rgba(255,255,255,0.05)] text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/10 ring-[1.5px] ring-[#C5A059]/40 group transition-all duration-500 hover:ring-[#C5A059]/60 hover:border-white/20">
+            {/* Highly Visible Texture Mix Layer */}
+            <div className="absolute inset-0 rounded-[2.5rem] opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] pointer-events-none mix-blend-overlay"></div>
+            <div className="absolute inset-0 rounded-[2.5rem] opacity-20 bg-[url('https://www.transparenttextures.com/patterns/white-diamond.png')] pointer-events-none mix-blend-soft-light"></div>
 
-            <div className="z-10 text-center w-full mt-1">
-                <div className="flex items-center justify-center mb-2">
+            <div className="z-10 text-center w-full mt-0.5">
+                <div className="flex items-center justify-center mb-1">
                     <div className="relative group/icon">
-                        {/* High-intensity circular glow */}
                         <div className="absolute inset-0 bg-[#25D366] blur-2xl opacity-40 group-hover:opacity-60 transition-opacity"></div>
                         <div className="relative w-12 h-12 bg-[#25D366] rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(37,211,102,0.4)] transform transition-transform duration-500 hover:scale-110">
                             <Icons.WhatsApp className="w-8 h-8 text-white drop-shadow-md" />
@@ -595,24 +595,21 @@ const WhatsAppScannerCard: React.FC<{
                     </div>
                 </div>
 
-                <h3 className="font-black text-xl tracking-tight mb-1 flex items-center justify-center gap-1.5">
+                <h3 className="font-black text-xl tracking-tight mb-0.5 flex items-center justify-center gap-1.5">
                     <span className="text-white">WhatsApp</span>
                     <span className="text-[#25D366]">Business</span>
                 </h3>
 
-                {/* Status Badge — uses phone as ground truth, not Meta API status */}
                 <p className={`text-xs font-medium px-3 py-0.5 rounded-full inline-block ${statusClass}`}>
                     {statusLabel}
                 </p>
 
-                <p className="mt-2 font-mono text-xl tracking-wider text-slate-200">
+                <p className="mt-1 font-mono text-xl tracking-wider text-slate-200">
                     {phone ? formattedPhone : 'No Number Linked'}
                 </p>
 
-                {/* Health & Limits Block — Compact Glassmorphic */}
                 {phone && (
-                    <div className="mt-1.5 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2 border border-white/10 w-full max-w-[280px] shadow-xl">
-                        {/* Quality Section */}
+                    <div className="mt-1 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2 border border-white/20 w-full max-w-[280px] shadow-[0_4px_12px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)]">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/20 blur-md rounded-full"></div>
@@ -630,7 +627,6 @@ const WhatsAppScannerCard: React.FC<{
 
                         <div className="w-px h-6 bg-white/10 shrink-0"></div>
 
-                        {/* Limit Section */}
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/10 blur-md rounded-full"></div>
@@ -649,7 +645,6 @@ const WhatsAppScannerCard: React.FC<{
                 )}
             </div>
 
-            {/* QR Code Area */}
             <div className="flex-1 flex flex-col justify-center w-full items-center relative py-1">
                 <div onClick={onConnect} className="group/qr relative z-10 bg-white p-2 rounded-2xl shadow-[0_15px_30px_rgba(0,0,0,0.3)] transform transition-all hover:scale-105 duration-500 cursor-pointer border border-emerald-500/30">
                     <div className="absolute inset-0 bg-emerald-500/10 rounded-2xl blur-xl opacity-0 group-hover/qr:opacity-100 transition-opacity duration-500"></div>
@@ -684,27 +679,26 @@ const WhatsAppScannerCard: React.FC<{
                     )}
                 </div>
 
-                {/* Compact Trust Signals Bar — Perfectly Balanced */}
-                <div className="w-full mt-2 pt-2 border-t border-white/10 grid grid-cols-3 divide-x divide-white/10 px-0.5">
+                <div className="w-full mt-1 py-1 px-0.5 bg-white/10 rounded-2xl border border-white/10 grid grid-cols-3 divide-x divide-white/10 shadow-inner">
                     <div className="flex items-center justify-center gap-1.5 px-1">
-                        <Icons.Shield className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.3)] shrink-0" />
-                        <div className="flex flex-col leading-tight min-w-0">
+                        <Icons.Shield className="w-3.5 h-3.5 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.4)] shrink-0" />
+                        <div className="flex flex-col leading-none">
                             <span className="text-[10px] font-black text-white tracking-tight truncate">SECURE</span>
-                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Trusted</span>
+                            <span className="text-[8px] text-white font-bold whitespace-nowrap">Trusted</span>
                         </div>
                     </div>
                     <div className="flex items-center justify-center gap-1.5 px-1">
-                        <Icons.Zap className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100 hack-0.3)] shrink-0" />
-                        <div className="flex flex-col leading-tight min-w-0">
+                        <Icons.Zap className="w-3.5 h-3.5 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.4)] shrink-0" />
+                        <div className="flex flex-col leading-none">
                             <span className="text-[10px] font-black text-white tracking-tight truncate">FAST</span>
-                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Response</span>
+                            <span className="text-[8px] text-white font-bold whitespace-nowrap">Response</span>
                         </div>
                     </div>
                     <div className="flex items-center justify-center gap-1.5 px-1">
-                        <Icons.BadgeCheck className="w-4 h-4 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.3)] shrink-0" />
-                        <div className="flex flex-col leading-tight min-w-0">
+                        <Icons.BadgeCheck className="w-3.5 h-3.5 text-[#bef264] drop-shadow-[0_0_8px_rgba(190,242,100,0.4)] shrink-0" />
+                        <div className="flex flex-col leading-none">
                             <span className="text-[10px] font-black text-white tracking-tight truncate">VERIFIED</span>
-                            <span className="text-[8px] text-white/80 font-bold whitespace-nowrap">Official</span>
+                            <span className="text-[8px] text-white font-bold whitespace-nowrap">Official</span>
                         </div>
                     </div>
                 </div>
