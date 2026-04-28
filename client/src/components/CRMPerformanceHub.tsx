@@ -41,14 +41,16 @@ const Icons = {
     Roles: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 00 .33 1.82l.06.06a2 2 0 01 0 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 00 9 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 01 0 2.83l.06.06a1.65 1.65 0 00 .33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 01 2-2h.09A1.65 1.65 0 00 4.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 01 0-2.83 2 2 0 01 2.83 0l.06.06a1.65 1.65 0 00 1.82.33H9a1.65 1.65 0 00 1.51-1V3a2 2 0 01 2-2 2 2 0 01 2 2v.09a1.65 1.65 0 00 1 1.51 1.65 1.65 0 00 1.82-.33l.06-.06a2 2 0 01 2.83 0 2 2 0 01 0 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 00 1.51 1H21a2 2 0 01 2 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>,
     Selected: () => <svg className="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" /></svg>,
     // New Icons for Dynamic Stats
-    Template: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
-    Flow: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
-    Campaign: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>,
-    Pipeline: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5 text-slate-700"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>,
+    Template: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>,
+    Flow: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+    Campaign: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>,
+    Pipeline: ({ className }: { className?: string }) => <svg className={className || "w-6 h-6"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>,
     // New Icons for Categories
     Group: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>,
     Tag: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 8V3h4z" /></svg>,
     Globe: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>,
+    ArrowRight: ({ className }: { className?: string }) => <svg className={className || "w-4 h-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>,
+    Bot: ({ className }: { className?: string }) => <svg className={className || "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>,
 };
 
 
@@ -181,7 +183,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     ];
 
     return (
-        <div className="w-full h-full bg-white border-2 border-blue-600 rounded-[24px] p-4 shadow-sm font-sans flex flex-col">
+        <div className="w-full h-full border-2 border-blue-600 rounded-[24px] p-4 shadow-sm font-sans flex flex-col" style={{ backgroundColor: '#f8fafc', backgroundImage: 'radial-gradient(circle at top right, #ffffff, #f1f5f9)' }}>
             {/* Header */}
             <div className="w-full text-center pb-2">
                 <h2 className="text-lg font-black tracking-wide uppercase" style={{ color: '#07523d' }}>Lead Pipeline Automation CRM</h2>
@@ -193,8 +195,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 <div className="flex flex-col gap-4 h-full">
                     {/* Leads (Total) */}
                     <div
-                        onClick={() => onNavigate('Contacts')}
-                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98] backdrop-blur-md"
+                        style={{ backgroundColor: '#1e3a8a08' }}
                     >
                         <div className="w-full flex justify-between items-center mb-1">
                             <h3 className="font-bold text-slate-800 text-[11px]">Leads</h3>
@@ -222,7 +224,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                     {/* Won / Lost */}
                     <div
                         onClick={() => onNavigate('Follow-up')}
-                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                        className="flex-1 border border-[#84cc16] rounded-lg p-3 flex flex-col relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98] backdrop-blur-md"
+                        style={{ backgroundColor: '#84cc1608' }}
                     >
                         {/* Header */}
                         <div className="w-full flex justify-between items-center mb-1">
@@ -286,7 +289,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 {/* COL 2: 3D Funnel - Boxed & Centered */}
                 <div
                     onClick={() => onNavigate('Contacts')}
-                    className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 bg-white h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                    className="border border-[#84cc16] rounded-lg relative flex flex-col items-center justify-center p-2 h-full cursor-pointer hover:shadow-md transition-all active:scale-[0.98] backdrop-blur-md"
+                    style={{ backgroundColor: '#17255408' }}
                 >
                     {/* Header */}
                     <div className="absolute top-1 w-full flex flex-col items-center z-20">
@@ -309,19 +313,19 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         }
                                     `}
                                 </style>
-                                
+
                                 {/* Base Faint Track */}
-                                <path 
-                                    d="M150,0 L150,10 M150,10 L40,10 M150,10 L260,10 M40,10 L40,20 M150,10 L150,20 M260,10 L260,20" 
-                                    fill="none" 
-                                    stroke="#e2e8f0" 
-                                    strokeWidth="1.5" 
+                                <path
+                                    d="M150,0 L150,10 M150,10 L40,10 M150,10 L260,10 M40,10 L40,20 M150,10 L150,20 M260,10 L260,20"
+                                    fill="none"
+                                    stroke="#e2e8f0"
+                                    strokeWidth="1.5"
                                     strokeLinecap="round"
                                 />
 
                                 {/* Center Stem (Starts the flow) */}
                                 <path d="M150,0 L150,10" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
-                                
+
                                 {/* Left Branch (Engaged) - Indigo Flow */}
                                 <path d="M150,10 L40,10 M40,10 L40,20" fill="none" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
 
@@ -330,10 +334,46 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                 {/* Right Branch (Automation) - Rose Flow */}
                                 <path d="M150,10 L260,10 M260,10 L260,20" fill="none" stroke="#f43f5e" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3 5" className="animate-flow-out-light" />
-                                {/* Labels positioned precisely beneath the downward strokes */}
-                                <text x="40" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">Engaged</text>
-                                <text x="150" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">FollowUp</text>
-                                <text x="260" y="38" textAnchor="middle" className="text-[14px] font-black fill-[#0f172a] tracking-tight">Automation</text>
+                                {/* Labels and Icons positioned precisely beneath the downward strokes */}
+                                <foreignObject x="0" y="20" width="300" height="40">
+                                    <div className="w-full h-full flex items-center justify-between px-2 pt-1">
+                                        {/* Engaged Section */}
+                                        <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
+                                            <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <Icons.Users className="w-4 h-4 text-emerald-600" />
+                                            </div>
+                                            <span className="text-sm font-bold text-[#0f172a] tracking-tight">Engaged</span>
+                                        </div>
+
+                                        {/* Arrow 1 */}
+                                        <div className="flex items-center justify-center opacity-40">
+                                            <Icons.ArrowRight className="w-3 h-3 text-slate-400" />
+                                        </div>
+
+                                        {/* FollowUp Section */}
+                                        <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
+                                            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-sm font-bold text-[#0f172a] tracking-tight">FollowUp</span>
+                                        </div>
+
+                                        {/* Arrow 2 */}
+                                        <div className="flex items-center justify-center opacity-40">
+                                            <Icons.ArrowRight className="w-3 h-3 text-slate-400" />
+                                        </div>
+
+                                        {/* Automation Section */}
+                                        <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
+                                            <div className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center border border-purple-100 ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <Icons.Bot className="w-4 h-4 text-purple-600" />
+                                            </div>
+                                            <span className="text-sm font-bold text-[#0f172a] tracking-tight">Automation</span>
+                                        </div>
+                                    </div>
+                                </foreignObject>
                             </svg>
                         </div>
                     </div>
@@ -387,56 +427,56 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                 {/* Level 1: Navy Blue */}
                                 <path d="M0,0 L300,0 L260,86 L40,86 Z" fill="#172554" stroke="white" strokeWidth="2" />
-                                <text x="150" y="48" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Leads:</text>
+                                <text x="150" y="48" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Leads</text>
                                 <text x="150" y="78" textAnchor="middle" fill="white" className="text-2xl font-black animate-soft-blink">{Number(funnelSteps[0].value).toLocaleString()}</text>
 
                                 {/* Level 2: Lime Green */}
                                 <path d="M40,86 L260,86 L226,172 L74,172 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
-                                <text x="150" y="117" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Active:</text>
+                                <text x="150" y="117" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Active</text>
                                 <text x="150" y="147" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[1].value}</text>
 
                                 {/* Level 3: Navy Blue */}
                                 <path d="M74,172 L226,172 L200,258 L100,258 Z" fill="#172554" stroke="white" strokeWidth="2" />
-                                <text x="150" y="202" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Warm:</text>
+                                <text x="150" y="202" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Warm</text>
                                 <text x="150" y="232" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[2].value}</text>
 
                                 {/* Level 4: Lime Green (Rounded Cup Bottom) */}
                                 <path d="M100,258 L200,258 L195,300 Q150,340 105,300 L100,258 Z" fill="#84cc16" stroke="white" strokeWidth="2" />
-                                <text x="150" y="285" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Won / Lost:</text>
+                                <text x="150" y="285" textAnchor="middle" fill="white" className="text-sm font-bold tracking-wider">Won / Lost</text>
                                 <text x="150" y="310" textAnchor="middle" fill="white" className="text-2xl font-black">{funnelSteps[3].value}</text>
 
                                 {/* --- Side Percentage Markers (Tightly aligned to prevent bleeding) --- */}
-                                {/* Row 1 Marker (Right) */}
+                                {/* Row 1 Marker (Right) - Royal Blue */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '600ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="303" cy="72" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="303" y="76" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{leadsPercent}%</text>
-                                    <text x="285" y="105" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Awareness</text>
-                                    <line x1="282" y1="72" x2="272" y2="72" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M266,72 L272,69 L272,75 Z" fill="#3b82f6" />
+                                    <circle cx="303" cy="72" r="21" fill="#eff6ff" stroke="#1e3a8a" strokeWidth="1.5" className="drop-shadow-sm" />
+                                    <text x="303" y="76" textAnchor="middle" className="text-[11px] font-black fill-[#1e3a8a]">{leadsPercent}%</text>
+                                    <text x="285" y="105" textAnchor="middle" className="text-sm font-bold fill-[#0f172a] tracking-tight">Awareness</text>
+                                    <line x1="282" y1="72" x2="272" y2="72" stroke="#1e3a8a" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M266,72 L272,69 L272,75 Z" fill="#1e3a8a" />
                                 </g>
 
-                                {/* Row 2 Marker (Left) */}
+                                {/* Row 2 Marker (Left) - Green */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="20" cy="129" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="20" y="133" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{activePercent}%</text>
-                                    <text x="20" y="162" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Interseted</text>
-                                    <line x1="41" y1="129" x2="51" y2="129" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M57,129 L51,126 L51,132 Z" fill="#3b82f6" />
+                                    <circle cx="20" cy="129" r="21" fill="#f0fdf4" stroke="#84cc16" strokeWidth="1.5" className="drop-shadow-sm" />
+                                    <text x="20" y="133" textAnchor="middle" className="text-[11px] font-black fill-[#166534]">{activePercent}%</text>
+                                    <text x="20" y="162" textAnchor="middle" className="text-sm font-bold fill-[#0f172a] tracking-tight">Interested</text>
+                                    <line x1="41" y1="129" x2="51" y2="129" stroke="#84cc16" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M57,129 L51,126 L51,132 Z" fill="#84cc16" />
                                 </g>
 
-                                {/* Row 3 Marker (Right) */}
+                                {/* Row 3 Marker (Right) - Orange */}
                                 <g className="opacity-0 animate-slide-in-right" style={{ animationDelay: '1000ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="250" cy="215" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="250" y="219" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{warmPercent}%</text>
-                                    <text x="250" y="248" textAnchor="middle" className="text-[12px] font-bold fill-[#0f172a] tracking-tight">Connect</text>
-                                    <line x1="229" y1="215" x2="219" y2="215" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
-                                    <path d="M213,215 L219,212 L219,218 Z" fill="#3b82f6" />
+                                    <circle cx="250" cy="215" r="21" fill="#fffaf2" stroke="#f97316" strokeWidth="1.5" className="drop-shadow-sm" />
+                                    <text x="250" y="219" textAnchor="middle" className="text-[11px] font-black fill-[#9a3412]">{warmPercent}%</text>
+                                    <text x="250" y="248" textAnchor="middle" className="text-sm font-bold fill-[#0f172a] tracking-tight">Connect</text>
+                                    <line x1="229" y1="215" x2="219" y2="215" stroke="#f97316" strokeWidth="1" strokeDasharray="2 2" />
+                                    <path d="M213,215 L219,212 L219,218 Z" fill="#f97316" />
                                 </g>
 
-                                {/* Row 4 Marker (Left) */}
+                                {/* Row 4 Marker (Left) - Sky Blue */}
                                 <g className="opacity-0 animate-slide-in-left" style={{ animationDelay: '1200ms', animationFillMode: 'forwards' }}>
-                                    <circle cx="67" cy="300" r="21" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1" className="drop-shadow-sm" />
-                                    <text x="67" y="304" textAnchor="middle" className="text-[11px] font-black fill-blue-900">{wonLostPercent}%</text>
+                                    <circle cx="67" cy="300" r="21" fill="#f0f9ff" stroke="#3b82f6" strokeWidth="1.5" className="drop-shadow-sm" />
+                                    <text x="67" y="304" textAnchor="middle" className="text-[11px] font-black fill-[#075985]">{wonLostPercent}%</text>
                                     <line x1="88" y1="300" x2="98" y2="300" stroke="#3b82f6" strokeWidth="1" strokeDasharray="2 2" />
                                     <path d="M104,300 L98,297 L98,303 Z" fill="#3b82f6" />
                                 </g>
@@ -456,7 +496,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             onClick={() => onNavigate('Pipelines')}
                             onMouseEnter={() => setIsGaugeHovered(true)}
                             onMouseLeave={() => setIsGaugeHovered(false)}
-                            className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98] group"
+                            className="w-[45%] flex flex-col items-center border border-[#84cc16] rounded-lg p-3 relative cursor-pointer hover:shadow-md transition-all active:scale-[0.98] group backdrop-blur-md"
+                            style={{ backgroundColor: '#ffffff0d' }}
                         >
                             <div className="w-full flex justify-between items-start mb-0.5">
                                 <h3 className="font-bold text-slate-800 text-[11px] leading-tight max-w-[120px]">Pipeline Value Sales Forecast</h3>
@@ -473,8 +514,22 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                             <stop offset="100%" stopColor="#10b981" /> {/* Green */}
                                         </linearGradient>
                                     </defs>
-                                    {/* Track Background */}
-                                    <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="#f1f5f9" strokeWidth="20" strokeLinecap="round" />
+                                    {/* Track Background with subtle border */}
+                                    <path 
+                                        d="M20,100 A80,80 0 0,1 180,100" 
+                                        fill="none" 
+                                        stroke="#f1f5f9" 
+                                        strokeWidth="20" 
+                                        strokeLinecap="round" 
+                                    />
+                                    <path 
+                                        d="M20,100 A80,80 0 0,1 180,100" 
+                                        fill="none" 
+                                        stroke="#e2e8f0" 
+                                        strokeWidth="22" 
+                                        strokeLinecap="round" 
+                                        className="opacity-50"
+                                    />
                                     {/* Value Arc */}
                                     <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="20" strokeLinecap="round" />
 
@@ -487,20 +542,20 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <text x="100" y="55" className="text-[7px] fill-slate-600 font-black" textAnchor="middle">{formatINR(forecastTarget * 0.5)}</text>
                                     <text x="140" y="72" className="text-[7px] fill-slate-600 font-black" textAnchor="middle">{formatINR(forecastTarget * 0.75)}</text>
 
-                                    {/* Needle with Breathing Animation */}
+                                    {/* Needle with Border for Clarity */}
                                     <path
                                         d="M100 100 L100 35"
                                         stroke="#1e293b"
-                                        strokeWidth="3"
+                                        strokeWidth="4"
                                         strokeLinecap="round"
                                         transform={`rotate(${((isGaugeHovered ? Math.min(displayedPercent + 10, 100) : displayedPercent) * 1.8 - 90) + breathingOffset}, 100, 100)`}
                                         style={{ transition: 'transform 1s ease-in-out' }}
                                     />
-                                    <circle cx="100" cy="100" r="6" fill="#1e293b" />
+                                    <circle cx="100" cy="100" r="7" fill="#1e293b" stroke="#ffffff" strokeWidth="2" />
                                 </svg>
 
                                 <div className="text-center mt-1 z-10">
-                                    <div className="text-lg font-black text-slate-800 leading-none">
+                                    <div className="text-lg font-black text-[#0f172a] leading-none">
                                         {forecastDisplayVal}
                                     </div>
                                     <div className="text-[9px] font-bold text-slate-500 mt-0.5">
@@ -513,7 +568,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                         {/* Bar Chart - Card Style */}
                         <div
                             onClick={() => onNavigate('Follow-up')}
-                            className="w-[55%] flex flex-col h-full border border-[#84cc16] rounded-lg p-3 cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                            className="w-[55%] flex flex-col h-full border border-[#84cc16] rounded-lg p-3 cursor-pointer hover:shadow-md transition-all active:scale-[0.98] backdrop-blur-md"
+                            style={{ backgroundColor: '#84cc1608' }}
                         >
                             <div className="flex items-center gap-1 mb-1">
                                 <div className="w-1.5 h-1.5 rounded-full border border-[#84cc16] bg-white"></div>
@@ -523,7 +579,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 {followupData.map((d, i) => (
                                     <div key={i} className="flex items-center gap-3">
                                         <div className="w-12 text-left text-[10px] font-black text-slate-700 tracking-wide">{d.label}</div>
-                                        <div className="flex-1 h-3 bg-slate-100 rounded-full relative overflow-hidden">
+                                        <div className="flex-1 h-3 bg-slate-200 rounded-full relative overflow-hidden border border-slate-300/30 shadow-inner">
                                             {/* Progress with gradient effect */}
                                             <div
                                                 className="absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out"
@@ -534,7 +590,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                                 }}
                                             ></div>
                                             {/* Fading trail effect */}
-                                            <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-r from-transparent to-white/40"></div>
+                                            <div className="absolute left-0 top-0 h-full w-full bg-gradient-to-r from-transparent to-white/20"></div>
                                         </div>
                                         <div className="text-[11px] font-black text-slate-800 w-4 text-right">{d.val}</div>
                                     </div>
@@ -550,6 +606,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 label="Template"
                                 val={totalTemplates}
                                 icon={<Icons.Template />}
+                                color="#3b82f6"
                                 onClick={() => onNavigate('Whatsapp Templates')}
                                 delay={0}
                             />
@@ -557,6 +614,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 label="Automation Flow"
                                 val={totalFlows}
                                 icon={<Icons.Flow />}
+                                color="#3b82f6"
                                 onClick={() => onNavigate('Flows')}
                                 delay={100}
                             />
@@ -564,6 +622,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 label="Active Campaigns"
                                 val={totalCampaigns}
                                 icon={<Icons.Campaign />}
+                                color="#f97316"
                                 onClick={() => onNavigate('Campaigns')}
                                 delay={200}
                             />
@@ -571,13 +630,14 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                 label="Pipeline"
                                 val={totalPipelines}
                                 icon={<Icons.Pipeline />}
+                                color="#075985"
                                 onClick={() => onNavigate('Pipelines')}
                                 delay={300}
                             />
                         </div>
 
                         {/* Lead Categories (Replaces Selection Rate) */}
-                        <div className="w-[55%] border border-[#84cc16] rounded-lg p-3 flex flex-col justify-between h-full">
+                        <div className="w-[55%] border border-[#84cc16] rounded-lg p-3 flex flex-col justify-between h-full backdrop-blur-md" style={{ backgroundColor: '#ffffff08' }}>
                             <h3 className="text-[11px] font-bold text-slate-800 mb-2">Lead Categories</h3>
                             <div className="flex flex-col gap-2">
                                 {categoryData.map((d, i) => (
@@ -588,8 +648,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                         style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'forwards' }}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-white border border-transparent group-hover:border-slate-100 transition-all shadow-sm">{d.icon}</div>
-                                            <span className="text-[10px] font-bold text-slate-600 group-hover:text-slate-800 transition-colors">{d.label}</span>
+                                            <div className="p-2 bg-slate-50 rounded-full group-hover:bg-white border border-transparent ring-1 ring-slate-900 group-hover:border-slate-100 transition-all shadow-sm">{d.icon}</div>
+                                            <span className="text-sm font-bold text-[#0f172a] tracking-tight">{d.label}</span>
                                         </div>
                                         <span className="text-[11px] font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-full">{d.val}</span>
                                     </div>
@@ -636,17 +696,24 @@ const DonutRing: React.FC<{ value: number; target: number; color: string; trackC
     );
 };
 
-const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; onClick?: () => void; delay?: number }> = ({ label, val, icon, onClick, delay = 0 }) => (
+const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; color: string; onClick?: () => void; delay?: number }> = ({ label, val, icon, color, onClick, delay = 0 }) => (
     <div
         onClick={onClick}
-        className={`h-full w-full border border-[#84cc16] bg-white rounded-lg p-2 flex flex-col items-center justify-center text-center opacity-0 animate-fade-in-up ${onClick ? 'cursor-pointer hover:shadow-xl hover:scale-105 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all duration-300 transform' : ''}`}
-        style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
+        className={`h-full w-full border rounded-lg p-2 flex flex-col items-center justify-center text-center opacity-0 animate-fade-in-up backdrop-blur-md ${onClick ? 'cursor-pointer hover:shadow-xl hover:scale-105 transition-all duration-300 transform' : ''}`}
+        style={{
+            animationDelay: `${delay}ms`,
+            animationFillMode: 'forwards',
+            backgroundColor: `${color}14`, // ~8% opacity for a lighter transparent look
+            borderColor: '#84cc16' // Restored original green border
+        }}
     >
-        <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-white shadow-sm group-hover:scale-110 transition-transform">
-            {icon}
+        <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-slate-900 shadow-sm group-hover:scale-110 transition-transform">
+            <div style={{ color: color }}>
+                {icon}
+            </div>
         </div>
-        <div className="text-[10px] font-bold text-slate-500 mb-0.5">{label}</div>
-        <div className="text-xl font-bold text-slate-800">{val}</div>
+        <div className="text-sm font-bold text-[#0f172a] mb-1 tracking-tight leading-tight">{label}</div>
+        <div className="text-xl font-black text-[#1e293b] leading-none">{val}</div>
     </div>
 );
 
