@@ -578,7 +578,7 @@ const WhatsAppScannerCard: React.FC<{
     const qColor = quality === 'GREEN' ? 'bg-emerald-500' : quality === 'YELLOW' ? 'bg-yellow-500' : quality === 'RED' ? 'bg-red-500' : 'bg-slate-500';
 
     return (
-        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/10 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
+        <div className="bg-gradient-to-br from-[#022c22] via-[#064e3b] to-[#020617] rounded-3xl p-4 relative overflow-hidden shadow-2xl text-white flex flex-col items-center justify-start gap-4 h-full w-full border border-white/20 group ring-1 ring-white/10 hover:ring-emerald-500/30 transition-all duration-300">
             {/* Shimmer on Hover */}
             <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white opacity-10 shine-effect" />
             {/* Background Blob Effects */}
@@ -604,7 +604,7 @@ const WhatsAppScannerCard: React.FC<{
 
                 {/* Health & Limits Block — only when phone exists */}
                 {phone && (
-                    <div className="mt-2 flex items-center justify-center gap-4 bg-white/5 rounded-xl p-2 border border-[#84cc16]">
+                    <div className="mt-2 flex items-center justify-center gap-4 bg-white/5 rounded-xl p-2 border border-white/20">
                         <div className="text-center px-2">
                             <span className="block text-[10px] text-slate-400 uppercase font-bold">Quality</span>
                             <div className="flex items-center gap-1.5 justify-center mt-0.5">
@@ -627,7 +627,7 @@ const WhatsAppScannerCard: React.FC<{
 
             {/* QR Code Area — always show when phone number exists */}
             <div className="flex-1 flex flex-col justify-center w-full items-center">
-                <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center">
+                <div onClick={onConnect} className="z-10 bg-white p-2 rounded-xl shadow-2xl mt-3 transform transition-transform hover:scale-105 duration-300 cursor-pointer group flex flex-col items-center border border-white/20">
                     {phone ? (
                         // QR always renders when phone is known — not gated by Meta API status
                         <QRCodeCanvas
@@ -650,7 +650,12 @@ const WhatsAppScannerCard: React.FC<{
                             Configure in Settings
                         </div>
                     )}
-                    {phone && <p className="text-[10px] text-center text-slate-500 font-bold mt-2 uppercase tracking-wide group-hover:text-emerald-600">Scan to Chat</p>}
+                    {phone && (
+                        <div className="w-full bg-[#074e3c] text-white text-[10px] flex items-center justify-center gap-2 font-black py-1.5 mt-2 rounded-lg uppercase tracking-widest transition-all hover:bg-[#0a6b52] shadow-lg shadow-emerald-950/20">
+                            <Icons.WhatsApp className="w-3.5 h-3.5" />
+                            Scan to Chat
+                        </div>
+                    )}
                 </div>
 
                 {!phone && !isLoading && (
