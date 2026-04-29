@@ -572,7 +572,7 @@ const WhatsAppScannerCard: React.FC<{
             : 'Disconnected';
 
     const statusClass = isConnected
-        ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+        ? 'bg-[#84cc16]/10 text-[#84cc16] ring-1 ring-[#84cc16]/30 shadow-[0_0_15px_rgba(132,204,22,0.2)]'
         : isLoading
             ? 'bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/30 animate-pulse'
             : 'bg-red-500/10 text-red-400 ring-1 ring-red-500/30';
@@ -604,39 +604,39 @@ const WhatsAppScannerCard: React.FC<{
                     {statusLabel}
                 </p>
 
-                <p className="mt-1 font-mono text-xl tracking-wider text-slate-200">
+                <p className="mt-2 font-mono text-xl tracking-wider text-slate-200">
                     {phone ? formattedPhone : 'No Number Linked'}
                 </p>
 
                 {phone && (
-                    <div className="mt-1 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2 border border-white/20 w-full max-w-[280px] shadow-[0_4px_12px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="flex items-center gap-2 justify-center px-2">
+                    <div className="mt-3 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2.5 border border-white/20 w-full max-w-[300px] mx-auto shadow-[0_4px_12px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                        <div className="flex-1 flex items-center justify-center gap-3 min-w-0 pr-1">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/20 blur-md rounded-full"></div>
-                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
+                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-white/10 shadow-sm">
                                     <Icons.Shield className="w-4 h-4 text-white" />
                                 </div>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
-                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-full bg-white text-[6.5px] text-[#05342E] uppercase font-black tracking-[0.1em] leading-none">Quality</span>
-                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-0.5 leading-none">
+                                <span className="inline-block w-fit px-2 py-0.5 rounded-full bg-white text-[7.5px] text-[#05342E] uppercase font-black tracking-widest leading-none mb-1 shadow-sm">Quality</span>
+                                <span className="text-[12px] font-black text-[#84cc16] truncate leading-none drop-shadow-sm">
                                     {metaPending && !quality ? '...' : (quality || 'GREEN')}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="w-px h-6 bg-white/10 shrink-0 mx-2"></div>
+                        <div className="w-px h-8 bg-white/10 shrink-0"></div>
 
-                        <div className="flex items-center gap-2 justify-center px-2">
+                        <div className="flex-1 flex items-center justify-center gap-3 min-w-0 pl-1">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/10 blur-md rounded-full"></div>
-                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
+                                <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-white/10 shadow-sm">
                                     <Icons.Clock className="w-4 h-4 text-white" />
                                 </div>
                             </div>
                             <div className="flex flex-col items-center min-w-0">
-                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-full bg-white text-[6.5px] text-[#05342E] uppercase font-black tracking-[0.1em] leading-none">Limit</span>
-                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-0.5 leading-none">
+                                <span className="inline-block w-fit px-2 py-0.5 rounded-full bg-white text-[7.5px] text-[#05342E] uppercase font-black tracking-widest leading-none mb-1 shadow-sm">Limit</span>
+                                <span className="text-[12px] font-black text-[#84cc16] truncate leading-none drop-shadow-sm">
                                     {metaPending && !limit ? '...' : formatLimit(limit || '')}
                                 </span>
                             </div>
