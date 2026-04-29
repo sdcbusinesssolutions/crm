@@ -610,33 +610,33 @@ const WhatsAppScannerCard: React.FC<{
 
                 {phone && (
                     <div className="mt-1 flex items-center justify-center gap-2 bg-white/5 rounded-2xl p-2 border border-white/20 w-full max-w-[280px] shadow-[0_4px_12px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)]">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 justify-center px-2">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/20 blur-md rounded-full"></div>
                                 <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
                                     <Icons.Shield className="w-4 h-4 text-white" />
                                 </div>
                             </div>
-                            <div className="flex flex-col text-left min-w-0">
-                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-md bg-white text-[7px] text-[#05342E] uppercase font-black tracking-tighter leading-none">Quality</span>
-                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-1 leading-none">
+                            <div className="flex flex-col items-center min-w-0">
+                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-full bg-white text-[6.5px] text-[#05342E] uppercase font-black tracking-[0.1em] leading-none">Quality</span>
+                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-0.5 leading-none">
                                     {metaPending && !quality ? '...' : (quality || 'GREEN')}
                                 </span>
                             </div>
                         </div>
 
-                        <div className="w-px h-6 bg-white/10 shrink-0"></div>
+                        <div className="w-px h-6 bg-white/10 shrink-0 mx-2"></div>
 
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 justify-center px-2">
                             <div className="relative shrink-0">
                                 <div className="absolute inset-0 bg-[#84cc16]/10 blur-md rounded-full"></div>
                                 <div className="relative w-8 h-8 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16]/50">
                                     <Icons.Clock className="w-4 h-4 text-white" />
                                 </div>
                             </div>
-                            <div className="flex flex-col text-left min-w-0">
-                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-md bg-white text-[7px] text-[#05342E] uppercase font-black tracking-tighter leading-none">Limit</span>
-                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-1 leading-none">
+                            <div className="flex flex-col items-center min-w-0">
+                                <span className="inline-block w-fit px-1.5 py-0.5 rounded-full bg-white text-[6.5px] text-[#05342E] uppercase font-black tracking-[0.1em] leading-none">Limit</span>
+                                <span className="text-[11px] font-black text-[#84cc16] truncate mt-0.5 leading-none">
                                     {metaPending && !limit ? '...' : formatLimit(limit || '')}
                                 </span>
                             </div>
