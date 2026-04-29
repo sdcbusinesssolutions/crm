@@ -339,8 +339,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                                     <div className="w-full h-full flex items-center justify-between px-2 pt-1">
                                         {/* Engaged Section */}
                                         <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
-                                            <div className="w-7 h-7 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 ring-1 ring-slate-900 shadow-sm shrink-0">
-                                                <Icons.Users className="w-4 h-4 text-emerald-600" />
+                                            <div className="w-7 h-7 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16] ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <Icons.Users className="w-4 h-4 text-white" />
                                             </div>
                                             <span className="text-sm font-bold text-[#0f172a] tracking-tight">Engaged</span>
                                         </div>
@@ -352,8 +352,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                         {/* FollowUp Section */}
                                         <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
-                                            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 ring-1 ring-slate-900 shadow-sm shrink-0">
-                                                <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <div className="w-7 h-7 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16] ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                                 </svg>
                                             </div>
@@ -367,8 +367,8 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
 
                                         {/* Automation Section */}
                                         <div className="flex items-center gap-1.5 min-w-[70px] justify-center">
-                                            <div className="w-7 h-7 rounded-full bg-purple-50 flex items-center justify-center border border-purple-100 ring-1 ring-slate-900 shadow-sm shrink-0">
-                                                <Icons.Bot className="w-4 h-4 text-purple-600" />
+                                            <div className="w-7 h-7 rounded-full bg-[#84cc16] flex items-center justify-center border border-[#84cc16] ring-1 ring-slate-900 shadow-sm shrink-0">
+                                                <Icons.Bot className="w-4 h-4 text-white" />
                                             </div>
                                             <span className="text-sm font-bold text-[#0f172a] tracking-tight">Automation</span>
                                         </div>
@@ -708,7 +708,7 @@ const StatItem: React.FC<{ label: string; val: number; icon: React.ReactNode; co
         }}
     >
         <div className="w-10 h-10 min-w-[2.5rem] min-h-[2.5rem] rounded-full bg-[#84cc16] flex items-center justify-center mb-2 ring-1 ring-slate-900 shadow-sm group-hover:scale-110 transition-transform">
-            <div style={{ color: color }}>
+            <div className="text-white">
                 {icon}
             </div>
         </div>
