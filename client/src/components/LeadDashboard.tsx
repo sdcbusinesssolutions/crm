@@ -21,6 +21,12 @@ const TrendingUpIconFallback = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const PlusIconFallback = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+    </svg>
+);
+
 interface LeadDashboardProps {
     onNavigate: (tab: string) => void;
     totalContactsCount?: number | null;
@@ -570,8 +576,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Funnel / Distribution */}
                 <div className="xl:col-span-2 flex flex-col gap-6">
-                    {/* Compact Hero Section */}
-                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 shadow-md text-white px-4 py-3 w-full">
+                    {/* Compact Hero Section - PREMIUM MAROON THEME */}
+                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#450a0a] via-[#5b0707] to-[#450a0a] shadow-lg text-white px-4 py-3 w-full border border-red-900/30">
                         {/* Abstract Background Shapes (Smaller) */}
                         <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl"></div>
                         <div className="absolute bottom-0 left-0 -mb-6 -ml-6 w-24 h-24 bg-blue-500/20 rounded-full blur-2xl"></div>
@@ -611,19 +617,19 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                 }
                                             }
                                         }}
-                                        className="appearance-none w-full md:w-48 pl-3 pr-8 py-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-white text-xs font-bold backdrop-blur-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all cursor-pointer shadow-sm"
+                                        className="appearance-none w-full md:w-48 pl-3 pr-8 py-1.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white text-xs font-bold backdrop-blur-md focus:outline-none focus:ring-1 focus:ring-amber-500/50 transition-all cursor-pointer shadow-sm"
                                     >
                                         {pipelines.map(p => (
-                                            <option key={p.id} value={p.id} className="text-slate-900">{p.name}</option>
+                                            <option key={p.id} value={p.id} className="bg-slate-900 text-white font-medium">{p.name}</option>
                                         ))}
                                     </select>
-                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => onNavigate('pipelines')}
-                                    className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-bold shadow-md shadow-brand-500/20 transition-all flex items-center justify-center gap-1.5 shrink-0"
+                                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold shadow-md shadow-amber-900/20 transition-all flex items-center justify-center gap-1.5 shrink-0"
                                 >
                                     <span>Go to Board</span>
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
@@ -839,48 +845,40 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
             </div>
 
-            {/* Quick Actions Card */}
-                <div className="bg-slate-900 rounded-3xl p-1 shadow-xl text-white flex flex-col h-fit">
-                    <div className="bg-slate-800/50 rounded-[20px] p-5 md:p-6 flex flex-col relative overflow-hidden">
-                        {/* Decoration */}
-                        <div className="absolute top-0 right-0 w-40 h-40 bg-brand-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            {/* Quick Actions Card - MATCHING REFERENCE IMAGE */}
+            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.06)] flex flex-col h-fit overflow-hidden">
+                <div className="p-6 md:p-8 flex flex-col gap-6">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-900 mb-1">Quick Actions</h3>
+                        <p className="text-slate-400 text-sm">Manage your workflow efficiently.</p>
+                    </div>
 
-                        <h3 className="text-xl font-bold mb-1 relative z-10">Quick Actions</h3>
-                        <p className="text-slate-400 text-sm mb-6 relative z-10">Manage your workflow efficiently.</p>
-
-                        <div className="space-y-3 relative z-10 flex-1">
-                            {[
-                                { label: 'View Kanban Board', icon: KanbanIcon, action: () => onNavigate('pipelines') },
-                                { label: 'Contacts Directory', icon: UsersIcon, action: () => onNavigate('contacts') },
-                            ].map((item, i) => (
-                                <button
-                                    key={i}
-                                    onClick={item.action}
-                                    className="w-full py-4 bg-slate-700/30 hover:bg-brand-600/20 border border-slate-700 hover:border-brand-500/30 rounded-2xl text-left px-5 font-semibold text-sm transition-all flex items-center justify-between group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <item.icon className="w-5 h-5 text-slate-400 group-hover:text-brand-400" />
-                                        <span className="group-hover:text-white transition-colors">{item.label}</span>
-                                    </div>
-                                    <svg className="w-4 h-4 text-slate-500 group-hover:text-brand-400 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </button>
-                            ))}
-
+                    <div className="flex flex-col gap-3">
+                        {[
+                            { label: 'View Kanban Board', icon: KanbanIcon, color: 'bg-[#00a854]', action: () => onNavigate('pipelines') },
+                            { label: 'Contacts Directory', icon: UsersIcon, color: 'bg-[#ff7a22]', action: () => onNavigate('contacts') },
+                            { label: 'Create New Lead Form', icon: PlusIconFallback, color: 'bg-[#ff9c1a]', action: () => onNavigate('forms') },
+                            { label: 'Import Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, color: 'bg-[#00a854]', action: () => onNavigate('contacts') },
+                            { label: 'Export Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>, color: 'bg-[#ff7a22]', action: () => onNavigate('contacts') },
+                        ].map((item, i) => (
                             <button
-                                onClick={() => onNavigate('forms')}
-                                className="w-full mt-4 py-4 bg-gradient-to-r from-brand-600 to-brand-500 hover:from-brand-500 hover:to-brand-400 rounded-2xl text-left px-5 font-bold text-sm text-white shadow-lg shadow-brand-900/40 transition-all flex items-center justify-between group"
+                                key={i}
+                                onClick={item.action}
+                                className="w-full p-2.5 bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200 rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="bg-white/20 p-1 rounded-full">
-                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+                                <div className="flex items-center gap-4">
+                                    <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-inner transition-transform group-hover:scale-105`}>
+                                        {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-6 h-6 text-white" />}
                                     </div>
-                                    <span>Create New Lead Form</span>
+                                    <span className="text-slate-700 font-bold text-sm tracking-tight">{item.label}</span>
                                 </div>
+                                <svg className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                             </button>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>
+        </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Lead Volume Trend Chart */}
