@@ -595,7 +595,22 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 <div className="relative group flex-1 md:flex-none">
                                     <select
                                         value={activePipelineId || ''}
-                                        onChange={(e) => setActivePipelineId(e.target.value)}
+                                        onChange={(e) => {
+                                            const newId = e.target.value;
+                                            setActivePipelineId(newId);
+                                            // 🚀 INSTANT UPDATE: Process data immediately for the new pipeline
+                                            const cached = localStorage.getItem('lead_dashboard_cache');
+                                            if (cached) {
+                                                try {
+                                                    const parsed = JSON.parse(cached);
+                                                    if (parsed.userId === userId) {
+                                                        processStatsData(parsed.data, newId);
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Instant update failed', err);
+                                                }
+                                            }
+                                        }}
                                         className="appearance-none w-full md:w-48 pl-3 pr-8 py-1.5 bg-slate-800/80 hover:bg-slate-700 border border-slate-700 rounded-lg text-white text-xs font-bold backdrop-blur-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all cursor-pointer shadow-sm"
                                     >
                                         {pipelines.map(p => (
@@ -617,13 +632,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                     </div>
 
-                    {/* Funnel / Distribution */}
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col">
-                        <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-slate-800">Pipeline Performance</h3>
-                            <div className="text-sm font-medium text-slate-400">by Stage Volume</div>
-                        </div>
-                        <div className="p-5 md:p-8 flex-1 min-h-[350px] flex flex-col relative">
+                    {/* Pipeline Performance Container - PREMIUM WOW STYLE MATCHING FORMS */}
+                    <div className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.12)] transition-all duration-500 flex flex-col min-h-[480px]">
+                        <div className="bg-white h-full w-full rounded-[1.9rem] flex flex-col relative overflow-hidden">
+                            {/* Premium Gradient Border Overlay (Matching Forms style) */}
+                            <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-emerald-400 via-blue-100 to-brand-500 opacity-15 pointer-events-none"></div>
+
+                            <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center relative z-10 bg-white/50 backdrop-blur-sm">
+                                <h3 className="text-lg font-bold text-slate-800">Pipeline Performance</h3>
+                                <div className="text-sm font-medium text-slate-400">by Stage Volume</div>
+                            </div>
+                            <div className="p-5 md:p-8 flex-1 flex flex-col relative z-10">
                             {stats.leadsByStage.length > 0 ? (
                                 <>
                                     {/* Y-Axis Label */}
@@ -708,10 +727,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                                                     return (
                                                         <>
-                                                            <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-1000" />
-                                                            <path d={path} fill="none" stroke="#78350f" strokeWidth="1.5" strokeLinecap="round" className="transition-all duration-1000 opacity-60" />
+                                                            <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-700 ease-in-out" />
+                                                            <path d={path} fill="none" stroke="#78350f" strokeWidth="0.7" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
                                                             {points.map((p, i) => (
-                                                                <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="white" stroke="#78350f" strokeWidth="1" className="transition-all duration-1000" />
+                                                                <circle key={i} cx={p.x} cy={p.y} r="0.7" fill="white" stroke="#78350f" strokeWidth="0.4" className="transition-all duration-700 ease-in-out hover:r-[1.8px] cursor-pointer" />
                                                             ))}
                                                         </>
                                                     );
@@ -753,14 +772,14 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                                     height={height}
                                                                     rx="1.5"
                                                                     fill={barColor}
-                                                                    className="transition-all duration-700 ease-out"
+                                                                    className="transition-all duration-700 ease-in-out"
                                                                 />
-                                                                {/* Refined Number Label - SMALLER & PROFESSIONAL */}
+                                                                {/* Refined Number Label - SMALLER & MEDIUM WEIGHT */}
                                                                 <text
                                                                     x={x}
-                                                                    y={y - 8}
+                                                                    y={y - 5}
                                                                     textAnchor="middle"
-                                                                    className="text-[8px] font-medium fill-slate-400"
+                                                                    className="text-[3.2px] font-medium fill-slate-600 transition-all duration-700 ease-in-out"
                                                                 >
                                                                     {stage.count}
                                                                 </text>
@@ -796,8 +815,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                 const barColor = colorMap[nameLower] || stage.color;
 
                                                 return (
-                                                    <div key={stage.name} className="flex items-center gap-2">
-                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-slate-100 bg-white shadow-sm">
+                                                    <div key={stage.name} className="flex items-center gap-2 transition-all duration-700">
+                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-slate-100 bg-white shadow-sm hover:scale-105 transition-all">
                                                             <div className="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: barColor }}>
                                                                 {icon || (i + 1)}
                                                             </div>
@@ -810,10 +829,12 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-center py-20 text-slate-400">
-                                    <p className="font-medium">No pipeline distribution data available.</p>
+                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
+                                    <KanbanIcon className="w-12 h-12 opacity-20" />
+                                    <p className="text-sm font-medium">No performance data available for this pipeline</p>
                                 </div>
                             )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -930,7 +951,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                 strokeWidth="12"
                                                 strokeDasharray={`${dashVal} ${circumference}`}
                                                 strokeDashoffset={-offset}
-                                                className={`${color} transition-all duration-1000 ease-out hover:opacity-80`}
+                                                className={`${color} transition-all duration-700 ease-in-out`}
                                             />
                                         );
                                     });
