@@ -108,9 +108,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (append) setIsLoadingMoreConvs(true);
         try {
             const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
-            // Result is data array directly from inboxService.getConversations
             const newData = result || [];
             
+            // Only update hasMoreConvs if we are loading a specific page
             if (newData.length < 20) {
                 setHasMoreConvs(false);
             } else {
@@ -118,12 +118,24 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             }
 
             setConversations(prev => {
-                const combined = append ? [...prev, ...newData] : newData;
-                // Deduplicate by id
-                return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                if (!append) {
+                    // If it's a fresh load (page 1, not append), we only want to REPLACE 
+                    // if the user is actually on page 1.
+                    if (convPage > 1 && !sTerm && qFilter === 'All' && !fTag) {
+                        // We are deep in the list, just merge the top 20 if they are new
+                        const combined = [...newData, ...prev];
+                        return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+                                       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+                    }
+                    return newData;
+                }
+                const combined = [...prev, ...newData];
+                // Deduplicate by id and keep sorted by updated_at
+                return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
+                               .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
             });
             
-            if (!append) {
+            if (!append && page === 1) {
                 // Load tags only on initial load
                 tagService.getTags().then(tags => setAvailableTagsList(tags || [])).catch(console.error);
             }
@@ -139,10 +151,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         setHasMoreConvs(true);
         loadConversations(1, false, searchTerm, quickFilter, filterTag);
 
-        // Poll for new conversations (only if NOT searching/filtering)
+        // Poll for new conversations (only if NOT searching/filtering AND user is at the top)
         let interval: any;
         if (!searchTerm && quickFilter === 'All' && !filterTag) {
-            interval = setInterval(() => loadConversations(1, false, '', 'All', ''), 5000);
+            interval = setInterval(() => {
+                // Only poll if the user is on the first page or near the top
+                // This prevents the "reset to top" bug while scrolling deep
+                loadConversations(1, false, '', 'All', '');
+            }, 10000); // Increased to 10s for stability
         }
         return () => { if (interval) clearInterval(interval); };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
