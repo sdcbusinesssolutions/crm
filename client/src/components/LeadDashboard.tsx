@@ -204,25 +204,25 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 1. LEAD CRM (Contacts) - Green */}
                 <div
                     onClick={() => onNavigate('contacts')}
-                    className="relative overflow-hidden rounded-3xl bg-white border border-emerald-100 p-5 md:p-6 text-emerald-900 shadow-sm hover:shadow-emerald-200 hover:scale-[1.02] transition-all cursor-pointer group h-44 sm:h-auto min-h-[160px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border border-emerald-100 p-6 text-emerald-900 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    {/* Top Row: Icon | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-full bg-emerald-50 border border-emerald-100 group-hover:bg-emerald-100 transition-colors">
-                                <UsersIcon className="w-6 h-6 text-slate-800" />
+                    {/* Top Row: Icon Badge | Stats | Percent */}
+                    <div className="flex justify-between items-start mb-5 relative z-10">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
+                                <UsersIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <div className="text-2xl md:text-3xl font-black text-emerald-700 tracking-tight">
+                                <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">
                                     {stats.totalLeads.toLocaleString()}
                                 </div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-600/70">Lead CRM</div>
+                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-emerald-600">Lead CRM</div>
                             </div>
                         </div>
                         
                         {/* Dynamic Growth Indicator */}
-                        <div className="flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
-                            <TrendingUpIconFallback className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm">
+                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const weekly = stats.leadsOverTime.reduce((a, b) => a + b.count, 0);
                                 return Math.max(Math.round((weekly / (stats.totalLeads || 1)) * 100), 2);
@@ -230,19 +230,23 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                     </div>
 
-                    {/* Badge */}
-                    <div className="relative z-10 mb-4">
-                        <div className="inline-block px-3 py-1 rounded-full bg-emerald-50/50 border border-emerald-100 text-[10px] font-bold text-emerald-700">
+                    {/* Badge - Premium Label */}
+                    <div className="relative z-10 pl-[76px]">
+                        <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">
                             Lifetime Audience
                         </div>
                     </div>
 
-                    {/* Upward Growth Graph (Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-60 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                    {/* Pro Growth Graph (Glowing & Cumulative) */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
+                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                             <defs>
-                                <linearGradient id="emeraldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                                <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                                <linearGradient id="emeraldAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
                                     <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
@@ -251,16 +255,14 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 const isAllZero = raw.length > 0 && raw.every(d => d.count === 0);
                                 const points = (raw.length > 3 && !isAllZero) ? raw : [{count:1}, {count:2}, {count:4}, {count:5}, {count:8}, {count:10}, {count:14}];
                                 
-                                // Calculate Cumulative Total for 'Upward' trend
                                 let cumulative = 0;
                                 const cumulativePoints = points.map(p => {
                                     cumulative += p.count;
                                     return cumulative;
                                 });
                                 const max = Math.max(...cumulativePoints, 1);
-                                
                                 const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 35);
+                                const getY = (val: number) => 38 - ((val / max) * 32);
                                 
                                 let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
                                 for (let i = 1; i < cumulativePoints.length; i++) {
@@ -269,10 +271,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 
                                 return (
                                     <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#emeraldGradient)" />
-                                        <path d={d} fill="none" stroke="#059669" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#emeraldAreaGradient)" />
+                                        <path d={d} fill="none" stroke="#059669" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#emeraldGlow)" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#059669" strokeWidth="1" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#059669" strokeWidth="1.5" className="shadow-lg" />
                                         ))}
                                     </>
                                 );
@@ -284,25 +286,25 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 2. FORMS - Blue */}
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-3xl bg-white border border-blue-100 p-5 md:p-6 text-blue-900 shadow-sm hover:shadow-blue-200 hover:scale-[1.02] transition-all cursor-pointer group h-44 sm:h-auto min-h-[180px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border border-blue-100 p-6 text-blue-900 shadow-[0_10px_40px_-10px_rgba(59,130,246,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    {/* Top Row: Icon | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-full bg-blue-50 border border-blue-100 group-hover:bg-blue-100 transition-colors">
-                                <CatalogueIcon className="w-6 h-6 text-slate-800" />
+                    {/* Top Row: Icon Badge | Stats | Percent */}
+                    <div className="flex justify-between items-start mb-5 relative z-10">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                                <CatalogueIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <div className="text-2xl md:text-3xl font-black text-blue-700 tracking-tight">
+                                <div className="text-3xl md:text-4xl font-[900] text-blue-950 tracking-tighter leading-none mb-1">
                                     {stats.formCount}
                                 </div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-blue-600/70">Forms</div>
+                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-blue-600">Forms</div>
                             </div>
                         </div>
                         
                         {/* Dynamic Growth Indicator */}
-                        <div className="flex items-center gap-1 text-[11px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-                            <TrendingUpIconFallback className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const weekly = stats.leadsOverTime.reduce((a, b) => a + b.count, 0);
                                 return Math.min(Math.max(Math.round((weekly / (stats.formCount || 1)) * 5), 8), 25);
@@ -311,18 +313,22 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Badge - DYNAMIC: Show top lead channel */}
-                    <div className="relative z-10 mb-4">
-                        <div className="inline-block px-3 py-1 rounded-full bg-blue-50/50 border border-blue-100 text-[10px] font-bold text-blue-700">
+                    <div className="relative z-10 pl-[76px]">
+                        <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">
                             {stats.leadsBySource[0]?.name ? `${stats.leadsBySource[0].name.replace('_', ' ')} flow` : 'Active Channels'}
                         </div>
                     </div>
 
-                    {/* Upward Growth Graph (Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-60 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                    {/* Pro Growth Graph (Glowing & Cumulative) */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
+                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                             <defs>
-                                <linearGradient id="blueGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+                                <filter id="blueGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                                <linearGradient id="blueAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
                                     <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
@@ -337,9 +343,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     return cumulative;
                                 });
                                 const max = Math.max(...cumulativePoints, 1);
-                                
                                 const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 35);
+                                const getY = (val: number) => 38 - ((val / max) * 32);
                                 
                                 let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
                                 for (let i = 1; i < cumulativePoints.length; i++) {
@@ -348,10 +353,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 
                                 return (
                                     <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#blueGradient)" />
-                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#blueAreaGradient)" />
+                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#blueGlow)" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#2563eb" strokeWidth="1" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#2563eb" strokeWidth="1.5" className="shadow-lg" />
                                         ))}
                                     </>
                                 );
@@ -363,25 +368,25 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 3. PIPELINES - Orange/Coral */}
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-3xl bg-white border border-orange-100 p-5 md:p-6 text-orange-900 shadow-sm hover:shadow-orange-200 hover:scale-[1.02] transition-all cursor-pointer group h-44 sm:h-auto min-h-[180px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border border-orange-100 p-6 text-orange-900 shadow-[0_10px_40px_-10px_rgba(249,115,22,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    {/* Top Row: Icon | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-full bg-orange-50 border border-orange-100 group-hover:bg-orange-100 transition-colors">
-                                <KanbanIcon className="w-6 h-6 text-slate-800" />
+                    {/* Top Row: Icon Badge | Stats | Percent */}
+                    <div className="flex justify-between items-start mb-5 relative z-10">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 rounded-2xl bg-orange-600 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-300">
+                                <KanbanIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <div className="text-2xl md:text-3xl font-black text-orange-700 tracking-tight">
+                                <div className="text-3xl md:text-4xl font-[900] text-orange-950 tracking-tighter leading-none mb-1">
                                     {stats.pipelineCount}
                                 </div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-orange-600/70">Pipelines</div>
+                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-orange-600">Pipelines</div>
                             </div>
                         </div>
                         
                         {/* Dynamic Growth Indicator */}
-                        <div className="flex items-center gap-1 text-[11px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100">
-                            <TrendingUpIconFallback className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100 shadow-sm">
+                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const weekly = stats.leadsOverTime.reduce((a, b) => a + b.count, 0);
                                 return Math.min(Math.max(Math.round((weekly / (stats.pipelineCount || 1)) * 3), 14), 30);
@@ -390,18 +395,22 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Badge - DYNAMIC: Takes name from selection */}
-                    <div className="relative z-10 mb-4">
-                        <div className="inline-block px-3 py-1 rounded-full bg-orange-50/50 border border-orange-100 text-[10px] font-bold text-orange-700">
+                    <div className="relative z-10 pl-[76px]">
+                        <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">
                             {pipelines.find(p => p.id === activePipelineId)?.name || 'Main Pipeline'}
                         </div>
                     </div>
 
-                    {/* Upward Growth Graph (Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-60 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                    {/* Pro Growth Graph (Glowing & Cumulative) */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
+                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                             <defs>
-                                <linearGradient id="coralGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.3" />
+                                <filter id="coralGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                                <linearGradient id="coralAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.4" />
                                     <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
@@ -416,9 +425,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     return cumulative;
                                 });
                                 const max = Math.max(...cumulativePoints, 1);
-                                
                                 const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 35);
+                                const getY = (val: number) => 38 - ((val / max) * 32);
                                 
                                 let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
                                 for (let i = 1; i < cumulativePoints.length; i++) {
@@ -427,10 +435,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 
                                 return (
                                     <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#coralGradient)" />
-                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#coralAreaGradient)" />
+                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#coralGlow)" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#ea580c" strokeWidth="1" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#ea580c" strokeWidth="1.5" className="shadow-lg" />
                                         ))}
                                     </>
                                 );
@@ -442,25 +450,25 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 4. FOLLOW UP - Amber/Yellow */}
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-3xl bg-white border border-amber-100 p-5 md:p-6 text-amber-900 shadow-sm hover:shadow-amber-200 hover:scale-[1.02] transition-all cursor-pointer group h-44 sm:h-auto min-h-[180px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border border-amber-100 p-6 text-amber-900 shadow-[0_10px_40px_-10px_rgba(245,158,11,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    {/* Top Row: Icon | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-4 relative z-10">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 rounded-full bg-amber-50 border border-amber-100 group-hover:bg-amber-100 transition-colors">
-                                <ClockIcon className="w-6 h-6 text-slate-800" />
+                    {/* Top Row: Icon Badge | Stats | Percent */}
+                    <div className="flex justify-between items-start mb-5 relative z-10">
+                        <div className="flex items-center gap-5">
+                            <div className="p-4 rounded-2xl bg-amber-600 shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform duration-300">
+                                <ClockIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <div className="text-2xl md:text-3xl font-black text-amber-700 tracking-tight">
+                                <div className="text-3xl md:text-4xl font-[900] text-amber-950 tracking-tighter leading-none mb-1">
                                     {stats.followUpCount}
                                 </div>
-                                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-600/70">Follow Up</div>
+                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-amber-600">Follow Up</div>
                             </div>
                         </div>
                         
                         {/* Dynamic Growth Indicator */}
-                        <div className="flex items-center gap-1 text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
-                            <TrendingUpIconFallback className="w-3 h-3" />
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 shadow-sm">
+                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const weekly = stats.leadsOverTime.reduce((a, b) => a + b.count, 0);
                                 return Math.min(Math.max(Math.round((weekly / (stats.followUpCount || 1)) * 2), 6), 15);
@@ -469,18 +477,22 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Badge */}
-                    <div className="relative z-10 mb-4">
-                        <div className="inline-block px-3 py-1 rounded-full bg-amber-50/50 border border-amber-100 text-[10px] font-bold text-amber-700">
+                    <div className="relative z-10 pl-[76px]">
+                        <div className="inline-block px-4 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-[11px] font-black uppercase tracking-wider text-amber-700 shadow-inner">
                             Pending Tasks
                         </div>
                     </div>
 
-                    {/* Upward Growth Graph (Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-60 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full">
+                    {/* Pro Growth Graph (Glowing & Cumulative) */}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
+                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
                             <defs>
-                                <linearGradient id="amberGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.3" />
+                                <filter id="amberGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                                <linearGradient id="amberAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
                                     <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
                                 </linearGradient>
                             </defs>
@@ -495,9 +507,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     return cumulative;
                                 });
                                 const max = Math.max(...cumulativePoints, 1);
-                                
                                 const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 35);
+                                const getY = (val: number) => 38 - ((val / max) * 32);
                                 
                                 let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
                                 for (let i = 1; i < cumulativePoints.length; i++) {
@@ -506,10 +517,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 
                                 return (
                                     <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#amberGradient)" />
-                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#amberAreaGradient)" />
+                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#amberGlow)" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#d97706" strokeWidth="1" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#d97706" strokeWidth="1.5" className="shadow-lg" />
                                         ))}
                                     </>
                                 );
