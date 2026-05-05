@@ -90,7 +90,7 @@ router.get('/export', async (req, res) => {
     const userId = req.user.id;
     let allContacts = [];
     let pageIndex = 0;
-    const chunkSize = 5000; // Larger chunks for export
+    const chunkSize = 1000; // Efficient chunk size (Matches Supabase default MAX_ROWS)
     let hasMore = true;
 
     while (hasMore) {

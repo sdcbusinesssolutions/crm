@@ -145,7 +145,7 @@ router.post('/create', async (req, res) => {
         } else {
             // Group, Tags or All
             let pageIndex = 0;
-            const chunkSize = 2000; // Efficient chunk size
+            const chunkSize = 1000; // Efficient chunk size (Matches Supabase default MAX_ROWS)
             let hasMore = true;
 
             while (hasMore) {
@@ -154,7 +154,7 @@ router.post('/create', async (req, res) => {
 
                 // Optimization: Only select columns needed for the campaign queue
                 let query = supabase.from('contacts')
-                    .select('id, phone, name, is_blocked, opted_out, tags, group_ids, language_code, custom_data')
+                    .select('id, phone, name, is_blocked, tags, group_ids, custom_data')
                     .eq('user_id', user.id)
                     .range(from, to);
                 
@@ -172,8 +172,8 @@ router.post('/create', async (req, res) => {
                 if (chunkErr) throw chunkErr;
 
                 if (chunk && chunk.length > 0) {
-                    // Quick Filter for Blocked/Opted-out
-                    const filteredChunk = chunk.filter(c => !c.is_blocked && !c.opted_out);
+                    // Quick Filter for Blocked (column) or Opted-out (custom_data)
+                    const filteredChunk = chunk.filter(c => !c.is_blocked && !c.custom_data?.opted_out);
 
                     // Language Restriction Filter (In-memory as it's complex/json)
                     let finalChunk = filteredChunk;
