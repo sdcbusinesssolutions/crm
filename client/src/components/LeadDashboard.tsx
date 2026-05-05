@@ -201,11 +201,14 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800">
             {/* Statistics Overview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
-                {/* 1. LEAD CRM (Contacts) - Green */}
                 <div
                     onClick={() => onNavigate('contacts')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-emerald-200 p-6 text-emerald-900 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(16,185,129,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
+                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
+                        {/* Gradient Border Overlay */}
+                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-emerald-400 via-emerald-100 to-teal-500 opacity-20 pointer-events-none" style={{ maskImage: 'linear-gradient(white, white)', WebkitMaskImage: 'linear-gradient(white, white)', maskClip: 'content-box', WebkitMaskClip: 'content-box' }}></div>
+
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
                         <div className="flex items-center gap-5">
@@ -221,7 +224,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                         
                         {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
                             <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
@@ -275,9 +278,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#emeraldAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#059669" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d} fill="none" stroke="#059669" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="2" fill="white" stroke="#059669" strokeWidth="1" className="cursor-pointer hover:r-3 transition-all">
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#059669" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
                                                 <title>{`Total Leads: ${val} (${points[i].date})`}</title>
                                             </circle>
                                         ))}
@@ -286,13 +289,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             })()}
                         </svg>
                     </div>
+                    </div>
                 </div>
 
-                {/* 2. FORMS - Blue */}
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-blue-200 p-6 text-blue-900 shadow-[0_10px_40px_-10px_rgba(59,130,246,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(59,130,246,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
+                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
+                        {/* Gradient Border Overlay */}
+                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-blue-400 via-blue-100 to-indigo-500 opacity-20 pointer-events-none"></div>
+
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
                         <div className="flex items-center gap-5">
@@ -308,7 +315,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                         
                         {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-100/80 px-3 py-1.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-sm">
                             <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
@@ -360,9 +367,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#blueAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="2" fill="white" stroke="#2563eb" strokeWidth="1" className="cursor-pointer hover:r-3 transition-all">
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#2563eb" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
                                                 <title>{`Form Leads: ${val} (${points[i].date})`}</title>
                                             </circle>
                                         ))}
@@ -371,13 +378,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             })()}
                         </svg>
                     </div>
+                    </div>
                 </div>
 
-                {/* 3. PIPELINES - Orange/Coral */}
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-orange-200 p-6 text-orange-900 shadow-[0_10px_40px_-10px_rgba(249,115,22,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(249,115,22,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
+                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
+                        {/* Gradient Border Overlay */}
+                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-orange-400 via-orange-100 to-red-500 opacity-20 pointer-events-none"></div>
+
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
                         <div className="flex items-center gap-5">
@@ -393,7 +404,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                         
                         {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-100 shadow-sm">
+                        <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-100/80 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm backdrop-blur-sm">
                             <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
                                 const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
@@ -456,13 +467,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             })()}
                         </svg>
                     </div>
+                    </div>
                 </div>
 
-                {/* 4. FOLLOW UP - Amber/Yellow */}
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-amber-200 p-6 text-amber-900 shadow-[0_10px_40px_-10px_rgba(245,158,11,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(245,158,11,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
+                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
+                        {/* Gradient Border Overlay */}
+                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-amber-400 via-amber-100 to-yellow-500 opacity-20 pointer-events-none"></div>
+
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
                         <div className="flex items-center gap-5">
@@ -477,13 +492,16 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             </div>
                         </div>
                         
-                        {/* Dynamic Growth Indicator */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-amber-700 bg-amber-50 px-3 py-1.5 rounded-full border border-amber-100 shadow-sm">
+                        {/* Dynamic Growth Indicator - REAL WoW Calculation */}
+                        <div className="flex items-center gap-1.5 text-[12px] font-[900] text-amber-700 bg-amber-100/90 px-3 py-1.5 rounded-full border border-amber-200 shadow-sm backdrop-blur-md">
                             <TrendingUpIconFallback className="w-3.5 h-3.5" />
                             <span>{(() => {
-                                const weekly = stats.leadsOverTime.reduce((a, b) => a + b.count, 0);
-                                return Math.min(Math.max(Math.round((weekly / (stats.followUpCount || 1)) * 2), 6), 15);
-                            })()}%</span>
+                                const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
+                                const previous = stats.leadsOverTime.slice(-14, -7).reduce((a, b) => a + b.count, 0);
+                                if (previous === 0) return current > 0 ? '+100%' : '0%';
+                                const growth = Math.round(((current - previous) / previous) * 100);
+                                return (growth >= 0 ? '+' : '') + growth + '%';
+                            })()}</span>
                         </div>
                     </div>
 
@@ -529,14 +547,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#amberAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1" fill="white" stroke="#d97706" strokeWidth="1" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#d97706" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
+                                                <title>{`Follow Up: ${val} (${points[i].date})`}</title>
+                                            </circle>
                                         ))}
                                     </>
                                 );
                             })()}
                         </svg>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -634,11 +655,11 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     <p>No data available for this pipeline.</p>
                                 </div>
                             )}
-                        </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Quick Actions Card */}
+            {/* Quick Actions Card */}
                 <div className="bg-slate-900 rounded-3xl p-1 shadow-xl text-white flex flex-col h-fit">
                     <div className="bg-slate-800/50 rounded-[20px] p-5 md:p-6 flex flex-col relative overflow-hidden">
                         {/* Decoration */}
