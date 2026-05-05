@@ -204,7 +204,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 1. LEAD CRM (Contacts) - Green */}
                 <div
                     onClick={() => onNavigate('contacts')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border border-emerald-100 p-6 text-emerald-900 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-emerald-200 p-6 text-emerald-900 shadow-[0_10px_40px_-10px_rgba(16,185,129,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -272,9 +272,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#emeraldAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#059669" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#emeraldGlow)" />
+                                        <path d={d} fill="none" stroke="#059669" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#059669" strokeWidth="1.5" className="shadow-lg" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1" fill="white" stroke="#059669" strokeWidth="1" />
                                         ))}
                                     </>
                                 );
@@ -286,7 +286,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 2. FORMS - Blue */}
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border border-blue-100 p-6 text-blue-900 shadow-[0_10px_40px_-10px_rgba(59,130,246,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-blue-200 p-6 text-blue-900 shadow-[0_10px_40px_-10px_rgba(59,130,246,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -354,9 +354,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#blueAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#blueGlow)" />
+                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#2563eb" strokeWidth="1.5" className="shadow-lg" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1" fill="white" stroke="#2563eb" strokeWidth="1" />
                                         ))}
                                     </>
                                 );
@@ -368,7 +368,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 3. PIPELINES - Orange/Coral */}
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border border-orange-100 p-6 text-orange-900 shadow-[0_10px_40px_-10px_rgba(249,115,22,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-orange-200 p-6 text-orange-900 shadow-[0_10px_40px_-10px_rgba(249,115,22,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -436,9 +436,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#coralAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#coralGlow)" />
+                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#ea580c" strokeWidth="1.5" className="shadow-lg" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1" fill="white" stroke="#ea580c" strokeWidth="1" />
                                         ))}
                                     </>
                                 );
@@ -450,7 +450,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* 4. FOLLOW UP - Amber/Yellow */}
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white border border-amber-100 p-6 text-amber-900 shadow-[0_10px_40px_-10px_rgba(245,158,11,0.1)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.2)] hover:scale-[1.03] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-amber-200 p-6 text-amber-900 shadow-[0_10px_40px_-10px_rgba(245,158,11,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -518,9 +518,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#amberAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#amberGlow)" />
+                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.8" fill="white" stroke="#d97706" strokeWidth="1.5" className="shadow-lg" />
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1" fill="white" stroke="#d97706" strokeWidth="1" />
                                         ))}
                                     </>
                                 );
