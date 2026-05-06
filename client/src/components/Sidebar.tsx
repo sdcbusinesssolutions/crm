@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         return () => clearInterval(interval);
     }, []);
 
-    const manageSubItems: MenuItem[] = ['Whatsapp Templates', 'Whatsapp Forms', 'Columns', 'Opts Management', 'Webhook Events'];
+    const manageSubItems: MenuItem[] = ['Whatsapp Templates', 'Whatsapp Forms'];
     const settingsSubItems: MenuItem[] = ['Branding & Appearance', 'WhatsApp API', 'WhatsApp Management', 'My Plan'];
     const contactSubItems: MenuItem[] = ['Overview', 'Contact List', 'Contact Groups', 'Pipelines', 'Follow-up', 'Form Builder', 'Tags', 'Input Fields', 'Form Contact'];
 
