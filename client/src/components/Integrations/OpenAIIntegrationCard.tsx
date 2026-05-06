@@ -60,7 +60,7 @@ const OpenAIIntegrationCard: React.FC = () => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden flex flex-col h-full group hover:shadow-md transition-shadow">
+        <div className="bg-white p-6 rounded-2xl border-2 border-emerald-100 shadow-sm relative overflow-hidden flex flex-col h-full group hover:shadow-md hover:border-emerald-300 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
                 {savedKeyMask && (
                     <button onClick={handleDelete} className="p-2 text-slate-400 hover:text-red-500 bg-slate-50 rounded-lg transition-colors">

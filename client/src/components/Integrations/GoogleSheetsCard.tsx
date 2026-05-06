@@ -203,7 +203,7 @@ const GoogleSheetsCard: React.FC = () => {
 
     return (
         <>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-start h-full">
+            <div className="bg-white p-6 rounded-2xl border-2 border-green-100 shadow-sm hover:shadow-md hover:border-green-300 transition-all flex flex-col items-start h-full">
                 <div className="flex justify-between items-start w-full mb-4">
                     <GoogleSheetsIcon />
                     {connections.length > 0 && (

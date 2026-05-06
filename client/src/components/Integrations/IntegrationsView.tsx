@@ -102,43 +102,47 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                         </div>
 
                         {/* Telegram */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
-                            <div className="absolute top-3 right-3 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
-                                Beta
+                        <div className="bg-white p-6 rounded-2xl border-2 border-sky-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-sky-300 transition-all flex flex-col h-full">
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                                    Beta
+                                </div>
+                                <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-4 text-sky-500 font-bold text-xl">
+                                    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" /></svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">Telegram</h3>
+                                <p className="text-slate-500 text-sm mb-6">
+                                    Set up and manage the integration flow
+                                </p>
+                                <button disabled className="w-full mt-auto px-4 py-2 border border-slate-200 font-medium rounded-lg cursor-not-allowed opacity-80"
+                                    style={{ backgroundColor: brandColor, color: '#fff', opacity: 0.6 }}>
+                                    Coming Soon
+                                </button>
                             </div>
-                            <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-4 text-sky-500 font-bold text-xl">
-                                <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" /></svg>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Telegram</h3>
-                            <p className="text-slate-500 text-sm mb-6">
-                                Set up and manage the integration flow
-                            </p>
-                            <button disabled className="w-full px-4 py-2 border border-slate-200 font-medium rounded-lg cursor-not-allowed opacity-80"
-                                style={{ backgroundColor: brandColor, color: '#fff', opacity: 0.6 }}>
-                                Coming Soon
-                            </button>
                         </div>
 
                         {/* Zoom */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
-                            <div className="absolute top-3 right-3 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
-                                Beta
+                        <div className="bg-white p-6 rounded-2xl border-2 border-blue-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-blue-300 transition-all flex flex-col h-full">
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                                    Beta
+                                </div>
+                                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center mb-4 text-white font-bold text-xl">
+                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4.5 9C4.5 7.61929 5.61929 6.5 7 6.5H13C14.3807 6.5 15.5 7.61929 15.5 9V15C15.5 16.3807 14.3807 17.5 13 17.5H7C5.61929 17.5 4.5 16.3807 4.5 15V9Z" /><path d="M17 10.5V13.5L21 15.5V8.5L17 10.5Z" /></svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">Zoom</h3>
+                                <p className="text-slate-500 text-sm mb-6">
+                                    Set up and manage the integration flow
+                                </p>
+                                <button disabled className="w-full mt-auto px-4 py-2 border border-slate-200 font-medium rounded-lg cursor-not-allowed opacity-80"
+                                    style={{ backgroundColor: brandColor, color: '#fff', opacity: 0.6 }}>
+                                    Coming Soon
+                                </button>
                             </div>
-                            <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center mb-4 text-white font-bold text-xl">
-                                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4.5 9C4.5 7.61929 5.61929 6.5 7 6.5H13C14.3807 6.5 15.5 7.61929 15.5 9V15C15.5 16.3807 14.3807 17.5 13 17.5H7C5.61929 17.5 4.5 16.3807 4.5 15V9Z" /><path d="M17 10.5V13.5L21 15.5V8.5L17 10.5Z" /></svg>
-                            </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Zoom</h3>
-                            <p className="text-slate-500 text-sm mb-6">
-                                Set up and manage the integration flow
-                            </p>
-                            <button disabled className="w-full px-4 py-2 border border-slate-200 font-medium rounded-lg cursor-not-allowed opacity-80"
-                                style={{ backgroundColor: brandColor, color: '#fff', opacity: 0.6 }}>
-                                Coming Soon
-                            </button>
                         </div>
 
                         {/* Webhook Integration */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="bg-white p-6 rounded-2xl border-2 border-purple-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-purple-300 transition-all flex flex-col h-full">
                             <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 text-purple-600 font-bold text-xl">
                                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -153,14 +157,14 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                     if (onNavigate) onNavigate('Flows');
                                     else window.location.href = '?view=Flows';
                                 }}
-                                className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
+                                className="w-full mt-auto px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
                                 style={{ backgroundColor: brandColor, color: '#fff' }}>
                                 Configure
                             </button>
                         </div>
 
                         {/* API Integration */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="bg-white p-6 rounded-2xl border-2 border-emerald-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-emerald-300 transition-all flex flex-col h-full">
                             <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center mb-4 text-emerald-600 font-bold text-xl">
                                 <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
@@ -175,18 +179,18 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                     if (onNavigate) onNavigate('Flows');
                                     else window.location.href = '?view=Flows';
                                 }}
-                                className="w-full px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
+                                className="w-full mt-auto px-4 py-2 font-medium rounded-lg transition-all hover:shadow-md"
                                 style={{ backgroundColor: brandColor, color: '#fff' }}>
                                 View Documentation
                             </button>
                         </div>
 
                         {/* Bulk RCS Integration */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="bg-white p-6 rounded-2xl border-2 border-teal-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-teal-300 transition-all flex flex-col h-full">
                             {/* Animated glow bg on hover - Moved behind */}
                             <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-cyan-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
                             
-                            <div className="relative z-10">
+                            <div className="relative z-10 flex flex-col h-full">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#0d2444] to-[#0a4a5e] shadow-md ring-2 ring-teal-100">
                                         <img
@@ -212,7 +216,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 </p>
                                 <button
                                     onClick={() => handleConnect('bulk_rcs', 'https://bulkrcs.online')}
-                                    className="w-full px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
+                                    className="w-full mt-auto px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
                                     style={{
                                         background: connectedApps.includes('bulk_rcs') ? '#f8fafc' : 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
                                         color: connectedApps.includes('bulk_rcs') ? '#475569' : '#fff',
@@ -232,10 +236,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                         </div>
 
                         {/* N8N Workflow Automation */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="bg-white p-6 rounded-2xl border-2 border-orange-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-orange-300 transition-all flex flex-col h-full">
                             <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-red-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
                             
-                            <div className="relative z-10">
+                            <div className="relative z-10 flex flex-col h-full">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#ea4b20] to-[#ff6a3d] shadow-md ring-2 ring-orange-100">
                                         <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none">
@@ -269,7 +273,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 </p>
                                 <button
                                     onClick={() => handleConnect('n8n', 'https://n8n.io')}
-                                    className="w-full px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
+                                    className="w-full mt-auto px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all"
                                     style={{
                                         background: connectedApps.includes('n8n') ? '#f8fafc' : 'linear-gradient(135deg, #ea4b20 0%, #ff6a3d 100%)',
                                         color: connectedApps.includes('n8n') ? '#475569' : '#fff',
@@ -289,10 +293,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                         </div>
 
                         {/* AI Voice Calling Agent */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">
+                        <div className="bg-white p-6 rounded-2xl border-2 border-violet-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-violet-300 transition-all flex flex-col h-full">
                             <div className="absolute inset-0 bg-gradient-to-br from-violet-50 via-purple-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
                             
-                            <div className="relative z-10">
+                            <div className="relative z-10 flex flex-col h-full">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#6d28d9] to-[#a855f7] shadow-md ring-2 ring-violet-100">
                                         <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -326,7 +330,7 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 <button
                                     onClick={() => handleConnect('ai_voice', '')}
                                     disabled={false} /* Enable it for simulation */
-                                    className={`w-full px-4 py-2.5 font-semibold rounded-lg flex items-center justify-center gap-2 select-none outline-none transition-all ${connectedApps.includes('ai_voice') ? 'cursor-default' : 'hover:shadow-lg'}`}
+                                    className={`w-full mt-auto px-4 py-2.5 font-semibold rounded-lg flex items-center justify-center gap-2 select-none outline-none transition-all ${connectedApps.includes('ai_voice') ? 'cursor-default' : 'hover:shadow-lg'}`}
                                     style={{
                                         background: connectedApps.includes('ai_voice') ? '#f8fafc' : 'linear-gradient(135deg, #6d28d9 0%, #a855f7 100%)',
                                         color: connectedApps.includes('ai_voice') ? '#475569' : '#fff',
@@ -342,6 +346,40 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                         </>
                                     )}
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* Learning Video Hub */}
+                        <div className="bg-white p-6 rounded-2xl border-2 border-red-100 shadow-sm relative overflow-hidden group hover:shadow-md hover:border-red-300 transition-all flex flex-col h-full">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-50 via-pink-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0" />
+                            
+                            <div className="relative z-10 flex flex-col h-full">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br from-[#FF0000] to-[#cc0000] shadow-md ring-2 ring-red-100">
+                                        <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
+                                        </svg>
+                                    </div>
+                                    <div className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-200">
+                                        YouTube
+                                    </div>
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-900 mb-1">Learning Video Hub</h3>
+                                <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+                                    Master the platform with our step-by-step video tutorials. Learn how to automate your workflows and scale your outreach with expert guides.
+                                </p>
+                                <a
+                                    href="https://youtube.com/@apiautomation_in?si=501LqUPt0s7qiAmi"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full mt-auto px-4 py-2.5 font-semibold rounded-lg hover:shadow-lg flex items-center justify-center gap-2 select-none outline-none transition-all text-white"
+                                    style={{ background: 'linear-gradient(135deg, #FF0000 0%, #b91c1c 100%)' }}>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Watch Tutorials
+                                </a>
                             </div>
                         </div>
                     </div>

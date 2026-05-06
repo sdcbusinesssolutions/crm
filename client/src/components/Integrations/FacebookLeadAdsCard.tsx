@@ -306,7 +306,7 @@ const FacebookLeadAdsCard: React.FC = () => {
 
     return (
         <>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col items-start h-full">
+            <div className="bg-white p-6 rounded-2xl border-2 border-blue-100 shadow-sm relative overflow-hidden flex flex-col h-full group hover:shadow-md hover:border-blue-300 transition-all">
                 <div className="flex justify-between items-start w-full mb-4">
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-slate-50">
                         <FacebookIcon />
