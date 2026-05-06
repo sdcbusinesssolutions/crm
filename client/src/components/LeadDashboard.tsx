@@ -302,7 +302,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-3xl bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
@@ -390,7 +390,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-3xl bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
@@ -478,7 +478,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-3xl bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
@@ -575,7 +575,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* Funnel / Distribution */}
                 <div className="xl:col-span-2 flex flex-col gap-6">
                     {/* Compact Hero Section - SOLID GREEN THEME */}
-                    <div className="relative overflow-hidden rounded-2xl bg-[#59B15D] shadow-xl text-white px-5 py-4 w-full border-4 border-[#59B15D] ring-2 ring-white ring-inset">
+                    <div className="relative overflow-hidden rounded-2xl bg-[#59B15D] shadow-xl text-white px-5 py-4 w-full border-2 border-[#59B15D] ring-2 ring-white ring-inset">
 
                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-3">
                             <div className="flex items-center gap-3">
@@ -634,7 +634,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Pipeline Performance Container - SOLID PURPLE THEME */}
-                    <div className="relative overflow-hidden rounded-[2.5rem] bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col min-h-[480px]">
+                    <div className="relative overflow-hidden rounded-[2.5rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col min-h-[480px]">
                         <div className="bg-white h-full w-full flex flex-col relative overflow-hidden">
                             <div className="p-6 bg-[#942CAE] flex justify-between items-center relative z-10">
                                 <h3 className="text-lg font-black text-white uppercase tracking-wider">Pipeline Performance</h3>
@@ -839,7 +839,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
             {/* Quick Actions Card - MATCHING REFERENCE IMAGE */}
             {/* Quick Actions Card - SOLID GOLD THEME */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-white border-4 border-[#FEA21F] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col h-fit">
+            <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#FEA21F] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col h-fit">
                 <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden">
                     <div className="p-5 bg-[#FEA21F] -mx-8 -mt-8 mb-2 relative z-10">
                         <h3 className="text-xl font-black text-white tracking-tight uppercase">Quick Actions</h3>
@@ -876,7 +876,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Lead Volume Trend Chart */}
                 {/* Lead Volume Trend Chart - SOLID PURPLE THEME */}
-                <div className="xl:col-span-2 relative overflow-hidden rounded-[2rem] bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl">
+                <div className="xl:col-span-2 relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl">
                     <div className="bg-white h-full w-full p-6 md:p-8 relative overflow-hidden">
                         <div className="flex items-center justify-between mb-10 relative z-10">
                             <div>
@@ -890,33 +890,39 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
 
                         <div className="h-48 flex items-end gap-3 sm:gap-6 justify-between px-2 cursor-default relative z-10">
-                            {stats.leadsOverTime.map((day, idx) => {
-                                const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
-                                const height = Math.max((day.count / max) * 100, 4);
-                                const isToday = idx === 6;
-
-                                return (
-                                    <div key={day.date} className="group flex-1 flex flex-col items-center gap-2 relative">
-                                        <div
-                                            className={`w-full max-w-[40px] rounded-t-xl transition-all duration-500 relative ${isToday ? 'bg-gradient-to-b from-brand-500 to-brand-600 shadow-lg shadow-brand-200' : 'bg-slate-200 group-hover:bg-slate-300'}`}
-                                            style={{ height: `${height}%` }}
-                                        >
-                                            <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-2xl transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
-                                                {day.count} Leads
-                                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
-                                            </div>
-                                        </div>
-                                        <span className={`text-[10px] font-black uppercase tracking-tighter ${isToday ? 'text-brand-600' : 'text-slate-400'}`}>{day.dayName}</span>
-                                    </div>
-                                )
-                            })}
+                             {stats.leadsOverTime.map((day, idx) => {
+                                 const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
+                                 const height = Math.max((day.count / max) * 100, 6); // Increased minimum height
+                                 const isToday = idx === 6;
+ 
+                                 return (
+                                     <div key={day.date} className="group flex-1 flex flex-col items-center gap-2 relative">
+                                         <div
+                                             className={`w-full max-w-[40px] rounded-t-xl transition-all duration-700 relative ${isToday ? 'bg-gradient-to-b from-[#942CAE] to-[#7e22ce] shadow-lg shadow-[#942CAE]/20' : 'bg-slate-100 group-hover:bg-[#942CAE]/10 border-b border-[#942CAE]/20'}`}
+                                             style={{ height: `${height}%` }}
+                                         >
+                                             {/* Hover Value Tooltip */}
+                                             <div className="opacity-0 group-hover:opacity-100 absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-2 rounded-xl shadow-2xl transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
+                                                 {day.count} New Leads
+                                                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                             </div>
+ 
+                                             {/* Accent line for today */}
+                                             {isToday && (
+                                                 <div className="absolute inset-x-0 top-0 h-1 bg-white/30 rounded-t-xl"></div>
+                                             )}
+                                         </div>
+                                         <span className={`text-[10px] font-black uppercase tracking-tighter transition-colors ${isToday ? 'text-[#942CAE]' : 'text-slate-400'}`}>{day.dayName}</span>
+                                     </div>
+                                 )
+                             })}
                         </div>
                     </div>
                 </div>
 
                 {/* Lead Sources Donut Chart */}
                 {/* Lead Sources Donut Chart - SOLID PURPLE THEME */}
-                <div className="relative overflow-hidden rounded-[2rem] bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl">
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl">
                     <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col relative overflow-hidden">
                         <h3 className="text-lg font-black text-slate-900 mb-10 tracking-tight uppercase border-b-4 border-[#942CAE] pb-1 inline-block w-fit relative z-10">Lead Sources</h3>
 
@@ -1002,7 +1008,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Recent Leads */}
                 {/* Recent Leads - SOLID CRM STYLE */}
-                <div className="xl:col-span-2 bg-white rounded-[2rem] border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl overflow-hidden">
+                <div className="xl:col-span-2 bg-white rounded-[2rem] border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl overflow-hidden">
                     <div className="flex flex-col h-full">
                         <div className="p-5 md:p-6 flex justify-between items-center bg-[#942CAE] relative z-10">
                             <h3 className="text-lg font-black text-white tracking-tight uppercase tracking-wider">Recent Leads</h3>
@@ -1038,7 +1044,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
 
                 {/* Top Tags - SOLID PURPLE THEME */}
-                <div className="relative overflow-hidden rounded-[2rem] bg-white border-4 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl flex flex-col">
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl flex flex-col">
                     <div className="bg-white h-full w-full flex flex-col relative overflow-hidden">
                         <div className="p-6 bg-[#942CAE] relative z-10">
                             <h3 className="text-lg font-black text-white tracking-tight uppercase">Top Tags</h3>

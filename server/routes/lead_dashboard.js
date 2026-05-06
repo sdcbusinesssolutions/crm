@@ -34,11 +34,6 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         const supabase = supabaseAdmin;
 
-        // --- 1. Fetch Core Data (Parallel) ---
-        // 🚀 OPTIMIZATION: Check if the optimization RPC is available first
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_dashboard_stats', { p_user_id: userId });
-        const hasRpc = !rpcError && rpcData;
-
         const [
             pipelinesRes,           // 0
             groupCountRes,          // 1
@@ -57,21 +52,18 @@ router.get('/stats', requireAuth, async (req, res) => {
             supabase.from('forms').select('*', { count: 'exact', head: true }).eq('user_id', userId),
             supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),
             supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId), 
-
+            
             // Recent Leads (Limit 5)
             supabase.from('leads').select('id, name, company, email, phone, status, created_at, source').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
-
-            // --- OPTIMIZED AGGREGATION QUERY ---
-            // If we have RPC data, we skip these heavy fetches
-            hasRpc 
-                ? Promise.resolve({ data: [] }) 
-                : supabase.from('leads').select('pipeline_id, stage_id, estimated_value, source').eq('user_id', userId).limit(10000),
             
+            // Aggregated Leads Data for sources and pipeline stats
+            supabase.from('leads').select('pipeline_id, stage_id, estimated_value, source').eq('user_id', userId).limit(10000),
+            
+            // Last 7 days activity
             supabase.from('leads').select('created_at').eq('user_id', userId).gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).limit(5000),
             
-            hasRpc
-                ? Promise.resolve({ data: [] })
-                : supabase.from('leads').select('tags').eq('user_id', userId).limit(10000),
+            // Tag distribution
+            supabase.from('leads').select('tags').eq('user_id', userId).limit(10000),
 
             // Meta Data
             supabase.from('pipeline_stages').select('id, name, color, pipeline_id').eq('user_id', userId),
