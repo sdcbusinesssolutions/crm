@@ -205,16 +205,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     }
 
     return (
-        <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800">
+        <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800 bg-[#eff1f5] min-h-screen relative">
+            {/* Clean CRM Background Pattern */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2] pointer-events-none -z-10"></div>
             {/* Statistics Overview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                 <div
                     onClick={() => onNavigate('contacts')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(16,185,129,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(16,185,129,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E9433F] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
-                        {/* Gradient Border Overlay */}
-                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-emerald-400 via-emerald-100 to-teal-500 opacity-20 pointer-events-none" style={{ maskImage: 'linear-gradient(white, white)', WebkitMaskImage: 'linear-gradient(white, white)', maskClip: 'content-box', WebkitMaskClip: 'content-box' }}></div>
+                    <div className="h-2 bg-[#E9433F] w-full"></div>
+                    <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -301,11 +302,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('forms')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(59,130,246,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(59,130,246,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E9433F] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
-                        {/* Gradient Border Overlay */}
-                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-blue-400 via-blue-100 to-indigo-500 opacity-20 pointer-events-none"></div>
+                    <div className="h-2 bg-[#E9433F] w-full"></div>
+                    <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -390,11 +390,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('pipelines')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(249,115,22,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(249,115,22,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E9433F] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
-                        {/* Gradient Border Overlay */}
-                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-orange-400 via-orange-100 to-red-500 opacity-20 pointer-events-none"></div>
+                    <div className="h-2 bg-[#E9433F] w-full"></div>
+                    <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -479,11 +478,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                 <div
                     onClick={() => onNavigate('follow-up')}
-                    className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_10px_40px_-10px_rgba(245,158,11,0.08)] hover:shadow-[0_20px_50px_-12px_rgba(245,158,11,0.15)] hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
+                    className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E9433F] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group h-48 sm:h-auto min-h-[170px]"
                 >
-                    <div className="bg-white h-full w-full rounded-[1.9rem] p-6 relative overflow-hidden">
-                        {/* Gradient Border Overlay */}
-                        <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-amber-400 via-amber-100 to-yellow-500 opacity-20 pointer-events-none"></div>
+                    <div className="h-2 bg-[#E9433F] w-full"></div>
+                    <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
                     {/* Top Row: Icon Badge | Stats | Percent */}
                     <div className="flex justify-between items-start mb-5 relative z-10">
@@ -576,11 +574,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Funnel / Distribution */}
                 <div className="xl:col-span-2 flex flex-col gap-6">
-                    {/* Compact Hero Section - PREMIUM MAROON THEME */}
-                    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#450a0a] via-[#5b0707] to-[#450a0a] shadow-lg text-white px-4 py-3 w-full border border-red-900/30">
-                        {/* Abstract Background Shapes (Smaller) */}
-                        <div className="absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 bg-brand-500/20 rounded-full blur-2xl"></div>
-                        <div className="absolute bottom-0 left-0 -mb-6 -ml-6 w-24 h-24 bg-blue-500/20 rounded-full blur-2xl"></div>
+                    {/* Compact Hero Section - SOLID RED THEME */}
+                    <div className="relative overflow-hidden rounded-2xl bg-[#E9433F] shadow-xl text-white px-5 py-4 w-full border-2 border-[#E9433F]">
 
                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-3">
                             <div className="flex items-center gap-3">
@@ -638,15 +633,12 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         </div>
                     </div>
 
-                    {/* Pipeline Performance Container - PREMIUM WOW STYLE MATCHING FORMS */}
-                    <div className="relative overflow-hidden rounded-[2rem] bg-white p-[2px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] hover:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.12)] transition-all duration-500 flex flex-col min-h-[480px]">
-                        <div className="bg-white h-full w-full rounded-[1.9rem] flex flex-col relative overflow-hidden">
-                            {/* Premium Gradient Border Overlay (Matching Forms style) */}
-                            <div className="absolute inset-0 rounded-[2rem] border-2 border-transparent bg-gradient-to-br from-emerald-400 via-blue-100 to-brand-500 opacity-15 pointer-events-none"></div>
-
-                            <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center relative z-10 bg-white/50 backdrop-blur-sm">
-                                <h3 className="text-lg font-bold text-slate-800">Pipeline Performance</h3>
-                                <div className="text-sm font-medium text-slate-400">by Stage Volume</div>
+                    {/* Pipeline Performance Container - SOLID RED THEME */}
+                    <div className="relative overflow-hidden rounded-[2.5rem] bg-white border-2 border-[#E9433F] shadow-2xl transition-all duration-500 flex flex-col min-h-[480px]">
+                        <div className="bg-white h-full w-full flex flex-col relative overflow-hidden">
+                            <div className="p-6 bg-[#E9433F] flex justify-between items-center relative z-10">
+                                <h3 className="text-lg font-black text-white uppercase tracking-wider">Pipeline Performance</h3>
+                                <div className="text-xs font-black text-white/80 uppercase">Real-time stats</div>
                             </div>
                             <div className="p-5 md:p-8 flex-1 flex flex-col relative z-10">
                             {stats.leadsByStage.length > 0 ? (
@@ -683,8 +675,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                             <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
                                                 <defs>
                                                     <linearGradient id="refAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                        <stop offset="0%" stopColor="#78350f" stopOpacity="0.1" />
-                                                        <stop offset="100%" stopColor="#78350f" stopOpacity="0" />
+                                                        <stop offset="0%" stopColor="#E9433F" stopOpacity="0.1" />
+                                                        <stop offset="100%" stopColor="#E9433F" stopOpacity="0" />
                                                     </linearGradient>
                                                 </defs>
 
@@ -734,9 +726,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                     return (
                                                         <>
                                                             <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-700 ease-in-out" />
-                                                            <path d={path} fill="none" stroke="#78350f" strokeWidth="0.7" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
+                                                            <path d={path} fill="none" stroke="#E9433F" strokeWidth="0.7" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
                                                             {points.map((p, i) => (
-                                                                <circle key={i} cx={p.x} cy={p.y} r="0.7" fill="white" stroke="#78350f" strokeWidth="0.4" className="transition-all duration-700 ease-in-out hover:r-[1.8px] cursor-pointer" />
+                                                                <circle key={i} cx={p.x} cy={p.y} r="0.7" fill="white" stroke="#E9433F" strokeWidth="0.4" className="transition-all duration-700 ease-in-out hover:r-[1.8px] cursor-pointer" />
                                                             ))}
                                                         </>
                                                     );
@@ -846,33 +838,34 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             </div>
 
             {/* Quick Actions Card - MATCHING REFERENCE IMAGE */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.06)] flex flex-col h-fit overflow-hidden">
-                <div className="p-6 md:p-8 flex flex-col gap-6">
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-900 mb-1">Quick Actions</h3>
-                        <p className="text-slate-400 text-sm">Manage your workflow efficiently.</p>
+            {/* Quick Actions Card - SOLID RED THEME */}
+            <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#E9433F] shadow-2xl transition-all duration-500 flex flex-col h-fit">
+                <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden">
+                    <div className="p-5 bg-[#E9433F] -mx-8 -mt-8 mb-2 relative z-10">
+                        <h3 className="text-xl font-black text-white tracking-tight uppercase">Quick Actions</h3>
+                        <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1">Operational Hub</p>
                     </div>
 
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 relative z-10">
                         {[
-                            { label: 'View Kanban Board', icon: KanbanIcon, color: 'bg-[#00a854]', action: () => onNavigate('pipelines') },
-                            { label: 'Contacts Directory', icon: UsersIcon, color: 'bg-[#ff7a22]', action: () => onNavigate('contacts') },
-                            { label: 'Create New Lead Form', icon: PlusIconFallback, color: 'bg-[#ff9c1a]', action: () => onNavigate('forms') },
-                            { label: 'Import Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, color: 'bg-[#00a854]', action: () => onNavigate('contacts') },
-                            { label: 'Export Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>, color: 'bg-[#ff7a22]', action: () => onNavigate('contacts') },
+                            { label: 'View Kanban Board', icon: KanbanIcon, color: 'bg-emerald-600', action: () => onNavigate('pipelines') },
+                            { label: 'Contacts Directory', icon: UsersIcon, color: 'bg-blue-600', action: () => onNavigate('contacts') },
+                            { label: 'Create New Lead Form', icon: PlusIconFallback, color: 'bg-amber-600', action: () => onNavigate('forms') },
+                            { label: 'Import Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, color: 'bg-emerald-600', action: () => onNavigate('contacts') },
+                            { label: 'Export Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>, color: 'bg-blue-600', action: () => onNavigate('contacts') },
                         ].map((item, i) => (
                             <button
                                 key={i}
                                 onClick={item.action}
-                                className="w-full p-2.5 bg-white hover:bg-slate-50 border border-slate-100 hover:border-slate-200 rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
+                                className="w-full p-3 bg-white hover:bg-[#E9433F]/5 border border-slate-100 hover:border-[#E9433F] rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={`${item.color} w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shadow-inner transition-transform group-hover:scale-105`}>
-                                        {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-6 h-6 text-white" />}
+                                    <div className={`bg-[#E9433F] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
+                                        {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-5 h-5 text-white" />}
                                     </div>
-                                    <span className="text-slate-700 font-bold text-sm tracking-tight">{item.label}</span>
+                                    <span className="text-slate-700 font-black text-sm tracking-tight group-hover:text-[#E9433F] transition-colors">{item.label}</span>
                                 </div>
-                                <svg className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                                <ChevronRightIcon className="w-5 h-5 text-slate-300 group-hover:text-[#E9433F] transition-all mr-1" />
                             </button>
                         ))}
                     </div>
@@ -882,110 +875,124 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Lead Volume Trend Chart */}
-                <div className="xl:col-span-2 bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)]">
-                    <div className="flex items-center justify-between mb-6">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-800">New Leads Activity</h3>
-                            <p className="text-xs text-slate-400 font-medium">Last 7 Days</p>
+                {/* Lead Volume Trend Chart - SOLID RED THEME */}
+                <div className="xl:col-span-2 relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#E9433F] shadow-xl">
+                    <div className="bg-white h-full w-full p-6 md:p-8 relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-10 relative z-10">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase border-b-4 border-[#E9433F] pb-1 inline-block">Lead Activity</h3>
+                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mt-2">Weekly Distribution</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-black text-[#E9433F] bg-[#E9433F]/10 border border-[#E9433F]/20 px-3 py-1.5 rounded-full shadow-sm">
+                                <TrendingUpIconFallback className="w-4 h-4" />
+                                <span>+{stats.leadsOverTime.reduce((a, b) => a + b.count, 0)} NEW THIS WEEK</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                            <TrendingUpIconFallback className="w-4 h-4" />
-                            <span>+{stats.leadsOverTime.reduce((a, b) => a + b.count, 0)} This Week</span>
-                        </div>
-                    </div>
 
-                    <div className="h-48 flex items-end gap-3 sm:gap-6 justify-between px-2 cursor-default">
-                        {stats.leadsOverTime.map((day, idx) => {
-                            const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5); // min max of 5 scales it better
-                            const height = Math.max((day.count / max) * 100, 4); // min 4% height
-                            const isToday = idx === 6;
+                        <div className="h-48 flex items-end gap-3 sm:gap-6 justify-between px-2 cursor-default relative z-10">
+                            {stats.leadsOverTime.map((day, idx) => {
+                                const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
+                                const height = Math.max((day.count / max) * 100, 4);
+                                const isToday = idx === 6;
 
-                            return (
-                                <div key={day.date} className="group flex-1 flex flex-col items-center gap-2 relative">
-                                    <div
-                                        className={`w-full max-w-[40px] rounded-t-lg transition-all duration-500 relative ${isToday ? 'bg-brand-500 shadow-lg shadow-brand-200' : 'bg-slate-300 group-hover:bg-slate-400'}`}
-                                        style={{ height: `${height}%` }}
-                                    >
-                                        <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-xl transition-opacity whitespace-nowrap z-10">
-                                            {day.count} Leads
+                                return (
+                                    <div key={day.date} className="group flex-1 flex flex-col items-center gap-2 relative">
+                                        <div
+                                            className={`w-full max-w-[40px] rounded-t-xl transition-all duration-500 relative ${isToday ? 'bg-gradient-to-b from-brand-500 to-brand-600 shadow-lg shadow-brand-200' : 'bg-slate-200 group-hover:bg-slate-300'}`}
+                                            style={{ height: `${height}%` }}
+                                        >
+                                            <div className="opacity-0 group-hover:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-lg shadow-2xl transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
+                                                {day.count} Leads
+                                                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
+                                            </div>
                                         </div>
+                                        <span className={`text-[10px] font-black uppercase tracking-tighter ${isToday ? 'text-brand-600' : 'text-slate-400'}`}>{day.dayName}</span>
                                     </div>
-                                    <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-brand-600' : 'text-slate-400'}`}>{day.dayName}</span>
-                                </div>
-                            )
-                        })}
+                                )
+                            })}
+                        </div>
                     </div>
                 </div>
 
                 {/* Lead Sources Donut Chart */}
-                <div className="bg-white p-5 md:p-6 rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col">
-                    <h3 className="text-lg font-bold text-slate-800 mb-6">Lead Sources</h3>
+                {/* Lead Sources Donut Chart - SOLID RED THEME */}
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#E9433F] shadow-xl">
+                    <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col relative overflow-hidden">
+                        <h3 className="text-lg font-black text-slate-900 mb-10 tracking-tight uppercase border-b-4 border-[#E9433F] pb-1 inline-block w-fit relative z-10">Lead Sources</h3>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-8 h-full">
-                        {/* Donut Chart */}
-                        <div className="relative w-40 h-40 flex-shrink-0">
-                            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                                {stats.leadsBySource.length > 0 ? (() => {
-                                    let cumulativePercent = 0;
-                                    const total = stats.leadsBySource.reduce((acc, curr) => acc + curr.count, 0);
+                        <div className="flex flex-col sm:flex-row items-center gap-8 h-full relative z-10">
+                            {/* Donut Chart */}
+                            <div className="relative w-44 h-44 flex-shrink-0">
+                                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90 filter drop-shadow-md">
+                                    {stats.leadsBySource.length > 0 ? (() => {
+                                        let cumulativePercent = 0;
+                                        const total = stats.leadsBySource.reduce((acc, curr) => acc + curr.count, 0);
 
-                                    return stats.leadsBySource.map((source, idx) => {
-                                        const percent = (source.count / total) * 100;
-                                        const circumference = 2 * Math.PI * 40; // ~251.327
-                                        const dashVal = (percent * circumference) / 100;
-                                        const offset = (cumulativePercent * circumference) / 100;
-                                        const color = ['text-blue-500', 'text-indigo-500', 'text-cyan-500', 'text-sky-500', 'text-teal-500'][idx % 5];
+                                        return stats.leadsBySource.map((source, idx) => {
+                                            const percent = (source.count / total) * 100;
+                                            const circumference = 2 * Math.PI * 40;
+                                            const dashVal = (percent * circumference) / 100;
+                                            const offset = (cumulativePercent * circumference) / 100;
+                                            const colorClasses = [
+                                                'text-blue-500', 'text-indigo-500', 'text-emerald-500', 'text-amber-500', 'text-rose-500'
+                                            ];
+                                            const color = colorClasses[idx % colorClasses.length];
 
-                                        cumulativePercent += percent;
+                                            cumulativePercent += percent;
 
-                                        return (
-                                            <circle
-                                                key={source.name}
-                                                cx="50"
-                                                cy="50"
-                                                r="40"
-                                                fill="transparent"
-                                                stroke="currentColor"
-                                                strokeWidth="12"
-                                                strokeDasharray={`${dashVal} ${circumference}`}
-                                                strokeDashoffset={-offset}
-                                                className={`${color} transition-all duration-700 ease-in-out`}
-                                            />
-                                        );
-                                    });
-                                })() : (
-                                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                                )}
-                            </svg>
-                            {/* Center Text */}
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
-                                <span className="text-2xl font-extrabold">{stats.leadsBySource.reduce((a, b) => a + b.count, 0)}</span>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase">Leads</span>
+                                            return (
+                                                <circle
+                                                    key={source.name}
+                                                    cx="50"
+                                                    cy="50"
+                                                    r="40"
+                                                    fill="transparent"
+                                                    stroke="currentColor"
+                                                    strokeWidth="14"
+                                                    strokeDasharray={`${dashVal} ${circumference}`}
+                                                    strokeDashoffset={-offset}
+                                                    strokeLinecap="round"
+                                                    className={`${color} transition-all duration-1000 ease-in-out`}
+                                                />
+                                            );
+                                        });
+                                    })() : (
+                                        <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                                    )}
+                                </svg>
+                                {/* Center Text */}
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
+                                    <span className="text-3xl font-black tracking-tighter">{stats.leadsBySource.reduce((a, b) => a + b.count, 0)}</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                                </div>
                             </div>
-                        </div>
 
-                        {/* Legend */}
-                        <div className="flex-1 w-full space-y-3">
-                            {stats.leadsBySource.length > 0 ? stats.leadsBySource.map((source, idx) => {
-                                const total = stats.leadsBySource.reduce((a, b) => a + b.count, 0);
-                                const percent = Math.round((source.count / total) * 100);
-                                const bgClass = ['bg-blue-500', 'bg-indigo-500', 'bg-cyan-500', 'bg-sky-500', 'bg-teal-500'][idx % 5];
+                            {/* Legend */}
+                            <div className="flex-1 w-full space-y-4">
+                                {stats.leadsBySource.length > 0 ? stats.leadsBySource.map((source, idx) => {
+                                    const total = stats.leadsBySource.reduce((a, b) => a + b.count, 0);
+                                    const percent = Math.round((source.count / total) * 100);
+                                    const colorClasses = [
+                                        'bg-blue-500', 'bg-indigo-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'
+                                    ];
+                                    const bgClass = colorClasses[idx % colorClasses.length];
 
-                                return (
-                                    <div key={source.name} className="flex items-center justify-between group">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-3 h-3 rounded-full ${bgClass}`}></span>
-                                            <span className="text-sm font-medium text-slate-600 capitalize">{source.name.replace('_', ' ')}</span>
+                                    return (
+                                        <div key={source.name} className="flex items-center justify-between group">
+                                            <div className="flex items-center gap-3">
+                                                <span className={`w-3 h-3 rounded-full ${bgClass} shadow-sm group-hover:scale-125 transition-transform`}></span>
+                                                <span className="text-sm font-black text-slate-600 capitalize tracking-tight group-hover:text-slate-900 transition-colors">{source.name.replace('_', ' ')}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-sm font-black text-slate-900">{percent}%</span>
+                                                <span className="text-[10px] font-bold text-slate-400 ml-2">({source.count})</span>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-sm font-bold text-slate-800">{percent}%</span>
-                                            <span className="text-xs text-slate-400 ml-2">({source.count})</span>
-                                        </div>
-                                    </div>
-                                )
-                            }) : (
-                                <div className="text-center text-slate-400 text-sm">No data available</div>
-                            )}
+                                    )
+                                }) : (
+                                    <div className="text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No data available</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -994,76 +1001,80 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             {/* Recent Leads & Top Tags Row */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Recent Leads */}
-                <div className="xl:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
-                    <div className="p-5 md:p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/30">
-                        <h3 className="text-lg font-bold text-slate-800">Recent Leads</h3>
-                        <button onClick={() => onNavigate('contacts')} className="text-xs font-bold text-brand-600 hover:text-brand-700">View All</button>
-                    </div>
-                    <div className="divide-y divide-slate-50">
-                        {stats.recentLeads.length > 0 ? stats.recentLeads.map(lead => (
-                            <div key={lead.id} className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between group cursor-pointer" onClick={() => onNavigate('contacts')}>
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white shadow-sm ${lead.name ? 'bg-gradient-to-br from-indigo-500 to-purple-600' : 'bg-slate-300'}`}>
-                                        {lead.name ? lead.name[0].toUpperCase() : '?'}
+                {/* Recent Leads - SOLID CRM STYLE */}
+                <div className="xl:col-span-2 bg-white rounded-[2rem] border-2 border-[#E9433F] shadow-2xl overflow-hidden">
+                    <div className="flex flex-col h-full">
+                        <div className="p-5 md:p-6 flex justify-between items-center bg-[#E9433F] relative z-10">
+                            <h3 className="text-lg font-black text-white tracking-tight uppercase tracking-wider">Recent Leads</h3>
+                            <button onClick={() => onNavigate('contacts')} className="text-[10px] font-black uppercase tracking-widest text-[#E9433F] bg-white border border-white px-5 py-2.5 rounded-xl transition-all hover:bg-slate-50 active:scale-95 shadow-lg shadow-black/10">View All</button>
+                        </div>
+                        <div className="divide-y divide-slate-50 relative z-10">
+                            {stats.recentLeads.length > 0 ? stats.recentLeads.map(lead => (
+                                <div key={lead.id} className="p-5 hover:bg-[#E9433F]/5 transition-all flex items-center justify-between group cursor-pointer border-l-4 border-transparent hover:border-[#E9433F]" onClick={() => onNavigate('contacts')}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md group-hover:scale-110 transition-transform ${lead.name ? 'bg-gradient-to-br from-[#E9433F] to-red-600' : 'bg-slate-300'}`}>
+                                            {lead.name ? lead.name[0].toUpperCase() : '?'}
+                                        </div>
+                                        <div>
+                                            <p className="font-black text-slate-900 text-sm group-hover:text-[#E9433F] transition-colors tracking-tight">{lead.name || 'Unnamed Lead'}</p>
+                                            <p className="text-[11px] font-bold text-slate-400 group-hover:text-slate-500">{lead.company || lead.email || lead.phone || 'No contact info'}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-slate-800 text-sm group-hover:text-brand-600 transition-colors">{lead.name || 'Unnamed Lead'}</p>
-                                        <p className="text-xs text-slate-500">{lead.company || lead.email || lead.phone || 'No contact info'}</p>
+                                    <div className="flex items-center gap-6">
+                                        <div className="text-right hidden sm:block">
+                                            <span className="inline-block text-[10px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full uppercase tracking-tighter mb-1">
+                                                {lead.status}
+                                            </span>
+                                            <p className="text-[10px] font-bold text-slate-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                                        </div>
+                                        <ChevronRightIcon className="w-5 h-5 text-slate-300 group-hover:text-[#E9433F] group-hover:translate-x-1 transition-all" />
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right hidden sm:block">
-                                        <span className="block text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded inline-block mb-1">
-                                            {lead.status}
-                                        </span>
-                                        <p className="text-[10px] text-slate-400">{new Date(lead.created_at).toLocaleDateString()}</p>
-                                    </div>
-                                    <svg className="w-5 h-5 text-slate-300 group-hover:text-brand-500 -translate-x-2 group-hover:translate-x-0 opacity-0 group-hover:opacity-100 transition-all transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                                </div>
-                            </div>
-                        )) : (
-                            <div className="p-8 text-center text-slate-400 text-sm">No recent leads found.</div>
-                        )}
+                            )) : (
+                                <div className="p-12 text-center text-slate-400 text-sm font-bold italic">No recent leads found.</div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Top Tags */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] flex flex-col">
-                    <div className="p-5 md:p-6 border-b border-slate-50">
-                        <h3 className="text-lg font-bold text-slate-800">Top Tags</h3>
-                        <p className="text-xs text-slate-400 font-medium">Most frequently used tags</p>
-                    </div>
-                    <div className="p-5 md:p-6 flex-1 flex flex-col gap-4">
-                        {stats.leadsByTag.length > 0 ? stats.leadsByTag.map((tag, idx) => (
-                            <div key={idx} className="flex items-center justify-between group">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white shadow-sm transition-transform group-hover:scale-110" style={{ backgroundColor: tag.color }}>
-                                        #
+                {/* Top Tags - SOLID RED THEME */}
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#E9433F] shadow-xl flex flex-col">
+                    <div className="bg-white h-full w-full flex flex-col relative overflow-hidden">
+                        <div className="p-6 bg-[#E9433F] relative z-10">
+                            <h3 className="text-lg font-black text-white tracking-tight uppercase">Top Tags</h3>
+                            <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em] mt-1">Frequency Distribution</p>
+                        </div>
+                        <div className="p-5 md:p-8 flex-1 flex flex-col gap-6 relative z-10">
+                            {stats.leadsByTag.length > 0 ? stats.leadsByTag.map((tag, idx) => (
+                                <div key={idx} className="flex items-center justify-between group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-lg transition-transform group-hover:scale-110" style={{ backgroundColor: tag.color }}>
+                                            #
+                                        </div>
+                                        <span className="font-black text-slate-700 text-sm tracking-tight group-hover:text-slate-900 transition-colors">{tag.name}</span>
                                     </div>
-                                    <span className="font-bold text-slate-700 text-sm">{tag.name}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-16 bg-slate-100 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full rounded-full"
-                                            style={{
-                                                width: `${Math.min((tag.count / (stats.totalLeads || 1)) * 100, 100)}%`,
-                                                backgroundColor: tag.color
-                                            }}
-                                        ></div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-2 w-20 bg-slate-100 rounded-full overflow-hidden shadow-inner relative">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-1000 ease-out"
+                                                style={{
+                                                    width: `${Math.min((tag.count / (stats.totalLeads || 1)) * 100, 100)}%`,
+                                                    backgroundColor: tag.color,
+                                                    boxShadow: `0 0 8px ${tag.color}40`
+                                                }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs font-black text-slate-900 w-6 text-right">{tag.count}</span>
                                     </div>
-                                    <span className="text-xs font-bold text-slate-500">{tag.count}</span>
                                 </div>
-                            </div>
-                        )) : (
-                            <div className="flex flex-col items-center justify-center h-40 text-center text-slate-400">
-                                <TagIcon className="w-8 h-8 mb-2 opacity-50" />
-                                <p className="text-sm">No tags found.</p>
-                            </div>
-                        )}
+                            )) : (
+                                <div className="flex flex-col items-center justify-center h-40 text-center text-slate-400 gap-3">
+                                    <TagIcon className="w-10 h-10 opacity-20" />
+                                    <p className="text-xs font-bold uppercase tracking-widest">No tags found</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-
-
                 </div>
             </div>
         </div>
