@@ -846,7 +846,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                         <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1">Operational Hub</p>
                     </div>
 
-                    <div className="flex flex-col gap-3 relative z-10 border-2 border-slate-100/80 p-5 rounded-[1.8rem] bg-slate-50/50 shadow-inner">
+                    <div className="flex flex-col gap-3 relative z-10 border-2 border-[#FEA21F]/20 p-5 rounded-[1.8rem] bg-slate-50/50 shadow-inner">
                         {[
                             { label: 'View Kanban Board', icon: KanbanIcon, color: 'bg-emerald-600', action: () => onNavigate('pipelines') },
                             { label: 'Contacts Directory', icon: UsersIcon, color: 'bg-blue-600', action: () => onNavigate('contacts') },
@@ -857,7 +857,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             <button
                                 key={i}
                                 onClick={item.action}
-                                className="w-full p-4 bg-white hover:bg-[#FEA21F]/5 border-2 border-slate-100/50 hover:border-[#FEA21F] rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
+                                className="w-full p-4 bg-white hover:bg-[#FEA21F]/10 border-2 border-[#FEA21F]/10 hover:border-[#FEA21F] rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
                             >
                                 <div className="flex items-center gap-4">
                                     <div className={`bg-[#FEA21F] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
@@ -865,7 +865,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     </div>
                                     <span className="text-slate-700 font-black text-sm tracking-tight group-hover:text-[#FEA21F] transition-colors">{item.label}</span>
                                 </div>
-                                <ChevronRightIcon className="w-5 h-5 text-slate-300 group-hover:text-[#FEA21F] transition-all mr-1" />
+                                <ChevronRightIcon className="w-5 h-5 text-[#FEA21F] group-hover:translate-x-1 transition-all mr-1" />
                             </button>
                         ))}
                     </div>

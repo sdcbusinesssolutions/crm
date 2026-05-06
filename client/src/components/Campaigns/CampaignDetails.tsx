@@ -259,52 +259,53 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
             <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-8">
 
                 {/* Stats Grid */}
+                {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {/* Row 1 */}
                     {/* Total Contacts */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#942BAE] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Contacts</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{total}</h3>
                                 <p className="text-xs text-slate-400 mt-1">All contacts in campaign</p>
                             </div>
-                            <div className="p-2 bg-blue-50 rounded-full text-blue-600">
+                            <div className="w-12 h-12 bg-[#942BAE] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <UsersIcon className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
                     {/* Single Tick (Sent) */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#0BB4C8] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Single Tick</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{sentPct}%</h3>
                                 <p className="text-xs text-slate-400 mt-1">{sent} Messages</p>
                             </div>
-                            <div className="p-2 bg-green-50 rounded-full text-green-600">
+                            <div className="w-12 h-12 bg-[#0BB4C8] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CheckIcon className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
                     {/* Double Tick (Delivered) */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#4BA64F] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Double Tick</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{deliveredPct}%</h3>
                                 <p className="text-xs text-slate-400 mt-1">{delivered} Contacts</p>
                             </div>
-                            <div className="p-2 bg-green-50 rounded-full text-green-600">
+                            <div className="w-12 h-12 bg-[#4BA64F] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <DoubleCheckIcon className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
                     {/* Unified Right Corner Card (Analytics Only - Improved) */}
-                    <div className="lg:row-span-2 bg-white rounded-xl border border-brand-200 shadow-sm relative overflow-hidden flex flex-col order-last lg:order-none h-full">
+                    <div className="lg:row-span-2 bg-white rounded-2xl border-2 border-[#FD9912] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden flex flex-col order-last lg:order-none h-full">
                         <div className="p-4 flex-1 flex flex-col items-center justify-between h-full">
                             <div className="w-full flex justify-between items-start">
                                 <div>
@@ -324,10 +325,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 className="relative w-44 h-44 md:w-52 md:h-52 rounded-full shadow-lg border-4 border-white my-2 animate-chart-pop group cursor-pointer" 
                                 style={{
                                     background: `conic-gradient(
-                                        #3b82f6 0% ${readPct}%, 
-                                        #22c55e ${readPct}% ${readPct + deliveredPct}%, 
-                                        #93c5fd ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
-                                        #ef4444 ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
+                                        #FD9912 0% ${readPct}%, 
+                                        #4BA64F ${readPct}% ${readPct + deliveredPct}%, 
+                                        #0BB4C8 ${readPct + deliveredPct}% ${readPct + deliveredPct + sentPct}%,
+                                        #E73E3A ${readPct + deliveredPct + sentPct}% ${readPct + deliveredPct + sentPct + failedPct}%,
                                         #f1f5f9 ${readPct + deliveredPct + sentPct + failedPct}% 100%
                                     )`
                                 }}
@@ -338,46 +339,49 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 </div>
                             </div>
  
-                            {/* Compact Legend Grid (2 columns, 2 rows) - Same Row Values */}
+                            {/* High-Vibrancy 2x2 Legend Grid */}
                             <div className="w-full grid grid-cols-2 gap-2 mt-auto">
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.1s' }}>
+                                <div className="flex items-center justify-between p-2 bg-[#FD9912]/10 rounded-lg border border-[#FD9912]/40 shadow-sm transition-all hover:bg-[#FD9912]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
-                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Read</span>
+                                        <div className="w-2 h-2 rounded-full bg-[#FD9912] shadow-[0_0_5px_rgba(253,153,18,0.4)] shrink-0"></div>
+                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Read</span>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                                        <span className="text-xs font-black text-slate-800">{read}</span>
-                                        <span className="text-[9px] font-bold text-blue-500">({readPct}%)</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-black text-slate-900">{read}</span>
+                                        <span className="px-1.5 py-0.5 bg-[#FD9912] text-white text-[8px] font-black rounded-full shadow-sm">{readPct}%</span>
                                     </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.2s' }}>
+
+                                <div className="flex items-center justify-between p-2 bg-[#4BA64F]/10 rounded-lg border border-[#4BA64F]/40 shadow-sm transition-all hover:bg-[#4BA64F]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Deliver</span>
+                                        <div className="w-2 h-2 rounded-full bg-[#4BA64F] shadow-[0_0_5px_rgba(75,166,79,0.4)] shrink-0"></div>
+                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Deliver</span>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                                        <span className="text-xs font-black text-slate-800">{delivered}</span>
-                                        <span className="text-[9px] font-bold text-green-500">({deliveredPct}%)</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-black text-slate-900">{delivered}</span>
+                                        <span className="px-1.5 py-0.5 bg-[#4BA64F] text-white text-[8px] font-black rounded-full shadow-sm">{deliveredPct}%</span>
                                     </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.3s' }}>
+
+                                <div className="flex items-center justify-between p-2 bg-[#0BB4C8]/10 rounded-lg border border-[#0BB4C8]/40 shadow-sm transition-all hover:bg-[#0BB4C8]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-300 shrink-0"></span>
-                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Sent</span>
+                                        <div className="w-2 h-2 rounded-full bg-[#0BB4C8] shadow-[0_0_5px_rgba(11,180,200,0.4)] shrink-0"></div>
+                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Sent</span>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                                        <span className="text-xs font-black text-slate-800">{sent}</span>
-                                        <span className="text-[9px] font-bold text-blue-400">({sentPct}%)</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-black text-slate-900">{sent}</span>
+                                        <span className="px-1.5 py-0.5 bg-[#0BB4C8] text-white text-[8px] font-black rounded-full shadow-sm">{sentPct}%</span>
                                     </div>
                                 </div>
-                                <div className="animate-item-slide flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100" style={{ animationDelay: '0.4s' }}>
+
+                                <div className="flex items-center justify-between p-2 bg-[#E73E3A]/10 rounded-lg border border-[#E73E3A]/40 shadow-sm transition-all hover:bg-[#E73E3A]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0"></span>
-                                        <span className="text-[9px] text-slate-500 font-bold uppercase truncate">Failed</span>
+                                        <div className="w-2 h-2 rounded-full bg-[#E73E3A] shadow-[0_0_5px_rgba(231,62,58,0.4)] shrink-0"></div>
+                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Failed</span>
                                     </div>
-                                    <div className="flex items-center gap-1 shrink-0 ml-1">
-                                        <span className="text-xs font-black text-slate-800">{failed}</span>
-                                        <span className="text-[9px] font-bold text-red-500">({failedPct}%)</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs font-black text-slate-900">{failed}</span>
+                                        <span className="px-1.5 py-0.5 bg-[#E73E3A] text-white text-[8px] font-black rounded-full shadow-sm">{failedPct}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -385,14 +389,14 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     </div>
 
                     {/* Read (Blue Tick) */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#FD9912] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Read</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{readPct}%</h3>
                                 <p className="text-xs text-slate-400 mt-1">{read} Contacts</p>
                             </div>
-                            <div className="p-2 bg-blue-50 rounded-full text-blue-600">
+                            <div className="w-12 h-12 bg-[#FD9912] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <DoubleCheckIcon className="w-6 h-6" />
                             </div>
                         </div>
@@ -400,28 +404,28 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
 
                     {/* Row 2 */}
                     {/* Meta Accepted */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#942BAE] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Meta Accepted</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{acceptedPct}%</h3>
                                 <p className="text-xs text-slate-400 mt-1">{accepted} Messages</p>
                             </div>
-                            <div className="p-2 bg-yellow-50 rounded-full text-yellow-600">
+                            <div className="w-12 h-12 bg-[#942BAE] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CheckIcon className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
                     {/* Failed */}
-                    <div className="bg-white p-5 rounded-xl border border-brand-200 shadow-sm relative overflow-hidden hover:border-brand-300 transition-all duration-200">
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#E73E3A] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
                                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Failed</p>
                                 <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{failedPct}%</h3>
                                 <p className="text-xs text-slate-400 mt-1">{failed} Contacts</p>
                             </div>
-                            <div className="p-2 bg-red-50 rounded-full text-red-600">
+                            <div className="w-12 h-12 bg-[#E73E3A] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CloseIcon className="w-6 h-6" />
                             </div>
                         </div>

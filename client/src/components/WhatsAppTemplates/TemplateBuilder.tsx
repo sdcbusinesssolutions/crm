@@ -758,31 +758,43 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                 {types.map((t) => {
                                     const isCarousel = ['MEDIA_CARD_CAROUSEL', 'PRODUCT_CARD_CAROUSEL'].includes(actionType);
                                     const isDisabled = isCarousel && t.id !== 'TEXT';
+                                    
+                                    const colors = {
+                                        TEXT: '#4BA64F',
+                                        IMAGE: '#0BB4C8',
+                                        VIDEO: '#E73E3A',
+                                        DOCUMENT: '#FD9912',
+                                        LOCATION: '#942BAE'
+                                    };
+                                    const themeColor = colors[t.id as keyof typeof colors] || '#942BAE';
 
                                     return (
                                         <button
                                             key={t.id}
                                             onClick={() => !isDisabled && setType(t.id)}
                                             disabled={isDisabled}
-                                            className={`group flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200 
+                                            style={type === t.id ? { backgroundColor: themeColor, borderColor: themeColor } : { borderColor: themeColor }}
+                                            className={`group flex flex-col items-center justify-center p-4 rounded-[1.5rem] transition-all duration-300
                                                 ${type === t.id
-                                                    ? 'bg-brand-600 border-brand-600 text-white shadow-md transform scale-[1.02]'
+                                                    ? 'text-white shadow-2xl transform scale-[1.05] ring-4 ring-white/30 border-4'
                                                     : isDisabled
-                                                        ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed grayscale'
-                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-brand-600 hover:shadow-sm'
+                                                        ? 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed grayscale border'
+                                                        : 'bg-white text-slate-500 hover:scale-[1.02] shadow-md border-2'
                                                 }`}
                                         >
-                                            <div className={`p-3 rounded-full mb-2 transition-colors duration-200 ${type === t.id
-                                                ? 'bg-white/20 text-white'
-                                                : 'bg-slate-100 text-slate-400 group-hover:bg-brand-50 group-hover:text-brand-600'
-                                                }`}>
+                                            <div className={`w-14 h-14 rounded-2xl mb-3 flex items-center justify-center transition-all duration-300 shadow-lg ${type === t.id
+                                                ? 'bg-white text-white shadow-white/20'
+                                                : `text-white group-hover:scale-110`
+                                                }`}
+                                                style={type !== t.id ? { backgroundColor: themeColor } : { backgroundColor: 'rgba(255,255,255,0.2)' }}
+                                            >
                                                 {t.id === 'TEXT' && <MessageIcon className="w-8 h-8" />}
                                                 {t.id === 'IMAGE' && <ImageFileIcon className="w-8 h-8" />}
                                                 {t.id === 'VIDEO' && <VideoFileIcon className="w-8 h-8" />}
                                                 {t.id === 'DOCUMENT' && <DocumentFileIcon className="w-8 h-8" />}
                                                 {t.id === 'LOCATION' && <MapIcon className="w-8 h-8" />}
                                             </div>
-                                            <span className={`text-xs font-bold uppercase tracking-wide ${type === t.id ? 'text-white' : 'text-slate-500 group-hover:text-brand-600'
+                                            <span className={`text-[11px] font-black uppercase tracking-widest ${type === t.id ? 'text-white' : 'text-slate-800'
                                                 }`}>{t.label}</span>
                                         </button>
                                     );
@@ -913,6 +925,17 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                     const isCarousel = ['MEDIA_CARD_CAROUSEL', 'PRODUCT_CARD_CAROUSEL'].includes(at.id);
                                     const isDisabled = isCarousel && type !== 'TEXT';
 
+                                    const colors = {
+                                        NONE: '#E73E3A',
+                                        CALL_TO_ACTION: '#0BB4C8',
+                                        QUICK_REPLY: '#4BA64F',
+                                        MEDIA_CARD_CAROUSEL: '#942BAE',
+                                        PRODUCT_CARD_CAROUSEL: '#FD9912',
+                                        FORM: '#0BB4C8',
+                                        ALL: '#4BA64F'
+                                    };
+                                    const themeColor = colors[at.id as keyof typeof colors] || '#942BAE';
+
                                     let Icon = ZapIcon;
                                     if (at.id === 'NONE') Icon = CloseIcon;
                                     else if (at.id === 'CALL_TO_ACTION') Icon = CtaIcon;
@@ -932,23 +955,24 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                                 }
                                             }}
                                             disabled={isDisabled}
-                                            className={`group flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 
+                                            style={actionType === at.id ? { backgroundColor: themeColor, borderColor: themeColor } : { borderColor: themeColor }}
+                                            className={`group flex flex-col items-center justify-center p-3 rounded-[1.2rem] transition-all duration-300
                                                 ${actionType === at.id
-                                                    ? 'bg-brand-600 border-brand-600 text-white shadow-md transform scale-[1.02]'
+                                                    ? 'text-white shadow-xl transform scale-[1.03] ring-4 ring-white/30 border-4'
                                                     : isDisabled
-                                                        ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed grayscale'
-                                                        : 'border-slate-200 bg-white text-slate-500 hover:border-brand-600 hover:shadow-sm'
+                                                        ? 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed grayscale border'
+                                                        : 'bg-white text-slate-500 hover:scale-[1.02] shadow-md border-2'
                                                 }`}
                                         >
-                                            <div className={`p-2.5 rounded-full mb-1.5 transition-colors duration-200 ${actionType === at.id
-                                                ? 'bg-white/20 text-white'
-                                                : isDisabled
-                                                    ? 'bg-slate-100 text-slate-400'
-                                                    : 'bg-slate-50 text-slate-500 group-hover:bg-brand-50 group-hover:text-brand-600'
-                                                }`}>
+                                            <div className={`w-11 h-11 rounded-xl mb-2 flex items-center justify-center transition-all duration-300 shadow-lg ${actionType === at.id
+                                                ? 'bg-white text-white shadow-white/20'
+                                                : `text-white group-hover:scale-110`
+                                                }`}
+                                                style={actionType !== at.id ? { backgroundColor: themeColor } : { backgroundColor: 'rgba(255,255,255,0.2)' }}
+                                            >
                                                 <Icon className="w-6 h-6" />
                                             </div>
-                                            <span className={`text-[10px] font-bold uppercase tracking-wide text-center leading-tight ${actionType === at.id ? 'text-white' : 'text-slate-500 group-hover:text-brand-600'
+                                            <span className={`text-[9px] font-black uppercase tracking-widest text-center leading-tight ${actionType === at.id ? 'text-white' : 'text-slate-800'
                                                 }`}>{at.label.replace(' Carousel', '')}</span>
                                         </button>
                                     );
