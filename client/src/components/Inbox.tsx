@@ -1801,7 +1801,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <div
                                 key={chat.id}
                                 onClick={() => { setActiveChatId(chat.id); if(quickFilter === 'Quick Reply') setQuickFilter('All'); }}
-                                className={`p-4 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors group ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
+                                className={`p-4 border-b border-emerald-200 cursor-pointer hover:bg-slate-50 transition-colors group ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center space-x-3">
