@@ -288,20 +288,20 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                             </>
                         ) : (
                             <>
-                                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Campaigns</div>
-                                    <div className="text-2xl font-black text-slate-900">{campaigns.length}</div>
-                                    <div className="text-xs text-slate-400 mt-1 font-medium">All sequences</div>
+                                <div className="bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-300 shadow-sm hover:shadow-md transition-all hover:border-blue-500 group">
+                                    <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Total Campaigns</div>
+                                    <div className="text-2xl font-black text-blue-900">{campaigns.length}</div>
+                                    <div className="text-xs text-blue-600/70 mt-1 font-medium">All sequences</div>
                                 </div>
-                                <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="bg-emerald-50/50 p-4 rounded-2xl border-2 border-emerald-300 shadow-sm hover:shadow-md transition-all hover:border-emerald-500 group">
                                     <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Active</div>
-                                    <div className="text-2xl font-black text-emerald-700">{campaigns.filter(c => c.status === 'ACTIVE').length}</div>
-                                    <div className="text-xs text-emerald-600 mt-1 font-medium">Running now</div>
+                                    <div className="text-2xl font-black text-emerald-900">{campaigns.filter(c => c.status === 'ACTIVE').length}</div>
+                                    <div className="text-xs text-emerald-600/70 mt-1 font-medium">Running now</div>
                                 </div>
-                                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="bg-amber-50/50 p-4 rounded-2xl border-2 border-amber-300 shadow-sm hover:shadow-md transition-all hover:border-amber-500 group">
                                     <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Paused</div>
-                                    <div className="text-2xl font-black text-amber-700">{campaigns.filter(c => c.status === 'PAUSED').length}</div>
-                                    <div className="text-xs text-amber-600 mt-1 font-medium">Temporarily stopped</div>
+                                    <div className="text-2xl font-black text-amber-900">{campaigns.filter(c => c.status === 'PAUSED').length}</div>
+                                    <div className="text-xs text-amber-600/70 mt-1 font-medium">Temporarily stopped</div>
                                 </div>
                             </>
                         )}

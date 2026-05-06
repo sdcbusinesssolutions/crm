@@ -304,20 +304,20 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
 
                             return (
                                 <>
-                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Flows</div>
-                                        <div className="text-2xl font-black text-slate-900">{stats.total}</div>
-                                        <div className="text-xs text-slate-400 mt-1 font-medium">All automation flows</div>
+                                    <div className="bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-300 shadow-sm hover:shadow-md transition-all hover:border-blue-500 group">
+                                        <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Total Flows</div>
+                                        <div className="text-2xl font-black text-blue-900">{stats.total}</div>
+                                        <div className="text-xs text-blue-600/70 mt-1 font-medium">All automation flows</div>
                                     </div>
-                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Published</div>
-                                        <div className="text-2xl font-black text-green-700">{stats.published}</div>
-                                        <div className="text-xs text-green-600 mt-1 font-medium">Active & running</div>
+                                    <div className="bg-emerald-50/50 p-4 rounded-2xl border-2 border-emerald-300 shadow-sm hover:shadow-md transition-all hover:border-emerald-500 group">
+                                        <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Published</div>
+                                        <div className="text-2xl font-black text-emerald-900">{stats.published}</div>
+                                        <div className="text-xs text-emerald-600/70 mt-1 font-medium">Active & running</div>
                                     </div>
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Draft</div>
-                                        <div className="text-2xl font-black text-slate-700">{stats.draft}</div>
-                                        <div className="text-xs text-slate-400 mt-1 font-medium">In development</div>
+                                    <div className="bg-amber-50/50 p-4 rounded-2xl border-2 border-amber-300 shadow-sm hover:shadow-md transition-all hover:border-amber-500 group">
+                                        <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Draft</div>
+                                        <div className="text-2xl font-black text-amber-900">{stats.draft}</div>
+                                        <div className="text-xs text-amber-600/70 mt-1 font-medium">In development</div>
                                     </div>
                                 </>
                             );

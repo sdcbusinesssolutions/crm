@@ -165,29 +165,29 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
 
                             return (
                                 <>
-                                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total</div>
-                                        <div className="text-2xl font-black text-slate-900">{stats.total}</div>
+                                    <div className="bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-300 shadow-sm hover:shadow-md transition-all hover:border-blue-500 group">
+                                        <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Total</div>
+                                        <div className="text-2xl font-black text-blue-900">{stats.total}</div>
                                     </div>
-                                    <div className="bg-green-50 p-4 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-green-600 uppercase tracking-wider mb-1">Approved</div>
-                                        <div className="text-2xl font-black text-green-700">{stats.approved}</div>
+                                    <div className="bg-emerald-50/50 p-4 rounded-2xl border-2 border-emerald-300 shadow-sm hover:shadow-md transition-all hover:border-emerald-500 group">
+                                        <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Approved</div>
+                                        <div className="text-2xl font-black text-emerald-900">{stats.approved}</div>
                                     </div>
-                                    <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-1">Pending</div>
-                                        <div className="text-2xl font-black text-yellow-700">{stats.pending}</div>
+                                    <div className="bg-amber-50/50 p-4 rounded-2xl border-2 border-amber-300 shadow-sm hover:shadow-md transition-all hover:border-amber-500 group">
+                                        <div className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Pending</div>
+                                        <div className="text-2xl font-black text-amber-900">{stats.pending}</div>
                                     </div>
-                                    <div className="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="bg-red-50/50 p-4 rounded-2xl border-2 border-red-300 shadow-sm hover:shadow-md transition-all hover:border-red-500 group">
                                         <div className="text-xs font-bold text-red-600 uppercase tracking-wider mb-1">Rejected</div>
-                                        <div className="text-2xl font-black text-red-700">{stats.rejected}</div>
+                                        <div className="text-2xl font-black text-red-900">{stats.rejected}</div>
                                     </div>
-                                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-1">Marketing</div>
-                                        <div className="text-2xl font-black text-blue-700">{stats.marketing}</div>
+                                    <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-indigo-300 shadow-sm hover:shadow-md transition-all hover:border-indigo-500 group">
+                                        <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-1">Marketing</div>
+                                        <div className="text-2xl font-black text-indigo-900">{stats.marketing}</div>
                                     </div>
-                                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="bg-purple-50/50 p-4 rounded-2xl border-2 border-purple-300 shadow-sm hover:shadow-md transition-all hover:border-purple-500 group">
                                         <div className="text-xs font-bold text-purple-600 uppercase tracking-wider mb-1">Utility</div>
-                                        <div className="text-2xl font-black text-purple-700">{stats.utility}</div>
+                                        <div className="text-2xl font-black text-purple-900">{stats.utility}</div>
                                     </div>
                                 </>
                             );
