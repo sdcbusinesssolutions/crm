@@ -462,9 +462,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 return (
                                     <>
                                         <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#coralAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
+                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
                                         {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="2" fill="white" stroke="#ea580c" strokeWidth="1" className="cursor-pointer hover:r-3 transition-all">
+                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#ea580c" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
                                                 <title>{`Pipeline Value: ${val} (${points[i].date})`}</title>
                                             </circle>
                                         ))}
