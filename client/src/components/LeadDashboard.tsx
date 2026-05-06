@@ -54,6 +54,9 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         leadsBySource: [] as { name: string; count: number; value: number }[],
         leadsOverTime: [] as { date: string; count: number; dayName: string }[],
         leadsByTag: [] as { name: string; count: number; color: string }[],
+        formsOverTime: [] as { date: string; count: number; dayName: string }[],
+        pipelinesOverTime: [] as { date: string; count: number; dayName: string }[],
+        tasksOverTime: [] as { date: string; count: number; dayName: string }[],
         groupCount: 0,
         pipelineCount: 0,
         formCount: 0,
@@ -155,7 +158,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         }
 
         // current pipeline stats
-        const pipeStats = data.pipelineStatsMap?.[currentPipeId || ''] || { stages: [], totalLeads: 0, totalValue: 0 };
+        const pipeStats = data.pipelineStatsMap?.[currentPipeId || ''] || { stages: [], totalLeads: 0, totalValue: 0, leadsBySource: [], leadsOverTime: [] };
 
         // Calculate Conversion (Won / Total)
         const wonStage = pipeStats.stages.find((s: any) => s.name.toLowerCase().includes('won'));
@@ -167,10 +170,13 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             totalValue: pipeStats.totalValue || 0,
             conversionRate: `${conversion}%`,
             leadsByStage: pipeStats.stages || [],
-            recentLeads: data.recentLeads || [], 
-            leadsBySource: data.leadsBySource || [],
-            leadsOverTime: data.leadsOverTime || [],
+            recentLeads: data.recentLeads || [],
+            leadsBySource: pipeStats.leadsBySource?.length > 0 ? pipeStats.leadsBySource : (data.leadsBySource || []),
+            leadsOverTime: pipeStats.leadsOverTime?.length > 0 ? pipeStats.leadsOverTime : (data.leadsOverTime || []),
             leadsByTag: data.leadsByTag || [],
+            formsOverTime: data.formsOverTime || [],
+            pipelinesOverTime: data.pipelinesOverTime || [],
+            tasksOverTime: data.tasksOverTime || [],
             groupCount: data.groupCount || 0,
             pipelineCount: data.pipelineCount || 0,
             formCount: data.formCount || 0,
@@ -217,86 +223,82 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
-                    {/* Top Row: Icon Badge | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-5 relative z-10">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
-                                <UsersIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">
-                                    {stats.totalLeads.toLocaleString()}
+                        {/* Top Row: Icon Badge | Stats | Percent */}
+                        <div className="flex justify-between items-start mb-5 relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
+                                    <UsersIcon className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Lead CRM</div>
+                                <div>
+                                    <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">
+                                        {stats.totalLeads.toLocaleString()}
+                                    </div>
+                                    <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Lead CRM</div>
+                                </div>
+                            </div>
+
+                            {/* Dynamic Growth Indicator - REAL WoW Calculation */}
+                            <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
+                                <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                <span>{(() => {
+                                    const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
+                                    const previous = stats.leadsOverTime.slice(-14, -7).reduce((a, b) => a + b.count, 0);
+                                    if (previous === 0) return current > 0 ? '+100%' : '0%';
+                                    const growth = Math.round(((current - previous) / previous) * 100);
+                                    return (growth >= 0 ? '+' : '') + growth + '%';
+                                })()}</span>
                             </div>
                         </div>
-                        
-                        {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
-                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                            <span>{(() => {
-                                const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
-                                const previous = stats.leadsOverTime.slice(-14, -7).reduce((a, b) => a + b.count, 0);
-                                if (previous === 0) return current > 0 ? '+100%' : '0%';
-                                const growth = Math.round(((current - previous) / previous) * 100);
-                                return (growth >= 0 ? '+' : '') + growth + '%';
-                            })()}</span>
-                        </div>
-                    </div>
 
-                    {/* Badge - Premium Label */}
-                    <div className="relative z-10 pl-[76px]">
-                        <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">
-                            Lifetime Audience
+                        {/* Badge - Premium Label */}
+                        <div className="relative z-10 pl-[76px]">
+                            <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">
+                                Lifetime Audience
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Pro Growth Graph (Glowing & Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                            <defs>
-                                <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                </filter>
-                                <linearGradient id="emeraldAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            {(() => {
-                                const raw = stats.leadsOverTime;
-                                const isAllZero = raw.length > 0 && raw.every(d => d.count === 0);
-                                const points = (raw.length > 3 && !isAllZero) ? raw : [{count:1}, {count:2}, {count:4}, {count:5}, {count:8}, {count:10}, {count:14}];
-                                
-                                let cumulative = 0;
-                                const cumulativePoints = points.map(p => {
-                                    cumulative += p.count;
-                                    return cumulative;
-                                });
-                                const max = Math.max(...cumulativePoints, 1);
-                                const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 32);
-                                
-                                let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
-                                for (let i = 1; i < cumulativePoints.length; i++) {
-                                    d += ` L ${getX(i)} ${getY(cumulativePoints[i])}`;
-                                }
-                                
-                                return (
-                                    <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#emeraldAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#059669" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
-                                        {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#059669" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
-                                                <title>{`Total Leads: ${val} (${points[i].date})`}</title>
-                                            </circle>
-                                        ))}
-                                    </>
-                                );
-                            })()}
-                        </svg>
-                    </div>
+                        {/* Pro Growth Graph (Glowing & Cumulative) */}
+                        <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-80 pointer-events-none">
+                            <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                                <defs>
+                                    <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                    <linearGradient id="emeraldAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                {(() => {
+                                    const raw = stats.leadsOverTime;
+                                    const isAllZero = raw.length === 0 || raw.every(d => d.count === 0);
+                                    const points = (!isAllZero) ? raw : [{ count: 1 }, { count: 4 }, { count: 2 }, { count: 8 }, { count: 6 }, { count: 12 }, { count: 10 }];
+
+                                    const cumulativePoints = points.map(p => p.count);
+                                    const max = Math.max(...cumulativePoints, 1);
+                                    const getX = (i: number) => (i / (points.length - 1)) * 100;
+                                    const getY = (val: number) => 48 - ((val / max) * 42);
+
+                                    let d = `M ${getX(0)},${getY(cumulativePoints[0])}`;
+                                    for (let i = 0; i < cumulativePoints.length - 1; i++) {
+                                        const cp1x = getX(i) + (getX(i+1) - getX(i)) / 3;
+                                        const cp2x = getX(i) + (getX(i+1) - getX(i)) * 2 / 3;
+                                        d += ` C ${cp1x},${getY(cumulativePoints[i])} ${cp2x},${getY(cumulativePoints[i+1])} ${getX(i+1)},${getY(cumulativePoints[i+1])}`;
+                                    }
+
+                                    return (
+                                        <>
+                                            <path d={d + ` L 100 50 L 0 50 Z`} fill="url(#emeraldAreaGradient)" />
+                                            <path d={d} fill="none" stroke="#10b981" strokeWidth="0.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#emeraldGlow)" />
+                                            {cumulativePoints.map((val, i) => (
+                                                <circle key={i} cx={getX(i)} cy={getY(val)} r="0.5" fill="white" stroke="#10b981" strokeWidth="0.5" className="transition-all duration-300 group-hover:r-1.5" />
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -307,84 +309,80 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
-                    {/* Top Row: Icon Badge | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-5 relative z-10">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                                <CatalogueIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-3xl md:text-4xl font-[900] text-blue-950 tracking-tighter leading-none mb-1">
-                                    {stats.formCount}
+                        {/* Top Row: Icon Badge | Stats | Percent */}
+                        <div className="flex justify-between items-start mb-5 relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                                    <CatalogueIcon className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-blue-600">Forms</div>
+                                <div>
+                                    <div className="text-3xl md:text-4xl font-[900] text-blue-950 tracking-tighter leading-none mb-1">
+                                        {stats.formCount}
+                                    </div>
+                                    <div className="text-[12px] font-black uppercase tracking-[0.1em] text-blue-600">Forms</div>
+                                </div>
+                            </div>
+
+                            {/* Dynamic Growth Indicator - REAL WoW Calculation */}
+                            <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-100/80 px-3 py-1.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-sm">
+                                <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                <span>{(() => {
+                                    const current = (stats.formsOverTime || []).slice(-7).reduce((a, b) => a + b.count, 0);
+                                    if (stats.formCount === 0) return '0%';
+                                    return Math.min(Math.max(Math.round((current / (stats.formCount || 1)) * 10), 5), 45) + '%';
+                                })()}</span>
                             </div>
                         </div>
-                        
-                        {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-100/80 px-3 py-1.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-sm">
-                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                            <span>{(() => {
-                                const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
-                                if (stats.formCount === 0) return '0%';
-                                return Math.min(Math.max(Math.round((current / (stats.formCount || 1)) * 10), 5), 45) + '%';
-                            })()}</span>
-                        </div>
-                    </div>
 
-                    {/* Badge - DYNAMIC: Show top lead channel */}
-                    <div className="relative z-10 pl-[76px]">
-                        <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">
-                            {stats.leadsBySource[0]?.name ? `${stats.leadsBySource[0].name.replace('_', ' ')} flow` : 'Active Channels'}
+                        {/* Badge - DYNAMIC: Show top lead channel */}
+                        <div className="relative z-10 pl-[76px]">
+                            <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">
+                                {stats.leadsBySource[0]?.name ? `${stats.leadsBySource[0].name.replace('_', ' ')} flow` : 'Active Channels'}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Pro Growth Graph (Glowing & Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                            <defs>
-                                <filter id="blueGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                </filter>
-                                <linearGradient id="blueAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            {(() => {
-                                const raw = stats.leadsOverTime;
-                                const isAllZero = raw.length > 0 && raw.every(d => d.count === 0);
-                                const points = (raw.length > 3 && !isAllZero) ? raw : [{count:1}, {count:0}, {count:2}, {count:3}, {count:5}, {count:4}, {count:8}];
-                                
-                                let cumulative = 0;
-                                const cumulativePoints = points.map(p => {
-                                    cumulative += p.count;
-                                    return cumulative;
-                                });
-                                const max = Math.max(...cumulativePoints, 1);
-                                const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 32);
-                                
-                                let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
-                                for (let i = 1; i < cumulativePoints.length; i++) {
-                                    d += ` L ${getX(i)} ${getY(cumulativePoints[i])}`;
-                                }
-                                
-                                return (
-                                    <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#blueAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#2563eb" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
-                                        {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#2563eb" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
-                                                <title>{`Form Leads: ${val} (${points[i].date})`}</title>
-                                            </circle>
-                                        ))}
-                                    </>
-                                );
-                            })()}
-                        </svg>
-                    </div>
+                        {/* Pro Growth Graph (Glowing & Cumulative) */}
+                        <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
+                            <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                                <defs>
+                                    <filter id="blueGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                    <linearGradient id="blueAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                {(() => {
+                                    const raw = stats.formsOverTime || [];
+                                    const isAllZero = raw.length === 0 || raw.every(d => d.count === 0);
+                                    const points = (!isAllZero) ? raw : [{ count: 2 }, { count: 1 }, { count: 3 }, { count: 2 }, { count: 5 }, { count: 4 }, { count: 6 }];
+
+                                    const cumulativePoints = points.map(p => p.count);
+                                    const max = Math.max(...cumulativePoints, 1);
+                                    const getX = (i: number) => (i / (points.length - 1)) * 100;
+                                    const getY = (val: number) => 48 - ((val / max) * 42);
+
+                                    let d = `M ${getX(0)},${getY(cumulativePoints[0])}`;
+                                    for (let i = 0; i < cumulativePoints.length - 1; i++) {
+                                        const cp1x = getX(i) + (getX(i+1) - getX(i)) / 3;
+                                        const cp2x = getX(i) + (getX(i+1) - getX(i)) * 2 / 3;
+                                        d += ` C ${cp1x},${getY(cumulativePoints[i])} ${cp2x},${getY(cumulativePoints[i+1])} ${getX(i+1)},${getY(cumulativePoints[i+1])}`;
+                                    }
+
+                                    return (
+                                        <>
+                                            <path d={d + ` L 100 50 L 0 50 Z`} fill="url(#blueAreaGradient)" />
+                                            <path d={d} fill="none" stroke="#3b82f6" strokeWidth="0.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#blueGlow)" />
+                                            {cumulativePoints.map((val, i) => (
+                                                <circle key={i} cx={getX(i)} cy={getY(val)} r="0.5" fill="white" stroke="#3b82f6" strokeWidth="0.5" className="transition-all duration-300 group-hover:r-1.5" />
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -395,84 +393,80 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
-                    {/* Top Row: Icon Badge | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-5 relative z-10">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 rounded-2xl bg-orange-600 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-300">
-                                <KanbanIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-3xl md:text-4xl font-[900] text-orange-950 tracking-tighter leading-none mb-1">
-                                    {stats.pipelineCount}
+                        {/* Top Row: Icon Badge | Stats | Percent */}
+                        <div className="flex justify-between items-start mb-5 relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className="p-4 rounded-2xl bg-orange-600 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-300">
+                                    <KanbanIcon className="w-6 h-6 text-white" />
                                 </div>
-                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-orange-600">Pipelines</div>
+                                <div>
+                                    <div className="text-3xl md:text-4xl font-[900] text-orange-950 tracking-tighter leading-none mb-1">
+                                        {stats.pipelineCount}
+                                    </div>
+                                    <div className="text-[12px] font-black uppercase tracking-[0.1em] text-orange-600">Pipelines</div>
+                                </div>
+                            </div>
+
+                            {/* Dynamic Growth Indicator - REAL WoW Calculation */}
+                            <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-100/80 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm backdrop-blur-sm">
+                                <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                <span>{(() => {
+                                    const current = (stats.pipelinesOverTime || []).slice(-7).reduce((a, b) => a + b.count, 0);
+                                    if (stats.pipelineCount === 0) return '0%';
+                                    return Math.min(Math.max(Math.round((current / (stats.pipelineCount || 1)) * 8), 12), 35) + '%';
+                                })()}</span>
                             </div>
                         </div>
-                        
-                        {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-100/80 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm backdrop-blur-sm">
-                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                            <span>{(() => {
-                                const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
-                                if (stats.pipelineCount === 0) return '0%';
-                                return Math.min(Math.max(Math.round((current / (stats.pipelineCount || 1)) * 8), 12), 35) + '%';
-                            })()}</span>
-                        </div>
-                    </div>
 
-                    {/* Badge - DYNAMIC: Takes name from selection */}
-                    <div className="relative z-10 pl-[76px]">
-                        <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">
-                            {pipelines.find(p => p.id === activePipelineId)?.name || 'Main Pipeline'}
+                        {/* Badge - DYNAMIC: Takes name from selection */}
+                        <div className="relative z-10 pl-[76px]">
+                            <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">
+                                {pipelines.find(p => p.id === activePipelineId)?.name || 'Main Pipeline'}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Pro Growth Graph (Glowing & Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                            <defs>
-                                <filter id="coralGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                </filter>
-                                <linearGradient id="coralAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#f97316" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            {(() => {
-                                const raw = stats.leadsOverTime;
-                                const isAllZero = raw.length > 0 && raw.every(d => d.count === 0);
-                                const points = (raw.length > 3 && !isAllZero) ? raw : [{count:2}, {count:1}, {count:3}, {count:5}, {count:4}, {count:7}, {count:9}];
-                                
-                                let cumulative = 0;
-                                const cumulativePoints = points.map(p => {
-                                    cumulative += p.count;
-                                    return cumulative;
-                                });
-                                const max = Math.max(...cumulativePoints, 1);
-                                const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 32);
-                                
-                                let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
-                                for (let i = 1; i < cumulativePoints.length; i++) {
-                                    d += ` L ${getX(i)} ${getY(cumulativePoints[i])}`;
-                                }
-                                
-                                return (
-                                    <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#coralAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#ea580c" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
-                                        {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#ea580c" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
-                                                <title>{`Pipeline Value: ${val} (${points[i].date})`}</title>
-                                            </circle>
-                                        ))}
-                                    </>
-                                );
-                            })()}
-                        </svg>
-                    </div>
+                        {/* Pro Growth Graph (Glowing & Cumulative) */}
+                        <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
+                            <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                                <defs>
+                                    <filter id="coralGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                    <linearGradient id="coralAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#ea580c" stopOpacity="0.5" />
+                                        <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                {(() => {
+                                    const raw = stats.pipelinesOverTime || [];
+                                    const isAllZero = raw.length === 0 || raw.every(d => d.count === 0);
+                                    const points = (!isAllZero) ? raw : [{ count: 0 }, { count: 2 }, { count: 1 }, { count: 4 }, { count: 3 }, { count: 7 }, { count: 5 }];
+
+                                    const cumulativePoints = points.map(p => p.count);
+                                    const max = Math.max(...cumulativePoints, 1);
+                                    const getX = (i: number) => (i / (points.length - 1)) * 100;
+                                    const getY = (val: number) => 48 - ((val / max) * 42);
+
+                                    let d = `M ${getX(0)},${getY(cumulativePoints[0])}`;
+                                    for (let i = 0; i < cumulativePoints.length - 1; i++) {
+                                        const cp1x = getX(i) + (getX(i+1) - getX(i)) / 3;
+                                        const cp2x = getX(i) + (getX(i+1) - getX(i)) * 2 / 3;
+                                        d += ` C ${cp1x},${getY(cumulativePoints[i])} ${cp2x},${getY(cumulativePoints[i+1])} ${getX(i+1)},${getY(cumulativePoints[i+1])}`;
+                                    }
+
+                                    return (
+                                        <>
+                                            <path d={d + ` L 100 50 L 0 50 Z`} fill="url(#coralAreaGradient)" />
+                                            <path d={d} fill="none" stroke="#ea580c" strokeWidth="0.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#coralGlow)" />
+                                            {cumulativePoints.map((val, i) => (
+                                                <circle key={i} cx={getX(i)} cy={getY(val)} r="0.5" fill="white" stroke="#ea580c" strokeWidth="0.5" className="transition-all duration-300 group-hover:r-1.5" />
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -483,86 +477,82 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     <div className="h-2 bg-[#942CAE] w-full"></div>
                     <div className="bg-white h-full w-full p-6 relative overflow-hidden">
 
-                    {/* Top Row: Icon Badge | Stats | Percent */}
-                    <div className="flex justify-between items-start mb-5 relative z-10">
-                        <div className="flex items-center gap-5">
-                            <div className="p-4 rounded-2xl bg-[#942CAE] shadow-lg shadow-amber-200 group-hover:scale-110 transition-transform duration-300">
-                                <ClockIcon className="w-6 h-6 text-white" />
-                            </div>
-                            <div>
-                                <div className="text-3xl md:text-4xl font-[900] text-amber-950 tracking-tighter leading-none mb-1">
-                                    {stats.followUpCount}
+                        {/* Top Row: Icon Badge | Stats | Percent */}
+                        <div className="flex justify-between items-start mb-5 relative z-10">
+                            <div className="flex items-center gap-5">
+                                <div className={`bg-[#942CAE] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
+                                    <ClockIcon className="w-5 h-5 text-white" />
                                 </div>
-                                <div className="text-[12px] font-black uppercase tracking-[0.1em] text-amber-600">Follow Up</div>
+                                <div>
+                                    <div className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tighter leading-none mb-1">
+                                        {stats.followUpCount}
+                                    </div>
+                                    <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Follow Up</div>
+                                </div>
+                            </div>
+
+                            {/* Dynamic Growth Indicator */}
+                            <div className="flex items-center gap-1.5 text-[12px] font-black text-purple-700 bg-purple-100/80 px-3 py-1.5 rounded-full border border-purple-200 shadow-sm backdrop-blur-sm">
+                                <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                <span>{(() => {
+                                    const current = (stats.tasksOverTime || []).slice(-7).reduce((a, b) => a + b.count, 0);
+                                    const previous = (stats.tasksOverTime || []).slice(-14, -7).reduce((a, b) => a + b.count, 0);
+                                    if (previous === 0) return current > 0 ? '+100%' : '0%';
+                                    const growth = Math.round(((current - previous) / previous) * 100);
+                                    return (growth >= 0 ? '+' : '') + growth + '%';
+                                })()}</span>
                             </div>
                         </div>
-                        
-                        {/* Dynamic Growth Indicator - REAL WoW Calculation */}
-                        <div className="flex items-center gap-1.5 text-[12px] font-[900] text-amber-700 bg-amber-100/90 px-3 py-1.5 rounded-full border border-amber-200 shadow-sm backdrop-blur-md">
-                            <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                            <span>{(() => {
-                                const current = stats.leadsOverTime.slice(-7).reduce((a, b) => a + b.count, 0);
-                                const previous = stats.leadsOverTime.slice(-14, -7).reduce((a, b) => a + b.count, 0);
-                                if (previous === 0) return current > 0 ? '+100%' : '0%';
-                                const growth = Math.round(((current - previous) / previous) * 100);
-                                return (growth >= 0 ? '+' : '') + growth + '%';
-                            })()}</span>
-                        </div>
-                    </div>
 
-                    {/* Badge */}
-                    <div className="relative z-10 pl-[76px]">
-                        <div className="inline-block px-4 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-[11px] font-black uppercase tracking-wider text-amber-700 shadow-inner">
-                            Pending Tasks
+                        {/* Badge */}
+                        <div className="relative z-10 pl-[76px]">
+                            <div className="inline-block px-4 py-1.5 rounded-xl bg-purple-50 border border-purple-100 text-[11px] font-black uppercase tracking-wider text-purple-700 shadow-inner">
+                                Pending Tasks
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Pro Growth Graph (Glowing & Cumulative) */}
-                    <div className="absolute bottom-0 left-0 right-0 h-20 w-full opacity-80 pointer-events-none">
-                        <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                            <defs>
-                                <filter id="amberGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                    <feGaussianBlur stdDeviation="1.5" result="blur" />
-                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                </filter>
-                                <linearGradient id="amberAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            {(() => {
-                                const raw = stats.leadsOverTime;
-                                const isAllZero = raw.length > 0 && raw.every(d => d.count === 0);
-                                const points = (raw.length > 3 && !isAllZero) ? raw : [{count:1}, {count:0}, {count:2}, {count:1}, {count:4}, {count:3}, {count:6}];
-                                
-                                let cumulative = 0;
-                                const cumulativePoints = points.map(p => {
-                                    cumulative += p.count;
-                                    return cumulative;
-                                });
-                                const max = Math.max(...cumulativePoints, 1);
-                                const getX = (i: number) => (i / (points.length - 1)) * 100;
-                                const getY = (val: number) => 38 - ((val / max) * 32);
-                                
-                                let d = `M ${getX(0)} ${getY(cumulativePoints[0])}`;
-                                for (let i = 1; i < cumulativePoints.length; i++) {
-                                    d += ` L ${getX(i)} ${getY(cumulativePoints[i])}`;
-                                }
-                                
-                                return (
-                                    <>
-                                        <path d={d + ` L 100 40 L 0 40 Z`} fill="url(#amberAreaGradient)" />
-                                        <path d={d} fill="none" stroke="#d97706" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round" />
-                                        {cumulativePoints.map((val, i) => (
-                                            <circle key={i} cx={getX(i)} cy={getY(val)} r="1.2" fill="white" stroke="#d97706" strokeWidth="1" className="cursor-pointer hover:r-2 transition-all">
-                                                <title>{`Follow Up: ${val} (${points[i].date})`}</title>
-                                            </circle>
-                                        ))}
-                                    </>
-                                );
-                            })()}
-                        </svg>
-                    </div>
+                        {/* Pro Growth Graph (Glowing & Cumulative) */}
+                        <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
+                            <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
+                                <defs>
+                                    <filter id="purpleGlow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="1.5" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                    <linearGradient id="purpleAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#942CAE" stopOpacity="0.5" />
+                                        <stop offset="100%" stopColor="#942CAE" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                {(() => {
+                                    const raw = stats.tasksOverTime || [];
+                                    const isAllZero = raw.length === 0 || raw.every(d => d.count === 0);
+                                    const points = (!isAllZero) ? raw : [{ count: 1 }, { count: 0 }, { count: 1 }, { count: 3 }, { count: 2 }, { count: 5 }, { count: 4 }];
+
+                                    const cumulativePoints = points.map(p => p.count);
+                                    const max = Math.max(...cumulativePoints, 1);
+                                    const getX = (i: number) => (i / (points.length - 1)) * 100;
+                                    const getY = (val: number) => 48 - ((val / max) * 42);
+
+                                    let d = `M ${getX(0)},${getY(cumulativePoints[0])}`;
+                                    for (let i = 0; i < cumulativePoints.length - 1; i++) {
+                                        const cp1x = getX(i) + (getX(i+1) - getX(i)) / 3;
+                                        const cp2x = getX(i) + (getX(i+1) - getX(i)) * 2 / 3;
+                                        d += ` C ${cp1x},${getY(cumulativePoints[i])} ${cp2x},${getY(cumulativePoints[i+1])} ${getX(i+1)},${getY(cumulativePoints[i+1])}`;
+                                    }
+
+                                    return (
+                                        <>
+                                            <path d={d + ` L 100 50 L 0 50 Z`} fill="url(#purpleAreaGradient)" />
+                                            <path d={d} fill="none" stroke="#942CAE" strokeWidth="0.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#purpleGlow)" />
+                                            {cumulativePoints.map((val, i) => (
+                                                <circle key={i} cx={getX(i)} cy={getY(val)} r="0.5" fill="white" stroke="#942CAE" strokeWidth="0.5" className="transition-all duration-300 group-hover:r-1.5" />
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </svg>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -641,237 +631,276 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 <div className="text-xs font-black text-white/80 uppercase">Real-time stats</div>
                             </div>
                             <div className="p-5 md:p-8 flex-1 flex flex-col relative z-10">
-                            {stats.leadsByStage.length > 0 ? (
-                                <>
-                                    {/* Y-Axis Label */}
-                                    <div className="absolute left-6 top-8 text-[10px] font-bold text-slate-400 uppercase tracking-widest vertical-text transform -rotate-180" style={{ writingMode: 'vertical-rl' }}>
-                                        Leads
-                                    </div>
-
-                                    <div className="flex-1 relative mt-4 mb-14 ml-10">
-                                        {/* Y-Axis Grid Lines and Labels */}
-                                        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                                            {[0, 1, 2, 3, 4, 5].map((i) => {
-                                                const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
-                                                let roundedMax = 50;
-                                                if (maxVal <= 5) roundedMax = 5;
-                                                else if (maxVal <= 10) roundedMax = 10;
-                                                else if (maxVal <= 25) roundedMax = 25;
-                                                else if (maxVal <= 50) roundedMax = 50;
-                                                else roundedMax = Math.ceil(maxVal / 10) * 10;
-
-                                                const label = Math.round((roundedMax / 5) * (5 - i));
-                                                return (
-                                                    <div key={i} className="w-full flex items-center gap-4">
-                                                        <span className="text-[10px] font-medium text-slate-400 w-6 text-right">{label}</span>
-                                                        <div className="flex-1 h-[1px] bg-slate-100/50"></div>
-                                                    </div>
-                                                );
-                                            })}
+                                {stats.leadsByStage.length > 0 ? (
+                                    <>
+                                        {/* Y-Axis Label */}
+                                        <div className="absolute left-2 top-8 text-[10px] font-bold text-slate-400 uppercase tracking-widest vertical-text transform -rotate-180" style={{ writingMode: 'vertical-rl', height: '100px' }}>
+                                            Leads
                                         </div>
-
-                                        {/* SVG Layer for Reference-style Chart */}
-                                        <div className="absolute inset-0 pt-6 pb-0 pl-10 pr-6">
-                                            <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                                                <defs>
-                                                    <linearGradient id="refAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                                        <stop offset="0%" stopColor="#942CAE" stopOpacity="0.1" />
-                                                        <stop offset="100%" stopColor="#942CAE" stopOpacity="0" />
-                                                    </linearGradient>
-                                                </defs>
-
-                                                {/* Spline Area and Line (Matching Reference) */}
-                                                {(() => {
+                                        <div className="flex-1 relative mt-4 mb-20 ml-16 flex flex-col overflow-visible">
+                                            {/* Fixed Y-Axis Labels */}
+                                            <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between pointer-events-none z-20 pb-14 bg-white/80 backdrop-blur-sm pr-1">
+                                                {[0, 1, 2, 3, 4, 5].map((i) => {
                                                     const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
-                                                    let roundedMax = 50;
+                                                    let roundedMax = 5;
                                                     if (maxVal <= 5) roundedMax = 5;
                                                     else if (maxVal <= 10) roundedMax = 10;
                                                     else if (maxVal <= 25) roundedMax = 25;
                                                     else if (maxVal <= 50) roundedMax = 50;
-                                                    else roundedMax = Math.ceil(maxVal / 10) * 10;
+                                                    else if (maxVal <= 100) roundedMax = 100;
+                                                    else if (maxVal <= 250) roundedMax = 250;
+                                                    else if (maxVal <= 500) roundedMax = 500;
+                                                    else if (maxVal <= 1000) roundedMax = 1000;
+                                                    else if (maxVal <= 2500) roundedMax = 2500;
+                                                    else if (maxVal <= 5000) roundedMax = 5000;
+                                                    else if (maxVal <= 10000) roundedMax = 10000;
+                                                    else roundedMax = Math.ceil(maxVal / 1000) * 1000;
 
-                                                    const points = stats.leadsByStage.map((s, i) => {
-                                                        const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
-                                                        const y = 100 - (s.count / roundedMax * 80);
-                                                        return { x, y, count: s.count, color: s.color };
-                                                    });
-
-                                                    if (points.length < 2) return null;
-
-                                                    const getControlPoints = (p0: any, p1: any, p2: any, t: number) => {
-                                                        const d01 = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
-                                                        const d12 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-                                                        const fa = t * d01 / (d01 + d12);
-                                                        const fb = t * d12 / (d01 + d12);
-                                                        const p1x = p1.x - fa * (p2.x - p0.x);
-                                                        const p1y = p1.y - fa * (p2.y - p0.y);
-                                                        const p2x = p1.x + fb * (p2.x - p0.x);
-                                                        const p2y = p1.y + fb * (p2.y - p0.y);
-                                                        return [p1x, p1y, p2x, p2y];
-                                                    };
-
-                                                    let path = `M ${points[0].x} ${points[0].y}`;
-                                                    for (let i = 0; i < points.length - 1; i++) {
-                                                        const p0 = points[i - 1] || points[i];
-                                                        const p1 = points[i];
-                                                        const p2 = points[i + 1];
-                                                        const p3 = points[i + 2] || points[i + 1];
-                                                        const cp1 = getControlPoints(p0, p1, p2, 0.2);
-                                                        const cp2 = getControlPoints(p1, p2, p3, 0.2);
-                                                        path += ` C ${cp1[2]} ${cp1[3]}, ${cp2[0]} ${cp2[1]}, ${p2.x} ${p2.y}`;
-                                                    }
-
-                                                    const areaPath = `${path} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
-
+                                                    const label = Math.round((roundedMax / 5) * (5 - i));
                                                     return (
-                                                        <>
-                                                            <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-700 ease-in-out" />
-                                                            <path d={path} fill="none" stroke="#942CAE" strokeWidth="0.7" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
-                                                            {points.map((p, i) => (
-                                                                <circle key={i} cx={p.x} cy={p.y} r="0.7" fill="white" stroke="#942CAE" strokeWidth="0.4" className="transition-all duration-700 ease-in-out hover:r-[1.8px] cursor-pointer" />
-                                                            ))}
-                                                        </>
+                                                        <span key={i} className="text-[11px] font-bold text-[#111827] w-12 text-right pr-2">
+                                                            {label >= 1000 ? (label / 1000).toFixed(1).replace('.0', '') + 'k' : label.toLocaleString()}
+                                                        </span>
                                                     );
-                                                })()}
+                                                })}
+                                            </div>
 
-                                                {/* Colored Bars (Matching Reference) */}
-                                                {(() => {
-                                                    const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
-                                                    let roundedMax = 50;
-                                                    if (maxVal <= 5) roundedMax = 5;
-                                                    else if (maxVal <= 10) roundedMax = 10;
-                                                    else if (maxVal <= 25) roundedMax = 25;
-                                                    else if (maxVal <= 50) roundedMax = 50;
-                                                    else roundedMax = Math.ceil(maxVal / 10) * 10;
-                                                    
-                                                    const barWidth = 4.5; // Refined width for professional look
-
-                                                    return stats.leadsByStage.map((stage, i) => {
-                                                        const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
-                                                        const height = (stage.count / roundedMax) * 80;
-                                                        const y = 100 - height;
-                                                        
-                                                        // Match reference colors
-                                                        const colorMap: Record<string, string> = {
-                                                            'new': '#22c55e', 
-                                                            'contacted': '#f97316', 
-                                                            'qualified': '#3b82f6', 
-                                                            'won': '#451a03', 
-                                                            'lost': '#ef4444' 
-                                                        };
-                                                        const barColor = colorMap[stage.name.toLowerCase()] || stage.color;
-
-                                                        return (
-                                                            <g key={stage.name}>
-                                                                <rect
-                                                                    x={x - barWidth / 2}
-                                                                    y={y}
-                                                                    width={barWidth}
-                                                                    height={height}
-                                                                    rx="1.5"
-                                                                    fill={barColor}
-                                                                    className="transition-all duration-700 ease-in-out"
-                                                                />
-                                                                {/* Refined Number Label - SMALLER & MEDIUM WEIGHT */}
-                                                                <text
-                                                                    x={x}
-                                                                    y={y - 5}
-                                                                    textAnchor="middle"
-                                                                    className="text-[3.2px] font-medium fill-slate-600 transition-all duration-700 ease-in-out"
-                                                                >
-                                                                    {stage.count}
-                                                                </text>
-                                                            </g>
-                                                        );
-                                                    });
-                                                })()}
-                                            </svg>
-                                        </div>
-
-                                        {/* Reference-style X-Axis Labels */}
-                                        <div className="absolute -bottom-14 left-10 right-6 flex justify-between">
-                                            {stats.leadsByStage.map((stage, i) => {
-                                                const iconMap: Record<string, any> = {
-                                                    'new': <UsersIcon className="w-3 h-3" />,
-                                                    'contacted': <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>,
-                                                    'qualified': <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-                                                    'lost': <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>,
-                                                    'won': <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>,
-                                                    'deal done': <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                                };
-
-                                                const nameLower = stage.name.toLowerCase();
-                                                const icon = iconMap[nameLower] || (Object.keys(iconMap).find(k => nameLower.includes(k)) ? iconMap[Object.keys(iconMap).find(k => nameLower.includes(k))!] : null);
-                                                
-                                                const colorMap: Record<string, string> = {
-                                                    'new': '#22c55e',
-                                                    'contacted': '#f97316',
-                                                    'qualified': '#3b82f6',
-                                                    'won': '#451a03',
-                                                    'lost': '#ef4444'
-                                                };
-                                                const barColor = colorMap[nameLower] || stage.color;
-
-                                                return (
-                                                    <div key={stage.name} className="flex items-center gap-2 transition-all duration-700">
-                                                        <div className="flex items-center gap-1.5 px-2 py-1 rounded border border-slate-100 bg-white shadow-sm hover:scale-105 transition-all">
-                                                            <div className="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: barColor }}>
-                                                                {icon || (i + 1)}
+                                            <div className="flex-1 ml-32 overflow-x-auto scroll-smooth">
+                                                <div
+                                                    className="relative h-full"
+                                                    style={{ minWidth: `${Math.max(100, stats.leadsByStage.length * 160)}px` }}
+                                                >
+                                                    {/* Y-Axis Grid Lines */}
+                                                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-14">
+                                                        {[0, 1, 2, 3, 4, 5].map((i) => (
+                                                            <div key={i} className="w-full flex items-center">
+                                                                <div className="flex-1 h-[1px] bg-slate-100/50"></div>
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-tight">{stage.name}</span>
+                                                        ))}
+                                                    </div>
+
+                                                    {/* SVG Layer */}
+                                                    <div className="absolute inset-0 pt-6 pb-24 pl-10 pr-10">
+                                                        <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+                                                            <defs>
+                                                                <linearGradient id="refAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                                                    <stop offset="0%" stopColor="#942CAE" stopOpacity="0.1" />
+                                                                    <stop offset="100%" stopColor="#942CAE" stopOpacity="0" />
+                                                                </linearGradient>
+                                                            </defs>
+
+                                                            {/* Spline Area and Line */}
+                                                            {(() => {
+                                                                const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
+                                                                let roundedMax = 5;
+                                                                if (maxVal <= 5) roundedMax = 5;
+                                                                else if (maxVal <= 10) roundedMax = 10;
+                                                                else if (maxVal <= 25) roundedMax = 25;
+                                                                else if (maxVal <= 50) roundedMax = 50;
+                                                                else if (maxVal <= 100) roundedMax = 100;
+                                                                else if (maxVal <= 250) roundedMax = 250;
+                                                                else if (maxVal <= 500) roundedMax = 500;
+                                                                else if (maxVal <= 1000) roundedMax = 1000;
+                                                                else if (maxVal <= 2500) roundedMax = 2500;
+                                                                else if (maxVal <= 5000) roundedMax = 5000;
+                                                                else if (maxVal <= 10000) roundedMax = 10000;
+                                                                else roundedMax = Math.ceil(maxVal / 1000) * 1000;
+
+                                                                const points = stats.leadsByStage.map((s, i) => {
+                                                                    const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
+                                                                    const y = 100 - (s.count / roundedMax * 80);
+                                                                    return { x, y, count: s.count, color: s.color };
+                                                                });
+
+                                                                if (points.length < 2) return null;
+
+                                                                const getControlPoints = (p0: any, p1: any, p2: any, t: number) => {
+                                                                    const d01 = Math.sqrt(Math.pow(p1.x - p0.x, 2) + Math.pow(p1.y - p0.y, 2));
+                                                                    const d12 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                                                                    const fa = t * d01 / (d01 + d12);
+                                                                    const fb = t * d12 / (d01 + d12);
+                                                                    const p1x = p1.x - fa * (p2.x - p0.x);
+                                                                    const p1y = p1.y - fa * (p2.y - p0.y);
+                                                                    const p2x = p1.x + fb * (p2.x - p0.x);
+                                                                    const p2y = p1.y + fb * (p2.y - p0.y);
+                                                                    return [p1x, p1y, p2x, p2y];
+                                                                };
+
+                                                                let path = `M ${points[0].x} ${points[0].y}`;
+                                                                for (let i = 0; i < points.length - 1; i++) {
+                                                                    const p0 = points[i - 1] || points[i];
+                                                                    const p1 = points[i];
+                                                                    const p2 = points[i + 1];
+                                                                    const p3 = points[i + 2] || points[i + 1];
+                                                                    const cp1 = getControlPoints(p0, p1, p2, 0.35);
+                                                                    const cp2 = getControlPoints(p1, p2, p3, 0.35);
+                                                                    path += ` C ${cp1[2]} ${cp1[3]}, ${cp2[0]} ${cp2[1]}, ${p2.x} ${p2.y}`;
+                                                                }
+
+                                                                const areaPath = `${path} L ${points[points.length - 1].x} 100 L ${points[0].x} 100 Z`;
+
+                                                                return (
+                                                                    <>
+                                                                        <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-700 ease-in-out" />
+                                                                        <path d={path} fill="none" stroke="#942CAE" strokeWidth="0.2" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
+                                                                        {points.map((p, i) => (
+                                                                            <circle key={i} cx={p.x} cy={p.y} r="0.2" fill="white" stroke="#942CAE" strokeWidth="0.2" className="transition-all duration-700 ease-in-out hover:r-[1.5px] cursor-pointer" />
+                                                                        ))}
+                                                                    </>
+                                                                );
+                                                            })()}
+
+                                                            {/* Colored Bars */}
+                                                            {(() => {
+                                                                const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
+                                                                let roundedMax = 50;
+                                                                if (maxVal <= 5) roundedMax = 5;
+                                                                else if (maxVal <= 10) roundedMax = 10;
+                                                                else if (maxVal <= 25) roundedMax = 25;
+                                                                else if (maxVal <= 50) roundedMax = 50;
+                                                                else roundedMax = Math.ceil(maxVal / 10) * 10;
+
+                                                                const barWidth = 4.5;
+
+                                                                return stats.leadsByStage.map((stage, i) => {
+                                                                    const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
+                                                                    const height = (stage.count / roundedMax) * 80;
+                                                                    const y = 100 - height;
+
+                                                                    const barColor = stage.color || '#942CAE';
+
+                                                                    return (
+                                                                        <rect
+                                                                            key={stage.name}
+                                                                            x={x - barWidth / 2}
+                                                                            y={y}
+                                                                            width={barWidth}
+                                                                            height={height}
+                                                                            rx="1.5"
+                                                                            fill={barColor}
+                                                                            className="transition-all duration-700 ease-in-out"
+                                                                        />
+                                                                    );
+                                                                });
+                                                            })()}
+                                                        </svg>
+
+                                                        {/* Crisp HTML Overlay for Bar Counts (Synchronized & Non-Distorted) */}
+                                                        <div 
+                                                            className="absolute inset-0 pt-6 pb-24 pl-10 pr-10 pointer-events-none overflow-visible"
+                                                        >
+                                                            {stats.leadsByStage.map((stage, i) => {
+                                                                const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
+                                                                let roundedMax = 50;
+                                                                if (maxVal <= 5) roundedMax = 5;
+                                                                else if (maxVal <= 10) roundedMax = 10;
+                                                                else if (maxVal <= 25) roundedMax = 25;
+                                                                else if (maxVal <= 50) roundedMax = 50;
+                                                                else roundedMax = Math.ceil(maxVal / 10) * 10;
+
+                                                                const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
+                                                                const height = (stage.count / roundedMax) * 80;
+                                                                const y = 100 - height;
+
+                                                                return (
+                                                                    <div
+                                                                        key={`label-${stage.name}`}
+                                                                        className="absolute text-[11px] font-bold text-[#111827] transition-all duration-700 ease-in-out whitespace-nowrap"
+                                                                        style={{
+                                                                            left: `${x}%`,
+                                                                            top: `${y - 6}%`,
+                                                                            transform: 'translateX(-50%)',
+                                                                            fontFamily: 'Inter, system-ui, sans-serif'
+                                                                        }}
+                                                                    >
+                                                                        {stage.count}
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
-                                                );
-                                            })}
+
+                                                    {/* Dynamic X-Axis Labels (Synchronized with Bars) */}
+                                                    <div className="absolute bottom-0 left-0 right-0 h-16 flex items-center pl-10 pr-10 border-t border-slate-50 bg-slate-50/10">
+                                                        <div className="flex justify-between w-full">
+                                                            {stats.leadsByStage.map((stage, i) => {
+                                                                const iconMap: Record<string, any> = {
+                                                                    'new': <UsersIcon className="w-3.5 h-3.5" />,
+                                                                    'contacted': <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>,
+                                                                    'qualified': <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+                                                                    'lost': <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>,
+                                                                    'won': <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                                };
+                                                                const icon = iconMap[stage.name.toLowerCase()] || (i + 1);
+                                                                const barColor = stage.color || '#942CAE';
+
+                                                                return (
+                                                                    <div key={stage.name} className="flex flex-col items-center gap-1 group" style={{ width: '160px', overflow: 'visible' }}>
+                                                                        <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-slate-200 bg-white shadow-sm hover:border-[#942CAE]/40 hover:shadow-md transition-all whitespace-nowrap -mt-2">
+                                                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-inner" style={{ backgroundColor: barColor }}>
+                                                                                {icon}
+                                                                            </div>
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-[11px] font-bold text-[#111827] uppercase leading-none tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stage.name}</span>
+                                                                                <span className="text-[11px] font-bold text-[#111827] uppercase mt-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stage.count.toLocaleString()} Leads</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+                                    </>
+                                ) : (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
+                                        <KanbanIcon className="w-12 h-12 opacity-20" />
+                                        <p className="text-sm font-medium">No performance data available for this pipeline</p>
                                     </div>
-                                </>
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
-                                    <KanbanIcon className="w-12 h-12 opacity-20" />
-                                    <p className="text-sm font-medium">No performance data available for this pipeline</p>
-                                </div>
-                            )}
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Quick Actions Card - MATCHING REFERENCE IMAGE */}
+                {/* Quick Actions Card - SOLID GOLD THEME */}
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#FEA21F] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col h-fit">
+                    <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden">
+                        <div className="p-5 bg-[#FEA21F] -mx-8 -mt-8 mb-2 relative z-10">
+                            <h3 className="text-xl font-black text-white tracking-tight uppercase">Quick Actions</h3>
+                            <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1">Operational Hub</p>
+                        </div>
+
+                        <div className="flex flex-col gap-3 relative z-10 border-2 border-[#E9433F] p-5 rounded-[1.8rem] bg-slate-50/50 shadow-inner">
+                            {[
+                                { label: 'View Kanban Board', icon: KanbanIcon, borderColor: '#10b981', action: () => onNavigate('pipelines') },
+                                { label: 'Contacts Directory', icon: UsersIcon, borderColor: '#3b82f6', action: () => onNavigate('contacts') },
+                                { label: 'Create New Lead Form', icon: PlusIconFallback, borderColor: '#942CAE', action: () => onNavigate('forms') },
+                                { label: 'Import Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, borderColor: '#ea580c', action: () => onNavigate('contacts') },
+                                { label: 'Export Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>, borderColor: '#0891b2', action: () => onNavigate('contacts') },
+                            ].map((item, i) => (
+                                <button
+                                    key={i}
+                                    onClick={item.action}
+                                    className="w-full p-4 bg-white rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
+                                    style={{ border: `2px solid ${item.borderColor}` }}
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110" style={{ backgroundColor: item.borderColor }}>
+                                            {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-5 h-5 text-white" />}
+                                        </div>
+                                        <span className="text-slate-700 font-black text-sm tracking-tight transition-colors" style={{ color: undefined }} onMouseEnter={(e) => (e.currentTarget.style.color = item.borderColor)} onMouseLeave={(e) => (e.currentTarget.style.color = '')}>{item.label}</span>
+                                    </div>
+                                    <ChevronRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-all mr-1" style={{ color: item.borderColor }} />
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* Quick Actions Card - MATCHING REFERENCE IMAGE */}
-            {/* Quick Actions Card - SOLID GOLD THEME */}
-            <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#FEA21F] ring-2 ring-white ring-inset shadow-2xl transition-all duration-500 flex flex-col h-fit">
-                <div className="bg-white h-full w-full p-6 md:p-8 flex flex-col gap-6 relative overflow-hidden">
-                    <div className="p-5 bg-[#FEA21F] -mx-8 -mt-8 mb-2 relative z-10">
-                        <h3 className="text-xl font-black text-white tracking-tight uppercase">Quick Actions</h3>
-                        <p className="text-white/80 text-[10px] font-bold uppercase tracking-widest mt-1">Operational Hub</p>
-                    </div>
-
-                    <div className="flex flex-col gap-3 relative z-10 border-2 border-[#FEA21F]/20 p-5 rounded-[1.8rem] bg-slate-50/50 shadow-inner">
-                        {[
-                            { label: 'View Kanban Board', icon: KanbanIcon, color: 'bg-emerald-600', action: () => onNavigate('pipelines') },
-                            { label: 'Contacts Directory', icon: UsersIcon, color: 'bg-blue-600', action: () => onNavigate('contacts') },
-                            { label: 'Create New Lead Form', icon: PlusIconFallback, color: 'bg-[#942CAE]', action: () => onNavigate('forms') },
-                            { label: 'Import Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>, color: 'bg-emerald-600', action: () => onNavigate('contacts') },
-                            { label: 'Export Leads', icon: () => <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>, color: 'bg-blue-600', action: () => onNavigate('contacts') },
-                        ].map((item, i) => (
-                            <button
-                                key={i}
-                                onClick={item.action}
-                                className="w-full p-4 bg-white hover:bg-[#FEA21F]/10 border-2 border-[#FEA21F]/10 hover:border-[#FEA21F] rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className={`bg-[#FEA21F] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
-                                        {typeof item.icon === 'function' ? <item.icon /> : <item.icon className="w-5 h-5 text-white" />}
-                                    </div>
-                                    <span className="text-slate-700 font-black text-sm tracking-tight group-hover:text-[#FEA21F] transition-colors">{item.label}</span>
-                                </div>
-                                <ChevronRightIcon className="w-5 h-5 text-[#FEA21F] group-hover:translate-x-1 transition-all mr-1" />
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
                 {/* Lead Volume Trend Chart */}
@@ -888,34 +917,66 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 <span>+{stats.leadsOverTime.reduce((a, b) => a + b.count, 0)} NEW THIS WEEK</span>
                             </div>
                         </div>
+                        <div className="h-48 relative z-10 overflow-visible pb-12">
+                            <svg className="w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor="#942CAE" stopOpacity="0.15" />
+                                        <stop offset="100%" stopColor="#942CAE" stopOpacity="0" />
+                                    </linearGradient>
+                                </defs>
+                                {(() => {
+                                    const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
+                                    const points = stats.leadsOverTime.map((day, i) => ({
+                                        x: (i / (stats.leadsOverTime.length - 1)) * 100,
+                                        y: 90 - (Math.max(day.count / max, 0.05) * 70) 
+                                    }));
 
-                        <div className="h-48 flex items-end gap-3 sm:gap-6 justify-between px-2 cursor-default relative z-10">
-                             {stats.leadsOverTime.map((day, idx) => {
-                                 const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
-                                 const height = Math.max((day.count / max) * 100, 6); // Increased minimum height
-                                 const isToday = idx === 6;
- 
-                                 return (
-                                     <div key={day.date} className="group flex-1 flex flex-col items-center gap-2 relative">
-                                         <div
-                                             className={`w-full max-w-[40px] rounded-t-xl transition-all duration-700 relative ${isToday ? 'bg-gradient-to-b from-[#942CAE] to-[#7e22ce] shadow-lg shadow-[#942CAE]/20' : 'bg-slate-100 group-hover:bg-[#942CAE]/10 border-b border-[#942CAE]/20'}`}
-                                             style={{ height: `${height}%` }}
-                                         >
-                                             {/* Hover Value Tooltip */}
-                                             <div className="opacity-0 group-hover:opacity-100 absolute -top-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-2 rounded-xl shadow-2xl transition-all scale-75 group-hover:scale-100 whitespace-nowrap z-20">
-                                                 {day.count} New Leads
-                                                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>
-                                             </div>
- 
-                                             {/* Accent line for today */}
-                                             {isToday && (
-                                                 <div className="absolute inset-x-0 top-0 h-1 bg-white/30 rounded-t-xl"></div>
-                                             )}
-                                         </div>
-                                         <span className={`text-[10px] font-black uppercase tracking-tighter transition-colors ${isToday ? 'text-[#942CAE]' : 'text-slate-400'}`}>{day.dayName}</span>
-                                     </div>
-                                 )
-                             })}
+                                    let d = `M ${points[0].x},${points[0].y}`;
+                                    for (let i = 0; i < points.length - 1; i++) {
+                                        const cp1x = points[i].x + (points[i+1].x - points[i].x) / 3;
+                                        const cp2x = points[i].x + (points[i+1].x - points[i].x) * 2 / 3;
+                                        d += ` C ${cp1x},${points[i].y} ${cp2x},${points[i+1].y} ${points[i+1].x},${points[i+1].y}`;
+                                    }
+
+                                    const areaD = d + ` L 100,100 L 0,100 Z`;
+
+                                    return (
+                                        <>
+                                            <path d={areaD} fill="url(#activityGradient)" />
+                                            <path d={d} fill="none" stroke="#942CAE" strokeWidth="0.2" strokeLinecap="round" />
+                                            {points.map((p, idx) => (
+                                                <g key={idx}>
+                                                    <circle cx={p.x} cy={p.y} r="0.2" fill="white" stroke="#942CAE" strokeWidth="0.1" />
+                                                    {stats.leadsOverTime[idx].count > 0 && (
+                                                        <text 
+                                                            x={p.x} 
+                                                            y={p.y - 4} 
+                                                            textAnchor="middle" 
+                                                            className="font-bold"
+                                                            style={{ 
+                                                                fontSize: '4px', 
+                                                                fill: '#111827',
+                                                                fontFamily: 'Inter, system-ui, sans-serif'
+                                                            }}
+                                                        >
+                                                            {stats.leadsOverTime[idx].count}
+                                                        </text>
+                                                    )}
+                                                </g>
+                                            ))}
+                                        </>
+                                    );
+                                })()}
+                            </svg>
+
+                            <div className="absolute bottom-0 left-0 right-0 flex justify-between px-0">
+                                {stats.leadsOverTime.map((day, idx) => (
+                                    <span key={day.date} className={`text-[10px] font-black uppercase tracking-tighter ${idx === 6 ? 'text-[#942CAE]' : 'text-slate-500'}`}>
+                                        {day.dayName}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1084,7 +1145,6 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
             </div>
         </div>
-
     );
 };
 

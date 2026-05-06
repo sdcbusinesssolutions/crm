@@ -22,8 +22,8 @@ router.get('/stats', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // --- 0. Check Cache (60s TTL) ---
-        // We use a lenient cache on server, but browser cache is better for "instant" feel
+        // --- Cache Disabled for Dev Sync ---
+        /*
         if (!global.leadDashboardCache) global.leadDashboardCache = {};
         const cached = global.leadDashboardCache[userId];
         const cacheTTL = 60 * 1000;
@@ -31,8 +31,9 @@ router.get('/stats', requireAuth, async (req, res) => {
         if (cached && (Date.now() - cached.timestamp < cacheTTL) && !req.query.force) {
             return res.json(cached.data);
         }
+        */
 
-        const supabase = supabaseAdmin;
+        const supabase = getAuthenticatedSupabase(req);
 
         const [
             pipelinesRes,           // 0
@@ -41,44 +42,52 @@ router.get('/stats', requireAuth, async (req, res) => {
             followUpCountRes,       // 3
             totalLeadsRes,          // 4
             recentLeadsRes,         // 5
-            pipeStatsRes,           // 6 (Aggregated Leads Data)
-            timeRes,                // 7 (Last 7 days activity)
-            tagsRes,                // 8 (Tag distribution)
-            stagesRes,              // 9
-            tagsListRes             // 10
+            allLeadsRes,            // 6 (Aggregated Leads Data)
+            tagsRes,                // 7 (Tag distribution from contacts)
+            stagesRes,              // 8
+            tagsListRes             // 9
         ] = await Promise.all([
-            supabase.from('pipelines').select('id, name, is_default').eq('user_id', userId).order('created_at'),
-            supabase.from('contact_groups').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('forms').select('*', { count: 'exact', head: true }).eq('user_id', userId),
-            supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_completed', false),
-            supabase.from('contacts').select('*', { count: 'exact', head: true }).eq('user_id', userId), 
-            
-            // Recent Leads (Limit 5)
-            supabase.from('leads').select('id, name, company, email, phone, status, created_at, source').eq('user_id', userId).order('created_at', { ascending: false }).limit(5),
-            
-            // Aggregated Leads Data for sources and pipeline stats
-            supabase.from('leads').select('pipeline_id, stage_id, estimated_value, source').eq('user_id', userId).limit(10000),
-            
-            // Last 7 days activity
-            supabase.from('leads').select('created_at').eq('user_id', userId).gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()).limit(5000),
-            
-            // Tag distribution
-            supabase.from('leads').select('tags').eq('user_id', userId).limit(10000),
+            // 0. Pipelines the user has access to (Matching Board ordering)
+            supabase.from('pipelines').select('id, name, is_default').order('created_at', { ascending: false }),
+            // 1-4. Aggregate Counts (Use Admin to see full totals)
+            supabaseAdmin.from('contact_groups').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('forms').select('*', { count: 'exact', head: true }),
+            supabaseAdmin.from('tasks').select('*', { count: 'exact', head: true }).eq('is_completed', false),
+            supabaseAdmin.from('contacts').select('*', { count: 'exact', head: true }),
 
-            // Meta Data
-            supabase.from('pipeline_stages').select('id, name, color, pipeline_id').eq('user_id', userId),
-            supabase.from('tags').select('name, color').eq('user_id', userId)
+            // 5. Recent Leads (Matching Board visibility)
+            supabaseAdmin.from('leads').select('id, name, company, email, phone, status, created_at, source').order('created_at', { ascending: false }).limit(5),
+
+            // 6. ALL Leads for aggregation (Global sync to match CRM totals)
+            supabaseAdmin.from('leads').select('id, pipeline_id, stage_id, source, created_at').limit(50000),
+
+            // 7. Tag distribution (Global aggregation to match Lead CRM count)
+            supabaseAdmin.from('contacts').select('tags').limit(50000),
+
+            // 8-9. Meta Data
+            supabaseAdmin.from('pipeline_stages').select('id, name, color, pipeline_id'),
+            supabaseAdmin.from('tags').select('name, color'),
+
+            // 10-12. Time-Series Data for specialized cards
+            supabaseAdmin.from('forms').select('id, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+            supabaseAdmin.from('pipelines').select('id, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+            supabaseAdmin.from('tasks').select('id, created_at').gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         ]);
 
-        // --- 2. Process Aggregations (CPU Bound - Fast) ---
         const pipelines = pipelinesRes.data || [];
         const stages = stagesRes.data || [];
         const tagsList = tagsListRes.data || [];
-        const pipeStatsRaw = pipeStatsRes.data || [];
+        const formsTimeData = Array.isArray(arguments[0][10]?.data) ? arguments[0][10].data : [];
+        const pipesTimeData = Array.isArray(arguments[0][11]?.data) ? arguments[0][11].data : [];
+        const tasksTimeData = Array.isArray(arguments[0][12]?.data) ? arguments[0][12].data : [];
 
-        // A. Leads By Source
+        // D. Pipeline-Specific Stats Map
+        const pipelineStatsMap = {};
+        const leadsData = allLeadsRes.data || [];
+        
+        // A. Leads By Source (Global)
         const sourceMap = {};
-        pipeStatsRaw.forEach(l => {
+        leadsData.forEach(l => {
             const src = l.source || 'manual';
             sourceMap[src] = (sourceMap[src] || 0) + 1;
         });
@@ -86,46 +95,91 @@ router.get('/stats', requireAuth, async (req, res) => {
             .map(([name, count]) => ({ name, count, value: count }))
             .sort((a, b) => b.count - a.count);
 
-        // B. Leads Over Time (Last 7 Days)
+        // B. Leads Over Time (Global - Last 7 Days)
         const last7Days = [];
-        const recentTimeData = timeRes.data || [];
+        const formsOverTime = [];
+        const pipelinesOverTime = [];
+        const tasksOverTime = [];
+
         for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
             const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
 
-            // Count leads for this day
-            const dayCount = recentTimeData.filter(l => l.created_at && l.created_at.startsWith(dateStr)).length;
+            const dayCount = leadsData.filter(l => l.created_at && l.created_at.startsWith(dateStr)).length;
             last7Days.push({ date: dateStr, count: dayCount, dayName });
+
+            const fCount = formsTimeData.filter(f => f.created_at && f.created_at.startsWith(dateStr)).length;
+            formsOverTime.push({ date: dateStr, count: fCount, dayName });
+
+            const pCount = pipesTimeData.filter(p => p.created_at && p.created_at.startsWith(dateStr)).length;
+            pipelinesOverTime.push({ date: dateStr, count: pCount, dayName });
+
+            const tCount = tasksTimeData.filter(t => t.created_at && t.created_at.startsWith(dateStr)).length;
+            tasksOverTime.push({ date: dateStr, count: tCount, dayName });
         }
 
-        // C. Leads By Tag (Top 5)
+        // C. Leads By Tag (Aggregating from Contacts and Leads for maximum coverage)
         const tagMap = {};
-        (tagsRes.data || []).forEach(l => {
-            let tags = l.tags;
-            // Handle potential string format "{tag1,tag2}"
+        
+        // 1. Process Tags from Contacts (Most likely source for high-volume tags)
+        (tagsRes.data || []).forEach(item => {
+            let tags = item.tags;
             if (typeof tags === 'string') {
-                tags = tags.replace(/^{|}$/g, '').split(',').filter(t => t.length > 0);
+                try {
+                    // Handle Postgres array format {tag1,tag2}
+                    tags = tags.replace(/^{|}$/g, '').split(',').map(t => t.trim()).filter(t => t.length > 0);
+                } catch(e) { tags = []; }
             }
             if (Array.isArray(tags)) {
-                tags.forEach(t => tagMap[t] = (tagMap[t] || 0) + 1);
+                tags.forEach(t => {
+                    if (t) tagMap[t] = (tagMap[t] || 0) + 1;
+                });
             }
         });
+
+        // 2. Process Tags from Leads (Ensure pipeline-specific tags are included)
+        leadsData.forEach(l => {
+            let tags = l.tags;
+            if (Array.isArray(tags)) {
+                tags.forEach(t => {
+                    if (t) tagMap[t] = (tagMap[t] || 0) + 1;
+                });
+            }
+        });
+
         const leadsByTag = Object.entries(tagMap)
             .map(([name, count]) => {
                 const tagDef = tagsList.find(t => t.name === name);
                 return { name, count, color: tagDef?.color || '#cbd5e1' };
             })
             .sort((a, b) => b.count - a.count)
-            .slice(0, 5);
-
-        // D. Pipeline Stats (Default Pipeline)
-        const pipelineStatsMap = {};
+            .slice(0, 8);
 
         pipelines.forEach(p => {
+            const pLeads = leadsData.filter(l => l.pipeline_id === p.id);
             const pStages = stages.filter(s => s.pipeline_id === p.id);
-            const pLeads = pipeStatsRaw.filter(l => l.pipeline_id === p.id);
+
+            // Sources for this pipeline
+            const pSourceMap = {};
+            pLeads.forEach(l => {
+                const src = l.source || 'manual';
+                pSourceMap[src] = (pSourceMap[src] || 0) + 1;
+            });
+
+            // Activity for this pipeline
+            const pLast7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+                // We use created_at from pipeStatsRaw if available, else fallback to 0 or similar
+                // Note: pipeStatsRes.data must include created_at for this to work
+                const dayCount = pLeads.filter(l => l.created_at && l.created_at.startsWith(dateStr)).length;
+                pLast7Days.push({ date: dateStr, count: dayCount, dayName });
+            }
 
             let totalVal = 0;
             const stageStats = pStages.map(s => {
@@ -139,7 +193,9 @@ router.get('/stats', requireAuth, async (req, res) => {
             pipelineStatsMap[p.id] = {
                 totalLeads: pLeads.length,
                 totalValue: totalVal,
-                stages: stageStats
+                stages: stageStats,
+                leadsBySource: Object.entries(pSourceMap).map(([name, count]) => ({ name, count, value: count })).sort((a, b) => b.count - a.count),
+                leadsOverTime: pLast7Days
             };
         });
 
@@ -153,6 +209,9 @@ router.get('/stats', requireAuth, async (req, res) => {
             recentLeads: recentLeadsRes.data || [],
             leadsBySource,
             leadsOverTime: last7Days,
+            formsOverTime,
+            pipelinesOverTime,
+            tasksOverTime,
             leadsByTag,
             pipelineStatsMap // { pipelineId: { totalLeads, totalValue, stages: [] } }
         };
