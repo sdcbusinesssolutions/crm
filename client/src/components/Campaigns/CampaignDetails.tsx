@@ -266,9 +266,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#942BAE] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Contacts</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{total}</h3>
-                                <p className="text-xs text-slate-400 mt-1">All contacts in campaign</p>
+                                <p className="text-[#942BAE] text-[10px] font-black uppercase tracking-widest">Total Contacts</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{total}</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">All contacts in campaign</p>
                             </div>
                             <div className="w-12 h-12 bg-[#942BAE] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <UsersIcon className="w-6 h-6" />
@@ -280,9 +280,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#0BB4C8] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Single Tick</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{sentPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{sent} Messages</p>
+                                <p className="text-[#0BB4C8] text-[10px] font-black uppercase tracking-widest">Total Single Tick</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{sentPct}%</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{sent} Messages</p>
                             </div>
                             <div className="w-12 h-12 bg-[#0BB4C8] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CheckIcon className="w-6 h-6" />
@@ -294,9 +294,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#4BA64F] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Double Tick</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{deliveredPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{delivered} Contacts</p>
+                                <p className="text-[#4BA64F] text-[10px] font-black uppercase tracking-widest">Total Double Tick</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{deliveredPct}%</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{delivered} Contacts</p>
                             </div>
                             <div className="w-12 h-12 bg-[#4BA64F] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <DoubleCheckIcon className="w-6 h-6" />
@@ -309,8 +309,8 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         <div className="p-4 flex-1 flex flex-col items-center justify-between h-full">
                             <div className="w-full flex justify-between items-start">
                                 <div>
-                                    <p className="text-slate-500 text-[9px] font-bold uppercase tracking-wider">Analytics Overview</p>
-                                    <h3 className="text-xs font-bold text-slate-800">Campaign Health</h3>
+                                    <p className="text-[#FD9912] text-[9px] font-black uppercase tracking-widest">Analytics Overview</p>
+                                    <h3 className="text-xs font-black text-black">Campaign Health</h3>
                                 </div>
                                 <div className="p-1 bg-indigo-50 rounded-lg text-indigo-600">
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -334,8 +334,8 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 }}
                             >
                                 <div className="absolute inset-0 m-[18%] bg-white rounded-full flex flex-col items-center justify-center shadow-inner text-center">
-                                    <span className="text-3xl font-black text-slate-800 leading-none">{overallSuccessPct}%</span>
-                                    <span className="text-[9px] text-slate-400 font-bold uppercase">Success</span>
+                                    <span className="text-3xl font-black text-black leading-none">{overallSuccessPct}%</span>
+                                    <span className="text-[9px] text-slate-500 font-bold uppercase">Success</span>
                                 </div>
                             </div>
  
@@ -344,10 +344,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 <div className="flex items-center justify-between p-2 bg-[#FD9912]/10 rounded-lg border border-[#FD9912]/40 shadow-sm transition-all hover:bg-[#FD9912]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                         <div className="w-2 h-2 rounded-full bg-[#FD9912] shadow-[0_0_5px_rgba(253,153,18,0.4)] shrink-0"></div>
-                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Read</span>
+                                        <span className="text-[9px] text-[#FD9912] font-black uppercase tracking-wider truncate">Read</span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs font-black text-slate-900">{read}</span>
+                                        <span className="text-xs font-black text-black">{read}</span>
                                         <span className="px-1.5 py-0.5 bg-[#FD9912] text-white text-[8px] font-black rounded-full shadow-sm">{readPct}%</span>
                                     </div>
                                 </div>
@@ -355,10 +355,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 <div className="flex items-center justify-between p-2 bg-[#4BA64F]/10 rounded-lg border border-[#4BA64F]/40 shadow-sm transition-all hover:bg-[#4BA64F]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                         <div className="w-2 h-2 rounded-full bg-[#4BA64F] shadow-[0_0_5px_rgba(75,166,79,0.4)] shrink-0"></div>
-                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Deliver</span>
+                                        <span className="text-[9px] text-[#4BA64F] font-black uppercase tracking-wider truncate">Deliver</span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs font-black text-slate-900">{delivered}</span>
+                                        <span className="text-xs font-black text-black">{delivered}</span>
                                         <span className="px-1.5 py-0.5 bg-[#4BA64F] text-white text-[8px] font-black rounded-full shadow-sm">{deliveredPct}%</span>
                                     </div>
                                 </div>
@@ -366,10 +366,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 <div className="flex items-center justify-between p-2 bg-[#0BB4C8]/10 rounded-lg border border-[#0BB4C8]/40 shadow-sm transition-all hover:bg-[#0BB4C8]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                         <div className="w-2 h-2 rounded-full bg-[#0BB4C8] shadow-[0_0_5px_rgba(11,180,200,0.4)] shrink-0"></div>
-                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Sent</span>
+                                        <span className="text-[9px] text-[#0BB4C8] font-black uppercase tracking-wider truncate">Sent</span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs font-black text-slate-900">{sent}</span>
+                                        <span className="text-xs font-black text-black">{sent}</span>
                                         <span className="px-1.5 py-0.5 bg-[#0BB4C8] text-white text-[8px] font-black rounded-full shadow-sm">{sentPct}%</span>
                                     </div>
                                 </div>
@@ -377,10 +377,10 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                                 <div className="flex items-center justify-between p-2 bg-[#E73E3A]/10 rounded-lg border border-[#E73E3A]/40 shadow-sm transition-all hover:bg-[#E73E3A]/20">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                         <div className="w-2 h-2 rounded-full bg-[#E73E3A] shadow-[0_0_5px_rgba(231,62,58,0.4)] shrink-0"></div>
-                                        <span className="text-[9px] text-slate-800 font-black uppercase tracking-wider truncate">Failed</span>
+                                        <span className="text-[9px] text-[#E73E3A] font-black uppercase tracking-wider truncate">Failed</span>
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <span className="text-xs font-black text-slate-900">{failed}</span>
+                                        <span className="text-xs font-black text-black">{failed}</span>
                                         <span className="px-1.5 py-0.5 bg-[#E73E3A] text-white text-[8px] font-black rounded-full shadow-sm">{failedPct}%</span>
                                     </div>
                                 </div>
@@ -392,9 +392,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#FD9912] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Read</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{readPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{read} Contacts</p>
+                                <p className="text-[#FD9912] text-[10px] font-black uppercase tracking-widest">Total Read</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{readPct}%</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{read} Contacts</p>
                             </div>
                             <div className="w-12 h-12 bg-[#FD9912] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <DoubleCheckIcon className="w-6 h-6" />
@@ -407,9 +407,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#942BAE] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Meta Accepted</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{acceptedPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{accepted} Messages</p>
+                                <p className="text-[#942BAE] text-[10px] font-black uppercase tracking-widest">Total Meta Accepted</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{acceptedPct}%</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{accepted} Messages</p>
                             </div>
                             <div className="w-12 h-12 bg-[#942BAE] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CheckIcon className="w-6 h-6" />
@@ -421,9 +421,9 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                     <div className="bg-white p-5 rounded-2xl border-2 border-[#E73E3A] ring-2 ring-white ring-inset shadow-lg relative overflow-hidden transition-all duration-300 hover:scale-[1.02]">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Total Failed</p>
-                                <h3 className="text-3xl font-extrabold text-slate-800 mt-1">{failedPct}%</h3>
-                                <p className="text-xs text-slate-400 mt-1">{failed} Contacts</p>
+                                <p className="text-[#E73E3A] text-[10px] font-black uppercase tracking-widest">Total Failed</p>
+                                <h3 className="text-3xl font-black text-black mt-1">{failedPct}%</h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{failed} Contacts</p>
                             </div>
                             <div className="w-12 h-12 bg-[#E73E3A] rounded-2xl flex items-center justify-center text-white shadow-lg">
                                 <CloseIcon className="w-6 h-6" />
