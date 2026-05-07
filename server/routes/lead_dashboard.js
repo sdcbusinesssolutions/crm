@@ -16,22 +16,21 @@ const getStartDate = (period) => {
 };
 
 // GET /api/lead-dashboard/stats
+const leadDashboardCache = {};
+
 router.get('/stats', requireAuth, async (req, res) => {
     // SECURITY: Disable all browser-level caching for API to prevent cross-user leakage on shared machines.
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     try {
         const userId = req.user.id;
 
-        // --- Cache Disabled for Dev Sync ---
-        /*
-        if (!global.leadDashboardCache) global.leadDashboardCache = {};
-        const cached = global.leadDashboardCache[userId];
-        const cacheTTL = 60 * 1000;
+        // --- Cache Support ---
+        const cached = leadDashboardCache[userId];
+        const cacheTTL = 60 * 1000; // 1 minute cache
 
         if (cached && (Date.now() - cached.timestamp < cacheTTL) && !req.query.force) {
             return res.json(cached.data);
         }
-        */
 
         const supabase = getAuthenticatedSupabase(req);
 
@@ -45,7 +44,10 @@ router.get('/stats', requireAuth, async (req, res) => {
             allLeadsRes,            // 6 (Aggregated Leads Data)
             tagsRes,                // 7 (Tag distribution from contacts)
             stagesRes,              // 8
-            tagsListRes             // 9
+            tagsListRes,            // 9
+            formsTimeRes,           // 10
+            pipelinesTimeRes,       // 11
+            tasksTimeRes            // 12
         ] = await Promise.all([
             // 0. Pipelines the user has access to (Matching Board ordering)
             supabase.from('pipelines').select('id, name, is_default').order('created_at', { ascending: false }),
@@ -77,9 +79,9 @@ router.get('/stats', requireAuth, async (req, res) => {
         const pipelines = pipelinesRes.data || [];
         const stages = stagesRes.data || [];
         const tagsList = tagsListRes.data || [];
-        const formsTimeData = Array.isArray(arguments[0][10]?.data) ? arguments[0][10].data : [];
-        const pipesTimeData = Array.isArray(arguments[0][11]?.data) ? arguments[0][11].data : [];
-        const tasksTimeData = Array.isArray(arguments[0][12]?.data) ? arguments[0][12].data : [];
+        const formsTimeData = Array.isArray(formsTimeRes?.data) ? formsTimeRes.data : [];
+        const pipesTimeData = Array.isArray(pipelinesTimeRes?.data) ? pipelinesTimeRes.data : [];
+        const tasksTimeData = Array.isArray(tasksTimeRes?.data) ? tasksTimeRes.data : [];
 
         // D. Pipeline-Specific Stats Map
         const pipelineStatsMap = {};
@@ -217,7 +219,7 @@ router.get('/stats', requireAuth, async (req, res) => {
         };
 
         // Cache It
-        global.leadDashboardCache[userId] = {
+        leadDashboardCache[userId] = {
             data: responseData,
             timestamp: Date.now()
         };
