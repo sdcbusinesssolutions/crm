@@ -472,36 +472,42 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (activeChatId && shouldForceScrollRef.current) {
             const container = chatContainerRef.current;
             
-            // If no messages yet, just show the UI
+            // If we are still loading, wait
+            if (isLoadingMessages) return;
+
+            // If no messages yet after loading, just show the UI
             if (messages.length === 0) {
-                if (!isLoadingMessages) {
-                    setIsInitialScrollDone(true);
-                    shouldForceScrollRef.current = false;
-                }
+                setIsInitialScrollDone(true);
+                shouldForceScrollRef.current = false;
                 return;
             }
 
             if (container) {
-                // Force the scroll position to the very bottom immediately
-                // Disable smooth scroll for this initial snap
-                const originalScrollBehavior = container.style.scrollBehavior;
-                container.style.scrollBehavior = 'auto';
-                container.scrollTop = container.scrollHeight;
-                
-                // Use a slightly longer delay before showing the UI to ensure layout is solid
-                const timer = setTimeout(() => {
-                    if (container) {
-                        container.scrollTop = container.scrollHeight;
-                        container.style.scrollBehavior = originalScrollBehavior;
-                        setIsInitialScrollDone(true);
-                        shouldForceScrollRef.current = false;
-                    }
-                }, 100); 
+                // Initial snap using double requestAnimationFrame to ensure layout is ready
+                const performScroll = () => {
+                    if (!container) return;
+                    
+                    const originalScrollBehavior = container.style.scrollBehavior;
+                    container.style.scrollBehavior = 'auto';
+                    container.scrollTop = container.scrollHeight;
+                    
+                    // Small timeout to allow heavy assets (images/avatars) to take up space
+                    setTimeout(() => {
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                            container.style.scrollBehavior = originalScrollBehavior;
+                            setIsInitialScrollDone(true);
+                            shouldForceScrollRef.current = false;
+                        }
+                    }, 150);
+                };
 
-                return () => clearTimeout(timer);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(performScroll);
+                });
             }
         }
-    }, [activeChatId, messages.length > 0, isLoadingMessages]);
+    }, [activeChatId, messages, isLoadingMessages]);
 
     // Secondary effect for media loading and new incoming messages
     useEffect(() => {

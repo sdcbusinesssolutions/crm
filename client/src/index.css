@@ -187,59 +187,59 @@ body {
 }
 
 /* Force Dark Custom Scrollbar for Pipeline Columns */
-/* Modern Premium Custom Scrollbar - Visible & Solid (Matches Pipeline) */
+/* Modern Premium Custom Scrollbar - Emerald Brand Theme (Better than Slate) */
 .custom-scrollbar {
   scrollbar-width: auto;
-  scrollbar-color: #94a3b8 #f1f5f9;
+  scrollbar-color: #10b981 #f0fdf4; /* Emerald-500 thumb, Emerald-50 track */
   scroll-behavior: smooth;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #f0fdf4; /* Very light emerald tint */
   border-radius: 10px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #94a3b8;
+  background: #10b981; /* Vibrant Emerald thumb */
   border-radius: 10px;
-  border: 2px solid #f1f5f9;
-  transition: background 0.3s ease;
+  border: 2px solid #f0fdf4;
+  transition: all 0.3s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: #059669; /* Darker Emerald on hover */
 }
 
 /* For dark areas or boards */
 .custom-scrollbar-dark {
   scrollbar-width: auto;
-  scrollbar-color: #475569 rgba(255, 255, 255, 0.05);
+  scrollbar-color: #059669 rgba(5, 150, 105, 0.1);
   scroll-behavior: smooth;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(5, 150, 105, 0.05);
   border-radius: 10px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background-color: #475569;
+  background-color: #059669;
   border-radius: 10px;
   border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: #10b981;
 }
 
 /* Flow Builder Connection Line Animation */
