@@ -32,6 +32,23 @@ interface LeadDashboardProps {
     totalContactsCount?: number | null;
 }
 
+// Custom Scrollbar Styling for a Premium SaaS Look
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #942CAE30;
+    border-radius: 20px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #942CAE60;
+  }
+`;
+
 const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContactsCount }) => {
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
@@ -88,52 +105,41 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             setUserId(userId);
 
             // --- 1. INSTANT LOAD: Check LocalStorage ---
-            const cached = localStorage.getItem('lead_dashboard_cache');
+            const cached = localStorage.getItem('lead_dashboard_cache_v2'); // Increment version to bust old '113' cache
             if (cached) {
                 try {
                     const parsed = JSON.parse(cached);
-                    // SECURITY: Verify user and check staleness (1 hour max)
-                    const isStale = !parsed.timestamp || (Date.now() - parsed.timestamp > 3600000);
+                    // SECURITY: Verify user and check staleness (10 mins for better accuracy)
+                    const isStale = !parsed.timestamp || (Date.now() - parsed.timestamp > 600000);
                     if (parsed.userId === userId && !isStale) {
                         processStatsData(parsed.data);
                         setLoading(false);
                     } else if (isStale && parsed.userId === userId) {
-                        // Use stale data temporarily but stay in loading state
                         processStatsData(parsed.data);
                     } else {
-                        localStorage.removeItem('lead_dashboard_cache');
+                        localStorage.removeItem('lead_dashboard_cache_v2');
                     }
                 } catch (e) {
-                    localStorage.removeItem('lead_dashboard_cache');
+                    localStorage.removeItem('lead_dashboard_cache_v2');
                 }
             }
 
             // --- 2. FAST FETCH: Optimized API ---
-            const res = await fetch('/api/lead-dashboard/stats', {
+            const res = await fetch('/api/lead-dashboard/stats?force=true', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-
+            
             if (res.ok) {
                 const data = await res.json();
                 processStatsData(data);
 
-                // OPTIMIZATION: Prune data for storage (Remove bulky DB fields)
-                const prunedData = {
-                    ...data,
-                    pipelines: (data.pipelines || []).map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        is_default: p.is_default
-                    }))
-                };
-
                 // Store with User ID and Timestamp
                 const cacheWrapper = {
-                    data: prunedData,
+                    data: data,
                     userId,
                     timestamp: Date.now()
                 };
-                localStorage.setItem('lead_dashboard_cache', JSON.stringify(cacheWrapper));
+                localStorage.setItem('lead_dashboard_cache_v2', JSON.stringify(cacheWrapper));
                 setLoading(false);
             }
 
@@ -144,10 +150,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     };
 
     const processStatsData = (data: any, targetPipelineId?: string | null) => {
-        if (!data) return;
+        if (!data || data.isFallback) return;
 
-        // update pipelines list
-        setPipelines(data.pipelines || []);
+        // update pipelines list from actual DB records
+        if (data.pipelines) setPipelines(data.pipelines);
 
         // determine active pipeline
         let currentPipeId = targetPipelineId || activePipelineId;
@@ -157,8 +163,14 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
             setActivePipelineId(currentPipeId);
         }
 
-        // current pipeline stats
-        const pipeStats = data.pipelineStatsMap?.[currentPipeId || ''] || { stages: [], totalLeads: 0, totalValue: 0, leadsBySource: [], leadsOverTime: [] };
+        // current pipeline stats from optimized map
+        const pipeStats = data.pipelineStatsMap?.[currentPipeId || ''] || { 
+            stages: [], 
+            totalLeads: 0, 
+            totalValue: 0, 
+            leadsBySource: [], 
+            leadsOverTime: [] 
+        };
 
         // Calculate Conversion (Won / Total)
         const wonStage = pipeStats.stages.find((s: any) => s.name.toLowerCase().includes('won'));
@@ -166,13 +178,13 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         const conversion = wonStage && total > 0 ? Math.round((wonStage.count / total) * 100) : 0;
 
         setStats({
-            totalLeads: pipeStats.totalLeads || 0, // Show pipeline-specific leads
+            totalLeads: pipeStats.totalLeads || 0,
             totalValue: pipeStats.totalValue || 0,
             conversionRate: `${conversion}%`,
             leadsByStage: pipeStats.stages || [],
             recentLeads: data.recentLeads || [],
-            leadsBySource: pipeStats.leadsBySource?.length > 0 ? pipeStats.leadsBySource : (data.leadsBySource || []),
-            leadsOverTime: pipeStats.leadsOverTime?.length > 0 ? pipeStats.leadsOverTime : (data.leadsOverTime || []),
+            leadsBySource: pipeStats.leadsBySource || [],
+            leadsOverTime: pipeStats.leadsOverTime || [],
             leadsByTag: data.leadsByTag || [],
             formsOverTime: data.formsOverTime || [],
             pipelinesOverTime: data.pipelinesOverTime || [],
@@ -185,22 +197,51 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     };
 
     useEffect(() => {
-        loadStats();
+        // Initial trigger: Get session and kick off loadStats
+        const init = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+                setUserId(session.user.id);
+            } else {
+                // If no session, still try to load to let API handle auth check
+                loadStats();
+            }
+        };
+        init();
     }, []);
 
-    // Re-process stats if pipeline changes (instant switch from data we already have)
     useEffect(() => {
-        if (activePipelineId && userId) {
-            const cached = localStorage.getItem('lead_dashboard_cache');
-            if (cached) {
+        if (!userId) return;
+        
+        // 1. Try to load from cache v2 for instant UI feedback
+        const cached = localStorage.getItem('lead_dashboard_cache_v2');
+        if (cached) {
+            try {
                 const parsed = JSON.parse(cached);
-                // SECURITY: Verify user ownership again before using cached pipeline data
+                if (parsed.userId === userId) {
+                    processStatsData(parsed.data);
+                }
+            } catch (err) {
+                console.error('Initial cache load failed', err);
+            }
+        }
+
+        // 2. Background Refresh: Always fetch fresh data on mount
+        loadStats();
+    }, [userId]);
+
+    // Keep active pipeline in sync with the stats when they change
+    useEffect(() => {
+        const cached = localStorage.getItem('lead_dashboard_cache_v2');
+        if (cached && activePipelineId) {
+            try {
+                const parsed = JSON.parse(cached);
                 if (parsed.userId === userId) {
                     processStatsData(parsed.data, activePipelineId);
                 }
-            }
+            } catch (e) {}
         }
-    }, [activePipelineId, userId]);
+    }, [activePipelineId]);
 
     // If loading but we have cache (processed in stats), don't show spinner
     // Only show spinner if we have NO stats and are loading
@@ -212,6 +253,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
     return (
         <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800 bg-[#eff1f5] min-h-screen relative">
+            <style>{scrollbarStyles}</style>
             {/* Clean CRM Background Pattern */}
             <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2] pointer-events-none -z-10"></div>
             {/* Statistics Overview */}
@@ -491,15 +533,12 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 </div>
                             </div>
 
-                            {/* Dynamic Growth Indicator */}
+                            {/* Dynamic Status Indicator */}
                             <div className="flex items-center gap-1.5 text-[12px] font-black text-purple-700 bg-purple-100/80 px-3 py-1.5 rounded-full border border-purple-200 shadow-sm backdrop-blur-sm">
-                                <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                <ClockIcon className="w-3.5 h-3.5" />
                                 <span>{(() => {
-                                    const current = (stats.tasksOverTime || []).slice(-7).reduce((a, b) => a + b.count, 0);
-                                    const previous = (stats.tasksOverTime || []).slice(-14, -7).reduce((a, b) => a + b.count, 0);
-                                    if (previous === 0) return current > 0 ? '+100%' : '0%';
-                                    const growth = Math.round(((current - previous) / previous) * 100);
-                                    return (growth >= 0 ? '+' : '') + growth + '%';
+                                    if (stats.followUpCount > 0) return 'DUE';
+                                    return 'CLEAR';
                                 })()}</span>
                             </div>
                         </div>
@@ -577,8 +616,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 </div>
                                 <h2 className="text-base font-extrabold tracking-tight text-white">Lead Overview</h2>
                                 <div className="hidden sm:block h-4 w-px bg-white/30"></div>
-                                <p className="text-white/70 text-xs font-medium hidden sm:block">
-                                    <span className="text-white font-bold">{pipelines.find(p => p.id === activePipelineId)?.name || 'Pipeline'}</span> Performance
+                                <p className="text-white/90 text-[13px] font-bold hidden sm:block">
+                                    <span className="text-white font-black">{pipelines.find(p => p.id === activePipelineId)?.name || 'Pipeline'}</span> Performance
                                 </p>
                             </div>
 
@@ -589,20 +628,16 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                         onChange={(e) => {
                                             const newId = e.target.value;
                                             setActivePipelineId(newId);
-                                            // 🚀 INSTANT UPDATE: Process data immediately for the new pipeline
-                                            const cached = localStorage.getItem('lead_dashboard_cache');
+                                            // 🚀 INSTANT UI UPDATE from local data
+                                            const cached = localStorage.getItem('lead_dashboard_cache_v2');
                                             if (cached) {
                                                 try {
                                                     const parsed = JSON.parse(cached);
-                                                    if (parsed.userId === userId) {
-                                                        processStatsData(parsed.data, newId);
-                                                    }
-                                                } catch (err) {
-                                                    console.error('Instant update failed', err);
-                                                }
+                                                    processStatsData(parsed.data, newId);
+                                                } catch (e) {}
                                             }
                                         }}
-                                        className="appearance-none w-full md:w-48 pl-3 pr-8 py-1.5 bg-white text-[#59B15D] border-2 border-white rounded-lg text-xs font-black focus:outline-none focus:ring-2 focus:ring-white/20 transition-all cursor-pointer shadow-lg"
+                                        className="appearance-none w-full md:w-56 pl-4 pr-10 py-2 bg-white text-[#4a934d] border-2 border-white rounded-xl text-sm font-black focus:outline-none focus:ring-4 focus:ring-black/5 transition-all cursor-pointer shadow-xl"
                                     >
                                         {pipelines.map(p => (
                                             <option key={p.id} value={p.id} className="bg-[#4a934d] text-white font-medium">{p.name}</option>
@@ -614,10 +649,10 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 </div>
                                 <button
                                     onClick={() => onNavigate('pipelines')}
-                                    className="px-4 py-1.5 bg-white text-[#59B15D] border-2 border-white rounded-lg text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1.5 shrink-0 hover:bg-slate-50 active:scale-95"
+                                    className="px-5 py-2 bg-white text-[#4a934d] border-2 border-white rounded-xl text-sm font-black shadow-xl transition-all flex items-center justify-center gap-2 shrink-0 hover:bg-slate-50 active:scale-95"
                                 >
                                     <span>Go to Board</span>
-                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                                 </button>
                             </div>
                         </div>
@@ -638,8 +673,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                             Leads
                                         </div>
                                         <div className="flex-1 relative mt-4 mb-20 ml-16 flex flex-col overflow-visible">
-                                            {/* Fixed Y-Axis Labels */}
-                                            <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between pointer-events-none z-20 pb-14 bg-white/80 backdrop-blur-sm pr-1">
+                                            {/* Fixed Y-Axis Labels (Unified Padding with SVG) */}
+                                            <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between pointer-events-none z-20 pt-6 pb-20 bg-white/80 backdrop-blur-sm pr-1">
                                                 {[0, 1, 2, 3, 4, 5].map((i) => {
                                                     const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
                                                     let roundedMax = 5;
@@ -658,7 +693,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                                                     const label = Math.round((roundedMax / 5) * (5 - i));
                                                     return (
-                                                        <span key={i} className="text-[11px] font-bold text-[#111827] w-12 text-right pr-2">
+                                                        <span key={i} className="text-[13px] font-black text-slate-900 w-12 text-right pr-2">
                                                             {label >= 1000 ? (label / 1000).toFixed(1).replace('.0', '') + 'k' : label.toLocaleString()}
                                                         </span>
                                                     );
@@ -670,17 +705,17 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                     className="relative h-full"
                                                     style={{ minWidth: `${Math.max(100, stats.leadsByStage.length * 160)}px` }}
                                                 >
-                                                    {/* Y-Axis Grid Lines */}
-                                                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-14">
+                                                    {/* Y-Axis Grid Lines (Unified Padding) */}
+                                                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pt-6 pb-20">
                                                         {[0, 1, 2, 3, 4, 5].map((i) => (
                                                             <div key={i} className="w-full flex items-center">
-                                                                <div className="flex-1 h-[1px] bg-slate-100/50"></div>
+                                                                <div className="flex-1 h-[1px] bg-slate-100/80"></div>
                                                             </div>
                                                         ))}
                                                     </div>
 
                                                     {/* SVG Layer */}
-                                                    <div className="absolute inset-0 pt-6 pb-24 pl-10 pr-10">
+                                                    <div className="absolute inset-0 pt-6 pb-20 pl-10 pr-10">
                                                         <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
                                                             <defs>
                                                                 <linearGradient id="refAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -708,7 +743,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                                                                 const points = stats.leadsByStage.map((s, i) => {
                                                                     const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
-                                                                    const y = 100 - (s.count / roundedMax * 80);
+                                                                    const y = 100 - (s.count / roundedMax * 90); 
                                                                     return { x, y, count: s.count, color: s.color };
                                                                 });
 
@@ -742,15 +777,28 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                                 return (
                                                                     <>
                                                                         <path d={areaPath} fill="url(#refAreaGradient)" className="transition-all duration-700 ease-in-out" />
-                                                                        <path d={path} fill="none" stroke="#942CAE" strokeWidth="0.2" strokeLinecap="round" className="transition-all duration-700 ease-in-out" />
+                                                                        {/* Consistent, non-scaling trend line in #EA4441 */}
+                                                                        <path 
+                                                                            d={path} 
+                                                                            fill="none" 
+                                                                            stroke="#EA4441" 
+                                                                            strokeWidth="2.5" 
+                                                                            strokeOpacity="1" 
+                                                                            strokeLinecap="round" 
+                                                                            vectorEffect="non-scaling-stroke"
+                                                                            className="transition-all duration-700 ease-in-out" 
+                                                                        />
                                                                         {points.map((p, i) => (
-                                                                            <circle key={i} cx={p.x} cy={p.y} r="0.2" fill="white" stroke="#942CAE" strokeWidth="0.2" className="transition-all duration-700 ease-in-out hover:r-[1.5px] cursor-pointer" />
+                                                                            // Hide circles for zero values to clean up the baseline
+                                                                            p.count > 0 && (
+                                                                                <circle key={i} cx={p.x} cy={p.y} r="1" fill="white" stroke="#EA4441" strokeWidth="0.8" className="transition-all duration-700 ease-in-out hover:r-2 cursor-pointer shadow-sm" />
+                                                                            )
                                                                         ))}
                                                                     </>
                                                                 );
                                                             })()}
 
-                                                            {/* Colored Bars */}
+                                                            {/* Colored Bars with Clean Flat Gradients */}
                                                             {(() => {
                                                                 const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
                                                                 let roundedMax = 50;
@@ -760,69 +808,45 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                                 else if (maxVal <= 50) roundedMax = 50;
                                                                 else roundedMax = Math.ceil(maxVal / 10) * 10;
 
-                                                                const barWidth = 4.5;
-
-                                                                return stats.leadsByStage.map((stage, i) => {
-                                                                    const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
-                                                                    const height = (stage.count / roundedMax) * 80;
-                                                                    const y = 100 - height;
-
-                                                                    const barColor = stage.color || '#942CAE';
-
-                                                                    return (
-                                                                        <rect
-                                                                            key={stage.name}
-                                                                            x={x - barWidth / 2}
-                                                                            y={y}
-                                                                            width={barWidth}
-                                                                            height={height}
-                                                                            rx="1.5"
-                                                                            fill={barColor}
-                                                                            className="transition-all duration-700 ease-in-out"
-                                                                        />
-                                                                    );
-                                                                });
-                                                            })()}
-                                                        </svg>
-
-                                                        {/* Crisp HTML Overlay for Bar Counts (Synchronized & Non-Distorted) */}
-                                                        <div 
-                                                            className="absolute inset-0 pt-6 pb-24 pl-10 pr-10 pointer-events-none overflow-visible"
-                                                        >
-                                                            {stats.leadsByStage.map((stage, i) => {
-                                                                const maxVal = Math.max(...stats.leadsByStage.map(s => s.count), 5);
-                                                                let roundedMax = 50;
-                                                                if (maxVal <= 5) roundedMax = 5;
-                                                                else if (maxVal <= 10) roundedMax = 10;
-                                                                else if (maxVal <= 25) roundedMax = 25;
-                                                                else if (maxVal <= 50) roundedMax = 50;
-                                                                else roundedMax = Math.ceil(maxVal / 10) * 10;
-
-                                                                const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
-                                                                const height = (stage.count / roundedMax) * 80;
-                                                                const y = 100 - height;
+                                                                const barWidth = 6;
 
                                                                 return (
-                                                                    <div
-                                                                        key={`label-${stage.name}`}
-                                                                        className="absolute text-[11px] font-bold text-[#111827] transition-all duration-700 ease-in-out whitespace-nowrap"
-                                                                        style={{
-                                                                            left: `${x}%`,
-                                                                            top: `${y - 6}%`,
-                                                                            transform: 'translateX(-50%)',
-                                                                            fontFamily: 'Inter, system-ui, sans-serif'
-                                                                        }}
-                                                                    >
-                                                                        {stage.count}
-                                                                    </div>
+                                                                    <>
+                                                                        <defs>
+                                                                            {stats.leadsByStage.map((stage, i) => (
+                                                                                <linearGradient key={`grad-${i}`} id={`barGrad-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                                                                    <stop offset="0%" stopColor={stage.color || '#942CAE'} stopOpacity="1" />
+                                                                                    <stop offset="100%" stopColor={stage.color || '#942CAE'} stopOpacity="0.8" />
+                                                                                </linearGradient>
+                                                                            ))}
+                                                                        </defs>
+                                                                        {stats.leadsByStage.map((stage, i) => {
+                                                                            const x = (i / (stats.leadsByStage.length - 1 || 1)) * 100;
+                                                                            const height = (stage.count / roundedMax) * 90;
+                                                                            const y = 100 - height;
+
+                                                                            return (
+                                                                                <rect
+                                                                                    key={stage.name}
+                                                                                    x={x - barWidth / 2}
+                                                                                    y={y}
+                                                                                    width={barWidth}
+                                                                                    height={height}
+                                                                                    rx="1.5"
+                                                                                    fill={`url(#barGrad-${i})`}
+                                                                                    className="transition-all duration-700 ease-in-out hover:opacity-90 cursor-pointer"
+                                                                                />
+                                                                            );
+                                                                        })}
+                                                                    </>
                                                                 );
-                                                            })}
-                                                        </div>
+                                                            })()}
+                                                        </svg>
                                                     </div>
 
-                                                    {/* Dynamic X-Axis Labels (Synchronized with Bars) */}
-                                                    <div className="absolute bottom-0 left-0 right-0 h-16 flex items-center pl-10 pr-10 border-t border-slate-50 bg-slate-50/10">
-                                                        <div className="flex justify-between w-full">
+                                                    {/* Clean, Non-Overlapping X-Axis Labels (Flexbox Based) */}
+                                                    <div className="absolute bottom-0 left-0 right-0 h-16 flex items-center pl-10 pr-10 border-t-2 border-slate-100 bg-slate-50/40 backdrop-blur-md">
+                                                        <div className="w-full flex justify-between gap-2">
                                                             {stats.leadsByStage.map((stage, i) => {
                                                                 const iconMap: Record<string, any> = {
                                                                     'new': <UsersIcon className="w-3.5 h-3.5" />,
@@ -835,14 +859,20 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                                 const barColor = stage.color || '#942CAE';
 
                                                                 return (
-                                                                    <div key={stage.name} className="flex flex-col items-center gap-1 group" style={{ width: '160px', overflow: 'visible' }}>
-                                                                        <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-slate-200 bg-white shadow-sm hover:border-[#942CAE]/40 hover:shadow-md transition-all whitespace-nowrap -mt-2">
-                                                                            <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[10px] font-black shadow-inner" style={{ backgroundColor: barColor }}>
+                                                                    <div 
+                                                                        key={stage.name} 
+                                                                        className="flex-1 flex flex-col items-center min-w-0" 
+                                                                    >
+                                                                        <div 
+                                                                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl border-2 bg-white shadow-sm transition-all hover:scale-105 min-w-0 max-w-[100px]"
+                                                                            style={{ borderColor: barColor }}
+                                                                        >
+                                                                            <div className="w-5 h-5 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ backgroundColor: barColor }}>
                                                                                 {icon}
                                                                             </div>
-                                                                            <div className="flex flex-col">
-                                                                                <span className="text-[11px] font-bold text-[#111827] uppercase leading-none tracking-tight" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stage.name}</span>
-                                                                                <span className="text-[11px] font-bold text-[#111827] uppercase mt-1" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>{stage.count.toLocaleString()} Leads</span>
+                                                                            <div className="flex flex-col min-w-0">
+                                                                                <span className="text-[10px] font-black text-[#111827] uppercase leading-none truncate" title={stage.name}>{stage.name}</span>
+                                                                                <span className="text-[9px] font-bold text-slate-500 uppercase mt-1 leading-none truncate">{stage.count} Leads</span>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -886,7 +916,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     key={i}
                                     onClick={item.action}
                                     className="w-full p-4 bg-white rounded-2xl transition-all flex items-center justify-between group shadow-sm hover:shadow-md"
-                                    style={{ border: `2px solid ${item.borderColor}` }}
+                                    style={{ border: `0.5px solid ${item.borderColor}` }}
                                 >
                                     <div className="flex items-center gap-4">
                                         <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110" style={{ backgroundColor: item.borderColor }}>
@@ -906,6 +936,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* Lead Volume Trend Chart */}
                 {/* Lead Volume Trend Chart - SOLID PURPLE THEME */}
                 <div className="xl:col-span-2 relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl">
+                    <style>{scrollbarStyles}</style>
                     <div className="bg-white h-full w-full p-6 md:p-8 relative overflow-hidden">
                         <div className="flex items-center justify-between mb-10 relative z-10">
                             <div>
@@ -926,6 +957,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     </linearGradient>
                                 </defs>
                                 {(() => {
+                                    if (stats.leadsOverTime.length < 2) return null;
                                     const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
                                     const points = stats.leadsOverTime.map((day, i) => ({
                                         x: (i / (stats.leadsOverTime.length - 1)) * 100,
@@ -1065,79 +1097,96 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 </div>
             </div>
 
-            {/* Recent Leads & Top Tags Row */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
-                {/* Recent Leads */}
-                {/* Recent Leads - SOLID CRM STYLE */}
-                <div className="xl:col-span-2 bg-white rounded-[2rem] border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl overflow-hidden">
+            {/* Recent Leads & Top Tags Row - SYMMETRICAL LAYOUT */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
+                {/* Recent Leads - SYMMETRICAL CRM STYLE */}
+                <div className="bg-white rounded-[2rem] border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-2xl overflow-hidden flex flex-col h-[580px]">
                     <div className="flex flex-col h-full">
                         <div className="p-5 md:p-6 flex justify-between items-center bg-[#942CAE] relative z-10">
                             <h3 className="text-lg font-black text-white tracking-tight uppercase tracking-wider">Recent Leads</h3>
                             <button onClick={() => onNavigate('contacts')} className="text-[10px] font-black uppercase tracking-widest text-[#942CAE] bg-white border border-white px-5 py-2.5 rounded-xl transition-all hover:bg-slate-50 active:scale-95 shadow-lg shadow-black/10">View All</button>
                         </div>
-                        <div className="divide-y divide-slate-50 relative z-10">
-                            {stats.recentLeads.length > 0 ? stats.recentLeads.map(lead => (
-                                <div key={lead.id} className="p-5 hover:bg-[#942CAE]/5 transition-all flex items-center justify-between group cursor-pointer border-l-4 border-transparent hover:border-[#942CAE]" onClick={() => onNavigate('contacts')}>
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-lg text-white shadow-md group-hover:scale-110 transition-transform ${lead.name ? 'bg-gradient-to-br from-[#942CAE] to-purple-800' : 'bg-slate-300'}`}>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
+                            {stats.recentLeads.length > 0 ? stats.recentLeads.map((lead, idx) => (
+                                <div 
+                                    key={lead.id} 
+                                    className={`p-5 hover:bg-slate-50 transition-all flex items-center justify-between group cursor-pointer border-l-[6px] border-transparent hover:border-[#942CAE] hover:pl-6 ${idx !== stats.recentLeads.length - 1 ? 'border-b border-slate-200' : ''}`} 
+                                    onClick={() => onNavigate('contacts')}
+                                >
+                                    <div className="flex items-center gap-5">
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl text-white shadow-lg transition-all group-hover:scale-110 group-hover:rotate-2 ${lead.name ? 'bg-gradient-to-br from-[#942CAE] to-[#7a248f]' : 'bg-slate-300'}`}>
                                             {lead.name ? lead.name[0].toUpperCase() : '?'}
                                         </div>
                                         <div>
-                                            <p className="font-black text-slate-900 text-sm group-hover:text-[#942CAE] transition-colors tracking-tight">{lead.name || 'Unnamed Lead'}</p>
-                                            <p className="text-[11px] font-bold text-slate-400 group-hover:text-slate-500">{lead.company || lead.email || lead.phone || 'No contact info'}</p>
+                                            <p className="font-black text-slate-900 text-base group-hover:text-[#942CAE] transition-colors tracking-tight leading-tight">{lead.name || 'Unnamed Lead'}</p>
+                                            <p className="text-xs font-bold text-slate-400 group-hover:text-slate-500 mt-1 uppercase tracking-wider">{lead.company || lead.email || lead.phone || 'No contact info'}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-6">
-                                        <div className="text-right hidden sm:block">
-                                            <span className="inline-block text-[10px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full uppercase tracking-tighter mb-1">
+                                    <div className="flex items-center gap-8">
+                                        <div className="text-right hidden md:flex flex-col items-end gap-1.5">
+                                            <span className="inline-block text-[10px] font-black text-[#942CAE] bg-[#942CAE]/10 border border-[#942CAE]/20 px-4 py-1.5 rounded-full uppercase tracking-widest">
                                                 {lead.status}
                                             </span>
-                                            <p className="text-[10px] font-bold text-slate-400">{new Date(lead.created_at).toLocaleDateString()}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{new Date(lead.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                                         </div>
-                                        <ChevronRightIcon className="w-5 h-5 text-slate-300 group-hover:text-[#942CAE] group-hover:translate-x-1 transition-all" />
+                                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-50 border border-slate-100 group-hover:bg-[#942CAE] group-hover:border-[#942CAE] transition-all shadow-sm">
+                                            <ChevronRightIcon className="w-5 h-5 text-slate-300 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                                        </div>
                                     </div>
                                 </div>
                             )) : (
-                                <div className="p-12 text-center text-slate-400 text-sm font-bold italic">No recent leads found.</div>
+                                <div className="p-16 text-center text-slate-400 text-sm font-black uppercase tracking-widest opacity-40 italic">No recent leads found.</div>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* Top Tags - SOLID PURPLE THEME */}
-                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl flex flex-col">
+                {/* Top Tags - FORCED VIBRANT THEME - MATCHING HEIGHT */}
+                <div className="relative overflow-hidden rounded-[2rem] bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-xl flex flex-col h-[580px]">
                     <div className="bg-white h-full w-full flex flex-col relative overflow-hidden">
                         <div className="p-6 bg-[#942CAE] relative z-10">
                             <h3 className="text-lg font-black text-white tracking-tight uppercase">Top Tags</h3>
                             <p className="text-[10px] text-white/70 font-black uppercase tracking-[0.2em] mt-1">Frequency Distribution</p>
                         </div>
-                        <div className="p-5 md:p-8 flex-1 flex flex-col gap-6 relative z-10">
-                            {stats.leadsByTag.length > 0 ? stats.leadsByTag.map((tag, idx) => (
-                                <div key={idx} className="flex items-center justify-between group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-lg transition-transform group-hover:scale-110" style={{ backgroundColor: tag.color }}>
-                                            #
-                                        </div>
-                                        <span className="font-black text-slate-700 text-sm tracking-tight group-hover:text-slate-900 transition-colors">{tag.name}</span>
-                                    </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-2 w-20 bg-slate-100 rounded-full overflow-hidden shadow-inner relative">
-                                            <div
-                                                className="h-full rounded-full transition-all duration-1000 ease-out"
-                                                style={{
-                                                    width: `${Math.min((tag.count / (stats.totalLeads || 1)) * 100, 100)}%`,
-                                                    backgroundColor: tag.color,
-                                                    boxShadow: `0 0 8px ${tag.color}40`
+                        <div className="p-5 md:p-8 flex-1 flex flex-col gap-8 overflow-y-auto custom-scrollbar relative z-10">
+                            {stats.leadsByTag.length > 0 ? stats.leadsByTag.map((tag, idx) => {
+                                // MANDATORY VIBRANT COLORS: Override any grey defaults
+                                const vibrantPalette = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+                                const vibrantColor = vibrantPalette[idx % vibrantPalette.length];
+
+                                return (
+                                    <div key={idx} className="flex items-center justify-between group">
+                                        <div className="flex items-center gap-4">
+                                            <div 
+                                                className="w-11 h-11 rounded-2xl flex items-center justify-center text-xs font-black text-white shadow-xl transition-all group-hover:scale-110 group-hover:rotate-3" 
+                                                style={{ 
+                                                    background: `linear-gradient(135deg, ${vibrantColor}, ${vibrantColor}DD)`,
+                                                    boxShadow: `0 8px 20px -6px ${vibrantColor}`
                                                 }}
-                                            ></div>
+                                            >
+                                                <TagIcon className="w-5 h-5 text-white filter drop-shadow-sm" />
+                                            </div>
+                                            <span className="font-black text-slate-800 text-sm tracking-tight group-hover:text-[#942CAE] transition-colors">{tag.name}</span>
                                         </div>
-                                        <span className="text-xs font-black text-slate-900 w-6 text-right">{tag.count}</span>
+                                        <div className="flex items-center gap-5">
+                                            <div className="h-3.5 w-28 bg-slate-100 rounded-full overflow-hidden shadow-inner relative border border-slate-200">
+                                                <div
+                                                    className="h-full rounded-full transition-all duration-1000 ease-out"
+                                                    style={{
+                                                        width: `${Math.min((tag.count / (stats.totalLeads || 1)) * 100, 100)}%`,
+                                                        background: `linear-gradient(90deg, ${vibrantColor}99, ${vibrantColor})`,
+                                                        boxShadow: `0 0 15px ${vibrantColor}80`
+                                                    }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-sm font-black text-slate-900 w-10 text-right tabular-nums tracking-tighter">{tag.count}</span>
+                                        </div>
                                     </div>
-                                </div>
-                            )) : (
-                                <div className="flex flex-col items-center justify-center h-40 text-center text-slate-400 gap-3">
-                                    <TagIcon className="w-10 h-10 opacity-20" />
-                                    <p className="text-xs font-bold uppercase tracking-widest">No tags found</p>
+                                );
+                            }) : (
+                                <div className="flex-1 flex flex-col items-center justify-center h-40 text-center text-slate-400 gap-3">
+                                    <TagIcon className="w-12 h-12 opacity-20" />
+                                    <p className="text-xs font-bold uppercase tracking-widest">No active tags found</p>
                                 </div>
                             )}
                         </div>
