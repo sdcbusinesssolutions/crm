@@ -102,37 +102,43 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [availableTagsList]);
 
     // Load Conversations
-    const loadConversations = async (page = 1, append = false, sTerm = searchTerm, qFilter = quickFilter, fTag = filterTag) => {
-        if (isLoadingMoreConvs || (!hasMoreConvs && append)) return;
+    const loadConversations = async (page = 1, append = false, sTerm = searchTerm, qFilter = quickFilter, fTag = filterTag, isPoll = false) => {
+        if (isLoadingMoreConvs || (!hasMoreConvs && append && !isPoll)) return;
         
         if (append) setIsLoadingMoreConvs(true);
         try {
             const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
             const newData = result || [];
             
-            // Only update hasMoreConvs if we are loading a specific page
-            if (newData.length < 20) {
-                setHasMoreConvs(false);
-            } else {
-                setHasMoreConvs(true);
+            // Only update hasMoreConvs if we are NOT polling
+            if (!isPoll) {
+                if (newData.length < 20) {
+                    setHasMoreConvs(false);
+                } else {
+                    setHasMoreConvs(true);
+                }
             }
 
             setConversations(prev => {
-                if (!append) {
-                    // If it's a fresh load (page 1, not append), we only want to REPLACE 
-                    // if the user is actually on page 1.
-                    if (convPage > 1 && !sTerm && qFilter === 'All' && !fTag) {
-                        // We are deep in the list, just merge the top 20 if they are new
-                        const combined = [...newData, ...prev];
-                        return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-                                       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-                    }
-                    return newData;
+                if (append) {
+                    // Loading next page: Append and deduplicate, but DO NOT SORT globally
+                    // Sorting globally causes items to jump to the top if they are newer,
+                    // which breaks scroll position stability during infinite scroll.
+                    const combined = [...prev, ...newData];
+                    return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
                 }
-                const combined = [...prev, ...newData];
-                // Deduplicate by id and keep sorted by updated_at
-                return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i)
-                               .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+                if (isPoll || (convPage > 1 && !sTerm && qFilter === 'All' && !fTag)) {
+                    // Polling or background refresh: Merge with existing to avoid losing deep items
+                    const combined = [...newData, ...prev];
+                    const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                    // For polling, we DO sort because we want new/updated items at the top,
+                    // but we expect most items to stay in place or move slightly.
+                    return unique.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+                }
+
+                // Fresh load (search/filter change): Replace
+                return newData;
             });
             
             if (!append && page === 1) {
@@ -157,7 +163,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             interval = setInterval(() => {
                 // Only poll if the user is on the first page or near the top
                 // This prevents the "reset to top" bug while scrolling deep
-                loadConversations(1, false, '', 'All', '');
+                loadConversations(1, false, '', 'All', '', true);
             }, 10000); // Increased to 10s for stability
         }
         return () => { if (interval) clearInterval(interval); };
@@ -165,7 +171,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const handleConvScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-        if (scrollHeight - scrollTop - clientHeight < 100 && hasMoreConvs && !isLoadingMoreConvs) {
+        if (scrollHeight - scrollTop - clientHeight < 200 && hasMoreConvs && !isLoadingMoreConvs) {
             const nextPage = convPage + 1;
             setConvPage(nextPage);
             loadConversations(nextPage, true, searchTerm, quickFilter, filterTag);
@@ -381,13 +387,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (!activeChatId || isLoadingMore || !hasMoreMessages) return;
 
         setIsLoadingMore(true);
+        const container = chatContainerRef.current;
+        const previousScrollHeight = container?.scrollHeight || 0;
+        const previousScrollTop = container?.scrollTop || 0;
+
         try {
             // Calculate next offset
             const nextOffset = messages.length;
-
-            // Save current scroll position to restore after loading
-            const container = chatContainerRef.current;
-            const previousScrollHeight = container?.scrollHeight || 0;
 
             // Fetch older messages
             const olderMessages = await inboxService.getMessages(activeChatId, MESSAGE_BATCH_SIZE, nextOffset);
@@ -397,22 +403,29 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 return;
             }
 
-            // Prepend older messages (they come in chronological order)
+            // Prepend older messages
             setMessages(prev => {
                 const combined = [...olderMessages, ...prev];
-                // Deduplicate
-                const unique = combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                return unique;
+                return combined.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
             });
 
             // Restore scroll position after new messages are added
-            setTimeout(() => {
+            // Using requestAnimationFrame ensures the DOM has updated before we measure
+            requestAnimationFrame(() => {
                 if (container) {
                     const newScrollHeight = container.scrollHeight;
                     const scrollDiff = newScrollHeight - previousScrollHeight;
-                    container.scrollTop = scrollDiff;
+                    
+                    // Temporarily disable smooth scroll for the jump to prevent jitter
+                    const originalScrollBehavior = container.style.scrollBehavior;
+                    container.style.scrollBehavior = 'auto';
+                    container.scrollTop = previousScrollTop + scrollDiff;
+                    // Restore original behavior after the jump
+                    setTimeout(() => {
+                        if (container) container.style.scrollBehavior = originalScrollBehavior;
+                    }, 50);
                 }
-            }, 0);
+            });
 
         } catch (error) {
             console.error('Failed to load more messages:', error);
@@ -456,38 +469,52 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     // Use LayoutEffect for the "Instant Snap" before the browser paints
     useLayoutEffect(() => {
-        if (activeChatId && messages.length > 0 && shouldForceScrollRef.current) {
+        if (activeChatId && shouldForceScrollRef.current) {
             const container = chatContainerRef.current;
+            
+            // If no messages yet, just show the UI
+            if (messages.length === 0) {
+                if (!isLoadingMessages) {
+                    setIsInitialScrollDone(true);
+                    shouldForceScrollRef.current = false;
+                }
+                return;
+            }
+
             if (container) {
                 // Force the scroll position to the very bottom immediately
+                // Disable smooth scroll for this initial snap
+                const originalScrollBehavior = container.style.scrollBehavior;
+                container.style.scrollBehavior = 'auto';
                 container.scrollTop = container.scrollHeight;
                 
                 // Use a slightly longer delay before showing the UI to ensure layout is solid
                 const timer = setTimeout(() => {
-                    container.scrollTop = container.scrollHeight;
-                    setIsInitialScrollDone(true);
-                    shouldForceScrollRef.current = false;
-                }, 150); // 150ms of "stealth" time
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                        container.style.scrollBehavior = originalScrollBehavior;
+                        setIsInitialScrollDone(true);
+                        shouldForceScrollRef.current = false;
+                    }
+                }, 100); 
 
                 return () => clearTimeout(timer);
             }
         }
-    }, [activeChatId, messages.length]);
+    }, [activeChatId, messages.length > 0, isLoadingMessages]);
 
     // Secondary effect for media loading and new incoming messages
     useEffect(() => {
-        if (messages.length === 0) return;
+        if (messages.length === 0 || shouldForceScrollRef.current) return;
 
-        if (!shouldForceScrollRef.current) {
-            // Normal behavior for new incoming messages (smooth scroll)
-            const lastMessage = messages[messages.length - 1];
-            const isMyMessage = lastMessage?.direction === 'out';
+        // Normal behavior for new incoming messages (smooth scroll)
+        const lastMessage = messages[messages.length - 1];
+        const isMyMessage = lastMessage?.direction === 'out';
 
-            if (isAtBottomRef.current || isMyMessage) {
-                scrollToBottom(false);
-            }
+        if (isAtBottomRef.current || isMyMessage) {
+            scrollToBottom(false);
         }
-    }, [messages]);
+    }, [messages.length]);
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
@@ -1515,7 +1542,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             )}
 
                             {/* Cards Horizontal Scroll */}
-                            <div className="flex overflow-x-auto gap-3 py-2 px-1 max-w-[85vw] md:max-w-md lg:max-w-lg scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+                            <div className="flex overflow-x-auto gap-3 py-2 px-1 max-w-[85vw] md:max-w-md lg:max-w-lg custom-scrollbar snap-x">
                                 {cards.map((card: any, idx: number) => {
                                     // Resolve Media
                                     const headerType = card.header?.type?.toLowerCase();
@@ -1801,7 +1828,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <div
                                 key={chat.id}
                                 onClick={() => { setActiveChatId(chat.id); if(quickFilter === 'Quick Reply') setQuickFilter('All'); }}
-                                className={`p-4 border-b border-emerald-200 cursor-pointer hover:bg-slate-50 transition-colors group ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
+                                className={`p-4 border-b border-emerald-200 cursor-pointer hover:bg-slate-50 transition-colors group animate-fade-in ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center space-x-3">
@@ -2110,7 +2137,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     </span>
                                                 </div>
                                             )}
-                                            <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
                                                 <div className={`max-w-[80%] sm:max-w-[60%] rounded-lg px-3 py-2 shadow-sm relative group ${msg.direction === 'out' ? 'bg-brand-100 border border-brand-200 rounded-tr-none' : 'bg-white border border-slate-200 rounded-tl-none'}`}>
 
                                                     {renderMessageContent(msg)}

@@ -187,9 +187,39 @@ body {
 }
 
 /* Force Dark Custom Scrollbar for Pipeline Columns */
+/* Modern Premium Custom Scrollbar - Visible & Solid (Matches Pipeline) */
+.custom-scrollbar {
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f1f5f9;
+  scroll-behavior: smooth;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 10px;
+  border: 2px solid #f1f5f9;
+  transition: background 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* For dark areas or boards */
 .custom-scrollbar-dark {
-  scrollbar-width: thin;
-  scrollbar-color: #94a3b8 transparent;
+  scrollbar-width: auto;
+  scrollbar-color: #475569 rgba(255, 255, 255, 0.05);
+  scroll-behavior: smooth;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar {
@@ -198,16 +228,18 @@ body {
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background-color: #94a3b8;
-  border-radius: 4px;
+  background-color: #475569;
+  border-radius: 10px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background-color: #64748b;
+  background-color: #94a3b8;
 }
 
 /* Flow Builder Connection Line Animation */
