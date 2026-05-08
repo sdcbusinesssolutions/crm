@@ -27,6 +27,36 @@ const PlusIconFallback = ({ className }: { className?: string }) => (
     </svg>
 );
 
+const ActivityIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M22 12h-4l-3 9L9 3l-3 9H2" />
+    </svg>
+);
+
+const TargetIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0 -10 0" /><path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    </svg>
+);
+
+const RocketIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="M12 15l-3-3m3 3l2 2m-2-2l-1-1" /><path d="M10 8.5L4.5 14M15.5 10L20 4.5" /><path d="M12 15s3.5-1.5 6-6c1.5-2.7 2-5 2-5s-2.3.5-5 2c-4.5 2.5-6 6-6 6z" />
+    </svg>
+);
+
+const HeartIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+    </svg>
+);
+
+const ZapIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+);
+
 interface LeadDashboardProps {
     onNavigate: (tab: string) => void;
     totalContactsCount?: number | null;
@@ -560,30 +590,68 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                 <span>+0 NEW THIS WEEK</span>
                             </div>
                         </div>
-                        <div className="flex-1 relative z-10 overflow-visible py-4">
-                            <svg className="w-full h-48 overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                                <defs>
-                                    <linearGradient id="activityGradientWide" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stopColor="#942CAE" stopOpacity="0.15" /><stop offset="100%" stopColor="#942CAE" stopOpacity="0" /></linearGradient>
-                                </defs>
-                                {(() => {
-                                    const max = Math.max(...stats.leadsOverTime.map(d => d.count), 5);
-                                    const points = stats.leadsOverTime.map((day, i) => ({ x: (i / (stats.leadsOverTime.length - 1)) * 100, y: 90 - (Math.max(day.count / max, 0.05) * 70) }));
-                                    if (points.length < 2) return null;
-                                    let d = `M ${points[0].x},${points[0].y}`;
-                                    for (let i = 0; i < points.length - 1; i++) {
-                                        const cp1x = points[i].x + (points[i+1].x - points[i].x) / 3;
-                                        const cp2x = points[i].x + (points[i+1].x - points[i].x) * 2 / 3;
-                                        d += ` C ${cp1x},${points[i].y} ${cp2x},${points[i+1].y} ${points[i+1].x},${points[i+1].y}`;
-                                    }
-                                    return <><path d={d + ` L 100,100 L 0,100 Z`} fill="url(#activityGradientWide)" /><path d={d} fill="none" stroke="#942CAE" strokeWidth="0.8" strokeLinecap="round" /></>;
-                                })()}
-                            </svg>
-                            <div className="flex justify-between mt-6 px-1">
-                                {['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'].map((day, i) => (
-                                    <span key={i} className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                                        {day}
-                                    </span>
-                                ))}
+                        <div className="flex-1 flex flex-col relative z-10 overflow-hidden py-4">
+                            <div className="flex-1 flex items-center justify-center relative min-h-[260px] px-2 md:px-8">
+                                {/* ZERO-OVERLAP PROFESSIONAL 3D PIPE */}
+                                <svg className="w-full h-48 overflow-visible drop-shadow-[0_45px_70px_rgba(0,0,0,0.3)]" viewBox="0 0 850 120" preserveAspectRatio="none">
+                                    <defs>
+                                        <filter id="neonGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+                                        <linearGradient id="pipeSleeveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" stopColor="white" stopOpacity="0.2" />
+                                            <stop offset="50%" stopColor="white" stopOpacity="0.05" />
+                                            <stop offset="100%" stopColor="black" stopOpacity="0.1" />
+                                        </linearGradient>
+                                    </defs>
+
+                                    {/* CONTINUOUS TRANSPARENT GLASS PIPE */}
+                                    <rect x="0" y="5" width="850" height="110" rx="55" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+                                    <rect x="0" y="5" width="850" height="110" rx="55" fill="url(#pipeSleeveGrad)" pointerEvents="none" />
+
+                                    {/* RENDER INDEPENDENT 3D CYLINDERS (ZERO OVERLAP) */}
+                                    {(stats.leadsOverTime.length > 0 ? stats.leadsOverTime.slice(-7) : ['SAT', 'SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI'].map((d, i) => ({ dayName: d, count: 0, date: i.toString() }))).map((day, i) => {
+                                        const segmentWidth = 80; // Optimized for zero overlap
+                                        const spacing = 35; // Wide gap for absolute separation
+                                        const startPadding = 25;
+                                        const x = startPadding + i * (segmentWidth + spacing);
+                                        
+                                        const colors = ['#FF5722', '#2E7D32', '#0288D1', '#7B1FA2', '#FBC02E', '#C62828', '#0097A7'];
+                                        const barColor = colors[i % colors.length];
+                                        const opacity = day.count === 0 ? 0.4 : 1;
+
+                                        return (
+                                            <g key={day.date} className="group cursor-pointer">
+                                                {/* INDEPENDENT 3D CYLINDER BODY */}
+                                                <rect x={x} y="10" width={segmentWidth} height="100" fill={barColor} opacity={opacity} className="transition-all duration-500" />
+                                                
+                                                {/* VOLUMETRIC SHADING */}
+                                                <linearGradient id={`zeroOverlapGrad-${i}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                                                    <stop offset="0%" stopColor="black" stopOpacity="0.5" />
+                                                    <stop offset="25%" stopColor="white" stopOpacity="0.1" />
+                                                    <stop offset="50%" stopColor="white" stopOpacity="0.4" />
+                                                    <stop offset="75%" stopColor="white" stopOpacity="0.1" />
+                                                    <stop offset="100%" stopColor="black" stopOpacity="0.5" />
+                                                </linearGradient>
+                                                <rect x={x} y="10" width={segmentWidth} height="100" fill={`url(#zeroOverlapGrad-${i})`} opacity={opacity} />
+
+                                                {/* 3D END CAPS (ENHANCED VISIBILITY BORDERS) */}
+                                                <ellipse cx={x} cy="60" rx="12" ry="50" fill={barColor} opacity={opacity} stroke="rgba(0,0,0,0.4)" strokeWidth="2.5" />
+                                                <ellipse cx={x + segmentWidth} cy="60" rx="12" ry="50" fill={barColor} opacity={opacity} stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" />
+
+                                                {/* ATTRACTIVE CIRCLE BORDER DATA DISC */}
+                                                <circle cx={x + segmentWidth/2} cy="60" r="30" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="2.5" className="group-hover:scale-110 transition-transform duration-500" />
+                                                <circle cx={x + segmentWidth/2} cy="60" r="24" fill="white" className="group-hover:scale-110 transition-transform duration-500" />
+
+                                                {/* LEAD COUNT NUMBER */}
+                                                <text x={x + segmentWidth/2} y="68" textAnchor="middle" fontSize="20" fontWeight="900" fill="#0f172a" className="group-hover:scale-110 transition-transform duration-500">{day.count}</text>
+
+                                                {/* DAY NAME */}
+                                                <text x={x + segmentWidth/2} y="105" textAnchor="middle" fontSize="10" fontWeight="900" fill="white" opacity="0.9" className="uppercase tracking-[0.2em]">{day.dayName.substring(0, 3)}</text>
+                                            </g>
+                                        );
+                                    })}
+                                    {/* CENTER SHINE LINE */}
+                                    <rect x="0" y="30" width="850" height="4" fill="rgba(255,255,255,0.3)" filter="url(#neonGlow)" pointerEvents="none" />
+                                </svg>
                             </div>
                         </div>
                     </div>
