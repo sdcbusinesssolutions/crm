@@ -37,36 +37,41 @@ const Toast: React.FC<ToastProps> = ({ type, title, message, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-fade-in">
-            <div className="relative max-w-md w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-2xl p-6 animate-slide-up">
-                {/* Icon */}
-                <div className="flex items-start gap-4">
-                    <div className={`flex-shrink-0 w-12 h-12 ${getIconBg()} rounded-full flex items-center justify-center shadow-sm`}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fade-in">
+            <div className="relative max-w-md w-full bg-white border border-slate-200 rounded-[2rem] shadow-2xl p-8 animate-slide-up overflow-hidden">
+                {/* Decorative background element */}
+                <div className={`absolute top-0 right-0 w-32 h-32 ${getIconBg()} opacity-5 -mr-16 -mt-16 rounded-full blur-3xl`}></div>
+                
+                {/* Close Button */}
+                <button
+                    onClick={onClose}
+                    className="absolute top-6 right-6 p-2 rounded-xl hover:bg-slate-100 transition-all text-slate-400 hover:text-slate-600 z-10"
+                >
+                    <CloseIcon className="w-5 h-5" />
+                </button>
+
+                <div className="flex flex-col items-center text-center">
+                    {/* Icon Container */}
+                    <div className={`flex-shrink-0 w-20 h-20 ${getIconBg()} rounded-3xl flex items-center justify-center shadow-2xl shadow-${getIconBg().split('-')[1]}-200 mb-6 transform -rotate-6 transition-transform hover:rotate-0 duration-500`}>
                         {getIcon()}
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 pt-1">
-                        <h3 className="text-lg font-bold text-[var(--color-text)] mb-1">{title}</h3>
-                        <p className="text-sm text-[var(--color-text)] opacity-80 leading-relaxed whitespace-pre-line">{message}</p>
+                    <div className="w-full">
+                        <h3 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">{title}</h3>
+                        <div className="bg-slate-50/80 rounded-2xl p-5 border border-slate-100 mb-8">
+                            <p className="text-[15px] text-slate-600 font-medium leading-relaxed whitespace-pre-line text-left">
+                                {message}
+                            </p>
+                        </div>
                     </div>
 
-                    {/* Close Button */}
+                    {/* OK Button */}
                     <button
                         onClick={onClose}
-                        className="flex-shrink-0 p-1.5 rounded-lg hover:bg-[var(--color-bg)] transition-colors text-[var(--color-text)] opacity-60 hover:opacity-100"
+                        className="w-full py-4 bg-[var(--color-brand)] text-white rounded-2xl font-black text-lg hover:opacity-95 transition-all transform hover:-translate-y-1 shadow-xl shadow-[var(--color-brand)]/20 active:scale-[0.98]"
                     >
-                        <CloseIcon className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {/* OK Button */}
-                <div className="mt-6 flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2.5 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-all transform hover:-translate-y-0.5 shadow-md"
-                    >
-                        OK
+                        Great, thanks!
                     </button>
                 </div>
             </div>

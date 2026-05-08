@@ -701,12 +701,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                         setToast({
                             type: 'success',
-                            title: 'Import Summary',
-                            message: `Processed ${importedContacts.length} record(s):\n` +
-                                `✅ Unique (Inserted): ${inserted}\n` +
-                                `⚠️ Duplicates (Skipped): ${duplicates}\n` +
-                                `❌ Failed to Insert: ${failed}\n\n` +
-                                (failed > 0 ? `Check 'server/logs/contact_imports_DATE.log' for details on failed records.` : `All valid records were processed successfully.`)
+                            title: 'Import Complete',
+                            message: `We've finished processing your file. Here's a summary of the results:\n\n` +
+                                `📦 Total Records: ${importedContacts.length}\n` +
+                                `───────────────────────\n` +
+                                `✅ New Contacts: ${inserted}\n` +
+                                `🟡 Duplicates: ${duplicates}\n` +
+                                `❌ Failed: ${failed}\n\n` +
+                                (failed > 0 ? `Please check the server logs for details on the ${failed} failed records.` : `All records were processed successfully!`)
                         });
                     } else {
                         setToast({
@@ -1309,14 +1311,12 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
             {/* Toast Notification */}
             {toast && (
-                <div className="fixed bottom-4 right-4 z-[100] animate-fade-in-up">
-                    <Toast
-                        type={toast.type}
-                        title={toast.title}
-                        message={toast.message}
-                        onClose={() => setToast(null)}
-                    />
-                </div>
+                <Toast
+                    type={toast.type}
+                    title={toast.title}
+                    message={toast.message}
+                    onClose={() => setToast(null)}
+                />
             )}
         </div>
     );
