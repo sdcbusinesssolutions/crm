@@ -224,7 +224,35 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
     return (
         <>
             <div className="p-4 sm:p-8 space-y-6 md:space-y-8 animate-fade-in text-slate-800 bg-[#eff1f5] min-h-screen relative">
-                <style>{scrollbarStyles}</style>
+                <style>{`
+                    ${scrollbarStyles}
+                    @keyframes shimmer {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(100%); }
+                    }
+                    @keyframes pulse-subtle {
+                        0%, 100% { transform: scale(1); filter: brightness(1); }
+                        50% { transform: scale(1.02); filter: brightness(1.1); }
+                    }
+                    @keyframes flow-dots {
+                        0% { background-position: 0 0; }
+                        100% { background-position: 24px 0; }
+                    }
+                    @keyframes liquid-flow {
+                        0% { transform: translateX(-100%); }
+                        100% { transform: translateX(200%); }
+                    }
+                    .animate-shimmer { animation: shimmer 2.5s infinite linear; }
+                    .animate-pulse-subtle { animation: pulse-subtle 3s infinite ease-in-out; }
+                    .animate-flow-dots { 
+                        background-image: radial-gradient(circle, #6366F1 25%, transparent 25%);
+                        background-size: 12px 100%;
+                        animation: flow-dots 1.2s infinite linear;
+                        height: 4px;
+                        width: 100%;
+                    }
+                    .animate-liquid-flow { animation: liquid-flow 1.5s infinite ease-in-out; }
+                `}</style>
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2] pointer-events-none -z-10"></div>
                 
                 {/* Statistics Overview */}
@@ -430,19 +458,21 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                         <div className="flex-1 overflow-x-auto overflow-y-hidden custom-scrollbar pb-8 pt-12 flex items-center min-h-[320px]">
                                             <div className="flex items-center min-w-max px-10">
                                                 {stats.leadsByStage.map((stage, i) => {
-                                                    const barColor = stage.color || '#942CAE';
+                                                    const userColors = ['#107E7B', '#CF5417', '#7C2F95', '#FC930B', '#FB8F05'];
+                                                    const barColor = userColors[i % userColors.length];
                                                     const startHeight = 160 - (i * (100 / stats.leadsByStage.length));
                                                     const prevStage = stats.leadsByStage[i - 1];
                                                     const conversion = prevStage && prevStage.count > 0 ? Math.round((stage.count / prevStage.count) * 100) : 100;
                                                     return (
                                                         <div key={stage.name} className="flex items-center group relative">
-                                                            <div className="relative w-36 transition-all duration-500 hover:scale-105 cursor-pointer shadow-xl overflow-visible" style={{ height: `${startHeight}px`, zIndex: stats.leadsByStage.length - i }}>
-                                                                <div className="absolute inset-0" style={{ clipPath: `polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%, 15% 50%)`, background: `linear-gradient(135deg, ${barColor}, ${barColor}dd)`, boxShadow: `inset 0 0 20px rgba(255,255,255,0.2)` }}>
-                                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.3)_0%,transparent_60%)]"></div>
-                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-6">
-                                                                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-70 mb-1">Stage {i+1}</span>
-                                                                        <span className="text-xl font-black tabular-nums tracking-tighter">{stage.count}</span>
-                                                                        <span className="text-[8px] font-black opacity-60 uppercase truncate w-full text-center mt-1">{stage.name}</span>
+                                                            <div className="relative w-36 transition-all duration-500 hover:scale-105 cursor-pointer overflow-visible animate-pulse-subtle" style={{ height: `${startHeight}px`, zIndex: stats.leadsByStage.length - i, filter: 'drop-shadow(0 15px 15px rgba(0,0,0,0.15))' }}>
+                                                                <div className="absolute inset-0" style={{ clipPath: `polygon(0% 0%, 85% 0%, 100% 50%, 85% 100%, 0% 100%, 15% 50%)`, background: `linear-gradient(135deg, ${barColor}, ${barColor}cc)`, boxShadow: `inset 0 0 30px rgba(255,255,255,0.3)` }}>
+                                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.4)_0%,transparent_70%)]"></div>
+                                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer"></div>
+                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center px-6">
+                                                                        <span className="text-[10px] font-black uppercase tracking-tighter mb-1 text-[#0f172a] drop-shadow-[0_0_5px_rgba(255,255,255,1)]">Stage {i+1}</span>
+                                                                        <span className="text-3xl font-black tabular-nums tracking-tighter text-[#0f172a] drop-shadow-[0_0_10px_rgba(255,255,255,1)]">{stage.count}</span>
+                                                                        <span className="text-[9px] font-black uppercase truncate w-full text-center mt-1 text-[#0f172a] drop-shadow-[0_0_5px_rgba(255,255,255,1)]">{stage.name}</span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[100]">
@@ -450,9 +480,13 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                                                 </div>
                                                             </div>
                                                             {i < stats.leadsByStage.length - 1 && (
-                                                                <div className="w-8 flex flex-col items-center justify-center opacity-30 group-hover:opacity-100 transition-opacity">
-                                                                    <div className="h-[1px] w-full bg-slate-300"></div>
-                                                                    <div className="text-[9px] font-black text-slate-500 mt-1">{conversion}%</div>
+                                                                <div className="w-16 flex flex-col items-center justify-center relative overflow-visible mx-1">
+                                                                    <div className="h-[4px] w-full relative bg-slate-100 rounded-full overflow-hidden shadow-inner flex items-center">
+                                                                        {/* SMOOTH LIQUID FLOW ARROW */}
+                                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#6366F1] to-transparent -translate-x-full animate-liquid-flow"></div>
+                                                                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-[#6366F1] opacity-60"></div>
+                                                                    </div>
+                                                                    <div className="text-[10px] font-black text-[#942CAE] mt-2 bg-white px-2.5 py-0.5 rounded-full shadow-lg border-2 border-[#942CAE] tabular-nums z-20 transition-transform group-hover:scale-110">{conversion}%</div>
                                                                 </div>
                                                             )}
                                                         </div>
