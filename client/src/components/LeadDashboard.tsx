@@ -288,8 +288,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* Statistics Overview */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                     {/* Leads Card */}
-                    <div onClick={() => onNavigate('contacts')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
-                        <div className="h-2 bg-[#942CAE] w-full"></div>
+                    <div onClick={() => onNavigate('contacts')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-emerald-500 shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+
                         <div className="p-6 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-5 relative z-10">
                                 <div className="flex items-center gap-5">
@@ -298,7 +298,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                                     </div>
                                     <div>
                                         <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">{stats.totalLeads.toLocaleString()}</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Lead CRM</div>
+                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-emerald-600">Lead CRM</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
@@ -314,8 +314,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Forms Card */}
-                    <div onClick={() => onNavigate('forms')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
-                        <div className="h-2 bg-[#942CAE] w-full"></div>
+                    <div onClick={() => onNavigate('forms')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-blue-500 ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+
                         <div className="p-6 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-5 relative z-10">
                                 <div className="flex items-center gap-5">
@@ -340,8 +340,8 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                     </div>
 
                     {/* Pipelines Card */}
-                    <div onClick={() => onNavigate('pipelines')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
-                        <div className="h-2 bg-[#942CAE] w-full"></div>
+                    <div onClick={() => onNavigate('pipelines')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-orange-500 ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+
                         <div className="p-6 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-5 relative z-10">
                                 <div className="flex items-center gap-5">
@@ -367,7 +367,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
 
                     {/* Tasks Card */}
                     <div onClick={() => onNavigate('follow-up')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#942CAE] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
-                        <div className="h-2 bg-[#942CAE] w-full"></div>
+
                         <div className="p-6 relative overflow-hidden">
                             <div className="flex justify-between items-start mb-5 relative z-10">
                                 <div className="flex items-center gap-5">
