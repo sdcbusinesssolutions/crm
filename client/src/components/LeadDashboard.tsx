@@ -209,17 +209,22 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         }
 
         // 2. Select Active Pipeline
-        let currentPipeId = targetPipelineId || activePipelineId;
         const availablePipelines = data.pipelines || [];
+        let currentPipeId = targetPipelineId || activePipelineId;
         
-        if (!currentPipeId && availablePipelines.length > 0) {
+        // If no pipeline is active, or if we just loaded fresh data and haven't manually changed it,
+        // we should try to pick the default one.
+        if (!targetPipelineId && (!activePipelineId || !availablePipelines.some(p => p.id === activePipelineId))) {
             const defaultPipe = availablePipelines.find((p: any) => p.is_default) || availablePipelines[0];
-            currentPipeId = defaultPipe.id;
+            currentPipeId = defaultPipe?.id || null;
         }
         
-        // Ensure the ID is valid
-        if (currentPipeId) {
+        // Ensure the ID is valid and exists in current pipelines
+        if (currentPipeId && availablePipelines.some(p => p.id === currentPipeId)) {
             setActivePipelineId(currentPipeId);
+        } else if (availablePipelines.length > 0 && !currentPipeId) {
+            // Fallback to first if everything else fails
+            setActivePipelineId(availablePipelines[0].id);
         }
 
         // 3. Process Stats for selected pipeline
