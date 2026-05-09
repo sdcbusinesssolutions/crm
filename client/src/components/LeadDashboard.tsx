@@ -309,18 +309,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             <div className="relative z-10 pl-[76px]">
                                 <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">Lifetime Audience</div>
                             </div>
-                            <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-80 pointer-events-none">
-                                <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                                    <defs>
-                                        <linearGradient id="emeraldAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-                                            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M 0,40 C 20,35 40,45 60,30 C 80,15 100,25 100,25 L 100 50 L 0 50 Z" fill="url(#emeraldAreaGradient)" />
-                                    <path d="M 0,40 C 20,35 40,45 60,30 C 80,15 100,25 100,25" fill="none" stroke="#10b981" strokeWidth="0.5" strokeLinecap="round" />
-                                </svg>
-                            </div>
+
                         </div>
                     </div>
 
@@ -346,18 +335,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             <div className="relative z-10 pl-[76px]">
                                 <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">Flow Automation Flow</div>
                             </div>
-                            <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
-                                <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                                    <defs>
-                                        <linearGradient id="blueAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
-                                            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M 0,45 C 20,42 40,48 60,35 C 80,22 100,30 100,30 L 100 50 L 0 50 Z" fill="url(#blueAreaGradient)" />
-                                    <path d="M 0,45 C 20,42 40,48 60,35 C 80,22 100,30 100,30" fill="none" stroke="#3b82f6" strokeWidth="0.5" strokeLinecap="round" />
-                                </svg>
-                            </div>
+
                         </div>
                     </div>
 
@@ -383,18 +361,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             <div className="relative z-10 pl-[76px]">
                                 <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">WhatsApp Marketing Live Webinar</div>
                             </div>
-                            <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
-                                <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                                    <defs>
-                                        <linearGradient id="coralAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#ea580c" stopOpacity="0.5" />
-                                            <stop offset="100%" stopColor="#ea580c" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M 0,48 C 20,45 40,50 60,38 C 80,26 100,32 100,32 L 100 50 L 0 50 Z" fill="url(#coralAreaGradient)" />
-                                    <path d="M 0,48 C 20,45 40,50 60,38 C 80,26 100,32 100,32" fill="none" stroke="#ea580c" strokeWidth="0.5" strokeLinecap="round" />
-                                </svg>
-                            </div>
+
                         </div>
                     </div>
 
@@ -420,18 +387,7 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                             <div className="relative z-10 pl-[76px]">
                                 <div className="inline-block px-4 py-1.5 rounded-xl bg-purple-50 border border-purple-100 text-[11px] font-black uppercase tracking-wider text-purple-700 shadow-inner">Pending Tasks</div>
                             </div>
-                            <div className="absolute bottom-0 left-0 right-0 h-32 w-full opacity-90 pointer-events-none">
-                                <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-full overflow-visible">
-                                    <defs>
-                                        <linearGradient id="purpleAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                            <stop offset="0%" stopColor="#942CAE" stopOpacity="0.5" />
-                                            <stop offset="100%" stopColor="#942CAE" stopOpacity="0" />
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="M 0,40 C 20,35 40,45 60,30 C 80,15 100,25 100,25 L 100 50 L 0 50 Z" fill="url(#purpleAreaGradient)" />
-                                    <path d="M 0,40 C 20,35 40,45 60,30 C 80,15 100,25 100,25" fill="none" stroke="#942CAE" strokeWidth="0.5" strokeLinecap="round" />
-                                </svg>
-                            </div>
+
                         </div>
                     </div>
                 </div>
