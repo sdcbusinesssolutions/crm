@@ -968,7 +968,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 {isLoading ? (<div className="p-12 text-center text-slate-400 flex flex-col items-center justify-center h-64"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-4"></div>Loading...</div>) : totalContacts === 0 ? (<div className="p-16 text-center"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4"><UsersIcon className="w-8 h-8 text-slate-300" /></div><h3 className="text-lg font-bold text-slate-900">No contacts found</h3></div>) : (
                     <>
                         <div className="hidden md:block overflow-x-auto">
-                            <table className="min-w-full divide-y divide-slate-200">
+                            <table className="min-w-full border-collapse">
                                 <thead className="bg-brand-600 text-white shadow-md">
                                     <tr>
                                         <th className="px-6 py-4 text-left w-10 !bg-brand-600 text-white">
@@ -984,7 +984,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
+                                <tbody className="bg-white">
                                     {currentEntries.map((contact, idx) => {
                                         // Dynamic Status Colors
                                         const statusColors: any = {
@@ -1001,10 +1001,10 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                                         return (
                                             <tr key={contact.id} className={`hover:bg-indigo-50/40 transition-colors group ${selectedIds.has(contact.id) ? 'bg-indigo-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-9 h-9 rounded-full bg-[var(--color-brand)] flex items-center justify-center text-white font-bold text-sm shadow-sm uppercase">
                                                             {(contact.name || '?').charAt(0)}
@@ -1012,27 +1012,27 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         <div className="text-sm font-bold text-slate-800">{contact.name}</div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center gap-2">
                                                         <PhoneIcon className="w-4 h-4 text-[var(--color-brand)] opacity-80" />
                                                         <div className="text-xs font-bold text-slate-600 font-mono tracking-wide">{contact.phone}</div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center gap-2">
                                                         <GmailIcon className="w-4 h-4 text-[var(--color-brand)] opacity-80" />
                                                         <div className="text-xs font-medium text-slate-600">{contact.email || '-'}</div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="text-xs font-bold text-slate-500 whitespace-nowrap">{formatDate(contact.createdAt)}</div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wide border shadow-sm ${sColor}`}>
                                                         {contact.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {(contact.tags || []).map((tag, i) => (
                                                             <button key={i} onClick={() => { setSelectedTagFilter(tag); setCurrentPage(1); }} className="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all hover:scale-105 shadow-sm bg-brand-50 text-brand-700 border-brand-200">
@@ -1041,7 +1041,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         ))}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex flex-wrap gap-1.5">
                                                         {(contact.groupIds || []).slice(0, 2).map(gid => {
                                                             const g = availableGroups.find(grp => grp.id === gid);
@@ -1052,7 +1052,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 text-right">
+                                                <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center justify-end space-x-2 transition-opacity">
                                                         <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
                                                         <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
