@@ -433,8 +433,7 @@ router.post('/bulk', async (req, res) => {
     }));
 
     // Batch Processing Config
-    // Batch Processing Config
-    const CHUNK_SIZE = 500;
+    const CHUNK_SIZE = 200; // Safe limit for Supabase/PostgREST
     const chunkedResults = [];
     const stats = { inserted: 0, duplicates: 0, failed: 0 };
     const totalContacts = payload.length;
@@ -446,8 +445,8 @@ router.post('/bulk', async (req, res) => {
       const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
       console.log(`Processing chunk ${chunkIndex} (${chunk.length} items)...`);
 
-      // 1. Try Batch Insert
-      const { data, error } = await supabase
+      // 1. Try Batch Insert (using supabaseAdmin to bypass RLS for batch operations)
+      const { data, error } = await supabaseAdmin
         .from('contacts')
         .insert(chunk)
         .select();
@@ -461,9 +460,9 @@ router.post('/bulk', async (req, res) => {
           error: error.message
         });
 
-        // Serial Retry
+        // Serial Retry (using supabaseAdmin to bypass RLS)
         for (const item of chunk) {
-          const { data: itemData, error: itemError } = await supabase
+          const { data: itemData, error: itemError } = await supabaseAdmin
             .from('contacts')
             .insert([item])
             .select();
@@ -475,8 +474,8 @@ router.post('/bulk', async (req, res) => {
 
               // Handle Group Merge for Duplicates
               try {
-                // Fetch the existing contact efficiently
-                const { data: existing } = await supabase
+                // Fetch the existing contact efficiently (admin to bypass RLS)
+                const { data: existing } = await supabaseAdmin
                   .from('contacts')
                   .select('id, group_ids')
                   .eq('user_id', user.id)
@@ -491,7 +490,7 @@ router.post('/bulk', async (req, res) => {
 
                   // Only Update if changed
                   if (mergedGroups.length > currentGroups.length) {
-                    await supabase
+                    await supabaseAdmin
                       .from('contacts')
                       .update({ group_ids: mergedGroups })
                       .eq('id', existing.id);
@@ -539,20 +538,25 @@ router.post('/bulk', async (req, res) => {
 
 
 
-    // Update updated_at for all affected groups
-    const affectedGroupIds = new Set();
-    contacts.forEach(c => {
-      if (c.groupIds && Array.isArray(c.groupIds)) {
-        c.groupIds.forEach(gid => affectedGroupIds.add(gid));
-      }
-    });
+    // Update updated_at for all affected groups (best effort — column may not exist)
+    try {
+      const affectedGroupIds = new Set();
+      contacts.forEach(c => {
+        if (c.groupIds && Array.isArray(c.groupIds)) {
+          c.groupIds.forEach(gid => affectedGroupIds.add(gid));
+        }
+      });
 
-    if (affectedGroupIds.size > 0) {
-      await supabase
-        .from('contact_groups')
-        .update({ updated_at: new Date().toISOString() })
-        .in('id', Array.from(affectedGroupIds))
-        .eq('user_id', user.id);
+      if (affectedGroupIds.size > 0) {
+        await supabaseAdmin
+          .from('contact_groups')
+          .update({ updated_at: new Date().toISOString() })
+          .in('id', Array.from(affectedGroupIds))
+          .eq('user_id', user.id);
+      }
+    } catch (groupUpdateErr) {
+      console.warn('[Bulk Import] contact_groups updated_at update failed:', groupUpdateErr.message);
+      // Non-critical — don't crash the import for this
     }
 
     // Log Success Summary
@@ -571,6 +575,43 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
+// Helper: Process IDs in chunks to avoid Supabase/PostgREST .in() query limits
+async function chunkedDelete(table, column, ids, chunkSize = 200) {
+  let totalDeleted = 0;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      const { error, count } = await supabaseAdmin
+        .from(table)
+        .delete({ count: 'exact' })
+        .in(column, chunk);
+      if (error) {
+        console.warn(`[chunkedDelete] ${table}.${column} chunk ${Math.floor(i/chunkSize)+1} error:`, error.message);
+      } else {
+        totalDeleted += (count || 0);
+      }
+    } catch (e) {
+      console.warn(`[chunkedDelete] ${table}.${column} chunk exception:`, e.message);
+    }
+  }
+  return totalDeleted;
+}
+
+// Helper: Nullify contact_id in chunks (for tables where we want to preserve history)
+async function chunkedNullify(table, column, ids, chunkSize = 200) {
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    try {
+      await supabaseAdmin
+        .from(table)
+        .update({ [column]: null })
+        .in(column, chunk);
+    } catch (e) {
+      // Column may not exist in some setups — silently skip
+    }
+  }
+}
+
 // POST /api/contacts/bulk-delete
 router.post('/bulk-delete', async (req, res) => {
   try {
@@ -581,61 +622,49 @@ router.post('/bulk-delete', async (req, res) => {
       return res.status(400).json({ error: 'No IDs provided for deletion' });
     }
 
-    // 1. Fetch Phones (needed for some lookups)
-    let phones = [];
-    try {
-      const { data: contactsData } = await supabaseAdmin
+    console.log(`[Bulk Delete] Starting deletion of ${ids.length} contacts for user ${req.user.id}...`);
+
+    // 1. Clean STRICT FK dependencies in chunks (these block contact deletion)
+    const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
+
+    for (const table of strictDepTables) {
+      try {
+        const count = await chunkedDelete(table, 'contact_id', ids);
+        if (count > 0) console.log(`[Bulk Delete] Cleaned ${count} rows from ${table}`);
+      } catch (e) {
+        console.warn(`[Bulk Delete] ${table} cleanup error:`, e.message);
+      }
+    }
+
+    // 2. Safe Unlink — Preserve historical data (set contact_id = NULL)
+    // Same as single delete route: keeps conversations, leads, messages etc. intact
+    const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
+    for (const table of unlinkTables) {
+      await chunkedNullify(table, 'contact_id', ids);
+    }
+
+    // 3. Final Delete — process in chunks to handle large sets
+    let totalDeleted = 0;
+    const CHUNK_SIZE = 200;
+    for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+      const chunk = ids.slice(i, i + CHUNK_SIZE);
+      const { data: deleted, error } = await supabaseAdmin
         .from('contacts')
-        .select('phone')
-        .in('id', ids);
-      if (contactsData) phones = contactsData.map(c => c.phone).filter(Boolean);
-    } catch (e) { }
-
-    // 2. Strict Delete Dependencies (Tables that definitely have contact_id and must be cleared)
-    // CRITICAL: campaign_queue often blocks deletion. We delete by contact_id. 
-    // We do NOT filter by user_id here because campaign_queue might not have it, 
-    // and contact_id is sufficiently unique (UUID).
-    try {
-      const { error: qErr } = await supabaseAdmin
-        .from('campaign_queue')
         .delete()
-        .in('contact_id', ids);
+        .in('id', chunk)
+        .eq('user_id', req.user.id)
+        .select('id');
 
-      if (qErr) console.warn("[Bulk Delete] campaign_queue delete error:", qErr.message);
-    } catch (e) {
-      console.warn("[Bulk Delete] campaign_queue exception:", e.message);
+      if (error) {
+        console.error(`[Bulk Delete] Chunk ${Math.floor(i/CHUNK_SIZE)+1} delete error:`, error.message);
+        // Continue with remaining chunks instead of failing completely
+      } else {
+        totalDeleted += (deleted ? deleted.length : 0);
+      }
     }
 
-    try {
-      const { error: wfsErr } = await supabaseAdmin
-        .from('whatsapp_flow_submissions')
-        .delete()
-        .in('contact_id', ids); // Assuming this table has contact_id
-    } catch (e) { }
-
-    // 3. Try to Unlink/Delete other potential dependencies (Best Effort)
-    // The previous error logs showed 'contact_id' column missing for many tables.
-    // So we only try to update if we are sure, or just suppress errors.
-    // If conversations are linked via phone, we don't need to do anything if there is no FK.
-    // If there IS a FK on phone, we might have trouble. But standard setup is usually loose coupling on phone.
-
-    // We skip the generic 'update contact_id=null' loop because those tables apparently don't have that column.
-
-    // Final Delete using Admin to ensure RLS doesn't block it (though we still check user_id)
-    const { data: deleted, error } = await supabaseAdmin
-      .from('contacts')
-      .delete()
-      .in('id', ids)
-      .eq('user_id', req.user.id)
-      .select();
-
-    if (error) {
-      console.error("Final Bulk Delete Error:", error);
-      throw error;
-    }
-
-    console.log(`[Bulk Delete] Deleted ${deleted ? deleted.length : 0} contacts.`);
-    res.json({ success: true, count: deleted ? deleted.length : 0 });
+    console.log(`[Bulk Delete] Successfully deleted ${totalDeleted} of ${ids.length} contacts.`);
+    res.json({ success: true, count: totalDeleted });
   } catch (err) {
     console.error('Error bulk deleting contacts:', err);
     res.status(500).json({ error: err.message });
@@ -651,46 +680,90 @@ router.post('/bulk-delete-filtered', async (req, res) => {
 
     console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate });
 
-    // 1. Build Query to find IDs first (because we need to clear dependencies like campaign_queue)
-    let query = supabase.from('contacts').select('id').eq('user_id', userId);
+    // 1. Fetch ALL matching IDs (paginate to handle Supabase row limits)
+    let allIds = [];
+    let pageIndex = 0;
+    const FETCH_SIZE = 1000;
+    let hasMore = true;
 
-    if (search) {
-      const searchTerms = search.split(' ').filter(t => t.length > 0);
-      if (searchTerms.length > 0) {
-        const orConditions = searchTerms.map(term => 
-          `name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`
-        ).join(',');
-        query = query.or(orConditions);
+    while (hasMore) {
+      const from = pageIndex * FETCH_SIZE;
+      const to = from + FETCH_SIZE - 1;
+
+      let query = supabaseAdmin.from('contacts').select('id').eq('user_id', userId).range(from, to);
+
+      if (search) {
+        const searchTerms = search.split(' ').filter(t => t.length > 0);
+        if (searchTerms.length > 0) {
+          const orConditions = searchTerms.map(term => 
+            `name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`
+          ).join(',');
+          query = query.or(orConditions);
+        }
       }
+      if (groupId) query = query.contains('group_ids', [groupId]);
+      if (tag) query = query.contains('tags', [tag]);
+      if (startDate) query = query.gte('created_at', startDate);
+      if (endDate) query = query.lte('created_at', endDate);
+
+      const { data: chunk, error: fetchErr } = await query;
+      if (fetchErr) throw fetchErr;
+
+      if (chunk && chunk.length > 0) {
+        allIds = allIds.concat(chunk.map(c => c.id));
+        if (chunk.length < FETCH_SIZE) hasMore = false;
+        else pageIndex++;
+      } else {
+        hasMore = false;
+      }
+
+      // Safety limit
+      if (allIds.length > 100000) break;
     }
-    if (groupId) query = query.contains('group_ids', [groupId]);
-    if (tag) query = query.contains('tags', [tag]);
-    if (startDate) query = query.gte('created_at', startDate);
-    if (endDate) query = query.lte('created_at', endDate);
 
-    const { data: contactsToDel, error: fetchErr } = await query;
-    if (fetchErr) throw fetchErr;
-
-    const ids = contactsToDel.map(c => c.id);
-    if (ids.length === 0) {
+    if (allIds.length === 0) {
       return res.json({ success: true, count: 0, message: 'No contacts matched filters' });
     }
 
-    // 2. Clear Dependencies (Reuse admin bypass logic)
-    await supabaseAdmin.from('campaign_queue').delete().in('contact_id', ids);
-    await supabaseAdmin.from('whatsapp_flow_submissions').delete().in('contact_id', ids);
+    console.log(`[Bulk Delete Filtered] Found ${allIds.length} contacts matching filters.`);
 
-    // 3. Final Delete
-    const { count, error: delErr } = await supabaseAdmin
-      .from('contacts')
-      .delete({ count: 'exact' })
-      .in('id', ids)
-      .eq('user_id', userId);
+    // 2. Clean STRICT FK dependencies in chunks
+    const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
+    for (const table of strictDepTables) {
+      try {
+        const cleaned = await chunkedDelete(table, 'contact_id', allIds);
+        if (cleaned > 0) console.log(`[Bulk Delete Filtered] Cleaned ${cleaned} rows from ${table}`);
+      } catch (e) {
+        console.warn(`[Bulk Delete Filtered] ${table} cleanup error:`, e.message);
+      }
+    }
 
-    if (delErr) throw delErr;
+    // 3. Safe Unlink — Preserve historical data (set contact_id = NULL)
+    const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
+    for (const table of unlinkTables) {
+      await chunkedNullify(table, 'contact_id', allIds);
+    }
 
-    console.log(`[Bulk Delete Filtered] Successfully deleted ${count} contacts for user ${userId}`);
-    res.json({ success: true, count: count || 0 });
+    // 3. Final Delete in chunks
+    let totalDeleted = 0;
+    const DEL_CHUNK = 200;
+    for (let i = 0; i < allIds.length; i += DEL_CHUNK) {
+      const chunk = allIds.slice(i, i + DEL_CHUNK);
+      const { count, error: delErr } = await supabaseAdmin
+        .from('contacts')
+        .delete({ count: 'exact' })
+        .in('id', chunk)
+        .eq('user_id', userId);
+
+      if (delErr) {
+        console.error(`[Bulk Delete Filtered] Chunk ${Math.floor(i/DEL_CHUNK)+1} error:`, delErr.message);
+      } else {
+        totalDeleted += (count || 0);
+      }
+    }
+
+    console.log(`[Bulk Delete Filtered] Successfully deleted ${totalDeleted} contacts for user ${userId}`);
+    res.json({ success: true, count: totalDeleted });
 
   } catch (err) {
     console.error('Error in bulk-delete-filtered:', err);
@@ -704,33 +777,78 @@ router.post('/bulk-delete-all', async (req, res) => {
     const userId = req.user.id;
     console.log(`[Wipe CRM] User ${userId} requested full CRM wipeout.`);
 
-    // 1. We must clear dependencies first. 
-    // Since it's 'ALL', we can just filter by user_id in related tables IF they have it.
-    // Otherwise, we fetch all contact IDs for this user.
-    const { data: contactIds, error: idErr } = await supabaseAdmin
-      .from('contacts')
-      .select('id')
-      .eq('user_id', userId);
-    
-    if (idErr) throw idErr;
-    const ids = contactIds.map(c => c.id);
+    // 1. Fetch ALL contact IDs for this user (paginate for large datasets)
+    let allIds = [];
+    let pageIndex = 0;
+    const FETCH_SIZE = 1000;
+    let hasMore = true;
 
-    if (ids.length > 0) {
-      // Clear queues and submissions
-      await supabaseAdmin.from('campaign_queue').delete().in('contact_id', ids);
-      await supabaseAdmin.from('whatsapp_flow_submissions').delete().in('contact_id', ids);
+    while (hasMore) {
+      const from = pageIndex * FETCH_SIZE;
+      const to = from + FETCH_SIZE - 1;
+
+      const { data: chunk, error: idErr } = await supabaseAdmin
+        .from('contacts')
+        .select('id')
+        .eq('user_id', userId)
+        .range(from, to);
+
+      if (idErr) throw idErr;
+
+      if (chunk && chunk.length > 0) {
+        allIds = allIds.concat(chunk.map(c => c.id));
+        if (chunk.length < FETCH_SIZE) hasMore = false;
+        else pageIndex++;
+      } else {
+        hasMore = false;
+      }
+
+      // Safety limit
+      if (allIds.length > 1000000) break;
     }
 
-    // 2. Final Wipe
-    const { count, error } = await supabaseAdmin
-      .from('contacts')
-      .delete({ count: 'exact' })
-      .eq('user_id', userId);
+    console.log(`[Wipe CRM] Found ${allIds.length} contacts to delete.`);
 
-    if (error) throw error;
+    if (allIds.length > 0) {
+      // 2. Clean STRICT FK dependencies in chunks (these block contact deletion)
+      const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
+      for (const table of strictDepTables) {
+        try {
+          const cleaned = await chunkedDelete(table, 'contact_id', allIds);
+          if (cleaned > 0) console.log(`[Wipe CRM] Cleaned ${cleaned} rows from ${table}`);
+        } catch (e) {
+          console.warn(`[Wipe CRM] ${table} cleanup error:`, e.message);
+        }
+      }
 
-    console.log(`[Wipe CRM] Successfully wiped ${count} contacts for user ${userId}`);
-    res.json({ success: true, count: count || 0 });
+      // 3. Safe Unlink — Preserve historical data (set contact_id = NULL)
+      // Keeps conversations, leads, messages, tasks etc. readable after wipe
+      const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
+      for (const table of unlinkTables) {
+        await chunkedNullify(table, 'contact_id', allIds);
+      }
+    }
+
+    // 3. Final Wipe in chunks
+    let totalDeleted = 0;
+    const DEL_CHUNK = 200;
+    for (let i = 0; i < allIds.length; i += DEL_CHUNK) {
+      const chunk = allIds.slice(i, i + DEL_CHUNK);
+      const { count, error } = await supabaseAdmin
+        .from('contacts')
+        .delete({ count: 'exact' })
+        .in('id', chunk)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error(`[Wipe CRM] Chunk ${Math.floor(i/DEL_CHUNK)+1} error:`, error.message);
+      } else {
+        totalDeleted += (count || 0);
+      }
+    }
+
+    console.log(`[Wipe CRM] Successfully wiped ${totalDeleted} contacts for user ${userId}`);
+    res.json({ success: true, count: totalDeleted });
 
   } catch (err) {
     console.error('Error in bulk-delete-all:', err);

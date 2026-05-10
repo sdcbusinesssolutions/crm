@@ -155,7 +155,14 @@ export const contactService = {
                 headers,
                 body: JSON.stringify({ ids })
             });
-            if (!res.ok) throw new Error('Failed to delete contacts');
+            if (!res.ok) {
+                let errMsg = 'Failed to delete contacts';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) {}
+                throw new Error(errMsg);
+            }
         } catch (e) {
             console.error("Failed to bulk delete contacts", e);
             throw e;
@@ -173,7 +180,14 @@ export const contactService = {
             if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
 
             const res = await fetch(url, { method: 'POST', headers });
-            if (!res.ok) throw new Error('Failed to delete filtered contacts');
+            if (!res.ok) {
+                let errMsg = 'Failed to delete filtered contacts';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) {}
+                throw new Error(errMsg);
+            }
             const result = await res.json();
             return result.count || 0;
         } catch (e) {
@@ -186,7 +200,14 @@ export const contactService = {
         try {
             const headers = await getHeaders();
             const res = await fetch('/api/contacts/bulk-delete-all', { method: 'POST', headers });
-            if (!res.ok) throw new Error('Failed to wipe CRM');
+            if (!res.ok) {
+                let errMsg = 'Failed to wipe CRM';
+                try {
+                    const errData = await res.json();
+                    errMsg = errData.error || errMsg;
+                } catch (_) {}
+                throw new Error(errMsg);
+            }
             const result = await res.json();
             return result.count || 0;
         } catch (e) {

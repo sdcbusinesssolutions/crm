@@ -389,9 +389,10 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             }
 
             await loadContacts();
-        } catch (e) {
+        } catch (e: any) {
             console.error("Delete/Remove failed", e);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to process request' });
+            const errorMsg = e?.message || 'An unexpected error occurred';
+            setToast({ type: 'error', title: 'Error', message: `Delete failed: ${errorMsg}` });
         } finally {
             setIsLoading(false);
             setDeleteModal({ isOpen: false, type: 'single' });
