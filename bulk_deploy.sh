@@ -68,10 +68,11 @@ declare -A GROUP_CERT_RESOLVER
 declare -A GROUP_MASTER_DOMAIN
 declare -A GROUP_FIRST_DOMAIN   # the primary domain (first encountered per group)
 declare -A GROUP_ORDER           # to preserve insertion order
+declare -A GROUP_IS_DEV          # whether this group is a development environment
 GROUP_COUNT=0
 
 echo "📋 Reading and grouping domains from '$CSV_FILE'..."
-while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays; do
+while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays development; do
 
     # Clean all variables
     domain=$(echo "$domain"       | tr -d '\r' | xargs)
@@ -86,6 +87,7 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
     runLocal=$(echo "$runLocal"   | tr -d '\r' | xargs)
     trialDays=$(echo "$trialDays" | tr -d '\r' | xargs)
     deleteWindowDays=$(echo "$deleteWindowDays" | tr -d '\r' | xargs)
+    development=$(echo "$development" | tr -d '\r' | xargs)
 
     # Skip blank lines
     if [ -z "$domain" ]; then continue; fi
@@ -106,6 +108,13 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
     # e.g. https://ssckorsnhjhzqxyukexm.supabase.co → ssckorsnhjhzqxyukexm
     groupKey=$(echo "$sbUrl" | sed 's|https://||' | cut -d'.' -f1)
 
+    # Development environments get a separate group to avoid container conflicts
+    isDev="false"
+    if [[ "${development,,}" == "true" ]]; then
+        groupKey="dev-${groupKey}"
+        isDev="true"
+    fi
+
     if [ -z "${GROUP_FIRST_DOMAIN[$groupKey]+x}" ]; then
         # First domain in this group — record all metadata
         GROUP_ORDER[$GROUP_COUNT]="$groupKey"
@@ -120,6 +129,7 @@ while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl 
         GROUP_MASTER_DOMAIN[$groupKey]="$masterDomain"
         GROUP_TRIAL_DAYS[$groupKey]="$trialDays"
         GROUP_DELETE_WINDOW[$groupKey]="$deleteWindowDays"
+        GROUP_IS_DEV[$groupKey]="$isDev"
         GROUP_DOMAINS[$groupKey]="$domain"
     else
         # Additional domain in same group — append to domain list
@@ -172,7 +182,15 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
 
     # Identifiers based on primary domain
     safeName=${primaryDomain//./_}
-    projectParam="$safeName"
+    isDev="${GROUP_IS_DEV[$groupKey]}"
+
+    # Development environments get 'dev-' prefix to avoid conflicts with production
+    if [[ "$isDev" == "true" ]]; then
+        projectParam="dev-$safeName"
+        echo "   🧪 MODE: DEVELOPMENT (container prefix: dev-)"
+    else
+        projectParam="$safeName"
+    fi
     appUrl="https://$primaryDomain"
     bridgeDomain="$appUrl"
     envFileName=".env.$safeName"
@@ -197,7 +215,7 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     cat > "$envFileName" <<EOF
 PORT=5000
 DOMAIN="$primaryDomain"
-ROUTER_NAME="$safeName"
+ROUTER_NAME="${isDev:+dev-}$safeName"
 ROUTER_RULE=$hostRule
 TLS_MAIN="$tlsMain"
 TLS_SANS="$tlsSans"
@@ -229,7 +247,13 @@ EOF
     fi
     cp "$envFileName" .env
 
-    $DOCKER_COMPOSE_CMD -p "$projectParam" up -d
+    # Development: 1 replica only. Production: use docker-compose.yml default (8 replicas)
+    if [[ "$isDev" == "true" ]]; then
+        echo "   🧪 DEV MODE: Starting with 1 replica only..."
+        $DOCKER_COMPOSE_CMD -p "$projectParam" up -d --scale whatsapp-app=1
+    else
+        $DOCKER_COMPOSE_CMD -p "$projectParam" up -d
+    fi
 
     echo "   ✅ Success: container for [$primaryDomain] is running (serving ${#domainArr[@]} domain(s))."
     echo "======================================================"
