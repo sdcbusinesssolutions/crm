@@ -42,12 +42,21 @@ foreach ($entry in $domains) {
 
     Write-Host "🚀 Deploying: $domain (Replicas: $replicas)" -ForegroundColor Cyan
     
+    # Extract Development flag (with fallback)
+    $isDev = $entry.Development
+    if ([string]::IsNullOrWhiteSpace($isDev)) { $isDev = "false" }
+
     # Generate Unique Identifiers
     $safeName = $domain -replace '\.', '_' # e.g. abc_com
-    $projectParam = $safeName               # Docker Compose Project Name
-    $routerName = $safeName                 # Traefik Router Name
+    $projectParam = if ($isDev -eq "true") { "dev-$safeName" } else { $safeName }
+    $routerName = if ($isDev -eq "true") { "dev-$safeName" } else { $safeName }
     $imageTag = "prod-$safeName"            # Unique Image Tag (Crucial for Frontend VITE vars)
     $appUrl = "https://$domain"
+
+    if ($isDev -eq "true") {
+        Write-Host "   🧪 MODE: DEVELOPMENT (1 replica, dev- prefix)" -ForegroundColor Yellow
+        $replicas = 1
+    }
 
     # Extract Trial/Delete Configuration (with fallbacks)
     $trialDays = $entry.TrialDays

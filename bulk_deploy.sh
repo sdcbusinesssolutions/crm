@@ -72,31 +72,37 @@ declare -A GROUP_IS_DEV          # whether this group is a development environme
 GROUP_COUNT=0
 
 echo "📋 Reading and grouping domains from '$CSV_FILE'..."
-while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays development; do
+    # Process each line, ensuring we handle files without a trailing newline
+    while IFS=, read -r domain vpsIp vpsPassword deployEnabled traefikNetwork sbUrl sbKey sbServiceKey certResolver dbConnection masterDomain runLocal trialDays deleteWindowDays development || [[ -n "$domain" ]]; do
 
-    # Clean all variables
-    domain=$(echo "$domain"       | tr -d '\r' | xargs)
-    vpsIp=$(echo "$vpsIp"         | tr -d '\r' | xargs)
-    deployEnabled=$(echo "$deployEnabled" | tr -d '\r' | xargs)
-    traefikNetwork=$(echo "$traefikNetwork" | tr -d '\r' | xargs)
-    sbUrl=$(echo "$sbUrl"         | tr -d '\r' | xargs)
-    sbKey=$(echo "$sbKey"         | tr -d '\r' | xargs)
-    sbServiceKey=$(echo "$sbServiceKey" | tr -d '\r' | xargs)
-    certResolver=$(echo "$certResolver" | tr -d '\r' | xargs)
-    masterDomain=$(echo "$masterDomain" | tr -d '\r' | xargs)
-    runLocal=$(echo "$runLocal"   | tr -d '\r' | xargs)
-    trialDays=$(echo "$trialDays" | tr -d '\r' | xargs)
-    deleteWindowDays=$(echo "$deleteWindowDays" | tr -d '\r' | xargs)
-    development=$(echo "$development" | tr -d '\r' | xargs)
+        # Clean all variables: remove \r, strip quotes, and trim whitespace
+        clean_var() {
+            echo "$1" | tr -d '\r' | sed -e 's/^"//' -e 's/"$//' | xargs
+        }
 
-    # Skip blank lines
-    if [ -z "$domain" ]; then continue; fi
+        domain=$(clean_var "$domain")
+        vpsIp=$(clean_var "$vpsIp")
+        deployEnabled=$(clean_var "$deployEnabled")
+        traefikNetwork=$(clean_var "$traefikNetwork")
+        sbUrl=$(clean_var "$sbUrl")
+        sbKey=$(clean_var "$sbKey")
+        sbServiceKey=$(clean_var "$sbServiceKey")
+        certResolver=$(clean_var "$certResolver")
+        dbConnection=$(clean_var "$dbConnection")
+        masterDomain=$(clean_var "$masterDomain")
+        runLocal=$(clean_var "$runLocal")
+        trialDays=$(clean_var "$trialDays")
+        deleteWindowDays=$(clean_var "$deleteWindowDays")
+        development=$(clean_var "$development")
 
-    # Skip disabled entries
-    if [[ "${deployEnabled,,}" != "true" ]]; then
-        echo "⏭️  Skipping $domain (DeployEnabled = $deployEnabled)"
-        continue
-    fi
+        # Skip blank lines or header if it somehow leaked in
+        if [ -z "$domain" ] || [ "$domain" == "Domain" ]; then continue; fi
+
+        # Skip disabled entries
+        if [[ "${deployEnabled,,}" != "true" ]]; then
+            echo "⏭️  Skipping $domain (DeployEnabled = $deployEnabled)"
+            continue
+        fi
 
     # Default values
     if [ -z "$certResolver" ]; then certResolver="mytlschallenge"; fi
@@ -215,7 +221,7 @@ for (( i=0; i<GROUP_COUNT; i++ )); do
     cat > "$envFileName" <<EOF
 PORT=5000
 DOMAIN="$primaryDomain"
-ROUTER_NAME="${isDev:+dev-}$safeName"
+ROUTER_NAME="$projectParam"
 ROUTER_RULE=$hostRule
 TLS_MAIN="$tlsMain"
 TLS_SANS="$tlsSans"
