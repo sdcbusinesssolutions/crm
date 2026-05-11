@@ -208,6 +208,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized route
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
+const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
@@ -223,6 +224,8 @@ const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 // Public Routes
 
 router.use('/forms', formRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/team-staff', staffRoutes);
 router.use('/', webhookRoutes); // Meta Webhook (Mounted at root to match /api/:userId/:phoneId/webhook)
 router.use('/webhooks', incomingWebhookRoutes); // Dynamic Incoming Webhooks
 router.use('/client-logs', clientLogRoutes); // Public Client Logging

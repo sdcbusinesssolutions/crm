@@ -48,6 +48,8 @@ import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
 import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
+import StaffManagement from './modules/teamStaff/pages/StaffManagement';
+import StaffLogin from './modules/teamStaff/pages/StaffLogin';
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
     // Handles cross-domain impersonation redirects from Supabase Magic Links
@@ -728,6 +730,10 @@ const MainApp: React.FC = () => {
         if (activeMenuItem === 'Quick Reply') {
             return <QuickReply />;
         }
+        
+        if (activeMenuItem === 'Team Staff') {
+            return <StaffManagement />;
+        }
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center animate-fade-in">
@@ -832,6 +838,9 @@ const App: React.FC = () => {
 
                 {/* Generic Multi-Domain Auth Callback */}
                 <Route path="/auth_callback" element={<AuthCentralCallback />} />
+
+                {/* Staff Login Portal */}
+                <Route path="/staff/login" element={<StaffLogin />} />
 
                 {/* Main App Catch-All */}
                 <Route path="/*" element={<MainApp />} />

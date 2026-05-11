@@ -42,10 +42,9 @@ export type MenuItem =
     | 'Knowledge Base'
     | 'Developers'
     | 'WhatsApp API'
-    | 'My Plan'
-    | 'G Automation'
     | 'AI Buddy'
-    | 'Drip Campaigns';
+    | 'Drip Campaigns'
+    | 'Team Staff';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -398,6 +397,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
+                        {renderItem('Team Staff', <UsersIcon className="w-5 h-5" />)}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-2 mb-2.5">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                     </div>
