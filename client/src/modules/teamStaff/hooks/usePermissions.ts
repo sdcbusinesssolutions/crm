@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 
 export const ACCESS_TYPES = {
+  NO_ACCESS: 'no_access',
   READ: 'read',
   READ_WRITE: 'read_write',
-  NO_ACCESS: 'no_access',
   ALL_ACCESS: 'all_access'
+};
+
+const ACCESS_LEVELS: Record<string, number> = {
+  [ACCESS_TYPES.NO_ACCESS]: 0,
+  [ACCESS_TYPES.READ]: 1,
+  [ACCESS_TYPES.READ_WRITE]: 2,
+  [ACCESS_TYPES.ALL_ACCESS]: 3
 };
 
 export const usePermissions = () => {
@@ -18,25 +25,25 @@ export const usePermissions = () => {
       setPermissions(parsed.permissions || {});
       setIsStaff(true);
     } else {
-      // If no staff data, assume owner (all access)
       setIsStaff(false);
     }
   }, []);
 
   const hasAccess = (moduleName: string, requiredAccess: string = ACCESS_TYPES.READ) => {
-    if (!isStaff) return true; // Owner bypass
+    // 1. Owner Bypassing
+    if (!isStaff) return true;
     
-    const access = permissions?.[moduleName] || ACCESS_TYPES.NO_ACCESS;
+    // 2. Resolve current access for the module
+    const currentAccess = permissions?.[moduleName] || ACCESS_TYPES.NO_ACCESS;
     
-    if (access === ACCESS_TYPES.NO_ACCESS) return false;
-    if (access === ACCESS_TYPES.ALL_ACCESS) return true;
+    // 3. Compare using numeric levels for precision
+    const currentLevel = ACCESS_LEVELS[currentAccess] || 0;
+    const requiredLevel = ACCESS_LEVELS[requiredAccess] || 1;
     
-    if (requiredAccess === ACCESS_TYPES.READ_WRITE) {
-      return access === ACCESS_TYPES.READ_WRITE;
-    }
-    
-    return true; // Has read or read_write
+    return currentLevel >= requiredLevel;
   };
 
-  return { permissions, isStaff, hasAccess };
+  const canWrite = (moduleName: string) => hasAccess(moduleName, ACCESS_TYPES.READ_WRITE);
+
+  return { permissions, isStaff, hasAccess, canWrite };
 };

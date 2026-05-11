@@ -63,13 +63,8 @@ let cachedTheme: ThemeConfig | null = null;
 let loadingPromise: Promise<ThemeConfig> | null = null;
 let lastTokenOffset: string | null = null; // Track token to invalidate cache on user switch
 
-const getAuthHeaders = () => {
-    const token = tokenService.getAccessToken();
-    if (!token) throw new Error('Not authenticated');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
+const getAuthHeaders = async () => {
+    return await tokenService.getAuthHeader();
 };
 
 export const themeService = {
@@ -107,7 +102,7 @@ export const themeService = {
         loadingPromise = (async () => {
             try {
                 // ... fetch logic ...
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 const response = await fetch(API_URL, { headers });
 
                 // ... rest of fetch ...
@@ -159,7 +154,7 @@ export const themeService = {
         themeService.applyTheme(theme);
 
         try {
-            const headers = getAuthHeaders();
+            const headers = await getAuthHeaders();
             const response = await fetch(API_URL, {
                 method: 'PUT',
                 headers,

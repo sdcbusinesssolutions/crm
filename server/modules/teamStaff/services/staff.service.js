@@ -109,10 +109,15 @@ const StaffService = {
       console.error('❌ [StaffService] Login Error fetching permissions:', permError);
     }
 
-    const permissions = perms.reduce((acc, p) => {
+    // Ensure perms is an array even if error or null
+    const permissionsArray = perms || [];
+    
+    const permissions = permissionsArray.reduce((acc, p) => {
       acc[p.module_name] = p.access_type;
       return acc;
     }, {});
+
+    console.log(`🎫 [StaffService] Permissions processed: ${Object.keys(permissions).length} modules found.`);
 
     // 4. Generate JWT
     const token = jwt.sign(
@@ -123,9 +128,11 @@ const StaffService = {
         role: 'staff',
         permissions
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      (process.env.JWT_SECRET || 'your-secret-key').trim(),
       { expiresIn: '24h' }
     );
+
+    console.log(`✅ [StaffService] Login successful for ${email}. Returning token.`);
 
     return {
       token,
@@ -180,6 +187,22 @@ const StaffService = {
         assigned_to: staffId,
         assigned_by: ownerId
       }]);
+
+    if (error) throw error;
+    return true;
+  },
+
+  /**
+   * Assign Conversation
+   */
+  async assignConversation(ownerId, conversationId, staffId) {
+    const { error } = await supabaseAdmin
+      .from('conversations')
+      .update({
+        assigned_to: staffId
+      })
+      .eq('id', conversationId)
+      .eq('user_id', ownerId); // Ensure owner owns it
 
     if (error) throw error;
     return true;

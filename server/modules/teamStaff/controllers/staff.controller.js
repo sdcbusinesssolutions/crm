@@ -87,6 +87,19 @@ const StaffController = {
   },
 
   /**
+   * Assign Conversation to Staff (Owner only)
+   */
+  async assignConversation(req, res) {
+    try {
+      const { conversationId, staffId } = req.body;
+      await StaffService.assignConversation(req.user.id, conversationId, staffId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  /**
    * Get leads assigned to the logged-in staff member
    */
   async getMyLeads(req, res) {

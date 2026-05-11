@@ -24,6 +24,7 @@ interface CanvasProps {
   onNodeMouseUp: (nodeId: string) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  canWrite?: boolean;
 }
 
 const Canvas: React.FC<CanvasProps> = ({
@@ -46,7 +47,8 @@ const Canvas: React.FC<CanvasProps> = ({
   onNodeClick,
   onNodeMouseUp,
   onDragOver,
-  onDrop
+  onDrop,
+  canWrite = true
 }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = React.useState<string | null>(null);
@@ -167,7 +169,7 @@ const Canvas: React.FC<CanvasProps> = ({
       className="flex-1 bg-gray-900 relative overflow-hidden cursor-grab active:cursor-grabbing w-full h-full touch-none"
       onMouseDown={onCanvasMouseDown}
       onTouchStart={onCanvasTouchStart}
-      onDragOver={onDragOver}
+       onDragOver={onDragOver}
       onDrop={onDrop}
       style={{
         // We apply background position and size based on viewport to create the infinite scrolling grid effect
@@ -242,11 +244,11 @@ const Canvas: React.FC<CanvasProps> = ({
                   stroke="transparent"
                   strokeWidth="20"
                   fill="none"
-                  onClick={() => onDeleteEdge(edge.id)}
-                  style={{ cursor: 'pointer' }}
+                   onClick={() => canWrite && onDeleteEdge(edge.id)}
+                  style={{ cursor: canWrite ? 'pointer' : 'default' }}
                 />
                 {/* Delete Button on Hover */}
-                {isHovered && (
+                 {isHovered && canWrite && (
                   <g
                     onClick={(e) => { e.stopPropagation(); onDeleteEdge(edge.id); }}
                     style={{ cursor: 'pointer' }}
@@ -302,11 +304,12 @@ const Canvas: React.FC<CanvasProps> = ({
               onUpdateNode={onUpdateNode}
               onDeleteNode={onDeleteNode}
               onDuplicateNode={onDuplicateNode}
-              onSourceHandleMouseDown={onSourceHandleMouseDown}
+               onSourceHandleMouseDown={onSourceHandleMouseDown}
               onSourceHandleTouchStart={onSourceHandleTouchStart}
               onNodeSettingsClick={onNodeSettingsClick}
               onNodeClick={onNodeClick}
               onNodeMouseUp={onNodeMouseUp}
+              canWrite={canWrite}
             />
           ))}
         </div>

@@ -1,4 +1,5 @@
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
+const jwt = require('jsonwebtoken');
 
 /**
  * Authentication Middleware
@@ -66,33 +67,67 @@ const requireAuth = async (req, res, next) => {
 
         const token = authHeader.split(' ')[1];
 
-        // Verify token using the static shared client with retry
-        // We use getUser instead of getSession for security on the server side
-        let data, error;
+        // 2a. Try verifying as a Staff JWT first (Local, fast)
         try {
-            const result = await getUserWithRetry(token);
-            data = result.data;
-            error = result.error;
-        } catch (fetchErr) {
-            console.error('Auth network failure:', fetchErr.message);
-            // On strict network fail, we can't verify.
-            return res.status(401).json({
-                error: 'Unauthorized',
-                message: 'Authentication service unavailable'
-            });
+            const decoded = jwt.verify(token, (process.env.JWT_SECRET || 'your-secret-key').trim());
+            if (decoded && decoded.role === 'staff') {
+                req.staff = decoded;
+                req.user = { 
+                    id: decoded.tenantId, 
+                    email: decoded.email,
+                    staffId: decoded.staffId,
+                    isStaff: true 
+                };
+            } else if (decoded) {
+                console.warn(`⚠️ [Auth] Token verified but role is NOT staff: ${decoded.role}`);
+            }
+        } catch (jwtErr) {
+            // Not a valid staff token, but only log if it looks like one (to avoid spamming Supabase tokens)
+            if (token.length > 50 && !token.startsWith('ey')) {
+                 console.log('DEBUG: Potential staff token failed verification:', jwtErr.message);
+            }
         }
 
-        if (error || !data || !data.user) {
-            const isExpired = error?.message?.toLowerCase().includes('expired') || error?.status === 401;
-            return res.status(401).json({
-                error: 'Unauthorized',
-                message: isExpired ? 'Token expired. Please sign in again.' : 'Invalid authentication token',
-                code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
-            });
+        // 2b. If not staff, verify token using the static shared client with retry
+        if (!req.staff) {
+            let data, error;
+            try {
+                const result = await getUserWithRetry(token);
+                data = result.data;
+                error = result.error;
+            } catch (fetchErr) {
+                console.error('Auth network failure:', fetchErr.message);
+                return res.status(401).json({
+                    error: 'Unauthorized',
+                    message: 'Authentication service unavailable'
+                });
+            }
+
+            if (error || !data || !data.user) {
+                const isExpired = error?.message?.toLowerCase().includes('expired') || error?.status === 401;
+                return res.status(401).json({
+                    error: 'Unauthorized',
+                    message: isExpired ? 'Token expired. Please sign in again.' : 'Invalid authentication token',
+                    code: isExpired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN'
+                });
+            }
+
+            // Attach Supabase user to request object
+            req.user = data.user;
+        }
+        
+        // --- DATA SCOPE INITIALIZATION ---
+        // By default, owners have 'global' scope, staff have 'assigned' scope
+        req.user.dataScope = 'global';
+        
+        if (req.staff) {
+            req.user.isStaff = true;
+            req.user.staffId = req.staff.staffId;
+            // For now, all staff are restricted to assigned data
+            // In the future, this can be checked against a "View All" permission
+            req.user.dataScope = 'assigned';
         }
 
-        // Attach user to request object
-        req.user = data.user;
         next();
     } catch (err) {
         console.error('Middleware error:', err);

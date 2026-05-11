@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import Modal from '../Modal';
 import Toast from '../Toast';
 import TemplatePreview from './TemplatePreview';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 interface Template {
     id: string;
@@ -26,6 +27,8 @@ interface TemplateListProps {
 }
 
 const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('WhatsApp Templates', ACCESS_TYPES.READ_WRITE);
     const [templates, setTemplates] = useState<Template[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -137,13 +140,15 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">WhatsApp Templates</h1>
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage your message templates.</p>
                     </div>
-                    <button
-                        onClick={() => onNavigateToBuilder(null)}
-                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        Create New Template
-                    </button>
+                    {canWrite && (
+                        <button
+                            onClick={() => onNavigateToBuilder(null)}
+                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            Create New Template
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -313,27 +318,31 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                                                         >
                                                             <EyeIcon className="w-5 h-5" />
                                                         </button>
-                                                        <button
-                                                            onClick={() => onNavigateToBuilder(template.id)}
-                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1"
-                                                            title="Edit"
-                                                        >
-                                                            <EditIcon className="w-5 h-5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(template.id, template.name)}
-                                                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
-                                                            title="Delete"
-                                                        >
-                                                            <TrashIcon className="w-5 h-5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDuplicate(template)}
-                                                            className="text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                                            title="Duplicate"
-                                                        >
-                                                            <CopyIcon className="w-5 h-5" />
-                                                        </button>
+                                                        {canWrite && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => onNavigateToBuilder(template.id)}
+                                                                    className="text-slate-400 hover:text-brand-600 transition-colors p-1"
+                                                                    title="Edit"
+                                                                >
+                                                                    <EditIcon className="w-5 h-5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDelete(template.id, template.name)}
+                                                                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                                                    title="Delete"
+                                                                >
+                                                                    <TrashIcon className="w-5 h-5" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDuplicate(template)}
+                                                                    className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                                                                    title="Duplicate"
+                                                                >
+                                                                    <CopyIcon className="w-5 h-5" />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

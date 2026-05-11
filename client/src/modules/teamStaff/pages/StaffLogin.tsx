@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { staffApi } from '../api/staffApi';
+import { supabase } from '../../../lib/supabase';
+import { tokenService } from '../../../services/tokenService';
 
 const StaffLogin: React.FC = () => {
   const [credentials, setCredentials] = useState({ email: '', password: '' });
@@ -11,6 +13,10 @@ const StaffLogin: React.FC = () => {
     setLoading(true);
     setError('');
     try {
+      // Clear any existing owner session to prevent token conflicts
+      await supabase.auth.signOut();
+      tokenService.clearAccessToken();
+
       const data = await staffApi.login(credentials);
       
       // Store staff data and token

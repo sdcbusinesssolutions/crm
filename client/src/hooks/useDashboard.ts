@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { queryKeys } from '../lib/queryClient';
 import { getLeads } from '../services/lead-management-api';
+import { tokenService } from '../services/tokenService';
 
 // Types
 export interface DashboardStats {
@@ -56,13 +57,10 @@ export interface RevenueStats {
 
 // Fetch dashboard stats from API
 const fetchDashboardStats = async (): Promise<DashboardStats> => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const headers = await tokenService.getAuthHeader();
 
     const response = await fetch('/api/dashboard/stats', {
-        headers: {
-            'Authorization': `Bearer ${session?.access_token || ''}`,
-            'Content-Type': 'application/json'
-        }
+        headers
     });
 
     if (!response.ok) {

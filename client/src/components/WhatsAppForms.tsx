@@ -13,11 +13,16 @@ interface WhatsAppFlow {
     created_at?: string; // API doesn't return this by default but useful if we had it
 }
 
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+
 interface WhatsAppFormsProps {
     onNavigateToBuilder: (flowId: string | null) => void;
 }
 
 const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Form Builder', ACCESS_TYPES.READ_WRITE);
+
     const [flows, setFlows] = useState<WhatsAppFlow[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -278,13 +283,15 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">WhatsApp Forms</h1>
                         <p className="text-slate-500 mt-2 text-lg font-medium">Manage your WhatsApp Flows and Forms.</p>
                     </div>
-                    <button
-                        onClick={() => setIsCreateModalOpen(true)}
-                        className="px-5 py-2.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        Create New
-                    </button>
+                    {canWrite && (
+                        <button
+                            onClick={() => setIsCreateModalOpen(true)}
+                            className="px-5 py-2.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            Create New
+                        </button>
+                    )}
                 </div>
 
                 {/* Statistics Overview */}
@@ -395,34 +402,38 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                                <button
+                                                 <button
                                                     onClick={() => handlePreview(flow)}
                                                     className="text-slate-400 hover:text-blue-600 transition-colors p-1"
                                                     title="Preview"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                                 </button>
-                                                <button
-                                                    onClick={() => handleSendClick(flow)}
-                                                    className="text-slate-400 hover:text-green-600 transition-colors p-1"
-                                                    title="Send Flow"
-                                                >
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => onNavigateToBuilder(flow.id)}
-                                                    className="text-slate-400 hover:text-brand-600 transition-colors p-1"
-                                                    title="Edit"
-                                                >
-                                                    <EditIcon className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteFlow(flow.id, flow.name)}
-                                                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
-                                                    title="Delete"
-                                                >
-                                                    <TrashIcon className="w-5 h-5" />
-                                                </button>
+                                                {canWrite && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleSendClick(flow)}
+                                                            className="text-slate-400 hover:text-green-600 transition-colors p-1"
+                                                            title="Send Flow"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => onNavigateToBuilder(flow.id)}
+                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1"
+                                                            title="Edit"
+                                                        >
+                                                            <EditIcon className="w-5 h-5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteFlow(flow.id, flow.name)}
+                                                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                                            title="Delete"
+                                                        >
+                                                            <TrashIcon className="w-5 h-5" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </td>
                                         </tr>
                                     ))
@@ -649,26 +660,28 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                 title={`Send Flow: ${sendFlowData?.name}`}
                 size="lg"
                 footer={
-                    <div className="flex justify-end gap-3 w-full">
-                        <button
-                            onClick={() => setSendFlowData(null)}
-                            className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSendSubmit}
-                            disabled={isSending || !sendFormData.phoneNumbers || !sendFormData.bodyText}
-                            className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 shadow-md shadow-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                            {isSending ? 'Sending...' : (
-                                <>
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                    Send Flow
-                                </>
+                         <div className="flex justify-end gap-3 w-full">
+                            <button
+                                onClick={() => setSendFlowData(null)}
+                                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                {canWrite ? 'Cancel' : 'Close'}
+                            </button>
+                            {canWrite && (
+                                <button
+                                    onClick={handleSendSubmit}
+                                    disabled={isSending || !sendFormData.phoneNumbers || !sendFormData.bodyText}
+                                    className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 shadow-md shadow-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isSending ? 'Sending...' : (
+                                        <>
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                            Send Flow
+                                        </>
+                                    )}
+                                </button>
                             )}
-                        </button>
-                    </div>
+                        </div>
                 }
             >
                 <div className="space-y-4">

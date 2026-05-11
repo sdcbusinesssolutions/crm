@@ -1,23 +1,10 @@
-import { supabase } from '../../../lib/supabase';
+import { tokenService } from '../../../services/tokenService';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-// Improved Token handling using standard fetch (avoiding axios dependency)
-const getAuthHeaders = async (isStaff: boolean = false) => {
-  let token = null;
-  
-  if (isStaff) {
-    token = localStorage.getItem('staffToken');
-  } else {
-    // Standard owner authentication
-    const { data: { session } } = await supabase.auth.getSession();
-    token = session?.access_token;
-  }
-  
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
-  };
+// Use shared token service for headers
+const getAuthHeaders = async () => {
+  return await tokenService.getAuthHeader();
 };
 
 export const staffApi = {

@@ -13,6 +13,7 @@ router.post('/', requireAuth, StaffController.createStaff);
 router.get('/', requireAuth, StaffController.listStaff);
 router.put('/:staffId/permissions', requireAuth, StaffController.updatePermissions);
 router.post('/assign-lead', requireAuth, StaffController.assignLead);
+router.post('/assign-conversation', requireAuth, StaffController.assignConversation);
 
 // 3. Staff-Specific Routes
 // These use the new staff authentication
