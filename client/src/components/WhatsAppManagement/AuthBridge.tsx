@@ -68,6 +68,32 @@ const AuthBridge: React.FC = () => {
         // This prevents the browser from blocking the popup.
     };
 
+    const sessionDataRef = React.useRef<any>(null);
+
+    useEffect(() => {
+        const messageListener = (event: MessageEvent) => {
+            if (!event.origin.endsWith('facebook.com')) return;
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                if (data.type === 'WA_EMBEDDED_SIGNUP') {
+                    console.log('WA_EMBEDDED_SIGNUP Event:', data);
+                    logToServer('INFO', 'WA_EMBEDDED_SIGNUP Event Received', data);
+                    if (data.event === 'FINISH' || data.event === 'FINISH_ONLY_WABA' || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+                        sessionDataRef.current = data.data;
+                    } else if (data.event === 'ERROR') {
+                        setError(`Meta Error: ${data.data?.error_message || 'Unknown error'}`);
+                        logToServer('ERROR', 'Meta Flow Error', data.data);
+                    }
+                }
+            } catch (e) {
+                // Ignore non-JSON messages
+            }
+        };
+
+        window.addEventListener('message', messageListener);
+        return () => window.removeEventListener('message', messageListener);
+    }, []);
+
     const handleLogin = () => {
         if (!configId) return;
 
@@ -80,7 +106,10 @@ const AuthBridge: React.FC = () => {
             console.log('Bridge FB Response:', response);
             if (response.authResponse) {
                 const code = response.authResponse.code;
-                logToServer('SUCCESS', 'FB Login Successful', { codePrefix: code?.substring(0, 5) });
+                logToServer('SUCCESS', 'FB Login Successful', { 
+                    codePrefix: code?.substring(0, 5),
+                    hasSessionData: !!sessionDataRef.current 
+                });
                 sendBack(code);
             } else {
                 setStatus('User cancelled login.');
@@ -92,10 +121,13 @@ const AuthBridge: React.FC = () => {
             response_type: 'code',
             override_default_response_type: true,
             extras: isCoexistence ? {
-                setup: {},
-                featureType: 'whatsapp_business_app_onboarding',
-                sessionInfoVersion: '3'
-            } : undefined
+                setup: {
+                    featureType: 'whatsapp_business_app_onboarding',
+                    sessionInfoVersion: '3'
+                }
+            } : {
+                setup: {}
+            }
         });
     };
 
@@ -110,10 +142,17 @@ const AuthBridge: React.FC = () => {
         const message = {
             type: 'WA_BRIDGE_CODE',
             code: code,
-            state: state
+            state: state,
+            wabaId: sessionDataRef.current?.waba_id || sessionDataRef.current?.waba_ids?.[0],
+            phoneId: sessionDataRef.current?.phone_number_id,
+            businessId: sessionDataRef.current?.business_id
         };
 
-        logToServer('INFO', 'Sending Code to Parent', { targetOrigin: origin || '*' });
+        logToServer('INFO', 'Sending Code and IDs to Parent', { 
+            targetOrigin: origin || '*',
+            wabaId: message.wabaId,
+            phoneId: message.phoneId
+        });
 
         if (origin) {
             window.opener.postMessage(message, origin);

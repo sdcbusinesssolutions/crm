@@ -708,14 +708,21 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
 
         if (!code) return res.status(400).json({ error: 'Authorization code is required.' });
 
-        logOnboardingEvent('SIGNUP_FLOW_START', { userId, setup_mode, domain });
+        // Auto-detect Logic
+        let { waba_id, phone_number_id, business_id } = req.body;
+
+        logOnboardingEvent('SIGNUP_FLOW_START', { 
+            userId, 
+            setup_mode, 
+            domain,
+            providedWabaId: waba_id,
+            providedPhoneId: phone_number_id,
+            providedBusinessId: business_id
+        });
 
         // 1. Exchange Code for Token (Pass Domain)
         const tokenData = await MetaOnboardingService.exchangeCodeForToken(code, domain);
         const accessToken = tokenData.access_token;
-
-        // Auto-detect Logic
-        let { waba_id, phone_number_id } = req.body;
 
         if (waba_id === 'auto_detect' || !waba_id) {
             console.log('Auto-detecting WABA...');
@@ -726,9 +733,16 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
                 logOnboardingEvent('WABA_AUTODETECT', { userId, wabaId: waba_id, count: wabaData.data.length });
                 console.log('Detected WABA ID:', waba_id);
             } else {
-                logOnboardingEvent('WABA_AUTODETECT_FAIL', { userId, error: 'No WABA found' });
+                logOnboardingEvent('WABA_AUTODETECT_FAIL', { 
+                    userId, 
+                    error: 'No WABA found',
+                    accessToken: accessToken ? '***' : 'missing'
+                });
                 throw new Error('No WhatsApp Business Account found connected to this user.');
             }
+        } else {
+            console.log('Using provided WABA ID:', waba_id);
+            logOnboardingEvent('WABA_PROVIDED', { userId, wabaId: waba_id });
         }
 
         // 2. Fetch Phone Numbers
@@ -758,8 +772,16 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
                 throw new Error('No phone numbers found in this WABA.');
             }
         } else {
+            console.log('Using provided Phone ID:', phone_number_id);
+            logOnboardingEvent('PHONE_PROVIDED', { userId, phoneId: phone_number_id });
             phoneRecord = phoneData.data.find(p => p.id === phone_number_id);
-            if (!phoneRecord) throw new Error('Selected phone number not found in WABA.');
+            if (!phoneRecord) {
+                console.warn('Provided Phone ID not found in WABA list. Fetching info directly...');
+                phoneRecord = await MetaOnboardingService.getPhoneNumberInfo(phone_number_id, accessToken);
+                if (!phoneRecord) {
+                    throw new Error('Provided phone number ID is invalid or inaccessible.');
+                }
+            }
         }
 
         // 4. Register Phone (if needed)
@@ -869,7 +891,13 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
 
     } catch (error) {
         console.error('Embedded Signup Error:', error);
-        logOnboardingEvent('SIGNUP_FLOW_ERROR', { userId: req.user.id, error: error.message });
+        logOnboardingEvent('SIGNUP_FLOW_ERROR', { 
+            userId, 
+            domain,
+            error: error.message,
+            stack: error.stack,
+            metaError: error.response?.data?.error
+        });
         res.status(500).json({ error: error.message });
     }
 });

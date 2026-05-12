@@ -94,9 +94,9 @@ const AccountSetup: React.FC = () => {
                 if (!data) return;
 
                 if (data.type === 'WA_BRIDGE_CODE') {
-                    const code = data.code;
-                    console.log('Received Code from Auth Bridge:', code);
-                    registerEmbeddedAccount(code);
+                    const { code, wabaId, phoneId } = data;
+                    console.log('Received Code and IDs from Auth Bridge:', { code: '***', wabaId, phoneId });
+                    registerEmbeddedAccount(code, wabaId, phoneId);
                 }
             } catch (e) { }
         };
@@ -141,11 +141,11 @@ const AccountSetup: React.FC = () => {
         launchFacebookSignup();
     };
 
-    const registerEmbeddedAccount = async (code: string) => {
+    const registerEmbeddedAccount = async (code: string, wabaId?: string, phoneId?: string) => {
         setSaving(true);
         setMessage(null);
         try {
-            await settingsService.connectEmbeddedAccount(code, 'auto_detect', 'auto_detect');
+            await settingsService.connectEmbeddedAccount(code, wabaId || 'auto_detect', phoneId || 'auto_detect');
             setMessage({ type: 'success', text: 'Connected successfully!' });
             loadAccounts();
         } catch (error: any) {
