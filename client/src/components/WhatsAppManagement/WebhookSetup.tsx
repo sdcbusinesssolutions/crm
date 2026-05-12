@@ -188,8 +188,11 @@ const TokenManager: React.FC = () => {
         try {
             const data = await settingsService.getDebugToken();
             setInfo(data);
-        } catch (err) {
-            console.error(err);
+        } catch (err: any) {
+            // Silently ignore "No access token found" as it's normal for new users
+            if (err.message && !err.message.includes('No access token found')) {
+                console.error('Token check failed:', err.message);
+            }
         } finally {
             setLoading(false);
         }
