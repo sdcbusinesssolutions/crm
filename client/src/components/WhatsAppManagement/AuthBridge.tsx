@@ -61,7 +61,7 @@ const AuthBridge: React.FC = () => {
             appId: appId,
             cookie: true,
             xfbml: true,
-            version: 'v20.0'
+            version: 'v22.0'
         });
         setStatus('Ready to connect.');
         // NOTICE: We do NOT call handleLogin() automatically anymore here.
@@ -78,7 +78,14 @@ const AuthBridge: React.FC = () => {
                 if (data.type === 'WA_EMBEDDED_SIGNUP') {
                     console.log('WA_EMBEDDED_SIGNUP Event:', data);
                     logToServer('INFO', 'WA_EMBEDDED_SIGNUP Event Received', data);
-                    if (data.event === 'FINISH' || data.event === 'FINISH_ONLY_WABA' || data.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+                    const successEvents = [
+                        'FINISH', 
+                        'FINISH_ONLY_WABA', 
+                        'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+                        'FINISH_OBO_MIGRATION',
+                        'FINISH_GRANT_ONLY_API_ACCESS'
+                    ];
+                    if (successEvents.includes(data.event)) {
                         sessionDataRef.current = data.data;
                     } else if (data.event === 'ERROR') {
                         setError(`Meta Error: ${data.data?.error_message || 'Unknown error'}`);

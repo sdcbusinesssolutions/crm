@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v21.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v22.0';
     }
 
     async getSystemSettings(targetDomain) {

@@ -932,7 +932,7 @@ router.post('/whatsapp/webhook/update', async (req, res) => {
         const phone_number_id = config.phone_number_id;
         if (phone_number_id) {
             try {
-                const GRAPH_API_URL = 'https://graph.facebook.com/v20.0';
+                const GRAPH_API_URL = 'https://graph.facebook.com/v22.0';
                 const phoneRes = await axios.get(`${GRAPH_API_URL}/${phone_number_id}?fields=whatsapp_business_account`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
@@ -984,7 +984,7 @@ router.post('/whatsapp/webhook/update', async (req, res) => {
 
             // Fallback: If the "WABA ID" is actually a Phone ID, we can find the real WABA ID.
             try {
-                const GRAPH_API_URL = 'https://graph.facebook.com/v20.0';
+                const GRAPH_API_URL = 'https://graph.facebook.com/v22.0';
                 const resolutionRes = await axios.get(`${GRAPH_API_URL}/${usableWabaId}?fields=whatsapp_business_account`, {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
