@@ -252,8 +252,9 @@ export const settingsService = {
     getDebugToken: async () => {
         const headers = await getHeaders();
         const res = await fetch(`${API_URL}/settings/whatsapp/token-debug`, { headers });
-        if (!res.ok) throw new Error('Failed to fetch token debug info');
-        return res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch token debug info');
+        return data;
     },
     extendToken: async () => {
         const headers = await getHeaders();

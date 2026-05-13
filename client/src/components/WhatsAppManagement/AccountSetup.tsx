@@ -95,8 +95,10 @@ const AccountSetup: React.FC = () => {
 
                 if (data.type === 'WA_BRIDGE_CODE') {
                     const code = data.code;
-                    console.log('Received Code from Auth Bridge:', code);
-                    registerEmbeddedAccount(code);
+                    const wabaId = data.wabaId; // Changed from waba_id to wabaId to match bridge
+                    const phoneId = data.phoneId;
+                    console.log('Received Code from Auth Bridge:', code, 'WABA ID:', wabaId, 'Phone ID:', phoneId);
+                    registerEmbeddedAccount(code, wabaId, phoneId);
                 }
             } catch (e) { }
         };
@@ -141,11 +143,11 @@ const AccountSetup: React.FC = () => {
         launchFacebookSignup();
     };
 
-    const registerEmbeddedAccount = async (code: string) => {
+    const registerEmbeddedAccount = async (code: string, wabaId?: string, phoneId?: string) => {
         setSaving(true);
         setMessage(null);
         try {
-            await settingsService.connectEmbeddedAccount(code, 'auto_detect', 'auto_detect');
+            await settingsService.connectEmbeddedAccount(code, wabaId || 'auto_detect', phoneId || 'auto_detect');
             setMessage({ type: 'success', text: 'Connected successfully!' });
             loadAccounts();
         } catch (error: any) {
@@ -305,7 +307,14 @@ const AccountSetup: React.FC = () => {
                     {accounts.map((account) => (
                         <div key={account.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center">
                             <div>
-                                <h3 className="font-semibold text-slate-800">{account.name || 'WhatsApp Account'}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-slate-800">{account.name || 'WhatsApp Account'}</h3>
+                                    {account.name?.includes('(Coexistence)') && (
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                                            Coexistence
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-sm text-slate-500">{account.phone_number}</p>
                                 <p className="text-xs text-slate-400 mt-1">ID: {account.phone_number_id}</p>
                             </div>
