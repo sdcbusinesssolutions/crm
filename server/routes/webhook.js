@@ -664,10 +664,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     conversationId = newConv?.id;
                 }
 
-                // 2. Insert Message
+                // 2. Upsert Message
                 const extracted = extractMessageContent(echo); // Should work for standard types
-
-                await supabaseAdmin.from('messages').insert({
+ 
+                await supabaseAdmin.from('messages').upsert({
                     conversation_id: conversationId,
                     direction: 'out', // Enforce OUT for echoes
                     type: extracted.type,
@@ -675,8 +675,8 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     whatsapp_message_id: extracted.id,
                     status: 'sent', // Assume sent if echo
                     created_at: new Date(extracted.timestamp * 1000).toISOString()
-                });
-                console.log(`[Webhook] Saved Echo Message for ${contactPhone}`);
+                }, { onConflict: 'whatsapp_message_id' });
+                console.log(`[Coexistence Echo] Saved message from phone for ${contactPhone}`);
             }
             if (res) return res.status(200).json({ status: 'success' });
             return { status: 'success' };
@@ -722,31 +722,27 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 const extracted = extractMessageContent(msg);
 
 
-                                // Check if message already exists or processed (idempotency)
                                 if (processedMessageIds.has(msg.id)) {
                                     console.log(`[Webhook] Skipping duplicate message ID: ${msg.id}`);
                                     continue;
                                 }
                                 processedMessageIds.add(msg.id);
-
-                                const { data: existing } = await supabaseAdmin.from('messages').select('id').eq('whatsapp_message_id', msg.id).maybeSingle();
-                                if (!existing) {
-                                    await supabaseAdmin.from('messages').insert({
-                                        conversation_id: conversationId,
-                                        direction: direction,
-                                        type: extracted.type,
-                                        text: extracted.text || extracted.caption,
-                                        whatsapp_message_id: extracted.id,
-                                        status: direction === 'in' ? 'delivered' : 'sent',
-                                        created_at: new Date(extracted.timestamp * 1000).toISOString()
-                                    });
-                                }
+ 
+                                await supabaseAdmin.from('messages').upsert({
+                                    conversation_id: conversationId,
+                                    direction: direction,
+                                    type: extracted.type,
+                                    text: extracted.text || extracted.caption,
+                                    whatsapp_message_id: extracted.id,
+                                    status: direction === 'in' ? 'delivered' : 'sent',
+                                    created_at: new Date(extracted.timestamp * 1000).toISOString()
+                                }, { onConflict: 'whatsapp_message_id' });
                             }
                         }
                     }
                 }
             }
-            console.log('[Webhook] History Sync Processed.');
+            console.log('[Coexistence Sync] History Synchronization Complete.');
             return { status: 'success', type: 'history_sync' };
         }
 
@@ -1057,6 +1053,26 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 processedMessageIds.add(message.id);
 
                 const extracted = extractMessageContent(message);
+ 
+                // --- HANDLE REVOKE & EDIT ---
+                if (extracted.revoke && extracted.originalMessageId) {
+                    console.log(`[Webhook] Revoking message: ${extracted.originalMessageId}`);
+                    await supabaseAdmin.from('messages').update({
+                        status: 'deleted',
+                        text: '🚫 Message deleted',
+                        media_url: null
+                    }).eq('whatsapp_message_id', extracted.originalMessageId);
+                    continue; // Skip further processing
+                }
+ 
+                if (extracted.edit && extracted.originalMessageId) {
+                    console.log(`[Webhook] Editing message: ${extracted.originalMessageId}`);
+                    await supabaseAdmin.from('messages').update({
+                        text: extracted.text,
+                        updated_at: new Date().toISOString()
+                    }).eq('whatsapp_message_id', extracted.originalMessageId);
+                    continue; // Skip further processing
+                }
 
                 // --- INBOX LOG ---
                 try {

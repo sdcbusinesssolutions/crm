@@ -20,7 +20,7 @@ if (supabaseUrl && supabaseServiceKey) {
 
 class MetaOnboardingService {
     constructor() {
-        this.graphApiUrl = 'https://graph.facebook.com/v21.0';
+        this.graphApiUrl = 'https://graph.facebook.com/v22.0';
     }
 
     async getSystemSettings(targetDomain) {
@@ -59,7 +59,14 @@ class MetaOnboardingService {
                 return response.data.whatsapp_business_accounts;
             }
         } catch (e) {
-            logOnboardingEvent('FETCH_WABAS_STD_FAIL', { error: e.message });
+            const errorData = {
+                message: e.message,
+                status: e.response?.status,
+                data: e.response?.data,
+                token: accessToken ? '***' : 'missing',
+                targetDomain
+            };
+            logOnboardingEvent('FETCH_WABAS_STD_FAIL', errorData);
             console.log('Standard WABA fetch failed, trying debug_token strategy...');
         }
 
@@ -139,6 +146,13 @@ class MetaOnboardingService {
             logOnboardingEvent('EXCHANGE_TOKEN_SUCCESS', { hasToken: !!response.data.access_token });
             return response.data; // contains access_token, machine_id, etc.
         } catch (error) {
+            const errorData = {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data,
+                targetDomain
+            };
+            logOnboardingEvent('EXCHANGE_TOKEN_FAIL', errorData);
             console.error('Meta OAuth Error:', error.response?.data || error.message);
             throw new Error('Failed to exchange code for access token: ' + (error.response?.data?.error?.message || error.message));
         }
@@ -171,6 +185,21 @@ class MetaOnboardingService {
         } catch (error) {
             console.error('Get Phone Numbers Error:', error.response?.data || error.message);
             throw new Error('Failed to fetch phone numbers');
+        }
+    }
+
+    async getPhoneNumberInfo(phoneNumberId, accessToken) {
+        try {
+            const response = await axios.get(`${this.graphApiUrl}/${phoneNumberId}`, {
+                params: {
+                    access_token: accessToken,
+                    fields: 'display_phone_number,verified_name,code_verification_status,is_on_biz_app,platform_type,certificate'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('Get Phone Info Error:', error.response?.data || error.message);
+            return null;
         }
     }
 
@@ -208,8 +237,10 @@ class MetaOnboardingService {
     async subscribeAppToWaba(wabaId, accessToken) {
         try {
             logOnboardingEvent('SUBSCRIBE_APP_START', { wabaId });
-            // 1. Subscribe App to WABA
-            await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {}, {
+            // 1. Subscribe App to WABA with necessary fields for Coexistence
+            await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {
+                subscribed_fields: 'messages,statuses,history,smb_app_state_sync,smb_message_echoes'
+            }, {
                 params: { access_token: accessToken }
             });
             return true;
@@ -244,7 +275,8 @@ class MetaOnboardingService {
 
             await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {
                 override_callback_uri: webhookUrl,
-                verify_token: verifyToken
+                verify_token: verifyToken,
+                subscribed_fields: 'messages,statuses,history,smb_app_state_sync,smb_message_echoes'
             }, {
                 params: { access_token: accessToken }
             });
