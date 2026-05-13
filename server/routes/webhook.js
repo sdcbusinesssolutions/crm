@@ -676,7 +676,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     status: 'sent', // Assume sent if echo
                     created_at: new Date(extracted.timestamp * 1000).toISOString()
                 }, { onConflict: 'whatsapp_message_id' });
-                console.log(`[Webhook] Saved Echo Message for ${contactPhone}`);
+                console.log(`[Coexistence Echo] Saved message from phone for ${contactPhone}`);
             }
             if (res) return res.status(200).json({ status: 'success' });
             return { status: 'success' };
@@ -742,7 +742,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     }
                 }
             }
-            console.log('[Webhook] History Sync Processed.');
+            console.log('[Coexistence Sync] History Synchronization Complete.');
             return { status: 'success', type: 'history_sync' };
         }
 

@@ -867,7 +867,7 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
             .from('whatsapp_config')
             .insert({
                 user_id: userId,
-                name: phoneRecord.verified_name || phoneRecord.display_phone_number || 'Embedded WhatsApp',
+                name: (phoneRecord.verified_name || phoneRecord.display_phone_number || 'Embedded WhatsApp') + (isCoexistence ? ' (Coexistence)' : ''),
                 phone_number: phoneRecord.display_phone_number,
                 phone_number_id: phone_number_id,
                 whatsapp_business_account_id: waba_id,
@@ -884,7 +884,8 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
             userId,
             wabaId: waba_id,
             phoneId: phone_number_id,
-            verifyToken
+            verifyToken,
+            isCoexistence // New: Explicitly log if this was a coexistence flow
         });
 
         if (isCoexistence) {
