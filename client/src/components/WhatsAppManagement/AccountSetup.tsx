@@ -94,8 +94,10 @@ const AccountSetup: React.FC = () => {
                 if (!data) return;
 
                 if (data.type === 'WA_BRIDGE_CODE') {
-                    const { code, wabaId, phoneId } = data;
-                    console.log('Received Code and IDs from Auth Bridge:', { code: '***', wabaId, phoneId });
+                    const code = data.code;
+                    const wabaId = data.wabaId; // Changed from waba_id to wabaId to match bridge
+                    const phoneId = data.phoneId;
+                    console.log('Received Code from Auth Bridge:', code, 'WABA ID:', wabaId, 'Phone ID:', phoneId);
                     registerEmbeddedAccount(code, wabaId, phoneId);
                 }
             } catch (e) { }

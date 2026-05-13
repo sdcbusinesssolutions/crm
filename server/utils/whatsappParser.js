@@ -134,7 +134,22 @@ const extractMessageContent = (message) => {
                     emoji: message.reaction.emoji
                 }
             };
-
+ 
+        case 'edit':
+            return {
+                ...base,
+                edit: true,
+                originalMessageId: message.edit?.original_message_id,
+                text: message.edit?.message?.text?.body || message.edit?.message?.image?.caption || message.edit?.message?.video?.caption || ''
+            };
+ 
+        case 'revoke':
+            return {
+                ...base,
+                revoke: true,
+                originalMessageId: message.revoke?.original_message_id
+            };
+ 
         default:
             return { ...base, unknown: true };
     }

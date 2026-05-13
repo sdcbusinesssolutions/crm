@@ -237,8 +237,10 @@ class MetaOnboardingService {
     async subscribeAppToWaba(wabaId, accessToken) {
         try {
             logOnboardingEvent('SUBSCRIBE_APP_START', { wabaId });
-            // 1. Subscribe App to WABA
-            await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {}, {
+            // 1. Subscribe App to WABA with necessary fields for Coexistence
+            await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {
+                subscribed_fields: 'messages,statuses,history,smb_app_state_sync,smb_message_echoes'
+            }, {
                 params: { access_token: accessToken }
             });
             return true;
@@ -273,7 +275,8 @@ class MetaOnboardingService {
 
             await axios.post(`${this.graphApiUrl}/${wabaId}/subscribed_apps`, {
                 override_callback_uri: webhookUrl,
-                verify_token: verifyToken
+                verify_token: verifyToken,
+                subscribed_fields: 'messages,statuses,history,smb_app_state_sync,smb_message_echoes'
             }, {
                 params: { access_token: accessToken }
             });

@@ -887,6 +887,15 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
             verifyToken
         });
 
+        if (isCoexistence) {
+            console.log('[Embedded Signup] Triggering Coexistence Data Sync...');
+            logOnboardingEvent('SYNC_TRIGGER_INIT', { userId, phoneId: phone_number_id });
+            // 1. Sync Contacts
+            await MetaOnboardingService.triggerSmbDataSync(phone_number_id, longLivedToken, 'smb_app_state_sync');
+            // 2. Sync History
+            await MetaOnboardingService.triggerSmbDataSync(phone_number_id, longLivedToken, 'history');
+        }
+ 
         res.json({ message: 'WhatsApp account connected successfully', data });
 
     } catch (error) {
