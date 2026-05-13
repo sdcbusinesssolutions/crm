@@ -150,5 +150,21 @@ export const inboxService = {
             console.error("Failed to unblock contact", e);
             throw e;
         }
+    },
+
+    assignConversation: async (conversationId: string, staffId: string | null): Promise<boolean> => {
+        try {
+            const headers = getAuthHeaders();
+            const response = await fetch(`/api/team-staff/assign-conversation`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ conversationId, staffId })
+            });
+            if (!response.ok) throw new Error('Failed to assign conversation');
+            return true;
+        } catch (e) {
+            console.error("Failed to assign conversation", e);
+            return false;
+        }
     }
 };

@@ -17,7 +17,9 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
-import { getStaffList } from '../services/lead-management-api';
+import { getStaffList, getLeads } from '../services/lead-management-api';
+import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
+import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -100,6 +102,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [quickReplySearch, setQuickReplySearch] = useState('');
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
+    const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -115,12 +118,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     // Load Conversations
     const loadConversations = async (page = 1, append = false, sTerm = searchTerm, qFilter = quickFilter, fTag = filterTag, isPoll = false) => {
         if (isLoadingMoreConvs || (!hasMoreConvs && append && !isPoll)) return;
-        
+
         if (append) setIsLoadingMoreConvs(true);
         try {
             const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
             const newData = result || [];
-            
+
             // Only update hasMoreConvs if we are NOT polling
             if (!isPoll) {
                 if (newData.length < 20) {
@@ -151,7 +154,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 // Fresh load (search/filter change): Replace
                 return newData;
             });
-            
+
             if (!append && page === 1) {
                 // Load tags only on initial load
                 tagService.getTags().then(tags => setAvailableTagsList(tags || [])).catch(console.error);
@@ -168,6 +171,22 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             getStaffList().then(setStaffMembers).catch(console.error);
         }
     }, [isOwner]);
+
+    // Fetch lead ID for the active chat
+    useEffect(() => {
+        if (activeChat) {
+            getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone }).then(res => {
+                const leads = res as any; // The API returns the array directly
+                if (leads && leads.length > 0) {
+                    setActiveLeadId(leads[0].id);
+                } else {
+                    setActiveLeadId(null);
+                }
+            }).catch(console.error);
+        } else {
+            setActiveLeadId(null);
+        }
+    }, [activeChat?.contact_phone]);
 
     useEffect(() => {
         setConvPage(1);
@@ -242,7 +261,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             try {
                 const data = await inboxService.getMessages(activeChatId, MESSAGE_BATCH_SIZE, 0);
                 const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                
+
                 // Update Cache and State
                 messageCacheRef.current[activeChatId] = uniqueMessages;
                 setMessages(uniqueMessages);
@@ -276,21 +295,21 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 (payload) => {
                     const newMessage = payload.new as Message;
                     console.log('[Realtime] New message received:', newMessage.id);
-                    
+
                     setMessages(prev => {
                         // Avoid duplicates if we already have it (e.g. from optimistic UI)
                         if (prev.some(m => m.id === newMessage.id)) return prev;
-                        
+
                         // Deduplicate optimistic "twins" (same text/type/direction)
                         const filtered = prev.filter(m => {
                             if (!m.id.startsWith('temp-')) return true;
-                            const isMatch = m.type === newMessage.type && 
-                                          m.direction === newMessage.direction &&
-                                          (m.text === newMessage.text || m.media_url === newMessage.media_url);
+                            const isMatch = m.type === newMessage.type &&
+                                m.direction === newMessage.direction &&
+                                (m.text === newMessage.text || m.media_url === newMessage.media_url);
                             return !isMatch;
                         });
 
-                        return [...filtered, newMessage].sort((a, b) => 
+                        return [...filtered, newMessage].sort((a, b) =>
                             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                         );
                     });
@@ -372,7 +391,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         // Optimistic UI for text-based quick replies
         const node = reply.nodes?.[0];
         const tempId = `temp-${Date.now()}`;
-        
+
         if (node?.type === 'textMessage') {
             const msg: Message = {
                 id: tempId,
@@ -459,7 +478,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 if (container) {
                     const newScrollHeight = container.scrollHeight;
                     const scrollDiff = newScrollHeight - previousScrollHeight;
-                    
+
                     // Temporarily disable smooth scroll for the jump to prevent jitter
                     const originalScrollBehavior = container.style.scrollBehavior;
                     container.style.scrollBehavior = 'auto';
@@ -515,7 +534,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     useLayoutEffect(() => {
         if (activeChatId && shouldForceScrollRef.current) {
             const container = chatContainerRef.current;
-            
+
             // If we are still loading, wait
             if (isLoadingMessages) return;
 
@@ -530,11 +549,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 // Initial snap using double requestAnimationFrame to ensure layout is ready
                 const performScroll = () => {
                     if (!container) return;
-                    
+
                     const originalScrollBehavior = container.style.scrollBehavior;
                     container.style.scrollBehavior = 'auto';
                     container.scrollTop = container.scrollHeight;
-                    
+
                     // Small timeout to allow heavy assets (images/avatars) to take up space
                     setTimeout(() => {
                         if (container) {
@@ -611,8 +630,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         isSendingRef.current = true;
         try {
             const { text, ...metaPayload } = templatePayload;
-            const sentMsg = await inboxService.sendMessage(activeChatId, { 
-                type: 'template', 
+            const sentMsg = await inboxService.sendMessage(activeChatId, {
+                type: 'template',
                 template: metaPayload,
                 text: text
             });
@@ -1837,16 +1856,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
                         {['All', 'Unassigned', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
-                            
+
                             return (
                                 <button
                                     key={f}
                                     onClick={() => setQuickFilter(f as any)}
-                                    className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${
-                                        isActive 
-                                            ? 'bg-[#00684a] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px] border border-[#00684a]' 
+                                    className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${isActive
+                                            ? 'bg-[#00684a] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px] border border-[#00684a]'
                                             : 'bg-emerald-50 text-[#00684a] border border-emerald-100 hover:bg-emerald-100 hover:scale-105'
-                                    }`}
+                                        }`}
                                 >
                                     {f}
                                 </button>
@@ -1877,7 +1895,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         filteredChats.map(chat => (
                             <div
                                 key={chat.id}
-                                onClick={() => { setActiveChatId(chat.id); if(quickFilter === 'Quick Reply') setQuickFilter('All'); }}
+                                onClick={() => { setActiveChatId(chat.id); if (quickFilter === 'Quick Reply') setQuickFilter('All'); }}
                                 className={`p-4 border-b border-emerald-200 cursor-pointer hover:bg-slate-50 transition-colors group animate-fade-in ${activeChatId === chat.id ? 'bg-brand-50/50 border-brand-100' : ''}`}
                             >
                                 <div className="flex justify-between items-start mb-1">
@@ -2082,7 +2100,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg"><SearchIcon className="w-5 h-5" /></button>
                                 {canWrite && (
                                     <button
-                                        onClick={handleClearChat}
+                                        onClick={() => setIsClearChatModalOpen(true)}
                                         className="p-2 text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors border border-red-100"
                                         title="Clear Chat History"
                                     >
@@ -2110,9 +2128,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 <button onClick={handleExportChat} className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition-colors flex items-center gap-2 font-medium">
                                                     <DownloadIcon className="w-4 h-4" /> Export Chat
                                                 </button>
+                                                <div className="h-px bg-slate-100 my-1"></div>
                                                 {canWrite && (
                                                     <>
-                                                        <div className="h-px bg-slate-100 my-1"></div>
                                                         {contactStatus === 'Blocked' ? (
                                                             <button onClick={handleUnblockContact} className="w-full text-left px-4 py-3 text-sm text-green-600 hover:bg-green-50 transition-colors flex items-center gap-2 font-medium">
                                                                 <CheckIcon className="w-4 h-4" /> Unblock Contact
@@ -2125,7 +2143,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         <button
                                                             onClick={(e) => {
                                                                 setIsHeaderMenuOpen(false);
-                                                                handleClearChat();
+                                                                setIsClearChatModalOpen(true);
                                                             }}
                                                             className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 font-medium"
                                                         >
@@ -2215,261 +2233,259 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     );
                                 })
                             )}
+                            <div ref={messagesEndRef} />
                         </div>
-                        
+
                         {/* Input Area */}
                         {canWrite ? (
-                            <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md z-50" style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}>
-                                <input type="file" ref={fileInputRef} style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }} onChange={handleFileSelected} />
+                            <>
+                                <div className="bg-white px-2 py-2 border border-[#00684a] rounded-3xl flex items-end space-x-2 shrink-0 relative m-3 shadow-md z-50" style={{ paddingBottom: 'max(0.25rem, env(safe-area-inset-bottom))' }}>
+                            <input type="file" ref={fileInputRef} style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap', border: 0 }} onChange={handleFileSelected} />
 
-                                {/* Attachment Menu */}
-                                {isAttachmentOpen && (
-                                    <>
-                                        <div className="fixed inset-0 z-30" onClick={() => setIsAttachmentOpen(false)}></div>
-                                        <div className="absolute bottom-16 left-4 z-40 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 w-48 animate-slide-up">
-                                            <button onClick={() => handleAttachmentClick('document')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
-                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><DocumentFileIcon className="w-4 h-4" /></div> Document
-                                            </button>
-                                            <button onClick={() => handleAttachmentClick('image')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
-                                                <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><ImageFileIcon className="w-4 h-4" /></div> Image
-                                            </button>
-                                            <button onClick={() => handleAttachmentClick('video')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
-                                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><VideoFileIcon className="w-4 h-4" /></div> Video
-                                            </button>
-                                            <button onClick={() => handleAttachmentClick('audio')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
-                                                <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><AudioFileIcon className="w-4 h-4" /></div> Audio
-                                            </button>
-                                            <div className="h-px bg-slate-100 my-1 mx-2"></div>
-                                            <button 
-                                                onClick={() => { setQuickFilter('Quick Reply'); setIsAttachmentOpen(false); }} 
-                                                className="flex items-center gap-3 px-3 py-2 hover:bg-green-50 rounded-lg text-sm text-[#0D9668] font-bold transition-colors w-full text-left"
-                                            >
-                                                <div className="w-8 h-8 rounded-full bg-green-100 text-[#0D9668] flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
-                                            </button>
-                                            <button 
-                                                onClick={() => { setIsTemplateModalOpen(true); setIsAttachmentOpen(false); }} 
-                                                className="flex items-center gap-3 px-3 py-2 hover:bg-brand-50 rounded-lg text-sm text-brand-600 font-bold transition-colors w-full text-left"
-                                            >
-                                                <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><MessageIcon className="w-4 h-4" /></div> Template
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-
-                                <button
-                                    onClick={() => {
-                                        setIsEmojiPickerOpen(!isEmojiPickerOpen);
-                                        setHasOpenedEmoji(true);
-                                        setIsAttachmentOpen(false);
-                                        setIsQuickReplyOpen(false);
-                                    }}
-                                    className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isEmojiPickerOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
-                                    title="Emojis"
-                                >
-                                    <EmojiIcon className="w-6 h-6" />
-                                </button>
-
-                                {/* Emoji Picker - Mounted once after first open for performance */}
-                                {(isEmojiPickerOpen || hasOpenedEmoji) && (
-                                    <div 
-                                        className={`absolute bottom-16 left-0 z-40 transition-all duration-200 ${isEmojiPickerOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
-                                    >
-                                        <div className="fixed inset-0 z-[-1]" onClick={() => setIsEmojiPickerOpen(false)}></div>
-                                        <div className="shadow-2xl rounded-2xl overflow-hidden border border-brand-100 bg-white">
-                                            <MemoizedEmojiPicker onEmojiClick={handleEmojiClick} />
-                                        </div>
+                            {/* Attachment Menu */}
+                            {isAttachmentOpen && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setIsAttachmentOpen(false)}></div>
+                                    <div className="absolute bottom-16 left-4 z-40 bg-white rounded-xl shadow-2xl border border-slate-200 p-2 flex flex-col gap-1 w-48 animate-slide-up">
+                                        <button onClick={() => handleAttachmentClick('document')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
+                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><DocumentFileIcon className="w-4 h-4" /></div> Document
+                                        </button>
+                                        <button onClick={() => handleAttachmentClick('image')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
+                                            <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><ImageFileIcon className="w-4 h-4" /></div> Image
+                                        </button>
+                                        <button onClick={() => handleAttachmentClick('video')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
+                                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><VideoFileIcon className="w-4 h-4" /></div> Video
+                                        </button>
+                                        <button onClick={() => handleAttachmentClick('audio')} className="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 rounded-lg text-sm text-slate-700 font-medium transition-colors w-full text-left">
+                                            <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><AudioFileIcon className="w-4 h-4" /></div> Audio
+                                        </button>
+                                        <div className="h-px bg-slate-100 my-1 mx-2"></div>
+                                        <button
+                                            onClick={() => { setQuickFilter('Quick Reply'); setIsAttachmentOpen(false); }}
+                                            className="flex items-center gap-3 px-3 py-2 hover:bg-green-50 rounded-lg text-sm text-[#0D9668] font-bold transition-colors w-full text-left"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-green-100 text-[#0D9668] flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
+                                        </button>
+                                        <button
+                                            onClick={() => { setIsTemplateModalOpen(true); setIsAttachmentOpen(false); }}
+                                            className="flex items-center gap-3 px-3 py-2 hover:bg-brand-50 rounded-lg text-sm text-brand-600 font-bold transition-colors w-full text-left"
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><MessageIcon className="w-4 h-4" /></div> Template
+                                        </button>
                                     </div>
-                                )}
+                                </>
+                            )}
 
-                                <button
-                                    onClick={() => {
-                                        setIsAttachmentOpen(!isAttachmentOpen);
-                                        setIsEmojiPickerOpen(false);
-                                        setIsQuickReplyOpen(false);
-                                    }}
-                                    className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
-                                    title="Attachments"
+                            <button
+                                onClick={() => {
+                                    setIsEmojiPickerOpen(!isEmojiPickerOpen);
+                                    setHasOpenedEmoji(true);
+                                    setIsAttachmentOpen(false);
+                                    setIsQuickReplyOpen(false);
+                                }}
+                                className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isEmojiPickerOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
+                                title="Emojis"
+                            >
+                                <EmojiIcon className="w-6 h-6" />
+                            </button>
+
+                            {/* Emoji Picker - Mounted once after first open for performance */}
+                            {(isEmojiPickerOpen || hasOpenedEmoji) && (
+                                <div
+                                    className={`absolute bottom-16 left-0 z-40 transition-all duration-200 ${isEmojiPickerOpen ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
                                 >
-                                    <PaperClipIcon className="w-6 h-6" />
-                                </button>
-
-                                {isRecording ? (
-                                    <div className="flex-1 bg-slate-100 rounded-3xl border border-red-500/30 flex items-center justify-between px-4 py-2 animate-pulse-subtle">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
-                                            <span className="text-slate-700 font-mono font-medium min-w-[3rem]">{formatDuration(recordingDuration)}</span>
-                                            <span className="text-xs text-slate-400">Recording...</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                onClick={handleCancelRecording}
-                                                className="p-2 text-slate-400 hover:text-red-500 transition-colors tooltip hover:bg-red-50 rounded-full"
-                                                title="Cancel recording"
-                                            >
-                                                <trashicon className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={handleStopRecording}
-                                                className="p-2 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95 flex items-center justify-center"
-                                                title="Send voice message"
-                                            >
-                                                <PaperAirplaneIcon className="w-4 h-4 ml-0.5" />
-                                            </button>
-                                        </div>
+                                    <div className="fixed inset-0 z-[-1]" onClick={() => setIsEmojiPickerOpen(false)}></div>
+                                    <div className="shadow-2xl rounded-2xl overflow-hidden border border-brand-100 bg-white">
+                                        <MemoizedEmojiPicker onEmojiClick={handleEmojiClick} />
                                     </div>
-                                ) : (
-                                    <div className="flex-1 bg-slate-100 rounded-2xl border border-[#00684a] focus-within:ring-1 focus-within:ring-[#00684a] flex items-center px-4 py-2">
-                                        <textarea
-                                            rows={1}
-                                            placeholder="Type a message or '/' for Quick Replies..."
-                                            value={messageInput}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setMessageInput(val);
+                                </div>
+                            )}
 
-                                                // Trigger quick reply dropdown on '/'
-                                                const lastSlashIndex = val.lastIndexOf('/');
-                                                if (lastSlashIndex !== -1 && (lastSlashIndex === 0 || val[lastSlashIndex - 1] === ' ')) {
-                                                    setIsQuickReplyOpen(true);
-                                                    setQuickReplySearch(val.substring(lastSlashIndex + 1));
-                                                    setSelectedQuickReplyIndex(0);
-                                                } else {
+                            <button
+                                onClick={() => {
+                                    setIsAttachmentOpen(!isAttachmentOpen);
+                                    setIsEmojiPickerOpen(false);
+                                    setIsQuickReplyOpen(false);
+                                }}
+                                className={`p-2 transition-all duration-300 relative z-[60] active:scale-95 ${isAttachmentOpen ? 'text-brand-600 bg-brand-50 rounded-full' : 'text-slate-600 hover:text-brand-600'}`}
+                                title="Attachments"
+                            >
+                                <PaperClipIcon className="w-6 h-6" />
+                            </button>
+
+                            {isRecording ? (
+                                <div className="flex-1 bg-slate-100 rounded-3xl border border-red-500/30 flex items-center justify-between px-4 py-2 animate-pulse-subtle">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                                        <span className="text-slate-700 font-mono font-medium min-w-[3rem]">{formatDuration(recordingDuration)}</span>
+                                        <span className="text-xs text-slate-400">Recording...</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={handleCancelRecording}
+                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors tooltip hover:bg-red-50 rounded-full"
+                                            title="Cancel recording"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={handleStopRecording}
+                                            className="p-2 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95 flex items-center justify-center"
+                                            title="Send voice message"
+                                        >
+                                            <PaperAirplaneIcon className="w-4 h-4 ml-0.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 bg-slate-100 rounded-2xl border border-[#00684a] focus-within:ring-1 focus-within:ring-[#00684a] flex items-center px-4 py-2">
+                                    <textarea
+                                        rows={1}
+                                        placeholder="Type a message or '/' for Quick Replies..."
+                                        value={messageInput}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setMessageInput(val);
+
+                                            // Trigger quick reply dropdown on '/'
+                                            const lastSlashIndex = val.lastIndexOf('/');
+                                            if (lastSlashIndex !== -1 && (lastSlashIndex === 0 || val[lastSlashIndex - 1] === ' ')) {
+                                                setIsQuickReplyOpen(true);
+                                                setQuickReplySearch(val.substring(lastSlashIndex + 1));
+                                                setSelectedQuickReplyIndex(0);
+                                            } else {
+                                                setIsQuickReplyOpen(false);
+                                            }
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (isQuickReplyOpen) {
+                                                if (e.key === 'ArrowDown') {
+                                                    e.preventDefault();
+                                                    setSelectedQuickReplyIndex(prev => (prev + 1) % filteredQuickReplies.length);
+                                                } else if (e.key === 'ArrowUp') {
+                                                    e.preventDefault();
+                                                    setSelectedQuickReplyIndex(prev => (prev - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
+                                                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                                                    e.preventDefault();
+                                                    if (filteredQuickReplies[selectedQuickReplyIndex]) {
+                                                        handleSendQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
+                                                    }
+                                                } else if (e.key === 'Escape') {
                                                     setIsQuickReplyOpen(false);
                                                 }
-                                            }}
-                                            onKeyDown={(e) => {
-                                                if (isQuickReplyOpen) {
-                                                    if (e.key === 'ArrowDown') {
-                                                        e.preventDefault();
-                                                        setSelectedQuickReplyIndex(prev => (prev + 1) % filteredQuickReplies.length);
-                                                    } else if (e.key === 'ArrowUp') {
-                                                        e.preventDefault();
-                                                        setSelectedQuickReplyIndex(prev => (prev - 1 + filteredQuickReplies.length) % filteredQuickReplies.length);
-                                                    } else if (e.key === 'Enter' || e.key === 'Tab') {
-                                                        e.preventDefault();
-                                                        if (filteredQuickReplies[selectedQuickReplyIndex]) {
-                                                            handleSendQuickReply(filteredQuickReplies[selectedQuickReplyIndex]);
-                                                        }
-                                                    } else if (e.key === 'Escape') {
-                                                        setIsQuickReplyOpen(false);
-                                                    }
-                                                }
-                                            }}
-                                            className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
-                                        />
+                                            }
+                                        }}
+                                        className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
+                                    />
 
-                                        {/* Quick Replies Dropdown */}
-                                        {isQuickReplyOpen && (
-                                            <div className="absolute bottom-full left-0 mb-4 w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,104,74,0.3)] border-2 border-[#00684a] overflow-hidden z-[100] animate-slide-up ring-1 ring-black/10">
-                                                {/* Header */}
-                                                <div className="px-5 py-4 bg-[#00684a] flex justify-between items-center relative overflow-hidden">
-                                                    <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '200px' }} />
-                                                    <div className="flex items-center gap-2.5 relative z-10">
-                                                        <div className="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                                                            <QuickReplyIcon className="w-3.5 h-3.5 text-white" />
-                                                        </div>
-                                                        <span className="text-[12px] font-bold text-white tracking-wide">Quick Library</span>
+                                    {/* Quick Replies Dropdown */}
+                                    {isQuickReplyOpen && (
+                                        <div className="absolute bottom-full left-0 mb-4 w-full max-w-sm bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,104,74,0.3)] border-2 border-[#00684a] overflow-hidden z-[100] animate-slide-up ring-1 ring-black/10">
+                                            {/* Header */}
+                                            <div className="px-5 py-4 bg-[#00684a] flex justify-between items-center relative overflow-hidden">
+                                                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '200px' }} />
+                                                <div className="flex items-center gap-2.5 relative z-10">
+                                                    <div className="w-6 h-6 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                                                        <QuickReplyIcon className="w-3.5 h-3.5 text-white" />
                                                     </div>
-                                                    <div className="px-2.5 py-1 bg-white/15 rounded-lg backdrop-blur-sm relative z-10 border border-white/10">
-                                                        <span className="text-[9px] text-white/90 font-bold tracking-wider uppercase">Navigate: ‚Üë‚Üì ‚Ä¢ Send: Enter</span>
-                                                    </div>
+                                                    <span className="text-[12px] font-bold text-white tracking-wide">Quick Library</span>
                                                 </div>
-                                                
-                                                <div className="max-h-80 overflow-y-auto custom-scrollbar relative bg-slate-50/50">
-                                                    {/* Subtle Pattern Overlay */}
-                                                    <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '300px' }} />
-                                                    
-                                                    <div className="relative z-10">
-                                                        {filteredQuickReplies.length > 0 ? (
-                                                            filteredQuickReplies.map((reply, index) => (
-                                                                <button
-                                                                    key={reply.id}
-                                                                    onClick={() => handleSendQuickReply(reply)}
-                                                                    onMouseEnter={() => setSelectedQuickReplyIndex(index)}
-                                                                    className={`w-full text-left px-5 py-5 flex items-center justify-between transition-all border-b border-slate-100 last:border-0 ${
-                                                                        index === selectedQuickReplyIndex 
-                                                                            ? 'bg-white text-[#00684a] border-l-[6px] border-l-[#00684a] pl-[14px] shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] scale-[1.01] z-10 relative' 
-                                                                            : 'hover:bg-white/50 border-l-[6px] border-l-transparent'
-                                                                    }`}
-                                                                >
-                                                                    <div className="flex items-center gap-4 min-w-0">
-                                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 transition-all ${
-                                                                            index === selectedQuickReplyIndex 
-                                                                                ? 'bg-[#00684a] border-[#00684a] text-white rotate-3 shadow-md' 
-                                                                                : 'bg-white border-slate-100 text-slate-300'
-                                                                        }`}>
-                                                                            <span className="text-sm font-black">/</span>
-                                                                        </div>
-                                                                        <div className="min-w-0">
-                                                                            <p className={`text-[14px] font-semibold truncate tracking-tight mb-0.5 ${
-                                                                                index === selectedQuickReplyIndex ? 'text-[#00684a]' : 'text-slate-900'
-                                                                            }`}>{reply.name}</p>
-                                                                            <p className={`text-[12px] truncate max-w-[200px] leading-tight ${
-                                                                                index === selectedQuickReplyIndex ? 'text-[#00684a]/70 font-medium' : 'text-slate-500 font-normal'
-                                                                            }`}>
-                                                                                {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || reply.nodes?.[0]?.data?.caption || 'Ready to send...'}
-                                                                            </p>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
-                                                                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${
-                                                                            index === selectedQuickReplyIndex ? 'bg-[#00684a]/10 text-[#00684a]' : 'bg-slate-100 text-slate-400'
-                                                                        }`}>
-                                                                            {reply.nodes?.[0]?.type?.replace('Message', '') || 'Reply'}
-                                                                        </span>
-                                                                    </div>
-                                                                </button>
-                                                            ))
-                                                        ) : (
-                                                            <div className="p-16 text-center">
-                                                                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
-                                                                    <SearchIcon className="w-8 h-8 text-slate-200" />
-                                                                </div>
-                                                                <p className="text-sm font-black text-slate-300 uppercase tracking-widest">No Matches</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold mt-1">Try a different keyword</p>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Footer */}
-                                                <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex justify-center shadow-[inset_0_4px_12px_rgba(0,0,0,0.03)]">
-                                                    <button
-                                                        onClick={() => { setQuickFilter('Quick Reply'); setIsQuickReplyOpen(false); }}
-                                                        className="group flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[12px] font-bold text-white bg-[#00684a] hover:bg-[#005c42] hover:shadow-xl hover:shadow-[#00684a]/20 transition-all active:scale-95 border border-[#00684a]"
-                                                    >
-                                                        <PlusIcon className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
-                                                        <span>Manage Full Library</span>
-                                                    </button>
+                                                <div className="px-2.5 py-1 bg-white/15 rounded-lg backdrop-blur-sm relative z-10 border border-white/10">
+                                                    <span className="text-[9px] text-white/90 font-bold tracking-wider uppercase">Navigate: ‚Üë‚Üì ‚Ä¢ Send: Enter</span>
                                                 </div>
                                             </div>
-                                        )}
-                                    </div>
-                                )}
-                                {activeChatId && (messageInput.trim() ? (
-                                    <button onClick={handleSendMessage} className="p-2.5 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95">
-                                        <PaperAirplaneIcon className="w-5 h-5" />
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={handleStartRecording}
-                                        className="p-2.5 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
-                                    >
-                                        <MicrophoneIcon className="w-5 h-5" />
-                                    </button>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="bg-amber-50 px-6 py-3 border border-amber-200 rounded-xl flex items-center gap-3 m-3 shadow-sm">
-                                <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <p className="text-sm text-amber-800 font-medium">You have read-only access to this conversation.</p>
-                            </div>
-                        )}
 
+                                            <div className="max-h-80 overflow-y-auto custom-scrollbar relative bg-slate-50/50">
+                                                {/* Subtle Pattern Overlay */}
+                                                <div className="absolute inset-0 pointer-events-none opacity-[0.03] z-0" style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '300px' }} />
+
+                                                <div className="relative z-10">
+                                                    {filteredQuickReplies.length > 0 ? (
+                                                        filteredQuickReplies.map((reply, index) => (
+                                                            <button
+                                                                key={reply.id}
+                                                                onClick={() => handleSendQuickReply(reply)}
+                                                                onMouseEnter={() => setSelectedQuickReplyIndex(index)}
+                                                                className={`w-full text-left px-5 py-5 flex items-center justify-between transition-all border-b border-slate-100 last:border-0 ${index === selectedQuickReplyIndex
+                                                                        ? 'bg-white text-[#00684a] border-l-[6px] border-l-[#00684a] pl-[14px] shadow-[inset_0_1px_4px_rgba(0,0,0,0.02)] scale-[1.01] z-10 relative'
+                                                                        : 'hover:bg-white/50 border-l-[6px] border-l-transparent'
+                                                                    }`}
+                                                            >
+                                                                <div className="flex items-center gap-4 min-w-0">
+                                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border-2 transition-all ${index === selectedQuickReplyIndex
+                                                                            ? 'bg-[#00684a] border-[#00684a] text-white rotate-3 shadow-md'
+                                                                            : 'bg-white border-slate-100 text-slate-300'
+                                                                        }`}>
+                                                                        <span className="text-sm font-black">/</span>
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <p className={`text-[14px] font-semibold truncate tracking-tight mb-0.5 ${index === selectedQuickReplyIndex ? 'text-[#00684a]' : 'text-slate-900'
+                                                                            }`}>{reply.name}</p>
+                                                                        <p className={`text-[12px] truncate max-w-[200px] leading-tight ${index === selectedQuickReplyIndex ? 'text-[#00684a]/70 font-medium' : 'text-slate-500 font-normal'
+                                                                            }`}>
+                                                                            {reply.nodes?.[0]?.data?.message || reply.nodes?.[0]?.data?.body || reply.nodes?.[0]?.data?.caption || 'Ready to send...'}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex flex-col items-end gap-1.5 shrink-0 ml-3">
+                                                                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider ${index === selectedQuickReplyIndex ? 'bg-[#00684a]/10 text-[#00684a]' : 'bg-slate-100 text-slate-400'
+                                                                        }`}>
+                                                                        {reply.nodes?.[0]?.type?.replace('Message', '') || 'Reply'}
+                                                                    </span>
+                                                                </div>
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-16 text-center">
+                                                            <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
+                                                                <SearchIcon className="w-8 h-8 text-slate-200" />
+                                                            </div>
+                                                            <p className="text-sm font-black text-slate-300 uppercase tracking-widest">No Matches</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold mt-1">Try a different keyword</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex justify-center shadow-[inset_0_4px_12px_rgba(0,0,0,0.03)]">
+                                                <button
+                                                    onClick={() => { setQuickFilter('Quick Reply'); setIsQuickReplyOpen(false); }}
+                                                    className="group flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-[12px] font-bold text-white bg-[#00684a] hover:bg-[#005c42] hover:shadow-xl hover:shadow-[#00684a]/20 transition-all active:scale-95 border border-[#00684a]"
+                                                >
+                                                    <PlusIcon className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" />
+                                                    <span>Manage Full Library</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {!isRecording && (messageInput.trim() ? (
+                                <button onClick={handleSendMessage} className="p-2.5 bg-[#00684a] text-white rounded-full shadow-md hover:bg-[#005c42] transition-transform active:scale-95">
+                                    <PaperAirplaneIcon className="w-5 h-5" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleStartRecording}
+                                    className="p-2.5 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors active:scale-95"
+                                >
+                                    <MicrophoneIcon className="w-5 h-5" />
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <div className="bg-amber-50 px-6 py-3 border border-amber-200 rounded-xl flex items-center gap-3 m-3 shadow-sm z-50">
+                        <div className="w-8 h-8 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <p className="text-sm text-amber-800 font-medium">You have read-only access to this conversation.</p>
+                    </div>
+                )}
                     </>
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-slate-400 relative z-10">
@@ -2503,22 +2519,21 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <h2 className="text-lg font-bold text-slate-900">{activeChat.contact_name || 'Unknown Contact'}</h2>
                                 <p className="text-sm text-slate-500">{activeChat.contact_phone}</p>
                                 {activeChat.assigned_to && (
-                                    <span className="mt-1 text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase">
-                                        Assigned to: {activeChat.assigned_to}
+                                    <span className="mt-1 text-[10px] font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-full border border-brand-100">
+                                        Chat Agent: {activeChat.assigned_to}
                                     </span>
                                 )}
-                                
+
                                 {isOwner && (
                                     <div className="mt-4 w-full px-6">
-                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Assign to Staff</label>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">Assign Chat Agent (1:1)</label>
                                         <select
                                             value={activeChat.assigned_to || ''}
                                             onChange={async (e) => {
                                                 const staffId = e.target.value;
                                                 const success = await inboxService.assignConversation(activeChat.id, staffId || null);
                                                 if (success) {
-                                                    // Update local state
-                                                    setConversations(prev => prev.map(c => 
+                                                    setConversations(prev => prev.map(c =>
                                                         c.id === activeChat.id ? { ...c, assigned_to: staffId } : c
                                                     ));
                                                 }
@@ -2530,6 +2545,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 <option key={s.id} value={s.id}>{s.name}</option>
                                             ))}
                                         </select>
+                                    </div>
+                                )}
+
+                                {activeLeadId && (
+                                    <div className="mt-6 w-full border-t border-slate-100 pt-6 px-6">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 text-center">Lead Assignments (Multi-Staff)</label>
+                                        <LeadAssignment leadId={activeLeadId} />
                                     </div>
                                 )}
                             </div>
@@ -2611,22 +2633,79 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </>
                                             )}
                                         </div>
-                         $úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
-ú€f$√h˝Èø∂Âe‘éÙ⁄ËHúèÇ`›∂f{êFo©YÚø‘Û@00uMbíz-ÎÏXI$&¬gf÷˙∂7”¥ﬁu|'K.ÃoP
-P›¿˘FÀ.–˝o˚Ú9B<~. íÔ≈À[í¥òÀ<Ÿ≠Ñ$Øï¢∑‰{1πAÅï.ÚbKx∫L†ÅØè›∑'Øu8n5†í∫e ,]ÒH©ñí∆V®åWw√$˘CÉelπì|zys´ôKäi-q ›¨bk,wnGˇ‚;•† ~÷e…rÕíâ‹‘~'1`V‚¶´π-*[…ÒL‘Kƒ'2@ü‹˛–‰ª™†≤nëÕﬂ2∏Nﬂ à∆∂µGï¢Ûi/U¢µ'EÔ@¶`HÊπò;Jïêºº‹é≈+JÈn#ªºÇ6⁄¥óƒπGï¸°N“G'óZ!ˆ·Ì∏âWièªNJ†@Û‡öA˚‹Z|™[®Ô$q}iù“∑µQbtTEC$úímÖŒmoìL“D¸‹;ò%gœ?wÍ¡≈∑¯Ó˘ovH0ı…aá5£⁄*Ó†ÿí√ÃlÕõõS†iy‰îr’O7™ìûÅ%L]›◊%±∫«hk ∂´∑˜>v1≠HB£Æ±ﬂﬁ⁄d\Å(eoIx¢>3¥6BS%Ãÿ·ì(
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Notes</label>
+                                    </div>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
+                                        rows={4}
+                                        placeholder="Add a note about this contact..."
+                                    ></textarea>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Information</label>
+                                    <div className="bg-slate-50 rounded-lg border border-slate-100 p-3 space-y-2">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Phone</span>
+                                            <span className="font-medium text-slate-700">{activeChat.contact_phone}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Last Updated</span>
+                                            <span className="font-medium text-slate-700">{new Date(activeChat.updated_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-slate-500">Status</span>
+                                            <span className="font-medium text-slate-700 capitalize">{activeChat.status}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+
+            {isClearChatModalOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4 transform transition-all scale-100">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <TrashIcon className="w-6 h-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-800 mb-2">Clear Chat History?</h3>
+                            <p className="text-sm text-slate-500 mb-6">
+                                Are you sure you want to delete all messages in this conversation? This action cannot be undone.
+                            </p>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setIsClearChatModalOpen(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="flex-1 px-4 py-2 bg-red-600 rounded-lg text-sm font-bold text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-100"
+                                >
+                                    Clear History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <InboxTemplateModal
+                isOpen={isTemplateModalOpen}
+                onClose={() => setIsTemplateModalOpen(false)}
+                onSend={handleSendTemplate}
+            />
+        </div>
+    );
+};
+export default Inbox;

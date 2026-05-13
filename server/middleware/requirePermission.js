@@ -54,4 +54,13 @@ const requirePermission = (moduleName, requiredAccess = 'read') => {
     };
 };
 
+const ACCESS_TYPES = {
+    NO_ACCESS: 'no_access',
+    READ: 'read',
+    READ_WRITE: 'read_write',
+    ALL_ACCESS: 'all_access'
+};
+
 module.exports = requirePermission;
+module.exports.requirePermission = requirePermission;
+module.exports.ACCESS_TYPES = ACCESS_TYPES;

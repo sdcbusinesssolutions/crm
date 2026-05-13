@@ -9,7 +9,7 @@ const { requirePermission, ACCESS_TYPES } = require('../middleware/requirePermis
 
 // ...
 // ...
-router.get('/facebook/pages', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), async (req, res) => {
+router.get('/facebook/pages', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const userId = req.user.id;
         const pages = await facebookService.getAllPages(userId);
@@ -20,7 +20,7 @@ router.get('/facebook/pages', requirePermission('Integrations', ACCESS_TYPES.REA
     }
 });
 
-router.get('/facebook/pages/:pageId/forms', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), async (req, res) => {
+router.get('/facebook/pages/:pageId/forms', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const userId = req.user.id;
         const { pageId } = req.params;
@@ -44,7 +44,7 @@ router.post('/facebook/leads/sync', requirePermission('Integrations', ACCESS_TYP
     }
 });
 
-router.get('/facebook/config', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), async (req, res) => {
+router.get('/facebook/config', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const { appId, configId } = await facebookService.getAppCredentials();
 
@@ -58,7 +58,7 @@ router.get('/facebook/config', requirePermission('Integrations', ACCESS_TYPES.RE
     }
 });
 
-router.get('/facebook/status', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), async (req, res) => {
+router.get('/facebook/status', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     // ...
     try {
         const userId = req.user.id;
@@ -189,26 +189,26 @@ router.post('/facebook/subscribe', async (req, res) => {
 
 // --- Google Integration ---
 const googleRoutes = require('./integrations/google');
-router.use('/google', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), googleRoutes);
+router.use('/google', requirePermission('Integrations', ACCESS_TYPES.READ), googleRoutes);
 
 // --- Gmail Integration ---
 const gmailRoutes = require('./integrations/gmail');
-router.use('/gmail', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), gmailRoutes);
+router.use('/gmail', requirePermission('Integrations', ACCESS_TYPES.READ), gmailRoutes);
 
 // --- Google Calendar Integration ---
 const calendarRoutes = require('./integrations/calendar');
-router.use('/calendar', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), calendarRoutes);
+router.use('/calendar', requirePermission('Integrations', ACCESS_TYPES.READ), calendarRoutes);
 
 // --- Google Contacts Integration ---
 const contactsRoutes = require('./integrations/contacts');
-router.use('/contacts', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), contactsRoutes);
+router.use('/contacts', requirePermission('Integrations', ACCESS_TYPES.READ), contactsRoutes);
 
 // --- SMTP Integration ---
 const smtpRoutes = require('./integrations/smtp');
-router.use('/smtp', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), smtpRoutes);
+router.use('/smtp', requirePermission('Integrations', ACCESS_TYPES.READ), smtpRoutes);
 
 // --- OpenAI Integration ---
 const openaiRoutes = require('./integrations/openai');
-router.use('/openai', requirePermission('Integrations', ACCESS_TYPES.READ_ONLY), openaiRoutes);
+router.use('/openai', requirePermission('Integrations', ACCESS_TYPES.READ), openaiRoutes);
 
 module.exports = router;
