@@ -1088,7 +1088,32 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 </tbody>
                             </table>
                         </div>
-                        <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">{currentEntries.map((contact) => (<div key={contact.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(contact.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}><div className="absolute top-5 right-5"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} /></div><h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3><p className="text-sm text-slate-500 font-mono">{contact.phone}</p>{contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}<div className="flex justify-end gap-3 pt-3 border-t border-slate-100"><button onClick={() => handleOpenModal(contact)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(contact.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div></div>))}</div>
+                        <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">
+    {currentEntries.map((contact) => (
+        <div key={contact.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(contact.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}>
+            <div className="absolute top-5 right-5">
+                <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
+            </div>
+            <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+            <p className="text-sm text-slate-500 font-mono">{contact.phone}</p>
+            {contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}
+            
+            <div className="mt-4 pt-3 border-t border-slate-100">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned Staff</label>
+                <LeadAssignment leadId={contact.id} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-slate-100">
+                <button onClick={() => handleOpenModal(contact)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200">
+                    <EditIcon className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleDelete(contact.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200">
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    ))}
+</div>
                     </>
                 )}
                 <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col xl:flex-row justify-between items-center gap-4">

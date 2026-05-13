@@ -7,6 +7,7 @@ import DatabaseSetup from './DatabaseSetup';
 import Toast from './Toast';
 import PhoneInputWithCountry from './PhoneInputWithCountry';
 import EmailModal from './EmailModal';
+import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import {
     getPipelines,
     getKanbanBoard,
@@ -1280,6 +1281,10 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                             </div>
                                                         )}
 
+                                                        <div className="mt-3 pt-2 border-t border-[var(--color-border)]/30">
+                                                            <LeadAssignment leadId={lead.id} />
+                                                        </div>
+
                                                         <div className="flex justify-between items-center pt-1.5 border-t border-[var(--color-border)]">
                                                             {/* Left Side: Actions */}
                                                             <div className="flex items-center gap-1">
@@ -1460,6 +1465,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Company</th>
                                         <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Stage</th>
+                                        <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Assigned To</th>
                                         <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Value</th>
                                         <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Created</th>
                                     </tr>
@@ -1483,9 +1489,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-[var(--color-text)] opacity-80">{lead.company || '-'}</td>
                                             <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--color-bg)] text-[var(--color-text)]" style={{ backgroundColor: `${lead.stageColor}20`, color: lead.stageColor }}>
-                                                    {lead.stageName}
-                                                </span>
+                                                <LeadAssignment leadId={lead.id} />
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-[var(--color-text)] opacity-90">
                                                 {lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : '-'}
