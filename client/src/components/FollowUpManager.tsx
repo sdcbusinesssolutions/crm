@@ -4,6 +4,8 @@ import { themeService } from '../services/themeService';
 import { contactService } from '../services/contactService';
 import { format, isToday, isPast, isFuture, parseISO } from 'date-fns';
 import Papa from 'papaparse';
+import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
+import { ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 const FollowUpManager: React.FC = () => {
     const [tasks, setTasks] = useState<any[]>([]);
@@ -385,21 +387,25 @@ const FollowUpManager: React.FC = () => {
                         <p className="text-[var(--color-text)] opacity-60">You have total {stats.total} Active Tasks</p>
                     </div>
                     <div className="flex gap-3">
-                        <button
-                            onClick={handleExport}
-                            className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors flex items-center gap-2 font-bold text-sm shadow-md shadow-brand-200"
-                            title="Export to CSV"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                            Export
-                        </button>
-                        <button
-                            onClick={openCreateModal}
-                            className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors flex items-center gap-2 font-bold text-sm shadow-md shadow-brand-200"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                            Create Follow-up
-                        </button>
+                        <PermissionGate moduleName="Follow-up" requiredAccess={ACCESS_TYPES.READ}>
+                            <button
+                                onClick={handleExport}
+                                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors flex items-center gap-2 font-bold text-sm shadow-md shadow-brand-200"
+                                title="Export to CSV"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                Export
+                            </button>
+                        </PermissionGate>
+                        <PermissionGate moduleName="Follow-up" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                            <button
+                                onClick={openCreateModal}
+                                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors flex items-center gap-2 font-bold text-sm shadow-md shadow-brand-200"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                Create Follow-up
+                            </button>
+                        </PermissionGate>
                     </div>
                 </div>
 
@@ -547,22 +553,26 @@ const FollowUpManager: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <button
-                                                            onClick={(e) => handleToggleComplete(e, task)}
-                                                            className={`text-xs font-medium px-2 py-1 rounded transition-colors ${task.is_completed
-                                                                ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
-                                                                : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                                                }`}
-                                                        >
-                                                            {task.is_completed ? 'Mark Undone' : 'Mark Done'}
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleDelete(e, task.id)}
-                                                            className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                                                            title="Delete Task"
-                                                        >
-                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                        </button>
+                                                        <PermissionGate moduleName="Follow-up" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button
+                                                                onClick={(e) => handleToggleComplete(e, task)}
+                                                                className={`text-xs font-medium px-2 py-1 rounded transition-colors ${task.is_completed
+                                                                    ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50'
+                                                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                                                    }`}
+                                                            >
+                                                                {task.is_completed ? 'Mark Undone' : 'Mark Done'}
+                                                            </button>
+                                                        </PermissionGate>
+                                                        <PermissionGate moduleName="Follow-up" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button
+                                                                onClick={(e) => handleDelete(e, task.id)}
+                                                                className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                                title="Delete Task"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                            </button>
+                                                        </PermissionGate>
                                                     </div>
                                                 </td>
                                             </tr>

@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const DripTriggerService = require('../services/DripTriggerService');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/contacts
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Default 50, Max 100
@@ -85,7 +86,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/contacts/export - Fetch all contacts for downloading
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const userId = req.user.id;
     let allContacts = [];
@@ -150,7 +151,7 @@ router.get('/export', async (req, res) => {
 });
 
 // GET /api/contacts/phones - Fetch ONLY phone numbers matching filters
-router.get('/phones', async (req, res) => {
+router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
@@ -190,7 +191,7 @@ router.get('/phones', async (req, res) => {
 });
 
 // POST /api/contacts
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const user = req.user; // populated by requireAuth middleware
@@ -387,7 +388,7 @@ router.get('/bulk-test', (req, res) => {
 const { logCRMEvent, logContactImportEvent } = require('../utils/logger'); // Import Logger
 
 // POST /api/contacts/bulk
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   console.log('📦 Bulk import endpoint hit');
   const startTime = Date.now();
 
@@ -613,7 +614,7 @@ async function chunkedNullify(table, column, ids, chunkSize = 200) {
 }
 
 // POST /api/contacts/bulk-delete
-router.post('/bulk-delete', async (req, res) => {
+router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { ids } = req.body; // Expects { ids: ['id1', 'id2'] }
@@ -672,7 +673,7 @@ router.post('/bulk-delete', async (req, res) => {
 });
 
 // POST /api/contacts/bulk-delete-filtered
-router.post('/bulk-delete-filtered', async (req, res) => {
+router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
@@ -772,7 +773,7 @@ router.post('/bulk-delete-filtered', async (req, res) => {
 });
 
 // POST /api/contacts/bulk-delete-all
-router.post('/bulk-delete-all', async (req, res) => {
+router.post('/bulk-delete-all', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`[Wipe CRM] User ${userId} requested full CRM wipeout.`);

@@ -22,6 +22,8 @@ import {
     InfoIcon,
     ChevronRightIcon
 } from '../icons';
+import PermissionGate from '../../modules/teamStaff/components/PermissionGate';
+import { ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 // --- In-Memory Cache (survives re-mounts, invalidated after 30s) ---
 const CACHE_TTL_MS = 30_000;
@@ -265,9 +267,11 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Automated nurturing sequences to engage your leads.</p>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <button onClick={onCreate} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
-                            <PlusIcon /> <span>New Campaign</span>
-                        </button>
+                        <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                            <button onClick={onCreate} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
+                                <PlusIcon /> <span>New Campaign</span>
+                            </button>
+                        </PermissionGate>
                     </div>
                 </div>
             </div>
@@ -446,18 +450,22 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                         </td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                             <div className="flex items-center justify-end space-x-1" onClick={(e) => e.stopPropagation()}>
-                                                                <div className="flex items-center space-x-2 mr-4 border-r border-slate-200 pr-4">
-                                                                    <StatusToggle
-                                                                        status={campaign.status}
-                                                                        onClick={(e) => handleToggleStatus(e, campaign)}
-                                                                    />
-                                                                </div>
+                                                                <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                                    <div className="flex items-center space-x-2 mr-4 border-r border-slate-200 pr-4">
+                                                                        <StatusToggle
+                                                                            status={campaign.status}
+                                                                            onClick={(e) => handleToggleStatus(e, campaign)}
+                                                                        />
+                                                                    </div>
+                                                                </PermissionGate>
                                                                 <button onClick={() => onEdit(campaign.id, campaign.name)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
                                                                     <EditIcon className="w-4 h-4" />
                                                                 </button>
-                                                                <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
-                                                                    <TrashIcon className="w-4 h-4" />
-                                                                </button>
+                                                                <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                                    <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
+                                                                        <TrashIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </PermissionGate>
                                                             </div>
                                                         </td>
                                                     </tr>

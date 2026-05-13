@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // Helper to sync Sheet Trigger nodes to sheet_automations table
 async function syncSheetTriggers(userId, flowId, nodes) {
@@ -64,7 +65,7 @@ async function syncSheetTriggers(userId, flowId, nodes) {
 }
 
 // GET / - List all flows
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Flows', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data, error } = await supabase
@@ -86,7 +87,7 @@ const isValidUUID = (uuid) => {
 };
 
 // GET /:id - Get a single flow
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
@@ -112,7 +113,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST / - Create a new flow
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { name, description, nodes, edges, status } = req.body;
@@ -149,7 +150,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /:id - Update a flow
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
@@ -192,7 +193,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /:id - Delete a flow
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;

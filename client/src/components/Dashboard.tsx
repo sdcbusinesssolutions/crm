@@ -7,6 +7,7 @@ import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useDashboardStats, useRevenueStats } from '../hooks/useDashboard';
 import { monitorApiCall } from '../utils/apiOptimization';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 // --- Types ---
 export interface DashboardStats {
@@ -714,6 +715,7 @@ const WhatsAppScannerCard: React.FC<{
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline, onToggleSidebar }) => {
+    const { hasAccess } = usePermissions();
     // ── Helpers ─────────────────────────────────────────────────────────────────
     const CACHE_KEY = 'dashboard_stats_cache_v3';
     // DISPLAY TTL: how long before we silently background-refresh (not show skeleton)

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Tag, tagService } from '../services/tagService'; // You might need to export Tag type from service or shared types
 import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, ChevronDownIcon, TagIcon, ChevronLeftIcon } from './icons';
 import Toast from './Toast';
+import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
+import { ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 interface ContactTagsProps {
     onTagClick?: (tagId: string) => void;
@@ -246,14 +248,18 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
                         />
                     </div>
                     {selectedIds.size > 0 && (
-                        <button onClick={handleBulkDelete} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-btn font-bold text-sm hover:bg-red-100">
-                            Delete ({selectedIds.size})
-                        </button>
+                        <PermissionGate moduleName="Tags" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                            <button onClick={handleBulkDelete} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-btn font-bold text-sm hover:bg-red-100">
+                                Delete ({selectedIds.size})
+                            </button>
+                        </PermissionGate>
                     )}
                 </div>
-                <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md text-sm w-full sm:w-auto">
-                    <PlusIcon /><span>Create Tag</span>
-                </button>
+                <PermissionGate moduleName="Tags" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                    <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md text-sm w-full sm:w-auto">
+                        <PlusIcon /><span>Create Tag</span>
+                    </button>
+                </PermissionGate>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -328,8 +334,12 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleOpenModal(tag)} className="p-2 text-slate-400 hover:text-brand-600 rounded-lg"><EditIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => handleDelete(tag.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg"><TrashIcon className="w-4 h-4" /></button>
+                                                <PermissionGate moduleName="Tags" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                    <button onClick={() => handleOpenModal(tag)} className="p-2 text-slate-400 hover:text-brand-600 rounded-lg"><EditIcon className="w-4 h-4" /></button>
+                                                </PermissionGate>
+                                                <PermissionGate moduleName="Tags" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                    <button onClick={() => handleDelete(tag.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg"><TrashIcon className="w-4 h-4" /></button>
+                                                </PermissionGate>
                                             </div>
                                         </td>
                                     </tr>

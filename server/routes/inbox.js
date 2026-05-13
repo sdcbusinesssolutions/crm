@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 const whatsappService = require('../services/whatsappService');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ const getUserId = (req) => req.user.id;
 // ==========================================
 // 1. Get Conversations (Paginated)
 // ==========================================
-router.get('/conversations', async (req, res) => {
+router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const { supabaseAdmin } = require('../lib/supabaseClient');
@@ -71,7 +72,7 @@ router.get('/conversations', async (req, res) => {
 // ==========================================
 // 2. Get Messages for a Conversation
 // ==========================================
-router.get('/messages/:conversationId', async (req, res) => {
+router.get('/messages/:conversationId', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         // const supabase = getAuthenticatedSupabase(req);
@@ -141,7 +142,7 @@ router.get('/messages/:conversationId', async (req, res) => {
 // ==========================================
 // 3. Send Message (Outbound)
 // ==========================================
-router.post('/messages/:conversationId', async (req, res) => {
+router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -290,7 +291,7 @@ router.post('/messages/:conversationId', async (req, res) => {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
@@ -336,7 +337,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 // ==========================================
 // 5. Mark Conversation as Read
 // ==========================================
-router.post('/conversations/:conversationId/read', async (req, res) => {
+router.post('/conversations/:conversationId/read', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -398,7 +399,7 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
 // ==========================================
 // 6. Clear Chat History
 // ==========================================
-router.delete('/messages/:conversationId', async (req, res) => {
+router.delete('/messages/:conversationId', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const { conversationId } = req.params;
@@ -447,7 +448,7 @@ router.delete('/messages/:conversationId', async (req, res) => {
 // ==========================================
 // 7. Block Contact (User-Specific)
 // ==========================================
-router.post('/conversations/:conversationId/block', async (req, res) => {
+router.post('/conversations/:conversationId/block', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id; // Get the authenticated user's ID
@@ -512,7 +513,7 @@ router.post('/conversations/:conversationId/block', async (req, res) => {
 // ==========================================
 // 8. Unblock Contact (User-Specific)
 // ==========================================
-router.post('/conversations/:conversationId/unblock', async (req, res) => {
+router.post('/conversations/:conversationId/unblock', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id; // Get the authenticated user's ID

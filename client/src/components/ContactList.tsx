@@ -12,7 +12,10 @@ import {
 } from './icons';
 import Papa from 'papaparse';
 import Toast from './Toast';
+import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
+import { ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { countries } from '../utils/countries';
+import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 
 interface ContactListProps {
     initialGroupFilter?: string | null;
@@ -814,35 +817,41 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         {isBulkDropdownOpen && (
                             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
                                 {/* Delete Selection */}
-                                <button 
-                                    onClick={handleBulkDelete} 
-                                    disabled={selectedIds.size === 0}
-                                    className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center transition-colors ${selectedIds.size > 0 ? 'text-red-600 hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
-                                >
-                                    <TrashIcon className="w-4 h-4 mr-2" /> Delete Selected ({selectedIds.size})
-                                </button>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                    <button 
+                                        onClick={handleBulkDelete} 
+                                        disabled={selectedIds.size === 0}
+                                        className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center transition-colors ${selectedIds.size > 0 ? 'text-red-600 hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
+                                    >
+                                        <TrashIcon className="w-4 h-4 mr-2" /> Delete Selected ({selectedIds.size})
+                                    </button>
+                                </PermissionGate>
 
                                 <div className="h-px bg-slate-100 my-1"></div>
 
                                 {/* Delete by Filter (Contextual) */}
                                 {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
-                                    <button 
-                                        onClick={handleDeleteAllFiltered}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
-                                    >
-                                        <TrashIcon className="w-4 h-4 mr-2" /> 
-                                        Delete All Matching Filters ({totalContacts})
-                                    </button>
+                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                        <button 
+                                            onClick={handleDeleteAllFiltered}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
+                                        >
+                                            <TrashIcon className="w-4 h-4 mr-2" /> 
+                                            Delete All Matching Filters ({totalContacts})
+                                        </button>
+                                    </PermissionGate>
                                 )}
 
                                 {/* Clear CRM */}
-                                <button 
-                                    onClick={handleDeleteEntireCRM}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
-                                >
-                                    <TrashIcon className="w-4 h-4 mr-2" /> 
-                                    Wipe Entire CRM ({totalContacts})
-                                </button>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
+                                    <button 
+                                        onClick={handleDeleteEntireCRM}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
+                                    >
+                                        <TrashIcon className="w-4 h-4 mr-2" /> 
+                                        Wipe Entire CRM ({totalContacts})
+                                    </button>
+                                </PermissionGate>
 
                                 <div className="h-px bg-slate-100 my-1"></div>
 
@@ -905,11 +914,17 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
-                    <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
+                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                        <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
+                    </PermissionGate>
                     <div className="flex gap-2">
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
-                        <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
+                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                            <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
+                        </PermissionGate>
+                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ}>
+                            <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
+                        </PermissionGate>
                     </div>
                 </div>
             </div>
@@ -982,6 +997,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Tags</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Groups</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Assigned To</th>
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
                                 </thead>
@@ -1053,10 +1069,17 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4 border-b !border-black min-w-[200px]">
+                                                    <LeadAssignment leadId={contact.id} />
+                                                </td>
                                                 <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center justify-end space-x-2 transition-opacity">
-                                                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
+                                                        </PermissionGate>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
+                                                        </PermissionGate>
                                                     </div>
                                                 </td>
                                             </tr>

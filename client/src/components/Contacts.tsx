@@ -13,6 +13,7 @@ import { contactGroupService } from '../services/contactGroupService';
 import { getForms, getTasks } from '../services/lead-management-api';
 import { inputFieldService } from '../services/inputFieldService';
 import { UsersIcon, BadgeIcon, HomeIcon, MenuIcon } from './icons';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 interface ContactsProps {
     initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms';
@@ -23,6 +24,7 @@ interface ContactsProps {
 }
 
 const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPipelineId, followUpInitialView = 'list', onToggleSidebar, onNavigate }) => {
+    const { hasAccess } = usePermissions();
     const [activeTab, setActiveTab] = useState<string>(initialTab);
     const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
     const [counts, setCounts] = useState<{
@@ -197,7 +199,18 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             inactiveClass: tabInactiveClass,
             count: counts.inputs
         },
-    ];
+    ].filter(tab => {
+        const moduleMap: Record<string, string> = {
+            'dashboard': 'Lead Dashboard',
+            'contacts': 'Contact List',
+            'groups': 'Contact Groups',
+            'pipelines': 'Pipelines',
+            'forms': 'Form Builder',
+            'follow-up': 'Follow-up',
+            'inputs': 'Input Fields'
+        };
+        return hasAccess(moduleMap[tab.id], ACCESS_TYPES.READ);
+    });
 
     return (
         <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative container-mobile-fix">

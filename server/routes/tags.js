@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/tags - Get all unique tags for the authenticated user
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Tags', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();

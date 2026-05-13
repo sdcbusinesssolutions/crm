@@ -87,6 +87,32 @@ const StaffController = {
   },
 
   /**
+   * Get assignments for a lead
+   */
+  async getLeadAssignments(req, res) {
+    try {
+      const { leadId } = req.params;
+      const assignments = await StaffService.getLeadAssignments(req.user.id, leadId);
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  /**
+   * Remove assignment
+   */
+  async unassignLead(req, res) {
+    try {
+      const { leadId, staffId } = req.body;
+      await StaffService.unassignLead(req.user.id, leadId, staffId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  /**
    * Assign Conversation to Staff (Owner only)
    */
   async assignConversation(req, res) {

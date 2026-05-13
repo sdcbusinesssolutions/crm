@@ -193,6 +193,38 @@ const StaffService = {
   },
 
   /**
+   * Get all assignments for a lead
+   */
+  async getLeadAssignments(ownerId, leadId) {
+    const { data, error } = await supabaseAdmin
+      .from('lead_assignments')
+      .select(`
+        assigned_to,
+        team_staff (id, name, email)
+      `)
+      .eq('lead_id', leadId)
+      .eq('tenant_id', ownerId);
+
+    if (error) throw error;
+    return data.map(d => d.team_staff).filter(Boolean);
+  },
+
+  /**
+   * Unassign Lead
+   */
+  async unassignLead(ownerId, leadId, staffId) {
+    const { error } = await supabaseAdmin
+      .from('lead_assignments')
+      .delete()
+      .eq('lead_id', leadId)
+      .eq('assigned_to', staffId)
+      .eq('tenant_id', ownerId);
+
+    if (error) throw error;
+    return true;
+  },
+
+  /**
    * Assign Conversation
    */
   async assignConversation(ownerId, conversationId, staffId) {

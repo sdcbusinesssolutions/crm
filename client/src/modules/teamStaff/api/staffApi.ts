@@ -61,5 +61,23 @@ export const staffApi = {
     });
     if (!res.ok) throw new Error('Failed to assign lead');
     return await res.json();
+  },
+
+  getLeadAssignments: async (leadId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/api/team-staff/leads/${leadId}/assignments`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch assignments');
+    return await res.json();
+  },
+
+  unassignLead: async (leadId: string, staffId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/api/team-staff/unassign-lead`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ leadId, staffId })
+    });
+    if (!res.ok) throw new Error('Failed to unassign lead');
+    return await res.json();
   }
 };

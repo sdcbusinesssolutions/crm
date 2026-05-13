@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { staffApi } from '../api/staffApi';
 import PermissionMatrix from '../components/PermissionMatrix';
 import { MODULES, ACCESS_TYPES } from '../constants';
+import { usePermissions } from '../hooks/usePermissions';
 
 const StaffManagement: React.FC = () => {
   const [staffList, setStaffList] = useState([]);
@@ -11,6 +12,7 @@ const StaffManagement: React.FC = () => {
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '' });
   const [currentPermissions, setCurrentPermissions] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const { isStaff } = usePermissions();
 
   useEffect(() => {
     loadStaff();
@@ -64,6 +66,24 @@ const StaffManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  if (isStaff) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen bg-slate-50">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md text-center border border-slate-100">
+          <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🚫</div>
+          <h2 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Restricted Access</h2>
+          <p className="text-slate-500 font-medium mb-8">This module is reserved for Account Owners only. Staff members cannot manage team permissions.</p>
+          <button 
+            onClick={() => window.location.href = '/'}
+            className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold transition-all active:scale-95"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 bg-[#f8fafc] min-h-screen font-sans">

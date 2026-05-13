@@ -7,6 +7,7 @@ import {
     CheckSquareIcon, WebhookIcon, CodeIcon, BriefcaseIcon, BadgeIcon, EyeIcon, ConditionIcon,
     LinkIcon, GalleryIcon, MicrophoneIcon, QuickReplyIcon
 } from './icons';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 export type MenuItem =
     | 'Dashboard'
@@ -55,6 +56,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClose, userEmail }) => {
+    const { hasAccess } = usePermissions();
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isContactsOpen, setIsContactsOpen] = useState(false);
@@ -160,7 +162,41 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
         }
     };
 
+    const isVisible = (item: MenuItem): boolean => {
+        const moduleMap: Record<string, string> = {
+            'Dashboard': 'Lead Dashboard',
+            'Inbox': 'Inbox',
+            'Contacts': 'Contact List', // Parent for Lead CRM
+            'Overview': 'Lead Dashboard',
+            'Contact List': 'Contact List',
+            'Contact Groups': 'Contact Groups',
+            'Pipelines': 'Pipelines',
+            'Follow-up': 'Follow-up',
+            'Form Builder': 'Form Builder',
+            'Tags': 'Tags',
+            'Input Fields': 'Input Fields',
+            'Campaigns': 'Campaigns',
+            'Flows': 'Flows',
+            'Drip Campaigns': 'Drip+Campaigns',
+            'Manage': 'Whatsapp Templates', // Using templates as proxy for manage parent
+            'Whatsapp Templates': 'Whatsapp Templates',
+            'Whatsapp Forms': 'Whatsapp Forms',
+            'Integrations': 'Integrations',
+            'Team Staff': 'Team Staff',
+            'Settings': 'Settings',
+            'Branding & Appearance': 'Settings',
+            'WhatsApp API': 'Settings',
+            'WhatsApp Management': 'Settings'
+        };
+
+        const moduleName = moduleMap[item];
+        if (!moduleName) return true; // Default to visible if not mapped
+
+        return hasAccess(moduleName, ACCESS_TYPES.READ);
+    };
+
     const renderItem = (item: MenuItem, icon: React.ReactNode, hasSubmenu: boolean = false, isSubItem: boolean = false, isBeta: boolean = false) => {
+        if (!isVisible(item)) return null;
         let isActive = activeItem === item;
 
         // Parent Active State Logic:
