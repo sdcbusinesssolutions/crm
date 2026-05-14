@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { supabaseAdmin } = require('../lib/supabaseClient');
 const { logCRMEvent } = require('../utils/logger');
 const flowEngine = require('../services/flowEngine');
 const DripTriggerService = require('../services/DripTriggerService');
@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
         const from = (page - 1) * limit;
         const to = from + limit - 1;
 
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { pipeline_id, stage_id } = req.query;
 
         let query = supabase
@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
 // GET /api/leads/:id
 router.get('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { data, error } = await supabase
             .from('leads')
             .select('*')
@@ -105,7 +105,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/leads
 router.post('/', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const user = req.user;
 
         if (!user || !user.id) {
@@ -190,7 +190,7 @@ router.post('/', async (req, res) => {
 // PUT /api/leads/:id
 router.put('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const {
             pipeline_id,
             stage_id,
@@ -269,7 +269,7 @@ router.put('/:id', async (req, res) => {
 // PUT /api/leads/:id/move (move to different stage)
 router.put('/:id/move', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { stage_id } = req.body;
 
         if (!stage_id) {
@@ -322,7 +322,7 @@ router.put('/:id/move', async (req, res) => {
 // DELETE /api/leads/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { error } = await supabase
             .from('leads')
             .delete()

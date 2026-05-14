@@ -2548,7 +2548,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         onClick={async () => {
                                                             try {
                                                                 const newLead = await createLead({
-                                                                    first_name: activeChat.contact_name || 'Contact',
+                                                                    name: activeChat.contact_name || 'Contact',
                                                                     phone: activeChat.contact_phone,
                                                                     status: 'new'
                                                                 });

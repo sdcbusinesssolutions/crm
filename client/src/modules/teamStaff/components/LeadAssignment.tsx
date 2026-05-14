@@ -19,12 +19,32 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
   const { hasAccess } = usePermissions();
   const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); // If they can manage staff, they can assign leads
 
+  // Effect to resolve the "true" Lead ID if we only have a contact ID
   useEffect(() => {
-    setActiveLeadId(leadId);
-    loadData(leadId);
-  }, [leadId]);
+    const resolveId = async () => {
+      if (contact && contact.phone) {
+        try {
+          const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: contact.phone });
+          if (existingLeads.length > 0) {
+            console.log('✅ Resolved contact to lead:', existingLeads[0].id);
+            setActiveLeadId(existingLeads[0].id);
+            loadData(existingLeads[0].id);
+          } else {
+            loadData(leadId);
+          }
+        } catch (err) {
+          console.error('Error resolving lead ID:', err);
+          loadData(leadId);
+        }
+      } else {
+        loadData(leadId);
+      }
+    };
+    resolveId();
+  }, [leadId, contact?.phone]);
 
   const loadData = async (targetId: string) => {
+    if (!targetId) return;
     setFetching(true);
     try {
       const [allStaff, currentAssignments] = await Promise.all([
@@ -34,7 +54,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
       setStaffList(allStaff);
       setAssignments(currentAssignments);
     } catch (err) {
-      console.error('Failed to load lead assignments', err);
+      console.error('Failed to load lead assignments for ID:', targetId, err);
     } finally {
       setFetching(false);
     }
@@ -50,22 +70,26 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
     }
 
     setLoading(true);
+    let resolvedId = activeLeadId;
+
     try {
       try {
-        await staffApi.assignLead(activeLeadId, selectedStaff);
+        console.log('Attempting assignment to ID:', resolvedId);
+        await staffApi.assignLead(resolvedId, selectedStaff);
       } catch (err: any) {
-        // If it fails and we have contact info, try to find/create a lead
-        if (contact && (err.message?.includes('foreign key') || true)) {
-          console.log('Assignment failed, attempting to ensure Lead exists for contact...');
+        // If it fails (likely due to contact vs lead ID mismatch), try to find/create a lead
+        if (contact) {
+          console.log('Assignment failed, attempting lead promotion logic...');
           
-          // 1. Search for lead by phone
-          const existingLeads = await getLeads(null, null, 1, 10, { search: contact.phone });
+          // 1. Search for lead by phone again to be sure
+          const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: contact.phone });
           let realId = existingLeads.length > 0 ? existingLeads[0].id : null;
           
           // 2. Create if not found
           if (!realId) {
+            console.log('Lead not found by phone, creating new lead record...');
             const newLead = await createLead({
-              name: contact.name,
+              name: contact.name || 'Contact',
               phone: contact.phone,
               email: contact.email,
               status: 'active',
@@ -75,11 +99,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
           }
           
           if (realId) {
+            console.log('Assigning to resolved/new Lead ID:', realId);
+            resolvedId = realId;
             setActiveLeadId(realId);
             await staffApi.assignLead(realId, selectedStaff);
-            await loadData(realId);
           } else {
-            throw new Error('Could not initialize lead');
+            throw new Error('Could not initialize lead record for this contact.');
           }
         } else {
           throw err;
@@ -87,11 +112,11 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
       }
       
       setSelectedStaff('');
-      await loadData(activeLeadId); 
+      await loadData(resolvedId); 
       if (onAssigned) onAssigned();
     } catch (err) {
-      console.error('Assignment error:', err);
-      alert('Failed to assign lead. Please ensure this contact is a valid Lead.');
+      console.error('Final assignment error:', err);
+      alert('Failed to assign lead. Please ensure this contact is a valid Lead or has a valid phone number.');
     } finally {
       setLoading(false);
     }
