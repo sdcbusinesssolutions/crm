@@ -13,6 +13,20 @@ export const tokenService = {
         // 2. Fallback to owner access token (memory or Supabase)
         return accessToken;
     },
+    getAuthHeader: async () => {
+        const token = tokenService.getAccessToken();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+        };
+    },
+    getAuthHeaderSync: () => {
+        const token = tokenService.getAccessToken();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token || ''}`
+        };
+    },
     clearAccessToken: () => {
         accessToken = null;
         localStorage.removeItem('staffToken');
