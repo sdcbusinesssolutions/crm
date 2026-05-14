@@ -2547,6 +2547,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     <button 
                                                         onClick={async () => {
                                                             try {
+                                                                // 1. Double check if lead exists by phone
+                                                                const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: activeChat.contact_phone });
+                                                                if (existingLeads && existingLeads.length > 0) {
+                                                                    console.log('Lead already exists:', existingLeads[0].id);
+                                                                    setActiveLeadId(existingLeads[0].id);
+                                                                    return;
+                                                                }
+
+                                                                // 2. Create if not found
                                                                 const newLead = await createLead({
                                                                     name: activeChat.contact_name || 'Contact',
                                                                     phone: activeChat.contact_phone,
@@ -2556,8 +2565,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                                     setActiveLeadId(newLead.id);
                                                                 }
                                                             } catch (err) {
-                                                                console.error('Failed to create lead', err);
-                                                                alert('Failed to initialize Lead. Please try again.');
+                                                                console.error('Failed to create/resolve lead', err);
+                                                                alert('Failed to initialize Lead. Please try again or check if this contact is already a Lead.');
                                                             }
                                                         }}
                                                         className="bg-brand-50 text-brand-600 px-4 py-2 rounded-xl text-[11px] font-bold border border-brand-100 hover:bg-brand-100 transition-all active:scale-95 flex items-center gap-1.5"
