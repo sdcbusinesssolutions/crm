@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+const { supabaseAdmin } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
 
 // Helper to sync Sheet Trigger nodes to sheet_automations table
@@ -10,29 +10,17 @@ async function syncSheetTriggers(userId, flowId, nodes) {
     const triggerNodes = nodes.filter(n => n.type === 'sheetTrigger');
     const db = supabaseAdmin;
 
-    console.log(`[FlowSync] Syncing triggers for Flow ${flowId}. Found ${triggerNodes.length} triggers.`);
-
     if (triggerNodes.length === 0) {
-        // If no sheet triggers exist, delete any existing automation linked to this flow
-        // so we stop polling.
-        console.log(`[FlowSync] No sheet triggers found. Deleting automations for Flow ${flowId}`);
         await db.from('sheet_automations').delete().eq('flow_id', flowId);
         return;
     }
 
-    // Support single trigger for now to avoid complexity
     const node = triggerNodes[0];
-    console.log(`[FlowSync] Processing Trigger Node:`, JSON.stringify(node.data));
-
     const { connectionId, credentialId, spreadsheetId, sheetName, phoneColumn, statusColumn } = node.data;
     const connId = connectionId || credentialId;
 
-    if (!connId || !spreadsheetId || !sheetName || !phoneColumn) {
-        console.warn(`[FlowSync] Incomplete Sheet Trigger config for Flow ${flowId}:`, { connId, spreadsheetId, sheetName, phoneColumn });
-        return;
-    }
+    if (!connId || !spreadsheetId || !sheetName || !phoneColumn) return;
 
-    // Check if automation exists
     const { data: existing } = await db.from('sheet_automations').select('id').eq('flow_id', flowId).single();
 
     const payload = {
@@ -44,37 +32,33 @@ async function syncSheetTriggers(userId, flowId, nodes) {
         sheet_name: sheetName,
         flow_id: flowId,
         status: 'active',
-        trigger_condition: node.data.trigger_condition, // Save Filter Conditions
+        trigger_condition: node.data.trigger_condition,
         mapping_config: {
             phone_col: phoneColumn,
             status_column: statusColumn,
-            params: {} // No params needed, full row is passed
+            params: {}
         },
-        // Reset last_run if it's a new config? Maybe better not to to avoid re-processing old rows.
-        // We rely on last_processed_row_index which is auto-managed.
     };
 
     if (existing) {
         await db.from('sheet_automations').update(payload).eq('id', existing.id);
-        console.log(`[FlowSync] Updated automation ${existing.id}`);
     } else {
-        const { error } = await db.from('sheet_automations').insert(payload);
-        if (error) console.error('[FlowSync] Insert Error:', error);
-        else console.log(`[FlowSync] Created new automation for Flow ${flowId}`);
+        await db.from('sheet_automations').insert(payload);
     }
 }
 
 // GET / - List all flows
 router.get('/', requirePermission('Flows', 'read'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { data, error } = await supabase
             .from('flows')
             .select('*')
+            .eq('user_id', req.user.id)
             .order('updated_at', { ascending: false });
 
         if (error) throw error;
-        res.json(data);
+        res.json(data || []);
     } catch (error) {
         console.error('Error fetching flows:', error);
         res.status(500).json({ error: error.message });
@@ -89,7 +73,7 @@ const isValidUUID = (uuid) => {
 // GET /:id - Get a single flow
 router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
@@ -100,6 +84,7 @@ router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
             .from('flows')
             .select('*')
             .eq('id', id)
+            .eq('user_id', req.user.id)
             .single();
 
         if (error) throw error;
@@ -115,17 +100,14 @@ router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
 // POST / - Create a new flow
 router.post('/', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { name, description, nodes, edges, status } = req.body;
-
-        // Get user_id from the authenticated user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError) throw userError;
+        const userId = req.user.id;
 
         const { data, error } = await supabase
             .from('flows')
             .insert([{
-                user_id: user.id,
+                user_id: userId,
                 name: name || 'Untitled Flow',
                 description: description || 'No description',
                 status: status || 'Draft',
@@ -137,9 +119,8 @@ router.post('/', requirePermission('Flows', 'read_write'), async (req, res) => {
 
         if (error) throw error;
 
-        // Sync Triggers
         if (nodes && nodes.length > 0) {
-            await syncSheetTriggers(user.id, data.id, nodes);
+            await syncSheetTriggers(userId, data.id, nodes);
         }
 
         res.status(201).json(data);
@@ -152,7 +133,7 @@ router.post('/', requirePermission('Flows', 'read_write'), async (req, res) => {
 // PUT /:id - Update a flow
 router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
@@ -174,15 +155,14 @@ router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) =>
             .from('flows')
             .update(updates)
             .eq('id', id)
+            .eq('user_id', req.user.id)
             .select()
             .single();
 
         if (error) throw error;
 
-        // Sync Triggers
         if (nodes !== undefined) {
-            // We need user_id. We can get it from the updated flow data or req.auth
-            await syncSheetTriggers(data.user_id, id, nodes);
+            await syncSheetTriggers(req.user.id, id, nodes);
         }
 
         res.json(data);
@@ -195,23 +175,22 @@ router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) =>
 // DELETE /:id - Delete a flow
 router.delete('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
             return res.status(400).json({ error: 'Invalid flow ID format' });
         }
 
-
         const { error } = await supabase
             .from('flows')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', req.user.id);
 
         if (error) throw error;
 
-        // Also cleanup automations
-        await supabaseAdmin.from('sheet_automations').delete().eq('flow_id', id);
+        await supabaseAdmin.from('sheet_automations').delete().eq('flow_id', id).eq('user_id', req.user.id);
 
         res.json({ success: true });
     } catch (error) {
@@ -219,5 +198,7 @@ router.delete('/:id', requirePermission('Flows', 'read_write'), async (req, res)
         res.status(500).json({ error: error.message });
     }
 });
+
+module.exports = router;
 
 module.exports = router;
