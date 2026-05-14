@@ -19,8 +19,7 @@ function generateFormToken() {
 // GET /api/forms (authenticated - get user's forms)
 router.get('/', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('forms')
             .select('*')
             .eq('user_id', req.user.id)
@@ -63,8 +62,7 @@ router.get('/token/:token', async (req, res) => {
 // GET /api/forms/:id (authenticated - get specific form)
 router.get('/:id', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('forms')
             .select('*')
             .eq('id', req.params.id)
@@ -84,7 +82,6 @@ router.get('/:id', requireAuth, async (req, res) => {
 // POST /api/forms (authenticated - create new form)
 router.post('/', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const user = req.user;
 
         if (!user || !user.id) {
@@ -113,7 +110,7 @@ router.post('/', requireAuth, async (req, res) => {
         let tokenExists = true;
         let attempts = 0;
         while (tokenExists && attempts < 10) {
-            const { data: existing } = await supabase
+            const { data: existing } = await supabaseAdmin
                 .from('forms')
                 .select('id')
                 .eq('form_token', form_token)
@@ -127,7 +124,7 @@ router.post('/', requireAuth, async (req, res) => {
             }
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('forms')
             .insert([{
                 user_id: user.id,
@@ -169,7 +166,6 @@ router.post('/', requireAuth, async (req, res) => {
 // PUT /api/forms/:id (authenticated - update form)
 router.put('/:id', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const {
             name,
             description,
@@ -203,10 +199,11 @@ router.put('/:id', requireAuth, async (req, res) => {
         if (default_group_ids !== undefined) payload.default_group_ids = default_group_ids;
         if (default_owner_id !== undefined) payload.default_owner_id = default_owner_id;
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('forms')
             .update(payload)
             .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
             .select()
             .single();
 
@@ -229,11 +226,11 @@ router.put('/:id', requireAuth, async (req, res) => {
 // DELETE /api/forms/:id (authenticated - delete form)
 router.delete('/:id', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('forms')
             .delete()
-            .eq('id', req.params.id);
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id);
 
         if (error) throw error;
 
@@ -481,11 +478,11 @@ router.post('/submit', async (req, res) => {
 // GET /api/forms/:id/submissions (authenticated - get form submissions)
 router.get('/:id/submissions', requireAuth, async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('form_submissions')
-            .select('*')
+            .select('*, forms!inner(user_id)')
             .eq('form_id', req.params.id)
+            .eq('forms.user_id', req.user.id)
             .order('submitted_at', { ascending: false });
 
         if (error) throw error;

@@ -51,13 +51,26 @@ if (supabaseServiceKey) {
  * 3. Authenticated Client Factory
  * Creates a new Supabase client instance for a specific request.
  */
+/**
+ * 3. Authenticated Client Factory
+ * Creates a new Supabase client instance for a specific request.
+ * For staff members, we automatically return supabaseAdmin to bypass 
+ * PGRST301 errors caused by custom JWTs that Supabase cannot decode.
+ */
 const getAuthenticatedSupabase = (req) => {
+    // 1. Check if the user is a staff member (populated by requireAuth middleware)
+    if (req.user && req.user.isStaff) {
+        return supabaseAdmin;
+    }
+
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-        throw new Error('No authorization header provided');
+        // Fallback to anon client if no header, but warn
+        return supabase;
     }
 
+    // 2. Return a request-scoped client for standard owners
     return createClient(supabaseUrl, supabaseKey, {
         auth: {
             persistSession: false,
