@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { supabase, getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const jwt = require('jsonwebtoken');
+const { supabaseAdmin, supabase } = require('../lib/supabaseClient');
 
 // Soft Auth Middleware
 // Attempts to identify user but does not block request if failed
@@ -9,7 +10,22 @@ const softAuth = async (req, res, next) => {
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.split(' ')[1];
-            // Use static client to verify token
+            
+            // 1. Try local Staff JWT first (Fast)
+            try {
+                const decoded = jwt.verify(token, (process.env.JWT_SECRET || 'your-secret-key').trim());
+                if (decoded && decoded.tenantId) {
+                    req.user = { 
+                        id: decoded.tenantId, 
+                        isStaff: true 
+                    };
+                    return next();
+                }
+            } catch (jwtErr) {
+                // Not a staff token, ignore and try Supabase
+            }
+
+            // 2. Try Supabase Auth
             const { data } = await supabase.auth.getUser(token);
             if (data?.user) {
                 req.user = data.user;
@@ -32,15 +48,15 @@ router.get('/', softAuth, async (req, res) => {
         }
 
         const userId = req.user.id;
-        const authClient = getAuthenticatedSupabase(req);
-
-        const { data, error } = await authClient
+        
+        // Use supabaseAdmin to bypass RLS for branding fetch (Owners/Staff need this)
+        const { data, error } = await supabaseAdmin
             .from('branding_settings')
             .select('theme_config')
             .eq('user_id', userId)
-            .single();
+            .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
+        if (error) {
             console.error('Branding fetch error:', error.message);
         }
 
