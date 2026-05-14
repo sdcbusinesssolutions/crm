@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { supabaseAdmin } = require('../lib/supabaseClient');
 const { logCRMEvent } = require('../utils/logger');
 const flowEngine = require('../services/flowEngine');
 
 // GET /api/tasks?lead_id=...
-// GET /api/tasks?lead_id=... or /api/tasks (all)
 router.get('/', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { lead_id } = req.query;
 
         let query = supabase
@@ -24,7 +23,6 @@ router.get('/', async (req, res) => {
         const { data, error } = await query;
 
         if (error) throw error;
-        console.log(`[DEBUG] GET /api/tasks | User: ${req.user?.id} | Tasks Found: ${data?.length}`);
         res.json(data || []);
     } catch (err) {
         console.error('Error fetching tasks:', err);
@@ -35,7 +33,7 @@ router.get('/', async (req, res) => {
 // POST /api/tasks
 router.post('/', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const user = req.user;
         const { lead_id, title, description, due_date, is_completed } = req.body;
 
@@ -72,7 +70,7 @@ router.post('/', async (req, res) => {
 // PUT /api/tasks/:id
 router.put('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { title, description, due_date, is_completed } = req.body;
 
         const payload = {};
@@ -81,7 +79,6 @@ router.put('/:id', async (req, res) => {
         if (due_date !== undefined) payload.due_date = due_date;
         if (is_completed !== undefined) payload.is_completed = is_completed;
 
-        // Always update the timestamp
         payload.updated_at = new Date().toISOString();
 
         const { data, error } = await supabase
@@ -100,24 +97,21 @@ router.put('/:id', async (req, res) => {
                 updates: Object.keys(payload)
             });
 
-            // Check if task was completed
             if (is_completed === true) {
-                // Fetch lead details for this task to trigger flow
                 const { data: taskDetails } = await supabase
                     .from('tasks')
                     .select('*, leads(phone, name, email)')
                     .eq('id', req.params.id)
+                    .eq('user_id', req.user.id)
                     .single();
 
                 if (taskDetails && taskDetails.leads && taskDetails.leads.phone) {
-                    console.log(`[TasksAPI] Triggering 'task_completed' flow for Task ${req.params.id}`);
                     await flowEngine.triggerFlowByEvent(req.user.id, taskDetails.leads.phone, 'task_completed', {
                         taskId: taskDetails.id,
                         leadId: taskDetails.lead_id,
                         title: taskDetails.title,
                         description: taskDetails.description,
                         dueDate: taskDetails.due_date,
-                        // Pass contact details explicitly
                         name: taskDetails.leads.name,
                         email: taskDetails.leads.email,
                         'contact.name': taskDetails.leads.name,
@@ -139,7 +133,7 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/tasks/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { error } = await supabase
             .from('tasks')
             .delete()
