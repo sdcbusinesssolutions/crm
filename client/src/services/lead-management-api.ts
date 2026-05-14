@@ -661,3 +661,15 @@ export const deleteCallLog = async (id: string): Promise<boolean> => {
         return false;
     }
 };
+
+export const getStaffList = async () => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch('/api/team-staff', { headers });
+        if (!res.ok) throw new Error('Failed to fetch staff list');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to load staff list', e);
+        return [];
+    }
+};

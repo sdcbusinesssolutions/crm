@@ -40,3 +40,5 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 
   return <>{fallback}</>;
 };
+
+export default PermissionGate;
