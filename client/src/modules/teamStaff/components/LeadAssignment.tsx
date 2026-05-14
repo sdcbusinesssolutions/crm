@@ -1,39 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { staffApi } from '../api/staffApi';
 import { usePermissions, ACCESS_TYPES } from '../hooks/usePermissions';
-import { createLead, getLeads } from '../../../services/lead-management-api';
+import { createLead, getLeads, updateLead } from '../../../services/lead-management-api';
 
 interface Props {
   leadId: string;
-  contact?: any; // Optional contact info to auto-create lead if missing
+  contact?: any; 
   onAssigned?: () => void;
 }
 
 const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [selectedStaff, setSelectedStaff] = useState('');
+  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [activeLeadId, setActiveLeadId] = useState(leadId);
   const { hasAccess } = usePermissions();
-  const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); // If they can manage staff, they can assign leads
+  const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); 
 
-  // Effect to resolve the "true" Lead ID if we only have a contact ID
   useEffect(() => {
     const resolveId = async () => {
       if (contact && contact.phone) {
         try {
           const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: contact.phone });
           if (existingLeads.length > 0) {
-            console.log('✅ Resolved contact to lead:', existingLeads[0].id);
             setActiveLeadId(existingLeads[0].id);
-            loadData(existingLeads[0].id);
+            loadData(existingLeads[0].id, existingLeads[0]);
           } else {
             loadData(leadId);
           }
         } catch (err) {
-          console.error('Error resolving lead ID:', err);
           loadData(leadId);
         }
       } else {
@@ -43,163 +39,124 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
     resolveId();
   }, [leadId, contact?.phone]);
 
-  const loadData = async (targetId: string) => {
-    if (!targetId) return;
+  const loadData = async (targetId: string, leadData?: any) => {
     setFetching(true);
     try {
-      const [allStaff, currentAssignments] = await Promise.all([
-        staffApi.listStaff(),
-        staffApi.getLeadAssignments(targetId)
-      ]);
+      const allStaff = await staffApi.listStaff();
       setStaffList(allStaff);
-      setAssignments(currentAssignments);
+      
+      if (leadData && leadData.assigned_staff_ids) {
+        setAssignedStaffIds(leadData.assigned_staff_ids);
+      } else if (targetId) {
+        try {
+           const lead = await staffApi.getLead(targetId);
+           setAssignedStaffIds(lead.assigned_staff_ids || []);
+        } catch (e) {
+           // Fallback if staffApi.getLead is missing or fails
+           setAssignedStaffIds([]);
+        }
+      }
     } catch (err) {
-      console.error('Failed to load lead assignments for ID:', targetId, err);
+      console.error('Failed to load lead assignments:', err);
     } finally {
       setFetching(false);
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedStaff) return;
+  const handleToggleStaff = async (staffId: string) => {
+    const isAssigned = assignedStaffIds.includes(staffId);
+    const newIds = isAssigned 
+      ? assignedStaffIds.filter(id => id !== staffId)
+      : [...assignedStaffIds, staffId];
     
-    // Check if already assigned
-    if (assignments.some(a => a.id === selectedStaff)) {
-      setSelectedStaff('');
-      return;
-    }
-
+    setAssignedStaffIds(newIds);
+    
     setLoading(true);
-    let resolvedId = activeLeadId;
-
     try {
-      try {
-        console.log('Attempting assignment to ID:', resolvedId);
-        await staffApi.assignLead(resolvedId, selectedStaff);
-      } catch (err: any) {
-        // If it fails (likely due to contact vs lead ID mismatch), try to find/create a lead
-        if (contact) {
-          console.log('Assignment failed, attempting lead promotion logic...');
-          
-          // 1. Search for lead by phone again to be sure
-          const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: contact.phone });
-          let realId = existingLeads.length > 0 ? existingLeads[0].id : null;
-          
-          // 2. Create if not found
-          if (!realId) {
-            console.log('Lead not found by phone, creating new lead record...');
-            const newLead = await createLead({
-              name: contact.name || 'Contact',
-              phone: contact.phone,
-              email: contact.email,
-              status: 'active',
-              source: 'crm_contact'
-            });
-            realId = newLead.id;
-          }
-          
-          if (realId) {
-            console.log('Assigning to resolved/new Lead ID:', realId);
-            resolvedId = realId;
-            setActiveLeadId(realId);
-            await staffApi.assignLead(realId, selectedStaff);
-          } else {
-            throw new Error('Could not initialize lead record for this contact.');
-          }
-        } else {
-          throw err;
-        }
-      }
+      let targetLeadId = activeLeadId;
       
-      setSelectedStaff('');
-      await loadData(resolvedId); 
-      if (onAssigned) onAssigned();
+      if (!targetLeadId && contact) {
+        const newLead = await createLead({
+          name: contact.name || 'Contact',
+          phone: contact.phone,
+          email: contact.email,
+          status: 'active',
+          source: 'crm_contact'
+        });
+        targetLeadId = newLead.id;
+        setActiveLeadId(newLead.id);
+      }
+
+      if (targetLeadId) {
+        await updateLead(targetLeadId, { assigned_staff_ids: newIds });
+        if (onAssigned) onAssigned();
+      }
     } catch (err) {
-      console.error('Final assignment error:', err);
-      alert('Failed to assign lead. Please ensure this contact is a valid Lead or has a valid phone number.');
+      console.error('Failed to update assignments:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnassign = async (staffId: string) => {
-    if (!window.confirm('Remove this assignment?')) return;
-    setLoading(true);
-    try {
-      await staffApi.unassignLead(activeLeadId, staffId);
-      await loadData(activeLeadId);
-      if (onAssigned) onAssigned();
-    } catch (err) {
-      alert('Failed to remove assignment');
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (!isOwner && !hasAccess('Lead Management', ACCESS_TYPES.READ_WRITE)) {
+    return <div className="p-4 text-gray-500 text-sm italic">You do not have permission to assign leads.</div>;
+  }
 
-  // Filter out already assigned staff from the dropdown
-  const availableStaff = staffList.filter(s => !assignments.some(a => a.id === s.id));
-
-  if (fetching) return <div className="animate-pulse h-8 w-32 bg-slate-100 rounded-lg"></div>;
+  if (fetching) return <div className="p-4 animate-pulse flex flex-col gap-2"><div className="h-4 w-24 bg-slate-200 rounded"></div><div className="h-10 w-full bg-slate-100 rounded"></div></div>;
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Current Assignments */}
-      {assignments.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {assignments.map(staff => (
-            <div 
+    <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+      <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+        <svg className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        Assign Team Members
+      </h3>
+      
+      <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+        {staffList.length === 0 ? (
+          <div className="text-xs text-gray-500 py-2 italic text-center">No staff members found.</div>
+        ) : (
+          staffList.map((staff) => (
+            <label 
               key={staff.id} 
-              className={`group flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border shadow-sm ${
-                staff.role === 'manager' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+              className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all border ${
+                assignedStaffIds.includes(staff.id) 
+                  ? 'bg-indigo-50 border-indigo-200' 
+                  : 'bg-slate-50 border-transparent hover:bg-slate-100'
               }`}
             >
-              <span className="opacity-70">[{staff.role === 'manager' ? 'MGR' : 'STF'}]</span>
-              <span>{staff.name}</span>
-              {isOwner && (
-                <button 
-                  onClick={() => handleUnassign(staff.id)}
-                  className="hover:text-rose-600 transition-colors"
-                  title="Remove assignment"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
+                  assignedStaffIds.includes(staff.id) ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-600'
+                }`}>
+                  {staff.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-slate-700">{staff.name}</div>
+                  <div className="text-[10px] text-slate-500 flex items-center gap-1.5 font-medium">
+                    <span className={`w-1.5 h-1.5 rounded-full ${staff.role === 'manager' ? 'bg-amber-400' : 'bg-indigo-400'}`}></span>
+                    {staff.role}
+                  </div>
+                </div>
+              </div>
+              <input 
+                type="checkbox"
+                className="w-4 h-4 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500/20 transition-all cursor-pointer"
+                checked={assignedStaffIds.includes(staff.id)}
+                onChange={() => handleToggleStaff(staff.id)}
+                disabled={loading}
+              />
+            </label>
+          ))
+        )}
+      </div>
 
-      {/* Add Assignment Dropdown (Owner Only) */}
-      {isOwner && (
-        <div className="flex items-center gap-2">
-          <select 
-            value={selectedStaff}
-            onChange={e => setSelectedStaff(e.target.value)}
-            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
-            disabled={loading || availableStaff.length === 0}
-          >
-            <option value="">+ Assign Staff/Manager</option>
-            {availableStaff.map((staff: any) => (
-              <option key={staff.id} value={staff.id}>
-                {staff.name} ({staff.role})
-              </option>
-            ))}
-          </select>
-          
-          {selectedStaff && (
-            <button 
-              onClick={handleAssign}
-              disabled={loading}
-              className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-[11px] font-bold hover:bg-indigo-700 active:scale-95 transition-all shadow-sm shadow-indigo-100 disabled:opacity-50"
-            >
-              {loading ? '...' : 'Add'}
-            </button>
-          )}
+      {loading && (
+        <div className="mt-3 flex items-center gap-2 text-[10px] text-indigo-600 font-bold">
+          <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          Saving...
         </div>
-      )}
-      
-      {availableStaff.length === 0 && assignments.length > 0 && (
-        <span className="text-[10px] text-slate-400 font-medium ml-1 italic">All staff assigned</span>
       )}
     </div>
   );
