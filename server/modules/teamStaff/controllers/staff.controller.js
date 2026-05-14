@@ -153,6 +153,20 @@ const StaffController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  },
+
+  /**
+   * Delete staff member (Owner only)
+   */
+  async deleteStaff(req, res) {
+    try {
+      const { staffId } = req.params;
+      const ownerId = req.user.id;
+      await StaffService.deleteStaff(ownerId, staffId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
   }
 };
 

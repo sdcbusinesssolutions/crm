@@ -238,6 +238,28 @@ const StaffService = {
 
     if (error) throw error;
     return true;
+  },
+
+  /**
+   * Delete staff member
+   */
+  async deleteStaff(ownerId, staffId) {
+    console.log(`🗑️ [StaffService] Deleting Staff: ${staffId}, Owner: ${ownerId}`);
+    
+    // Deleting from team_staff will CASCADE to team_staff_permissions and lead_assignments
+    const { error } = await supabaseAdmin
+      .from('team_staff')
+      .delete()
+      .eq('id', staffId)
+      .eq('tenant_id', ownerId);
+
+    if (error) {
+      console.error('❌ [StaffService] Error deleting staff:', error);
+      throw error;
+    }
+
+    console.log('✅ [StaffService] Staff member deleted successfully.');
+    return true;
   }
 };
 

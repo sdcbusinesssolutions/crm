@@ -79,5 +79,18 @@ export const staffApi = {
     });
     if (!res.ok) throw new Error('Failed to unassign lead');
     return await res.json();
+  },
+
+  deleteStaff: async (staffId: string) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/api/team-staff/${staffId}`, {
+      method: 'DELETE',
+      headers
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to delete staff' }));
+      throw new Error(error.error || 'Failed to delete staff');
+    }
+    return await res.json();
   }
 };

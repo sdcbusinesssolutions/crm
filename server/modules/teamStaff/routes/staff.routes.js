@@ -16,6 +16,7 @@ router.post('/assign-lead', requireAuth, StaffController.assignLead);
 router.get('/leads/:leadId/assignments', requireAuth, StaffController.getLeadAssignments);
 router.post('/unassign-lead', requireAuth, StaffController.unassignLead);
 router.post('/assign-conversation', requireAuth, StaffController.assignConversation);
+router.delete('/:staffId', requireAuth, StaffController.deleteStaff);
 
 // 3. Staff-Specific Routes
 // These use the new staff authentication

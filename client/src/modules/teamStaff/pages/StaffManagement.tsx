@@ -67,6 +67,23 @@ const StaffManagement: React.FC = () => {
     }
   };
 
+  const handleDelete = async (staffId: string, staffName: string) => {
+    if (!window.confirm(`Are you sure you want to delete ${staffName}? This action cannot be undone.`)) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await staffApi.deleteStaff(staffId);
+      loadStaff();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Failed to delete staff';
+      alert(`Error: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (isStaff) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen bg-slate-50">
@@ -150,7 +167,11 @@ const StaffManagement: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         Permissions
                       </button>
-                      <button className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                      <button 
+                        onClick={() => handleDelete(staff.id, staff.name)}
+                        disabled={loading}
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                      >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
