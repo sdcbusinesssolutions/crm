@@ -1070,7 +1070,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black min-w-[200px]">
-                                                    <LeadAssignment leadId={contact.id} />
+                                                    <LeadAssignment leadId={contact.id} contact={contact} />
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center justify-end space-x-2 transition-opacity">
@@ -1100,7 +1100,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             
             <div className="mt-4 pt-3 border-t border-slate-100">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned Staff</label>
-                <LeadAssignment leadId={contact.id} />
+                <LeadAssignment leadId={contact.id} contact={contact} />
             </div>
 
             <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-slate-100">

@@ -1,31 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { staffApi } from '../api/staffApi';
 import { usePermissions, ACCESS_TYPES } from '../hooks/usePermissions';
+import { createLead, getLeads } from '../../../services/lead-management-api';
 
 interface Props {
   leadId: string;
+  contact?: any; // Optional contact info to auto-create lead if missing
   onAssigned?: () => void;
 }
 
-const LeadAssignment: React.FC<Props> = ({ leadId, onAssigned }) => {
+const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [selectedStaff, setSelectedStaff] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [activeLeadId, setActiveLeadId] = useState(leadId);
   const { hasAccess } = usePermissions();
   const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); // If they can manage staff, they can assign leads
 
   useEffect(() => {
-    loadData();
+    setActiveLeadId(leadId);
+    loadData(leadId);
   }, [leadId]);
 
-  const loadData = async () => {
+  const loadData = async (targetId: string) => {
     setFetching(true);
     try {
       const [allStaff, currentAssignments] = await Promise.all([
         staffApi.listStaff(),
-        staffApi.getLeadAssignments(leadId)
+        staffApi.getLeadAssignments(targetId)
       ]);
       setStaffList(allStaff);
       setAssignments(currentAssignments);
@@ -47,12 +51,47 @@ const LeadAssignment: React.FC<Props> = ({ leadId, onAssigned }) => {
 
     setLoading(true);
     try {
-      await staffApi.assignLead(leadId, selectedStaff);
+      try {
+        await staffApi.assignLead(activeLeadId, selectedStaff);
+      } catch (err: any) {
+        // If it fails and we have contact info, try to find/create a lead
+        if (contact && (err.message?.includes('foreign key') || true)) {
+          console.log('Assignment failed, attempting to ensure Lead exists for contact...');
+          
+          // 1. Search for lead by phone
+          const existingLeads = await getLeads(null, null, 1, 10, { search: contact.phone });
+          let realId = existingLeads.length > 0 ? existingLeads[0].id : null;
+          
+          // 2. Create if not found
+          if (!realId) {
+            const newLead = await createLead({
+              name: contact.name,
+              phone: contact.phone,
+              email: contact.email,
+              status: 'active',
+              source: 'crm_contact'
+            });
+            realId = newLead.id;
+          }
+          
+          if (realId) {
+            setActiveLeadId(realId);
+            await staffApi.assignLead(realId, selectedStaff);
+            await loadData(realId);
+          } else {
+            throw new Error('Could not initialize lead');
+          }
+        } else {
+          throw err;
+        }
+      }
+      
       setSelectedStaff('');
-      await loadData(); // Reload to get fresh names
+      await loadData(activeLeadId); 
       if (onAssigned) onAssigned();
     } catch (err) {
-      alert('Failed to assign lead');
+      console.error('Assignment error:', err);
+      alert('Failed to assign lead. Please ensure this contact is a valid Lead.');
     } finally {
       setLoading(false);
     }
@@ -62,8 +101,8 @@ const LeadAssignment: React.FC<Props> = ({ leadId, onAssigned }) => {
     if (!window.confirm('Remove this assignment?')) return;
     setLoading(true);
     try {
-      await staffApi.unassignLead(leadId, staffId);
-      await loadData();
+      await staffApi.unassignLead(activeLeadId, staffId);
+      await loadData(activeLeadId);
       if (onAssigned) onAssigned();
     } catch (err) {
       alert('Failed to remove assignment');
@@ -85,8 +124,11 @@ const LeadAssignment: React.FC<Props> = ({ leadId, onAssigned }) => {
           {assignments.map(staff => (
             <div 
               key={staff.id} 
-              className="group flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-[10px] font-bold border border-indigo-100 shadow-sm"
+              className={`group flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold border shadow-sm ${
+                staff.role === 'manager' ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+              }`}
             >
+              <span className="opacity-70">[{staff.role === 'manager' ? 'MGR' : 'STF'}]</span>
               <span>{staff.name}</span>
               {isOwner && (
                 <button 
@@ -108,10 +150,10 @@ const LeadAssignment: React.FC<Props> = ({ leadId, onAssigned }) => {
           <select 
             value={selectedStaff}
             onChange={e => setSelectedStaff(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
+            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all disabled:opacity-50"
             disabled={loading || availableStaff.length === 0}
           >
-            <option value="">+ Assign Staff</option>
+            <option value="">+ Assign Staff/Manager</option>
             {availableStaff.map((staff: any) => (
               <option key={staff.id} value={staff.id}>
                 {staff.name} ({staff.role})

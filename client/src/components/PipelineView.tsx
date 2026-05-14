@@ -1282,7 +1282,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         )}
 
                                                         <div className="mt-3 pt-2 border-t border-[var(--color-border)]/30">
-                                                            <LeadAssignment leadId={lead.id} />
+                                                            <LeadAssignment leadId={lead.id} contact={lead} />
                                                         </div>
 
                                                         <div className="flex justify-between items-center pt-1.5 border-t border-[var(--color-border)]">
@@ -1489,7 +1489,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-[var(--color-text)] opacity-80">{lead.company || '-'}</td>
                                             <td className="px-6 py-4">
-                                                <LeadAssignment leadId={lead.id} />
+                                                <LeadAssignment leadId={lead.id} contact={lead} />
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-[var(--color-text)] opacity-90">
                                                 {lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : '-'}
