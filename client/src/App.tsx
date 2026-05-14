@@ -80,6 +80,7 @@ const MainApp: React.FC = () => {
     }, []);
 
     const [session, setSession] = useState<Session | null>(null);
+    const [staffSession, setStaffSession] = useState<any>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
     // PERSISTENT HASH TRACKING (FIX for Impersonation Redirect Loop)
@@ -273,7 +274,22 @@ const MainApp: React.FC = () => {
 
         const checkSession = async () => {
             try {
-                // getSession() will check local storage AND process the URL fragment if present
+                // 1. Check for staff session first (Local & Fast)
+                const storedStaff = localStorage.getItem('staffData');
+                if (storedStaff) {
+                    try {
+                        const parsed = JSON.parse(storedStaff);
+                        setStaffSession(parsed);
+                        console.log("✅ Initial Session: Staff detected", parsed.name);
+                        setIsAuthLoading(false);
+                        return; // Don't block on Supabase if staff
+                    } catch (e) {
+                        localStorage.removeItem('staffData');
+                        localStorage.removeItem('staffToken');
+                    }
+                }
+
+                // 2. getSession() will check local storage AND process the URL fragment if present
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) {
                     console.warn("Session check warning:", error.message);
@@ -761,7 +777,7 @@ const MainApp: React.FC = () => {
         return null;
     }
 
-    if (!session) {
+    if (!session && !staffSession) {
         return <AuthPage />;
     }
 
@@ -777,7 +793,7 @@ const MainApp: React.FC = () => {
                 onNavigate={handleMenuNavigation}
                 isOpen={isSidebarOpen}
                 onClose={() => setSidebarOpen(false)}
-                userEmail={session?.user?.email}
+                userEmail={session?.user?.email || staffSession?.email}
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
