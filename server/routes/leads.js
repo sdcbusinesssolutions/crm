@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/leads
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Leads', 'read'), async (req, res) => {
     try {
         const { page = 1, limit = 50, search, pipelineId, stageId, status } = req.query;
         const from = (page - 1) * limit;
