@@ -103,6 +103,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
+    const activeChat = useMemo(() =>
+        conversations.find(c => c.id === activeChatId),
+        [conversations, activeChatId]
+    );
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -336,10 +340,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
     }, [activeChatId]);
 
-    const activeChat = useMemo(() =>
-        conversations.find(c => c.id === activeChatId),
-        [conversations, activeChatId]
-    );
 
     // Load contact status when active chat changes
     useEffect(() => {
