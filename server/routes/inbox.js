@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/inbox/conversations
-router.get('/conversations', async (req, res) => {
+router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('conversations')
