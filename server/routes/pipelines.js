@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { supabaseAdmin } = require('../lib/supabaseClient');
 const { logCRMEvent } = require('../utils/logger');
 
 // GET /api/pipelines
 router.get('/', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { data, error } = await supabase
             .from('pipelines')
             .select('*')
+            .eq('user_id', req.user.id)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -27,11 +28,12 @@ router.get('/', async (req, res) => {
 // GET /api/pipelines/:id
 router.get('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { data, error } = await supabase
             .from('pipelines')
             .select('*')
             .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
             .single();
 
         if (error) throw error;
@@ -45,7 +47,18 @@ router.get('/:id', async (req, res) => {
 // GET /api/pipelines/:id/stages
 router.get('/:id/stages', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
+        
+        // Ensure pipeline belongs to user first
+        const { data: pipeline, error: pErr } = await supabase
+            .from('pipelines')
+            .select('id')
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
+            .single();
+            
+        if (pErr || !pipeline) return res.status(404).json({ error: 'Pipeline not found' });
+
         const { data, error } = await supabase
             .from('pipeline_stages')
             .select('*')
@@ -63,7 +76,7 @@ router.get('/:id/stages', async (req, res) => {
 // POST /api/pipelines
 router.post('/', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const user = req.user;
 
         if (!user || !user.id) {
@@ -113,7 +126,6 @@ router.post('/', async (req, res) => {
 
             if (stagesError) {
                 console.error('Error creating stages:', stagesError);
-                // Don't fail the whole request, just log the error
             }
         }
 
@@ -127,7 +139,7 @@ router.post('/', async (req, res) => {
 // PUT /api/pipelines/:id
 router.put('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { name, description, color, is_active } = req.body;
 
         const payload = {};
@@ -140,6 +152,7 @@ router.put('/:id', async (req, res) => {
             .from('pipelines')
             .update(payload)
             .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
             .select()
             .single();
 
@@ -162,7 +175,7 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/pipelines/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const pipelineId = req.params.id;
         const userId = req.user?.id;
 
@@ -173,7 +186,7 @@ router.delete('/:id', async (req, res) => {
             .from('pipelines')
             .select('id, user_id')
             .eq('id', pipelineId)
-            // .eq('user_id', userId) // Let RLS handle this, or be explicit if needed
+            .eq('user_id', userId)
             .single();
 
         if (findError || !pipeline) {
@@ -190,12 +203,12 @@ router.delete('/:id', async (req, res) => {
         const stageIds = stages ? stages.map(s => s.id) : [];
 
         // 2. UNLINK CONTACTS: Set stage_id to NULL for any contacts in these stages
-        // This is critical if Contacts table has FK to pipeline_stages w/o CASCADE
         if (stageIds.length > 0) {
             const { error: contactsError } = await supabase
                 .from('contacts')
                 .update({ stage_id: null })
-                .in('stage_id', stageIds);
+                .in('stage_id', stageIds)
+                .eq('user_id', userId);
 
             if (contactsError) {
                 console.warn('[Pipeline] Warning: Failed to unlink contacts (might block stage delete)', contactsError);
@@ -206,17 +219,18 @@ router.delete('/:id', async (req, res) => {
         const { data: leads } = await supabase
             .from('leads')
             .select('id')
-            .eq('pipeline_id', pipelineId);
+            .eq('pipeline_id', pipelineId)
+            .eq('user_id', userId);
 
         const leadIds = leads ? leads.map(l => l.id) : [];
 
         if (leadIds.length > 0) {
             // Best-effort cleanup of lead sub-resources
             const cleanupResults = await Promise.all([
-                supabase.from('tasks').delete().in('lead_id', leadIds),
-                supabase.from('notes').delete().in('lead_id', leadIds),
-                supabase.from('appointments').delete().in('lead_id', leadIds),
-                supabase.from('call_logs').delete().in('lead_id', leadIds)
+                supabase.from('tasks').delete().in('lead_id', leadIds).eq('user_id', userId),
+                supabase.from('notes').delete().in('lead_id', leadIds).eq('user_id', userId),
+                supabase.from('appointments').delete().in('lead_id', leadIds).eq('user_id', userId),
+                supabase.from('call_logs').delete().in('lead_id', leadIds).eq('user_id', userId)
             ]);
 
             if (cleanupResults.some(r => r.error)) {
@@ -227,7 +241,8 @@ router.delete('/:id', async (req, res) => {
             const { error: leadsDelError } = await supabase
                 .from('leads')
                 .delete()
-                .eq('pipeline_id', pipelineId);
+                .eq('pipeline_id', pipelineId)
+                .eq('user_id', userId);
 
             if (leadsDelError) {
                 console.error('[Pipeline] Error deleting leads:', leadsDelError);
@@ -239,7 +254,8 @@ router.delete('/:id', async (req, res) => {
         const { error: stagesDelError } = await supabase
             .from('pipeline_stages')
             .delete()
-            .eq('pipeline_id', pipelineId);
+            .eq('pipeline_id', pipelineId)
+            .eq('user_id', userId);
 
         if (stagesDelError) {
             console.error('[Pipeline] Error deleting stages:', stagesDelError);
@@ -247,11 +263,11 @@ router.delete('/:id', async (req, res) => {
         }
 
         // 5. DELETE PIPELINE
-        // Use select() to ensure we get the deleted record back, verifying it was actually deleted
         const { data: deletedPipeline, error: deleteError } = await supabase
             .from('pipelines')
             .delete()
             .eq('id', pipelineId)
+            .eq('user_id', userId)
             .select()
             .single();
 
@@ -280,18 +296,16 @@ router.delete('/:id', async (req, res) => {
 // GET /api/pipelines/:id/kanban
 router.get('/:id/kanban', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const pipelineId = req.params.id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50; // Default limit 50
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
+        const userId = req.user.id;
 
         // 1. Fetch Pipeline
         const { data: pipeline, error: pipelineError } = await supabase
             .from('pipelines')
             .select('*')
             .eq('id', pipelineId)
+            .eq('user_id', userId)
             .single();
 
         if (pipelineError) throw pipelineError;
@@ -301,6 +315,7 @@ router.get('/:id/kanban', async (req, res) => {
             .from('pipeline_stages')
             .select('*')
             .eq('pipeline_id', pipelineId)
+            .eq('user_id', userId)
             .order('display_order', { ascending: true });
 
         if (stagesError) throw stagesError;
@@ -311,25 +326,13 @@ router.get('/:id/kanban', async (req, res) => {
                 .from('leads')
                 .select('*', { count: 'exact' })
                 .eq('pipeline_id', pipelineId)
-                .eq('stage_id', stage.id);
+                .eq('stage_id', stage.id)
+                .eq('user_id', userId);
 
             // Search Support
             if (req.query.search) {
                 const s = req.query.search;
                 query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
-            }
-
-            // Quick Filters
-            if (req.query.quickFilter === 'high_value') {
-                query = query.gte('estimated_value', 1000);
-            } else if (req.query.quickFilter === 'hot') {
-                const d = new Date();
-                d.setDate(d.getDate() - 7);
-                query = query.gte('created_at', d.toISOString());
-            } else if (req.query.quickFilter === 'cold') {
-                const d = new Date();
-                d.setDate(d.getDate() - 30);
-                query = query.lt('created_at', d.toISOString());
             }
 
             // Sorting
@@ -345,8 +348,6 @@ router.get('/:id/kanban', async (req, res) => {
             }
 
             // Per-Stage Pagination (Initial Load: 20)
-            // We use a fixed initial limit of 20 to populate the board fast.
-            // Frontend will handle "load more" per stage using the /api/leads endpoint.
             query = query.range(0, 19);
 
             const { data, count, error } = await query;
@@ -371,8 +372,6 @@ router.get('/:id/kanban', async (req, res) => {
         res.json({
             pipeline,
             columns,
-            // Pagination object is essentially deprecated for global view, 
-            // but we can return total leads sum for stats if needed.
             pagination: {
                 page: 1,
                 limit: 20,
@@ -389,58 +388,32 @@ router.get('/:id/kanban', async (req, res) => {
 // PUT /api/pipelines/:id/default - Set pipeline as default
 router.put('/:id/default', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { id } = req.params;
-        let user = req.user;
+        const user = req.user;
 
         if (!user) {
-            // Try to get user from supabase client if middleware didn't populate it
-            const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-            if (authError || !authUser) {
-                return res.status(401).json({ error: 'Unauthorized' });
-            }
-            user = authUser;
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
         // 1. Unset existing default for this user
-        // We'll use a specific key in user settings or a dedicated 'is_default' column if we added one.
-        // For now, let's assume we store this preference in the `pipelines` table itself (e.g. `is_default` boolean).
-        // Since the schema doesn't seem to have `is_default`, let's check `view_file` again to see schema or use metadata.
-
-        // Plan B: Use `is_default` boolean column on `pipelines` table.
-        // We first set all other pipelines for this user to is_default = false
         try {
             await supabase
                 .from('pipelines')
                 .update({ is_default: false })
                 .eq('user_id', user.id);
-        } catch (e) {
-            // Ignore error here if column missing, let the next one handle it or fail gracefully
-            // Actually, supabase-js might return error in return object, let's checking
-            // Wait, supabase-js v2 returns object { error }, doesn't throw by default unless we check it.
-            // But my code above uses 'await supabase...'. 
-            // The previous code didn't check error for the first update, so it might have been fine 
-            // IF supabase-js doesn't throw. 
-            // However, let's be explicit and assign it to separate var if we want to check, or just let it fly.
-            // The issue reported is 500 error, which means 'throw error' happened somewhere.
-        }
+        } catch (e) { }
 
         // 2. Set the target pipeline as default
         const { data, error } = await supabase
             .from('pipelines')
             .update({ is_default: true })
             .eq('id', id)
+            .eq('user_id', user.id)
             .select()
             .single();
 
         if (error) {
-            console.error('Failed to update is_default, falling back to local metadata or ignoring.', error);
-            // If the column doesn't exist, we can't do much without a migration. 
-            // However, we shouldn't crash or return 500 if the column is missing, 
-            // maybe we can return a specific error that the frontend can handle or just swallow it 
-            // if we accept that the feature is disabled until migration.
-
-            // IF it's column missing error:
             if (error.code === '42703' || (error.message && error.message.includes('column') && error.message.includes('does not exist'))) {
                 return res.status(200).json({
                     warning: 'Default pipeline not saved persistently (schema update required).',
@@ -453,8 +426,6 @@ router.put('/:id/default', async (req, res) => {
         res.json(data);
     } catch (err) {
         console.error('Error setting default pipeline:', err);
-        // Fallback: If `is_default` column missing, maybe store in user specific settings table?
-        // For now, return error.
         res.status(500).json({ error: err.message });
     }
 });
@@ -462,7 +433,7 @@ router.put('/:id/default', async (req, res) => {
 // POST /api/pipelines/:id/stages - Create a new stage
 router.post('/:id/stages', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { id } = req.params; // pipeline_id
         const user = req.user;
         const { name, color, display_order } = req.body;
@@ -502,7 +473,7 @@ router.post('/:id/stages', async (req, res) => {
 // PUT /api/pipelines/stages/:stageId - Update a stage
 router.put('/stages/:stageId', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { stageId } = req.params;
         const { name, color, display_order, is_active } = req.body;
 
@@ -516,6 +487,7 @@ router.put('/stages/:stageId', async (req, res) => {
             .from('pipeline_stages')
             .update(payload)
             .eq('id', stageId)
+            .eq('user_id', req.user.id)
             .select()
             .single();
 
@@ -538,13 +510,14 @@ router.put('/stages/:stageId', async (req, res) => {
 // DELETE /api/pipelines/stages/:stageId - Delete a stage
 router.delete('/stages/:stageId', async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
+        const supabase = supabaseAdmin;
         const { stageId } = req.params;
 
         const { error } = await supabase
             .from('pipeline_stages')
             .delete()
-            .eq('id', stageId);
+            .eq('id', stageId)
+            .eq('user_id', req.user.id);
 
         if (error) throw error;
 
