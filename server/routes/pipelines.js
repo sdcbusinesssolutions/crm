@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../lib/supabaseClient');
 const { logCRMEvent } = require('../utils/logger');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/pipelines
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Pipelines', 'read'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { data, error } = await supabase
