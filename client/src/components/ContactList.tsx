@@ -16,6 +16,7 @@ import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
 import { ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { countries } from '../utils/countries';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
+import PipelineAssignment from '../modules/teamStaff/components/PipelineAssignment';
 
 interface ContactListProps {
     initialGroupFilter?: string | null;
@@ -997,6 +998,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Tags</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Groups</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Pipeline</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Assigned To</th>
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
@@ -1068,6 +1070,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                             <span className="px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 rounded-md">+{contact.groupIds!.length - 2}</span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-4 border-b !border-black">
+                                                    <PipelineAssignment contact={contact} onAssignmentComplete={() => loadContacts()} />
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black min-w-[200px]">
                                                     <LeadAssignment leadId={contact.id} contact={contact} />
