@@ -12,51 +12,40 @@ interface Props {
 
 const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>([]);
+  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(contact?.assigned_staff_ids || []);
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(true);
+  const [fetching, setFetching] = useState(!contact?.assigned_staff_ids);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sync state with props when board data refreshes
+  useEffect(() => {
+    if (contact?.assigned_staff_ids) {
+      setAssignedStaffIds(contact.assigned_staff_ids);
+    }
+  }, [contact?.assigned_staff_ids]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeLeadId, setActiveLeadId] = useState(leadId);
   const { hasAccess } = usePermissions();
   const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); 
 
+  // Initialize data
   useEffect(() => {
-    const resolveId = async () => {
-      if (contact && contact.phone) {
-        try {
-          const existingLeads = await getLeads(undefined, undefined, 1, 5, { search: contact.phone });
-          if (existingLeads.length > 0) {
-            setActiveLeadId(existingLeads[0].id);
-            loadData(existingLeads[0].id, existingLeads[0]);
-          } else {
-            loadData(leadId);
-          }
-        } catch (err) {
-          loadData(leadId);
-        }
-      } else {
-        loadData(leadId);
-      }
-    };
-    resolveId();
-  }, [leadId, contact?.phone]);
+    if (leadId) {
+      loadData(leadId, contact);
+    }
+  }, [leadId]);
 
-  const loadData = async (targetId: string, leadData?: any) => {
+  const loadData = async (targetId: string, initialData?: any) => {
     setFetching(true);
     try {
       const allStaff = await staffApi.listStaff();
       setStaffList(allStaff);
       
-      if (leadData && leadData.assigned_staff_ids) {
-        setAssignedStaffIds(leadData.assigned_staff_ids);
-      } else if (targetId) {
-        try {
-           const lead = await getLead(targetId);
-           setAssignedStaffIds(lead?.assigned_staff_ids || []);
-        } catch (e) {
-           setAssignedStaffIds([]);
-        }
+      // Use initial data if available, otherwise fetch
+      if (initialData && initialData.assigned_staff_ids) {
+        setAssignedStaffIds(initialData.assigned_staff_ids);
+      } else {
+        const lead = await getLead(targetId);
+        setAssignedStaffIds(lead?.assigned_staff_ids || []);
       }
     } catch (err) {
       console.error('Failed to load lead assignments:', err);
@@ -71,30 +60,23 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
       ? assignedStaffIds.filter(id => id !== staffId)
       : [...assignedStaffIds, staffId];
     
+    // Optimistic Update
     setAssignedStaffIds(newIds);
     
     setLoading(true);
     try {
-      let targetLeadId = activeLeadId;
+      const updatedLead = await updateLead(leadId, { assigned_staff_ids: newIds });
       
-      if (!targetLeadId && contact) {
-        const newLead = await createLead({
-          name: contact.name || 'Contact',
-          phone: contact.phone,
-          email: contact.email,
-          status: 'active',
-          source: 'manual'
-        });
-        targetLeadId = newLead.id;
-        setActiveLeadId(newLead.id);
-      }
-
-      if (targetLeadId) {
-        await updateLead(targetLeadId, { assigned_staff_ids: newIds });
+      if (updatedLead) {
+        // Confirm with real data from server
+        setAssignedStaffIds(updatedLead.assigned_staff_ids || []);
         if (onAssigned) onAssigned();
       }
     } catch (err) {
       console.error('Failed to update assignments:', err);
+      // Revert on error
+      const lead = await getLead(leadId);
+      setAssignedStaffIds(lead?.assigned_staff_ids || []);
     } finally {
       setLoading(false);
     }
@@ -127,7 +109,6 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
 
   return (
     <>
-      {/* Standard Action Icon Trigger - Matches Email/Task Icons */}
       <button
         onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
         className={`p-1.5 rounded-lg transition-colors group/btn relative ${
@@ -154,14 +135,13 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
         size="xl"
       >
         <div className="space-y-6">
-          {/* Compact Search & Stats Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
              <div className="relative flex-1">
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by name or role..."
+                  placeholder="Search staff members..."
                   className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pl-10 shadow-sm"
                 />
                 <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -182,9 +162,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
              </div>
           </div>
 
-          {/* Grid Layout to Reduce Scrolling */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-            {filteredStaff.length === 0 ? (
+            {fetching ? (
+               Array(6).fill(0).map((_, i) => (
+                  <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-xl"></div>
+               ))
+            ) : filteredStaff.length === 0 ? (
               <div className="col-span-full py-12 text-center text-slate-400 italic bg-slate-50 rounded-2xl">
                 No staff members match your search.
               </div>

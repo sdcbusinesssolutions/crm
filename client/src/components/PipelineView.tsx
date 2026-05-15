@@ -1341,7 +1341,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 </button>
 
                                                                 {/* Team Assignment */}
-                                                                <LeadAssignment leadId={lead.id} contact={lead} />
+                                                                <LeadAssignment 
+                                                                    leadId={lead.id} 
+                                                                    contact={lead} 
+                                                                    onAssigned={() => loadBoard(selectedPipelineId!)}
+                                                                />
 
                                                                 {/* Delete */}
                                                                 <button

@@ -356,7 +356,10 @@ router.get('/:id/kanban', async (req, res) => {
 
             return {
                 stage,
-                leads: data || [],
+                leads: (data || []).map(lead => ({
+                    ...lead,
+                    assigned_staff_ids: lead.assigned_staff_ids || (lead.custom_data && lead.custom_data.assigned_staff_ids) || []
+                })),
                 total_count: count || 0
             };
         });

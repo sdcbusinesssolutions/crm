@@ -29,7 +29,10 @@ router.get('/', requirePermission('Leads', 'read'), async (req, res) => {
         if (error) throw error;
 
         res.json({
-            data: data || [],
+            data: (data || []).map(lead => ({
+                ...lead,
+                assigned_staff_ids: lead.assigned_staff_ids || (lead.custom_data && lead.custom_data.assigned_staff_ids) || []
+            })),
             total: count || 0,
             page: parseInt(page),
             totalPages: Math.ceil((count || 0) / limit)
@@ -51,6 +54,9 @@ router.get('/:id', async (req, res) => {
             .single();
 
         if (error) throw error;
+        if (data) {
+            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
         res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -75,13 +81,16 @@ router.post('/', async (req, res) => {
                 stage_id,
                 source: source || 'Manual',
                 estimated_value: estimated_value || 0,
-                assigned_staff_ids: assigned_staff_ids || [],
+                custom_data: { assigned_staff_ids: assigned_staff_ids || [] },
                 status: 'active'
             }])
             .select()
             .single();
 
         if (error) throw error;
+        if (data) {
+            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
         res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -96,6 +105,15 @@ router.put('/:id', async (req, res) => {
         delete updates.user_id;
         updates.updated_at = new Date().toISOString();
 
+        // Map assigned_staff_ids to custom_data to avoid column-missing error
+        if (updates.assigned_staff_ids) {
+            updates.custom_data = { 
+                ...(updates.custom_data || {}), 
+                assigned_staff_ids: updates.assigned_staff_ids 
+            };
+            // delete updates.assigned_staff_ids; // We can leave it if the column exists, but safer to delete if it doesn't
+        }
+
         const { data, error } = await supabaseAdmin
             .from('leads')
             .update(updates)
@@ -104,9 +122,33 @@ router.put('/:id', async (req, res) => {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            // If the error is about missing column, try again without assigned_staff_ids
+            if (error.message && error.message.includes('assigned_staff_ids')) {
+                delete updates.assigned_staff_ids;
+                const { data: dataRetry, error: errorRetry } = await supabaseAdmin
+                    .from('leads')
+                    .update(updates)
+                    .eq('id', req.params.id)
+                    .eq('user_id', req.user.id)
+                    .select()
+                    .single();
+                
+                if (errorRetry) throw errorRetry;
+                if (dataRetry) {
+                    dataRetry.assigned_staff_ids = (dataRetry.custom_data && dataRetry.custom_data.assigned_staff_ids) || [];
+                }
+                return res.json(dataRetry);
+            }
+            throw error;
+        }
+
+        if (data) {
+            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
         res.json(data);
     } catch (err) {
+        console.error('Error updating lead:', err);
         res.status(500).json({ error: err.message });
     }
 });
