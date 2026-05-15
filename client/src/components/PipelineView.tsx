@@ -1232,9 +1232,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         key={lead.id}
                                                         draggable
                                                         onDragStart={(e) => handleDragStart(e, 'lead', lead.id)}
-                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative overflow-hidden animate-in fade-in slide-in-from-bottom-2"
+                                                        className="bg-[var(--color-surface)] p-4 rounded-xl shadow-sm border border-[var(--color-border)] cursor-move hover:shadow-lg hover:-translate-y-1 transition-all duration-200 group relative animate-in fade-in slide-in-from-bottom-2"
                                                     >
-                                                        <div className="absolute left-0 top-0 right-0 h-1" style={{ backgroundColor: column.stage.color }}></div>
+                                                        <div className="absolute left-0 top-0 right-0 h-1 rounded-t-xl" style={{ backgroundColor: column.stage.color }}></div>
 
                                                         <div className="flex justify-between items-center mb-1.5">
                                                             <div className="flex items-center gap-2 overflow-hidden">
@@ -1282,12 +1282,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                             </div>
                                                         )}
 
-                                                        <div className="mt-3 pt-2 border-t border-[var(--color-border)]/30 flex items-center justify-between gap-2">
-                                                            <PipelineAssignment leadId={lead.id} contact={lead} onAssignmentComplete={() => loadBoardData(selectedPipelineId!)} />
+                                                        <div className="mt-3 pt-3 border-t border-[var(--color-border)]/50 flex items-center justify-end">
                                                             <LeadAssignment leadId={lead.id} contact={lead} />
                                                         </div>
 
-                                                        <div className="flex justify-between items-center pt-1.5 border-t border-[var(--color-border)]">
+                                                        <div className="flex justify-between items-center py-2 px-1">
                                                             {/* Left Side: Actions */}
                                                             <div className="flex items-center gap-1">
                                                                 {/* Edit */}

@@ -9,9 +9,10 @@ interface ModalProps {
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
     noPadding?: boolean;
     scrollable?: boolean;
+    extraClassName?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md', noPadding = false, scrollable = true }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md', noPadding = false, scrollable = true, extraClassName = '' }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -47,11 +48,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
             <div
                 ref={modalRef}
-                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-xl shadow-2xl w-full ${sizeClasses[size]} transform transition-all border-2 border-[#0D9668] flex flex-col max-h-[90vh]`}
+                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-2xl shadow-2xl w-full ${sizeClasses[size]} transform transition-all border border-slate-200 flex flex-col max-h-[90vh] ${extraClassName}`}
                 role="dialog"
                 aria-modal="true"
             >
-                <div className="flex justify-between items-center p-6 border-b border-[#0D9668] flex-shrink-0">
+                <div className="flex justify-between items-center p-5 border-b border-slate-100 flex-shrink-0">
                     <h3 className="text-xl font-bold">{title}</h3>
                     <button
                         onClick={onClose}
@@ -68,7 +69,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
                 </div>
 
                 {footer && (
-                    <div className="p-6 border-t border-[#0D9668] bg-[var(--color-bg)] rounded-b-xl flex justify-end gap-3 flex-shrink-0">
+                    <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex justify-end gap-3 flex-shrink-0">
                         {footer}
                     </div>
                 )}

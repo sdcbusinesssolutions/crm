@@ -55,6 +55,18 @@ export const getPipeline = async (id: string): Promise<Pipeline | null> => {
     }
 };
 
+export const getLead = async (id: string): Promise<Lead | null> => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/leads/${id}`, { headers });
+        if (!res.ok) throw new Error('Failed to fetch lead');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to load lead', e);
+        return null;
+    }
+};
+
 export const createPipeline = async (pipeline: CreatePipelineRequest): Promise<Pipeline> => {
     try {
         const headers = await getHeaders();

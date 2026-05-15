@@ -108,7 +108,7 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                         />
                         <div className="flex flex-col items-start leading-none">
                             <span className="text-[10px] font-black text-slate-800 uppercase tracking-tight truncate max-w-[100px]">
-                                {currentPipeline?.name || 'Loading...'}
+                                {currentPipeline?.name || '...'}
                             </span>
                             <span className="text-[9px] font-bold text-slate-400 mt-0.5">
                                 {currentStage?.name || 'No Stage'}
