@@ -105,13 +105,24 @@ router.put('/:id', async (req, res) => {
         delete updates.user_id;
         updates.updated_at = new Date().toISOString();
 
-        // Map assigned_staff_ids to custom_data to avoid column-missing error
-        if (updates.assigned_staff_ids) {
+        // Handle assigned_staff_ids: always save into custom_data for reliability
+        if (updates.assigned_staff_ids !== undefined) {
+            // Fetch existing custom_data first to avoid overwriting
+            const { data: existing } = await supabaseAdmin
+                .from('leads')
+                .select('custom_data')
+                .eq('id', req.params.id)
+                .eq('user_id', req.user.id)
+                .single();
+
+            const existingCustomData = existing?.custom_data || {};
             updates.custom_data = { 
-                ...(updates.custom_data || {}), 
+                ...existingCustomData,
+                ...(updates.custom_data || {}),
                 assigned_staff_ids: updates.assigned_staff_ids 
             };
-            // delete updates.assigned_staff_ids; // We can leave it if the column exists, but safer to delete if it doesn't
+            // Remove from top-level to avoid column-missing errors
+            delete updates.assigned_staff_ids;
         }
 
         const { data, error } = await supabaseAdmin
@@ -122,26 +133,7 @@ router.put('/:id', async (req, res) => {
             .select()
             .single();
 
-        if (error) {
-            // If the error is about missing column, try again without assigned_staff_ids
-            if (error.message && error.message.includes('assigned_staff_ids')) {
-                delete updates.assigned_staff_ids;
-                const { data: dataRetry, error: errorRetry } = await supabaseAdmin
-                    .from('leads')
-                    .update(updates)
-                    .eq('id', req.params.id)
-                    .eq('user_id', req.user.id)
-                    .select()
-                    .single();
-                
-                if (errorRetry) throw errorRetry;
-                if (dataRetry) {
-                    dataRetry.assigned_staff_ids = (dataRetry.custom_data && dataRetry.custom_data.assigned_staff_ids) || [];
-                }
-                return res.json(dataRetry);
-            }
-            throw error;
-        }
+        if (error) throw error;
 
         if (data) {
             data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];

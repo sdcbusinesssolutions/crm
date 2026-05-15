@@ -17,7 +17,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
-import { getStaffList, getLeads, createLead } from '../services/lead-management-api';
+import { getStaffList, getLeads, createLead, getLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 
@@ -103,6 +103,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
+    const [assignedStaffNames, setAssignedStaffNames] = useState<string[]>([]);
     const activeChat = useMemo(() =>
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
@@ -183,14 +184,24 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 const leads = res as any; // The API returns the array directly
                 if (leads && leads.length > 0) {
                     setActiveLeadId(leads[0].id);
+                    // Resolve assigned staff names
+                    const ids: string[] = leads[0].assigned_staff_ids || [];
+                    if (ids.length > 0 && staffMembers.length > 0) {
+                        const names = ids.map((sid: string) => staffMembers.find((s: any) => s.id === sid)?.name).filter(Boolean);
+                        setAssignedStaffNames(names);
+                    } else {
+                        setAssignedStaffNames([]);
+                    }
                 } else {
                     setActiveLeadId(null);
+                    setAssignedStaffNames([]);
                 }
             }).catch(console.error);
         } else {
             setActiveLeadId(null);
+            setAssignedStaffNames([]);
         }
-    }, [activeChat?.contact_phone]);
+    }, [activeChat?.contact_phone, staffMembers]);
 
     useEffect(() => {
         setConvPage(1);
@@ -2060,6 +2071,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 )}
                                                 <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${isSessionOpen ? 'bg-green-500' : 'bg-slate-400'}`}></span>
                                                 {statusText}
+                                                {assignedStaffNames.length > 0 && (
+                                                    <span className="ml-1 text-[10px] font-bold text-[#00684a] bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 truncate max-w-[120px]">
+                                                        👤 {assignedStaffNames.join(', ')}
+                                                    </span>
+                                                )}
                                             </p>
                                         );
                                     })()}
@@ -2103,12 +2119,49 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg">
                                     <SearchIcon className="w-5 h-5" />
                                 </button>
-                                {isOwner && activeLeadId && (
+                                {activeLeadId ? (
                                     <LeadAssignment 
                                         leadId={activeLeadId} 
-                                        className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                        onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
+                                        className="p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
+                                        onAssigned={() => {
+                                            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
+                                            // Refresh assigned staff names
+                                            getLead(activeLeadId).then((lead: any) => {
+                                                const ids: string[] = lead?.assigned_staff_ids || [];
+                                                if (ids.length > 0 && staffMembers.length > 0) {
+                                                    setAssignedStaffNames(ids.map((sid: string) => staffMembers.find((s: any) => s.id === sid)?.name).filter(Boolean));
+                                                } else {
+                                                    setAssignedStaffNames([]);
+                                                }
+                                            }).catch(console.error);
+                                        }}
                                     />
+                                ) : (
+                                    <button
+                                        onClick={async () => {
+                                            if (!activeChat) return;
+                                            try {
+                                                const { getLeads, createLead } = await import('../services/lead-management-api');
+                                                const existing = await getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone });
+                                                if (existing?.length > 0) {
+                                                    setActiveLeadId(existing[0].id);
+                                                } else {
+                                                    const newLead = await createLead({
+                                                        name: activeChat.contact_name || activeChat.contact_phone,
+                                                        phone: activeChat.contact_phone,
+                                                        status: 'new',
+                                                    });
+                                                    if (newLead) setActiveLeadId(newLead.id);
+                                                }
+                                            } catch (err) { console.error('Failed to init lead for assignment:', err); }
+                                        }}
+                                        className="p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors"
+                                        title="Assign Team"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                                        </svg>
+                                    </button>
                                 )}
                                 {canWrite && (
                                     <button
