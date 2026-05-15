@@ -8,9 +8,10 @@ interface Props {
   leadId: string;
   contact?: any; 
   onAssigned?: () => void;
+  className?: string;
 }
 
-const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
+const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
   const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(contact?.assigned_staff_ids || []);
   const [loading, setLoading] = useState(false);
@@ -111,18 +112,18 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
     <>
       <button
         onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
-        className={`p-1.5 rounded-lg transition-colors group/btn relative ${
+        className={className || `p-1.5 rounded-lg transition-colors group/btn relative ${
           assignedStaffIds.length > 0 
             ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' 
             : 'text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-indigo-600 hover:bg-indigo-50'
         }`}
         title="Assign Team"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
         </svg>
         {assignedStaffIds.length > 0 && (
-          <span className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-600 text-white text-[7px] font-black rounded-full flex items-center justify-center border border-white">
+          <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-indigo-600 text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white px-0.5">
             {assignedStaffIds.length}
           </span>
         )}

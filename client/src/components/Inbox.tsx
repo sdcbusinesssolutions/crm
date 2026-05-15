@@ -17,7 +17,7 @@ import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
-import { getStaffList, getLeads } from '../services/lead-management-api';
+import { getStaffList, getLeads, createLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 
@@ -2094,10 +2094,22 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     );
                                 })()}
 
-                                <button onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <button 
+                                    onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} 
+                                    className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                                >
                                     <UsersIcon className="w-5 h-5" />
                                 </button>
-                                <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg"><SearchIcon className="w-5 h-5" /></button>
+                                <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg">
+                                    <SearchIcon className="w-5 h-5" />
+                                </button>
+                                {isOwner && activeLeadId && (
+                                    <LeadAssignment 
+                                        leadId={activeLeadId} 
+                                        className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                        onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
+                                    />
+                                )}
                                 {canWrite && (
                                     <button
                                         onClick={() => setIsClearChatModalOpen(true)}
@@ -2524,23 +2536,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     </span>
                                 )}
 
-                                {isOwner && (
-                                    <div className="mt-6 w-full border-t border-slate-100 pt-6 px-6">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                                                Team Assignments (Multi-Staff)
-                                            </label>
-                                            
-                                            {activeLeadId ? (
-                                                <LeadAssignment 
-                                                    leadId={activeLeadId} 
-                                                    onAssigned={() => {
-                                                        // Refresh sidebar to show new assignments
-                                                        loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div className="flex flex-col items-center gap-2">
+                                            {!activeLeadId && (
+                                                <div className="flex flex-col items-center gap-2 mt-6 w-full border-t border-slate-100 pt-6 px-6">
                                                     <p className="text-[10px] text-slate-400 italic text-center">
                                                         This contact is not a Lead yet. Convert to enable team assignments.
                                                     </p>
@@ -2576,9 +2573,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     </button>
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
 
                             <div className="space-y-6">
