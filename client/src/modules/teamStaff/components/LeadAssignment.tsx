@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { staffApi } from '../api/staffApi';
 import { usePermissions, ACCESS_TYPES } from '../hooks/usePermissions';
 import { createLead, getLeads, updateLead, getLead } from '../../../services/lead-management-api';
@@ -15,6 +15,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeLeadId, setActiveLeadId] = useState(leadId);
   const containerRef = useRef<HTMLDivElement>(null);
   const { hasAccess } = usePermissions();
@@ -109,6 +110,14 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
     }
   };
 
+  const filteredStaff = useMemo(() => {
+    if (!searchQuery) return staffList;
+    return staffList.filter(s => 
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.role?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [staffList, searchQuery]);
+
   if (!isOwner && !hasAccess('Lead Management', ACCESS_TYPES.READ_WRITE)) {
     return <div className="p-4 text-gray-500 text-sm italic">You do not have permission to assign leads.</div>;
   }
@@ -119,8 +128,9 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
       'bg-rose-500', 'bg-violet-500', 'bg-cyan-500', 'bg-teal-500'
     ];
     let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    const n = name || 'User';
+    for (let i = 0; i < n.length; i++) {
+      hash = n.charCodeAt(i) + ((hash << 5) - hash);
     }
     return colors[Math.abs(hash) % colors.length];
   };
@@ -139,7 +149,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
       {/* Compact Display - Avatars */}
       <div className="flex items-center -space-x-2 overflow-visible">
         {assignedStaff.length === 0 ? (
-          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-tight pr-1">Unassigned</div>
+          <div className="text-[9px] text-slate-400 font-black uppercase tracking-tight pr-1">Unassigned</div>
         ) : (
           assignedStaff.slice(0, 3).map((staff) => (
             <div 
@@ -152,7 +162,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
           ))
         )}
         {assignedStaff.length > 3 && (
-          <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[9px] font-black border-2 border-white shadow-sm">
+          <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-black border-2 border-white shadow-sm">
             +{assignedStaff.length - 3}
           </div>
         )}
@@ -169,46 +179,69 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
         </button>
       </div>
 
-      {/* Modern Dropdown Selection */}
+      {/* Advanced Dropdown Selection */}
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 z-[100] w-56 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right">
-          <div className="p-3 border-b border-slate-50 bg-slate-50/50 flex items-center justify-between">
-            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assign Staff</h3>
-            {loading && (
-               <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            )}
+        <div className={`absolute top-full right-0 mt-2 z-[100] ${staffList.length > 6 ? 'w-80' : 'w-64'} bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 overflow-hidden animate-in fade-in slide-in-from-top-2 origin-top-right backdrop-blur-xl`}>
+          {/* Header & Search */}
+          <div className="p-4 bg-slate-50/50 border-b border-slate-100/50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[11px] font-black text-slate-900 uppercase tracking-[0.15em]">Assign Team</h3>
+              {loading && (
+                 <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              )}
+            </div>
+            <div className="relative">
+               <input 
+                 type="text"
+                 value={searchQuery}
+                 onChange={(e) => setSearchQuery(e.target.value)}
+                 placeholder="Search staff..."
+                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all pl-8 shadow-sm"
+               />
+               <svg className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+               </svg>
+            </div>
           </div>
           
-          <div className="max-h-60 overflow-y-auto custom-scrollbar p-1.5">
-            {staffList.length === 0 ? (
-              <div className="p-4 text-center text-slate-400 text-[10px] italic">No staff found</div>
+          {/* Staff Grid */}
+          <div className={`max-h-[320px] overflow-y-auto custom-scrollbar p-2 ${staffList.length > 6 ? 'grid grid-cols-2 gap-2' : 'flex flex-col gap-1'}`}>
+            {filteredStaff.length === 0 ? (
+              <div className="col-span-full py-8 text-center">
+                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-2">
+                   <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                   </svg>
+                </div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase">No matches found</p>
+              </div>
             ) : (
-              staffList.map((staff) => {
+              filteredStaff.map((staff) => {
                 const isSelected = assignedStaffIds.includes(staff.id);
                 return (
                   <button
                     key={staff.id}
                     onClick={(e) => { e.stopPropagation(); handleToggleStaff(staff.id); }}
-                    className={`w-full flex items-center justify-between p-2 rounded-xl transition-all mb-0.5 ${
+                    className={`flex items-center gap-2.5 p-2 rounded-2xl transition-all relative group ${
                       isSelected 
-                        ? 'bg-indigo-50 text-indigo-700 font-bold' 
-                        : 'hover:bg-slate-50 text-slate-600'
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 scale-[1.02]' 
+                        : 'hover:bg-slate-50 text-slate-600 border border-transparent hover:border-slate-100'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <div className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[10px] font-black shadow-sm ${
-                        isSelected ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-100 text-slate-400'
-                      }`}>
-                        {staff.name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="text-left truncate">
-                        <div className="text-[11px] truncate">{staff.name}</div>
-                        <div className="text-[8px] opacity-60 font-medium uppercase tracking-tighter">{staff.role}</div>
+                    <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-[10px] font-black shadow-sm transition-colors ${
+                      isSelected ? 'bg-white/20 text-white' : `${getAvatarColor(staff.name)} text-white`
+                    }`}>
+                      {staff.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="text-left overflow-hidden">
+                      <div className="text-[10px] font-black truncate">{staff.name}</div>
+                      <div className={`text-[8px] uppercase tracking-tighter font-bold ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
+                        {staff.role}
                       </div>
                     </div>
                     {isSelected && (
-                      <div className="w-4 h-4 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="absolute top-1 right-1 w-3 h-3 rounded-full bg-white flex items-center justify-center shadow-sm">
+                        <svg className="w-2 h-2 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
@@ -219,12 +252,16 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned }) => {
             )}
           </div>
 
-          <div className="p-2 border-t border-slate-50 bg-slate-50/30 flex justify-end">
+          {/* Footer */}
+          <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+             <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">
+               {assignedStaffIds.length} Assigned
+             </div>
              <button
                onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-               className="px-4 py-1.5 bg-slate-900 text-white rounded-lg text-[9px] font-black hover:bg-slate-800 transition-colors uppercase tracking-widest"
+               className="px-5 py-2 bg-slate-900 text-white rounded-xl text-[9px] font-black hover:bg-slate-800 transition-all shadow-md hover:scale-105 active:scale-95 uppercase tracking-widest"
              >
-               DONE
+               SAVE
              </button>
           </div>
         </div>
