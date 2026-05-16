@@ -103,25 +103,36 @@ const AuthPage: React.FC = () => {
                     });
                     
                     if (error) {
-                        // Fallback: Check if it's a staff member
-                        console.log('🔄 Owner login failed (Supabase). Attempting staff fallback for:', email);
-                        try {
-                            const { staffApi } = await import('../modules/teamStaff/api/staffApi');
-                            console.log('📦 Staff API module loaded. Calling login...');
-                            const staffData = await staffApi.login({ email, password });
-                            
-                            console.log('🎉 Staff login SUCCESS:', staffData.staff.name);
-                            
-                            // Success! Store staff tokens
-                            localStorage.setItem('staffToken', staffData.token);
-                            localStorage.setItem('staffData', JSON.stringify(staffData.staff));
-                            
-                            setMessage(`Welcome back, ${staffData.staff.name}! Redirecting...`);
-                            setTimeout(() => window.location.href = '/dashboard', 1000);
-                            return;
-                        } catch (staffErr: any) {
-                            console.warn('❌ Staff fallback failed:', staffErr.response?.data || staffErr.message);
-                            // If staff login also fails, throw the original Supabase error
+                        // If Supabase login fails, check if it's a staff member
+                        // But only if it's an "Invalid login credentials" error (most common case for mixed login)
+                        const isInvalidCreds = error.message?.toLowerCase().includes('invalid');
+                        
+                        if (isInvalidCreds) {
+                            console.log('🔄 Owner login failed (Supabase). Attempting staff fallback for:', email);
+                            try {
+                                const { staffApi } = await import('../modules/teamStaff/api/staffApi');
+                                const staffData = await staffApi.login({ email, password });
+                                
+                                console.log('🎉 Staff login SUCCESS:', staffData.staff.name);
+                                
+                                // Success! Store staff tokens
+                                localStorage.setItem('staffToken', staffData.token);
+                                localStorage.setItem('staffData', JSON.stringify(staffData.staff));
+                                
+                                setMessage(`Welcome back, ${staffData.staff.name}! Redirecting...`);
+                                setTimeout(() => window.location.href = '/dashboard', 1000);
+                                return;
+                            } catch (staffErr: any) {
+                                console.warn('❌ Staff fallback failed:', staffErr.message);
+                                // If the staff error specifically says "Owner account", use that message
+                                if (staffErr.message?.includes('Owner account')) {
+                                    throw staffErr;
+                                }
+                                // Otherwise, show the original Supabase error
+                                throw error;
+                            }
+                        } else {
+                            // If it's another error (like "Email not confirmed" or "Unexpected token"), throw it
                             throw error;
                         }
                     }
@@ -176,9 +187,16 @@ const AuthPage: React.FC = () => {
             }
         } catch (err: any) {
             let errorMsg = err.message || 'An unexpected error occurred';
-            if (errorMsg.includes('Database error saving new user')) {
+            
+            // Handle common technical errors gracefully
+            if (errorMsg.includes('Unexpected token') || errorMsg.includes('valid JSON')) {
+                errorMsg = 'Connection Error: The server returned an invalid response. Please refresh (Ctrl+F5) and try again.';
+            } else if (errorMsg.includes('Database error saving new user')) {
                 errorMsg = 'Signup Failed: This workspace has reached its user limit.';
+            } else if (errorMsg.includes('fetch')) {
+                errorMsg = 'Network Error: Cannot reach the authentication server. Please check your internet.';
             }
+            
             setError(errorMsg);
         } finally {
             setLoading(false);

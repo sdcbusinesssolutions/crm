@@ -15,11 +15,27 @@ export const staffApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
     });
+
+    const contentType = res.headers.get('content-type');
     if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Login failed' }));
-      throw new Error(error.error || 'Login failed');
+      let errorMessage = 'Login failed';
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorMessage;
+        } else {
+          errorMessage = await res.text() || errorMessage;
+        }
+      } catch (e) {
+        errorMessage = 'Invalid credentials or server error';
+      }
+      throw new Error(errorMessage);
     }
-    return await res.json();
+
+    if (contentType && contentType.includes('application/json')) {
+      return await res.json();
+    }
+    throw new Error('Server returned an invalid response format');
   },
 
   // Owner: Manage Staff

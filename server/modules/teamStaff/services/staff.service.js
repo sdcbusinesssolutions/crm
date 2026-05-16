@@ -85,7 +85,19 @@ const StaffService = {
 
     if (error || !staff) {
       console.warn(`⚠️ [StaffService] Login failed: Staff not found or inactive (${email})`);
-      throw new Error('Invalid credentials or inactive account');
+      
+      // Check if this is an owner trying to use staff login
+      const { data: owner } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (owner) {
+        throw new Error('This email belongs to an Owner account. Please use the main Owner login.');
+      }
+      
+      throw new Error('Invalid credentials or account not found');
     }
 
     console.log(`👤 [StaffService] Staff found: ${staff.id}. Verifying password...`);
