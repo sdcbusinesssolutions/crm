@@ -7,14 +7,23 @@ const jwt = require('jsonwebtoken');
  */
 const requireAuth = async (req, res, next) => {
     // Retry logic helper
-    const getUserWithRetry = async (token, retries = 2) => {
+    // Retry logic helper for network-level failures (Timeout/DNS)
+    const getUserWithRetry = async (token, retries = 3) => {
         for (let i = 0; i < retries; i++) {
             try {
-                return await supabase.auth.getUser(token);
+                const result = await supabase.auth.getUser(token);
+                // Only retry on network errors or 5xx server errors
+                if (result.error && (result.error.status >= 500 || result.error.message.includes('fetch failed'))) {
+                    throw result.error;
+                }
+                return result;
             } catch (err) {
-                if (i === retries - 1) throw err;
-                // Wait short period
-                await new Promise(resolve => setTimeout(resolve, 500));
+                const isNetworkError = err.message.includes('fetch failed') || err.message.includes('timeout') || err.code === 'UND_ERR_CONNECT_TIMEOUT';
+                if (i === retries - 1 || !isNetworkError) throw err;
+                
+                console.log(`⚠️ [Auth] Supabase connection failed (Attempt ${i + 1}/${retries}). Retrying in 2s...`);
+                // Wait 2 seconds before retry
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
         }
     };

@@ -19,12 +19,22 @@ else console.log('✅ [INIT] Service Key Loaded.');
 /**
  * 1. Static Client (Anon)
  * Used for client-side like operations or public access.
+ * Added custom fetch with timeout to handle ISP connectivity issues (ConnectTimeoutError).
  */
 const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
+    },
+    global: {
+        fetch: (url, options) => {
+            return fetch(url, {
+                ...options,
+                // Increase timeout to 30 seconds for slow ISP connections
+                signal: AbortSignal.timeout(30000)
+            });
+        }
     }
 });
 
@@ -39,6 +49,14 @@ if (supabaseServiceKey) {
             persistSession: false,
             autoRefreshToken: false,
             detectSessionInUrl: false
+        },
+        global: {
+            fetch: (url, options) => {
+                return fetch(url, {
+                    ...options,
+                    signal: AbortSignal.timeout(30000)
+                });
+            }
         }
     });
 } else {
