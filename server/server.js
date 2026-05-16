@@ -66,7 +66,11 @@ try {
         // Ensure CORS headers are always present to override restrictive Supabase defaults if needed
         proxyRes.headers['Access-Control-Allow-Origin'] = req.headers.origin || '*';
         proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
-        proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization';
+        proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization, Prefer, x-customer-id, x-vendor-id, x-account-id';
+        // Ensure we don't break content-encoding with compression middleware
+        if (proxyRes.headers['content-encoding']) {
+           delete proxyRes.headers['content-encoding'];
+        }
       }
     });
     app.use('/api/supabase-proxy', supabaseProxy);

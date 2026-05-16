@@ -9,8 +9,19 @@ router.post('/login', StaffController.login);
 
 // 2. Owner-Only Routes (Managing Staff)
 // These use the existing CRM authentication (requireAuth)
+// 2. Owner-Only or Staff-Access Routes
+// Combined auth to allow both Owners and Staff to see the list
+const combinedAuth = (req, res, next) => {
+  // Try existing owner auth first
+  requireAuth(req, res, (err) => {
+    if (!err) return next();
+    // If not owner, try staff auth
+    authenticateStaff(req, res, next);
+  });
+};
+
 router.post('/', requireAuth, StaffController.createStaff);
-router.get('/', requireAuth, StaffController.listStaff);
+router.get('/', combinedAuth, StaffController.listStaff);
 router.put('/:staffId/permissions', requireAuth, StaffController.updatePermissions);
 router.post('/assign-lead', requireAuth, StaffController.assignLead);
 router.get('/leads/:leadId/assignments', requireAuth, StaffController.getLeadAssignments);

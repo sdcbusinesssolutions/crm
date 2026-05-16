@@ -31,7 +31,9 @@ router.get('/', requirePermission('Leads', 'read'), async (req, res) => {
         res.json({
             data: (data || []).map(lead => ({
                 ...lead,
-                assigned_staff_ids: lead.assigned_staff_ids || (lead.custom_data && lead.custom_data.assigned_staff_ids) || []
+                assigned_staff_ids: (lead.assigned_staff_ids && lead.assigned_staff_ids.length > 0) 
+                    ? lead.assigned_staff_ids 
+                    : (lead.custom_data && lead.custom_data.assigned_staff_ids) || []
             })),
             total: count || 0,
             page: parseInt(page),
@@ -55,7 +57,9 @@ router.get('/:id', async (req, res) => {
 
         if (error) throw error;
         if (data) {
-            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined) 
+                ? data.assigned_staff_ids 
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
         }
         res.json(data);
     } catch (err) {
@@ -82,6 +86,7 @@ router.post('/', async (req, res) => {
                 source: source || 'Manual',
                 estimated_value: estimated_value || 0,
                 custom_data: { assigned_staff_ids: assigned_staff_ids || [] },
+                assigned_staff_ids: assigned_staff_ids || [],
                 status: 'active'
             }])
             .select()
@@ -89,7 +94,9 @@ router.post('/', async (req, res) => {
 
         if (error) throw error;
         if (data) {
-            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined) 
+                ? data.assigned_staff_ids 
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
         }
         res.json(data);
     } catch (err) {
@@ -105,38 +112,47 @@ router.put('/:id', async (req, res) => {
         delete updates.user_id;
         updates.updated_at = new Date().toISOString();
 
-        // Handle assigned_staff_ids: always save into custom_data for reliability
-        if (updates.assigned_staff_ids !== undefined) {
-            // Fetch existing custom_data first to avoid overwriting
-            const { data: existing } = await supabaseAdmin
-                .from('leads')
-                .select('custom_data')
-                .eq('id', req.params.id)
-                .eq('user_id', req.user.id)
-                .single();
+        // 1. Verify lead exists and belongs to this tenant/user
+        const { data: leadCheck, error: checkError } = await supabaseAdmin
+            .from('leads')
+            .select('user_id, custom_data')
+            .eq('id', req.params.id)
+            .single();
 
-            const existingCustomData = existing?.custom_data || {};
+        if (checkError || !leadCheck) {
+            return res.status(404).json({ error: 'Lead not found' });
+        }
+
+        // Security check: Ensure the lead belongs to the requester's tenant
+        // req.user.id is the tenantId for staff and ownerId for owners
+        if (leadCheck.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to update this lead' });
+        }
+
+        // Handle assigned_staff_ids: save to column AND custom_data for backward compatibility
+        if (updates.assigned_staff_ids !== undefined) {
+            const existingCustomData = leadCheck.custom_data || {};
             updates.custom_data = { 
                 ...existingCustomData,
                 ...(updates.custom_data || {}),
                 assigned_staff_ids: updates.assigned_staff_ids 
             };
-            // Remove from top-level to avoid column-missing errors
-            delete updates.assigned_staff_ids;
         }
 
         const { data, error } = await supabaseAdmin
             .from('leads')
             .update(updates)
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
             .select()
             .single();
 
         if (error) throw error;
 
         if (data) {
-            data.assigned_staff_ids = data.assigned_staff_ids || (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+            // Fix: Check if null/undefined. If empty array, keep it empty.
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined) 
+                ? data.assigned_staff_ids 
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
         }
         res.json(data);
     } catch (err) {

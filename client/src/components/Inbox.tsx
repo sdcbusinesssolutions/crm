@@ -172,26 +172,32 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     };
 
     useEffect(() => {
-        if (isOwner) {
-            getStaffList().then(setStaffMembers).catch(console.error);
-        }
-    }, [isOwner]);
+        // Both Owners and Staff need the staff list to map IDs to Names in the Inbox
+        getStaffList().then(setStaffMembers).catch(console.error);
+    }, []);
 
     // Fetch lead ID for the active chat
     useEffect(() => {
         if (activeChat) {
             getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone }).then(res => {
-                const leads = res as any; // The API returns the array directly
+                // Handle both paginated { data: [] } and direct array [] responses
+                const leadsData = (res as any).data || res;
+                const leads = Array.isArray(leadsData) ? leadsData : [];
+
                 if (leads && leads.length > 0) {
                     setActiveLeadId(leads[0].id);
                     // Resolve assigned staff names
                     const ids: string[] = leads[0].assigned_staff_ids || [];
-                    if (ids.length > 0 && staffMembers.length > 0) {
+                    
+                    // Only update names if we actually have staff members loaded to compare against
+                    // This prevents "flicker" where names disappear during a refresh
+                    if (staffMembers.length > 0) {
                         const names = ids.map((sid: string) => staffMembers.find((s: any) => s.id === sid)?.name).filter(Boolean);
                         setAssignedStaffNames(names);
-                    } else {
+                    } else if (ids.length === 0) {
                         setAssignedStaffNames([]);
                     }
+                    // If ids.length > 0 but staffMembers is empty, we wait for the next run of this effect
                 } else {
                     setActiveLeadId(null);
                     setAssignedStaffNames([]);
@@ -2133,6 +2139,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 } else {
                                                     setAssignedStaffNames([]);
                                                 }
+
+                                                // Sync with conversation table so "Mine" filter works
+                                                if (activeChatId && ids.length > 0) {
+                                                    // For now, we sync the first assigned staff to the single 'assigned_to' column
+                                                    // In the future, we might support multiple assignments in conversations too
+                                                    inboxService.assignConversation(activeChatId, ids[0]).catch(console.error);
+                                                }
                                             }).catch(console.error);
                                         }}
                                     />
@@ -2142,9 +2155,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             if (!activeChat) return;
                                             try {
                                                 const { getLeads, createLead } = await import('../services/lead-management-api');
-                                                const existing = await getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone });
-                                                if (existing?.length > 0) {
-                                                    setActiveLeadId(existing[0].id);
+                                                const res = await getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone });
+                                                const leads = (res as any).data || res;
+                                                if (Array.isArray(leads) && leads.length > 0) {
+                                                    setActiveLeadId(leads[0].id);
                                                 } else {
                                                     const newLead = await createLead({
                                                         name: activeChat.contact_name || activeChat.contact_phone,

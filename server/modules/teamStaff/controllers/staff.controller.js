@@ -29,18 +29,26 @@ const StaffController = {
   },
 
   /**
-   * List all staff (Owner only)
+   * List all staff (Owner or Staff)
    */
   async listStaff(req, res) {
     try {
       const { supabaseAdmin } = require('../../../lib/supabaseClient');
+      
+      // Support both Owner (req.user) and Staff (req.staff)
+      const tenantId = req.user ? req.user.id : (req.staff ? req.staff.tenantId : null);
+      
+      if (!tenantId) {
+        return res.status(401).json({ error: 'Tenant context missing' });
+      }
+
       const { data, error } = await supabaseAdmin
         .from('team_staff')
         .select(`
           id, name, email, phone, role, status, created_at,
           team_staff_permissions (module_name, access_type)
         `)
-        .eq('tenant_id', req.user.id);
+        .eq('tenant_id', tenantId);
       
       if (error) throw error;
 

@@ -13,14 +13,15 @@ interface Props {
 
 const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
-  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(contact?.assigned_staff_ids || []);
+  // Defensive initialization
+  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!contact?.assigned_staff_ids);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Sync state with props when board data refreshes
   useEffect(() => {
-    if (contact?.assigned_staff_ids) {
+    if (Array.isArray(contact?.assigned_staff_ids)) {
       setAssignedStaffIds(contact.assigned_staff_ids);
     }
   }, [contact?.assigned_staff_ids]);
@@ -42,11 +43,11 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       setStaffList(allStaff);
       
       // Use initial data if available, otherwise fetch
-      if (initialData && initialData.assigned_staff_ids) {
+      if (initialData && Array.isArray(initialData.assigned_staff_ids)) {
         setAssignedStaffIds(initialData.assigned_staff_ids);
       } else {
         const lead = await getLead(targetId);
-        setAssignedStaffIds(lead?.assigned_staff_ids || []);
+        setAssignedStaffIds(Array.isArray(lead?.assigned_staff_ids) ? lead.assigned_staff_ids : []);
       }
     } catch (err) {
       console.error('Failed to load lead assignments:', err);
@@ -56,28 +57,31 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
   };
 
   const handleToggleStaff = async (staffId: string) => {
+    // 1. Calculate new state
     const isAssigned = assignedStaffIds.includes(staffId);
     const newIds = isAssigned 
       ? assignedStaffIds.filter(id => id !== staffId)
       : [...assignedStaffIds, staffId];
     
-    // Optimistic Update
+    // 2. Optimistic Update
     setAssignedStaffIds(newIds);
-    
     setLoading(true);
+
     try {
+      // 3. Persist to server
       const updatedLead = await updateLead(leadId, { assigned_staff_ids: newIds });
       
       if (updatedLead) {
-        // Confirm with real data from server
-        setAssignedStaffIds(updatedLead.assigned_staff_ids || []);
+        // 4. Confirm with server data
+        const serverIds = updatedLead.assigned_staff_ids || [];
+        setAssignedStaffIds(serverIds);
         if (onAssigned) onAssigned();
       }
     } catch (err) {
       console.error('Failed to update assignments:', err);
       // Revert on error
       const lead = await getLead(leadId);
-      setAssignedStaffIds(lead?.assigned_staff_ids || []);
+      setAssignedStaffIds(Array.isArray(lead?.assigned_staff_ids) ? lead.assigned_staff_ids : []);
     } finally {
       setLoading(false);
     }
@@ -150,9 +154,9 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
              </div>
-             <div className="flex items-center gap-3 shrink-0">
-                <div className="bg-white px-4 py-2 rounded-xl border border-emerald-200 shadow-sm">
-                   <span className="text-xs font-black text-[#00684a] mr-2">{assignedStaffIds.length}</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="bg-white px-4 py-2 rounded-xl border border-emerald-200 shadow-sm flex items-center">
+                   <span className="text-xs font-black text-[#00684a] mr-2">{Array.isArray(assignedStaffIds) ? assignedStaffIds.length : 0}</span>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected</span>
                 </div>
                 {loading && (

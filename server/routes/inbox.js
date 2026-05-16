@@ -41,11 +41,22 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
 // GET /api/inbox/conversations/:id/messages (Legacy support)
 router.get('/conversations/:id/messages', async (req, res) => {
     try {
+        // Verify ownership via conversation first
+        const { data: conv, error: convError } = await supabaseAdmin
+            .from('conversations')
+            .select('id')
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (convError || !conv) {
+            return res.status(404).json({ error: 'Conversation not found or access denied' });
+        }
+
         const { data, error } = await supabaseAdmin
             .from('messages')
             .select('*')
             .eq('conversation_id', req.params.id)
-            .eq('user_id', req.user.id)
             .order('created_at', { ascending: true });
 
         if (error) throw error;
@@ -59,11 +70,22 @@ router.get('/conversations/:id/messages', async (req, res) => {
 router.get('/messages/:id', async (req, res) => {
     try {
         const { limit = 50, offset = 0 } = req.query;
+        // Verify ownership via conversation first
+        const { data: conv, error: convError } = await supabaseAdmin
+            .from('conversations')
+            .select('id')
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (convError || !conv) {
+            return res.status(404).json({ error: 'Conversation not found or access denied' });
+        }
+
         const { data, error } = await supabaseAdmin
             .from('messages')
             .select('*')
             .eq('conversation_id', req.params.id)
-            .eq('user_id', req.user.id)
             .order('created_at', { ascending: false }) // Newest first for pagination
             .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
@@ -139,8 +161,16 @@ router.post('/assign', async (req, res) => {
     }
 });
 
-// PUT /api/inbox/conversations/:id/read
+// POST/PUT /api/inbox/conversations/:id/read
+router.post('/conversations/:id/read', async (req, res) => {
+    await markAsRead(req, res);
+});
+
 router.put('/conversations/:id/read', async (req, res) => {
+    await markAsRead(req, res);
+});
+
+async function markAsRead(req, res) {
     try {
         const { error } = await supabaseAdmin
             .from('conversations')
@@ -156,6 +186,6 @@ router.put('/conversations/:id/read', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
-});
+}
 
 module.exports = router;
