@@ -75,11 +75,7 @@ if (!PORT) {
   process.exit(1);
 }
 
-// --- Middleware ---
-app.use(cors());
-app.use(compression());
-
-// --- Supabase Reverse Proxy (Must be BEFORE express.json) ---
+// --- Supabase Reverse Proxy (Must be BEFORE express.json and compression middleware) ---
 try {
   const { createProxyMiddleware } = require('http-proxy-middleware');
   const proxyTarget = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.trim() : '';
@@ -90,6 +86,11 @@ try {
       ws: true,
       pathRewrite: { '^/api/supabase-proxy': '' },
       logLevel: 'error',
+      onProxyReq: (proxyReq, req, res) => {
+        // Force uncompressed responses from Supabase to prevent double-compression/corruption
+        // issues when passing through compression middleware or reverse proxies.
+        proxyReq.setHeader('accept-encoding', 'identity');
+      },
       onProxyReqWs: (proxyReq, req, socket, options, head) => {
         // Essential for WebSocket protocol mirroring
         if (req.headers['sec-websocket-protocol']) {
@@ -101,10 +102,6 @@ try {
         proxyRes.headers['Access-Control-Allow-Origin'] = req.headers.origin || '*';
         proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
         proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization, Prefer, x-customer-id, x-vendor-id, x-account-id';
-        // Ensure we don't break content-encoding with compression middleware
-        if (proxyRes.headers['content-encoding']) {
-           delete proxyRes.headers['content-encoding'];
-        }
       }
     });
     app.use('/api/supabase-proxy', supabaseProxy);
@@ -116,6 +113,10 @@ try {
 } catch (e) {
   console.log('Skipping proxy setup:', e.message);
 }
+
+// --- Middleware ---
+app.use(cors());
+app.use(compression());
 
 // Force Restart: 2026-01-12 23:25 UTC - Deduplication Active
 app.use(express.json({ limit: '50mb' }));
