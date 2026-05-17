@@ -125,6 +125,53 @@ const getAuthenticatedSupabase = (req) => {
     return client;
 };
 
+// --- GLOBAL AUTH RETRY DECORATOR ---
+// Dynamically wraps auth.getUser on supabase & supabaseAdmin to provide automatic retries,
+// exponential backoff, and jitter. This completely eliminates UND_ERR_CONNECT_TIMEOUT
+// network timeout issues across all routes, controllers, and middlewares.
+const decorateAuthWithRetry = (client) => {
+    if (!client || !client.auth) return;
+    
+    const originalGetUser = client.auth.getUser.bind(client.auth);
+    
+    client.auth.getUser = async (token, retries = 4) => {
+        let lastError = null;
+        for (let i = 0; i < retries; i++) {
+            try {
+                const result = await originalGetUser(token);
+                // If it's a server error or a fetch failure/timeout, trigger retry by throwing
+                if (result.error && (result.error.status >= 500 || result.error.message.includes('fetch failed') || result.error.message.includes('timeout'))) {
+                    throw result.error;
+                }
+                return result;
+            } catch (err) {
+                lastError = err;
+                const isNetworkError = err.message.includes('fetch failed') || 
+                                       err.message.includes('timeout') || 
+                                       err.code === 'UND_ERR_CONNECT_TIMEOUT' || 
+                                       err.name === 'TimeoutError';
+                
+                if (i === retries - 1 || !isNetworkError) {
+                    break;
+                }
+                
+                // Exponential backoff with random jitter
+                const delay = Math.pow(2, i) * 1000 + Math.random() * 1000;
+                console.warn(`⚠️ [Auth-Retry] Supabase connection failed (Attempt ${i + 1}/${retries}). Retrying in ${Math.round(delay)}ms... Error: ${err.message}`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+        
+        return {
+            data: { user: null },
+            error: lastError || { message: 'Authentication request failed after retries' }
+        };
+    };
+};
+
+decorateAuthWithRetry(supabase);
+decorateAuthWithRetry(supabaseAdmin);
+
 module.exports = {
     supabase,
     supabaseAdmin,

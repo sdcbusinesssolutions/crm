@@ -22,6 +22,22 @@ router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
+    // Filter by assigned leads if restricted
+    if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+      const { data: assignedLeads } = await supabaseAdmin
+        .from('leads')
+        .select('phone')
+        .eq('user_id', userId)
+        .contains('assigned_staff_ids', [req.staff.staffId]);
+      
+      const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+      if (assignedPhones.length > 0) {
+        query = query.in('phone', assignedPhones);
+      } else {
+        query = query.in('phone', ['dummy-no-phone']);
+      }
+    }
+
     // --- SEARCH FILTERING ---
     if (req.query.search) {
       const s = req.query.search.replace(/,/g, '');
@@ -105,6 +121,22 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
         .order('created_at', { ascending: false })
         .range(from, to);
 
+      // Filter by assigned leads if restricted
+      if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+        const { data: assignedLeads } = await supabaseAdmin
+          .from('leads')
+          .select('phone')
+          .eq('user_id', userId)
+          .contains('assigned_staff_ids', [req.staff.staffId]);
+        
+        const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+        if (assignedPhones.length > 0) {
+          query = query.in('phone', assignedPhones);
+        } else {
+          query = query.in('phone', ['dummy-no-phone']);
+        }
+      }
+
       // Apply same filters if present
       if (req.query.search) {
         const s = req.query.search.replace(/,/g, '');
@@ -158,6 +190,22 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     const { search, groupId, tag, startDate, endDate } = req.query;
 
     let query = supabase.from('contacts').select('phone').eq('user_id', userId);
+
+    // Filter by assigned leads if restricted
+    if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+      const { data: assignedLeads } = await supabaseAdmin
+        .from('leads')
+        .select('phone')
+        .eq('user_id', userId)
+        .contains('assigned_staff_ids', [req.staff.staffId]);
+      
+      const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+      if (assignedPhones.length > 0) {
+        query = query.in('phone', assignedPhones);
+      } else {
+        query = query.in('phone', ['dummy-no-phone']);
+      }
+    }
 
     if (search) {
       const searchTerms = search.split(' ').filter(t => t.length > 0);

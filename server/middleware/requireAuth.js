@@ -81,6 +81,24 @@ const requireAuth = async (req, res, next) => {
             const decoded = jwt.verify(token, (process.env.JWT_SECRET || 'your-secret-key').trim());
             if (decoded && decoded.role === 'staff') {
                 req.staff = decoded;
+                
+                // Fetch LIVE permissions from the database to ensure instant real-time updates
+                try {
+                    const { data: perms } = await supabaseAdmin
+                        .from('team_staff_permissions')
+                        .select('module_name, access_type')
+                        .eq('staff_id', decoded.staffId);
+                    
+                    if (perms) {
+                        req.staff.permissions = perms.reduce((acc, p) => {
+                            acc[p.module_name] = p.access_type;
+                            return acc;
+                        }, {});
+                    }
+                } catch (dbErr) {
+                    console.error('⚠️ [Auth] Failed to load live permissions, falling back to token claims:', dbErr.message);
+                }
+
                 req.user = { 
                     id: decoded.tenantId, 
                     email: decoded.email,

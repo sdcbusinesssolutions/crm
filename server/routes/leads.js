@@ -26,6 +26,10 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
             .select('*', { count: 'exact' })
             .eq('user_id', req.user.id);
 
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            query = query.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
         if (pipelineId) {
             query = query.eq('pipeline_id', pipelineId);
         }
@@ -100,12 +104,17 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
 router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
+        let query = supabase
             .from('leads')
             .select('*')
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
-            .single();
+            .eq('user_id', req.user.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            query = query.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data, error } = await query.single();
 
         if (error) {
             if (error.code === 'PGRST116') {
@@ -240,11 +249,16 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         updates.updated_at = new Date().toISOString();
 
         // 1. Verify lead exists and belongs to this tenant/user
-        const { data: leadCheck, error: checkError } = await supabase
+        let checkQuery = supabase
             .from('leads')
             .select('user_id, custom_data')
-            .eq('id', req.params.id)
-            .single();
+            .eq('id', req.params.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            checkQuery = checkQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data: leadCheck, error: checkError } = await checkQuery.single();
 
         if (checkError || !leadCheck) {
             return res.status(404).json({ error: 'Lead not found' });
@@ -326,11 +340,16 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
         const supabase = getAuthenticatedSupabase(req);
 
         // Verify lead exists and belongs to this tenant/user
-        const { data: leadCheck, error: checkError } = await supabase
+        let checkQuery = supabase
             .from('leads')
             .select('user_id')
-            .eq('id', req.params.id)
-            .single();
+            .eq('id', req.params.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            checkQuery = checkQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data: leadCheck, error: checkError } = await checkQuery.single();
 
         if (checkError || !leadCheck) {
             return res.status(404).json({ error: 'Lead not found' });
@@ -396,11 +415,17 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
 router.delete('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        let deleteQuery = supabase
             .from('leads')
             .delete()
             .eq('id', req.params.id)
             .eq('user_id', req.user.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            deleteQuery = deleteQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { error } = await deleteQuery;
 
         if (error) throw error;
 

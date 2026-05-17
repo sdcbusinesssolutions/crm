@@ -330,6 +330,10 @@ router.get('/:id/kanban', async (req, res) => {
                 .eq('stage_id', stage.id)
                 .eq('user_id', userId);
 
+            if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+                query = query.contains('assigned_staff_ids', [req.staff.staffId]);
+            }
+
             // Search Support
             if (req.query.search) {
                 const s = req.query.search;

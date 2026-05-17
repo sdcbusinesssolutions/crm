@@ -32,6 +32,22 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to', { count: 'exact' })
             .eq('user_id', userId);
 
+        // Filter by assigned leads if restricted
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            const { data: assignedLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [req.staff.staffId]);
+            
+            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+            if (assignedPhones.length > 0) {
+                query = query.in('contact_phone', assignedPhones);
+            } else {
+                query = query.in('contact_phone', ['dummy-no-phone']);
+            }
+        }
+
         if (search) {
             query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`);
         }
@@ -85,7 +101,7 @@ router.get('/messages/:conversationId', requirePermission('Inbox', 'read'), asyn
         // Since we use supabaseAdmin later, we must manually check this authorization.
         const { data: ownedConv, error: ownError } = await supabaseAdmin
             .from('conversations')
-            .select('id')
+            .select('id, contact_phone')
             .eq('id', conversationId)
             .eq('user_id', userId)
             .single();
@@ -93,6 +109,22 @@ router.get('/messages/:conversationId', requirePermission('Inbox', 'read'), asyn
         if (ownError || !ownedConv) {
             console.warn(`[Inbox] Unauthorized access attempt by ${userId} to conversation ${conversationId}`);
             return res.status(403).json({ error: 'Unauthorized or Conversation not found' });
+        }
+
+        // Additional staff only-assigned filter to secure reading individual messages
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            const { data: assignedLead } = await supabaseAdmin
+                .from('leads')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('phone', ownedConv.contact_phone)
+                .contains('assigned_staff_ids', [req.staff.staffId])
+                .maybeSingle();
+
+            if (!assignedLead) {
+                console.warn(`[Inbox] Restricted staff member ${req.staff.staffId} attempted to fetch messages for unauthorized conversation: ${conversationId}`);
+                return res.status(403).json({ error: 'Unauthorized: This conversation lead is not assigned to you' });
+            }
         }
 
         // CONFIGURATION - Increased limit for better UX

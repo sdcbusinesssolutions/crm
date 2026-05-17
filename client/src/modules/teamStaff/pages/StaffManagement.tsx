@@ -212,6 +212,29 @@ const StaffManagement: React.FC = () => {
               </div>
               
               <div className="flex-1 overflow-y-auto mb-8 pr-2 custom-scrollbar">
+                {/* Only Assigned Leads Setting */}
+                <div className="mb-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg">📌</div>
+                    <div className="text-left">
+                      <div className="font-bold text-slate-900 text-sm">Only Assigned Leads</div>
+                      <div className="text-slate-500 text-xs font-medium">If enabled, this staff member will only be able to view and manage leads assigned to them.</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={currentPermissions?.only_assigned_leads === 'all_access'}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        handlePermissionChange('only_assigned_leads', isChecked ? 'all_access' : 'no_access');
+                      }}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
                 <PermissionMatrix 
                   permissions={currentPermissions} 
                   onChange={handlePermissionChange} 
