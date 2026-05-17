@@ -84,8 +84,6 @@ const StaffService = {
       .single();
 
     if (error || !staff) {
-      console.warn(`⚠️ [StaffService] Login failed: Staff not found or inactive (${email})`);
-      
       // Check if this is an owner trying to use staff login
       const { data: owner } = await supabaseAdmin
         .from('profiles')
@@ -94,9 +92,11 @@ const StaffService = {
         .maybeSingle();
 
       if (owner) {
+        console.log(`ℹ️ [StaffService] Owner account fallback check for: ${email}`);
         throw new Error('This email belongs to an Owner account. Please use the main Owner login.');
       }
-      
+
+      console.warn(`⚠️ [StaffService] Login failed: Staff not found or inactive (${email})`);
       throw new Error('Invalid credentials or account not found');
     }
 

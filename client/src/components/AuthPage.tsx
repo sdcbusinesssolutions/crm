@@ -124,11 +124,7 @@ const AuthPage: React.FC = () => {
                                 return;
                             } catch (staffErr: any) {
                                 console.warn('❌ Staff fallback failed:', staffErr.message);
-                                // If the staff error specifically says "Owner account", use that message
-                                if (staffErr.message?.includes('Owner account')) {
-                                    throw staffErr;
-                                }
-                                // Otherwise, show the original Supabase error
+                                // Always show the original Supabase error when standard login fails
                                 throw error;
                             }
                         } else {
