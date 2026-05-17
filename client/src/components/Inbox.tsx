@@ -1938,7 +1938,17 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         </div>
                                         <div>
                                             <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || formatPhone(chat.contact_phone)}</h3>
-                                            <span className="text-[10px] text-slate-400 font-medium">{formatPhone(chat.contact_phone)}</span>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-[10px] text-slate-400 font-medium">{formatPhone(chat.contact_phone)}</span>
+                                                <div onClick={(e) => e.stopPropagation()}>
+                                                    <LeadAssignment 
+                                                        contact={chat} 
+                                                        leadId={chat.id} 
+                                                        onAssigned={() => fetchConversations(true)}
+                                                        className="p-0.5 rounded-full transition-colors group/btn relative hover:bg-emerald-50 text-slate-400 hover:text-[#00684a]"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end">
