@@ -76,29 +76,47 @@ if (supabaseServiceKey) {
  * PGRST301 errors caused by custom JWTs that Supabase cannot decode.
  */
 const getAuthenticatedSupabase = (req) => {
+    let client;
+
     // 1. Check if the user is a staff member (populated by requireAuth middleware)
     if (req.user && req.user.isStaff) {
-        return supabaseAdmin;
-    }
-
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-        // Fallback to anon client if no header, but warn
-        return supabase;
-    }
-
-    // 2. Return a request-scoped client for standard owners
-    return createClient(supabaseUrl, supabaseKey, {
-        auth: {
-            persistSession: false,
-            autoRefreshToken: false,
-            detectSessionInUrl: false
-        },
-        global: {
-            headers: { Authorization: authHeader }
+        client = supabaseAdmin;
+    } else {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) {
+            // Fallback to anon client if no header, but warn
+            client = supabase;
+        } else {
+            // 2. Return a request-scoped client for standard owners
+            client = createClient(supabaseUrl, supabaseKey, {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                },
+                global: {
+                    headers: { Authorization: authHeader }
+                }
+            });
         }
-    });
+    }
+
+    // Monkey-patch auth.getUser on the request-scoped client to return req.user if present.
+    // This avoids redundant network calls, accelerates database operations,
+    // and seamlessly handles staff authentication since staff accounts do not exist in Supabase auth.
+    if (req.user && client) {
+        const patchedClient = Object.create(client);
+        patchedClient.auth = Object.create(client.auth);
+        patchedClient.auth.getUser = async () => {
+            return {
+                data: { user: req.user },
+                error: null
+            };
+        };
+        return patchedClient;
+    }
+
+    return client;
 };
 
 module.exports = {

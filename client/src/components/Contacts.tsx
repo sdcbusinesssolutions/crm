@@ -145,72 +145,82 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         }
     };
 
-    const tabInactiveClass = 'bg-brand-600 text-white border border-brand-600 hover:bg-brand-700 hover:border-brand-700 transition-all shadow-md';
+    const tabs = React.useMemo(() => {
+        const tabInactiveClass = 'bg-brand-600 text-white border border-brand-600 hover:bg-brand-700 hover:border-brand-700 transition-all shadow-md';
+        
+        return [
+            {
+                id: 'dashboard',
+                label: 'Overview',
+                icon: HomeIcon,
+                activeClass: 'bg-slate-800 text-white shadow-lg shadow-slate-900/20',
+                inactiveClass: tabInactiveClass,
+                count: null
+            },
+            {
+                id: 'contacts',
+                label: 'Contacts',
+                icon: UsersIcon,
+                activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.contacts
+            },
+            {
+                id: 'groups',
+                label: 'Groups',
+                activeClass: 'bg-amber-600 text-white shadow-lg shadow-amber-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.groups
+            },
+            {
+                id: 'pipelines',
+                label: 'Pipelines',
+                activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.pipelines
+            },
+            {
+                id: 'forms',
+                label: 'Form Builder',
+                activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.forms
+            },
+            {
+                id: 'follow-up',
+                label: 'Follow-up',
+                activeClass: 'bg-rose-600 text-white shadow-lg shadow-rose-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.followUps
+            },
+            {
+                id: 'inputs',
+                label: 'Custom Fields',
+                activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20',
+                inactiveClass: tabInactiveClass,
+                count: counts.inputs
+            },
+        ].filter(tab => {
+            const moduleMap: Record<string, string> = {
+                'dashboard': 'Lead Dashboard',
+                'contacts': 'Contact List',
+                'groups': 'Contact Groups',
+                'pipelines': 'Pipelines',
+                'forms': 'Form Builder',
+                'follow-up': 'Follow-up',
+                'inputs': 'Input Fields'
+            };
+            return hasAccess(moduleMap[tab.id], ACCESS_TYPES.READ);
+        });
+    }, [counts, hasAccess]);
 
-    const tabs = [
-        {
-            id: 'dashboard',
-            label: 'Overview',
-            icon: HomeIcon,
-            activeClass: 'bg-slate-800 text-white shadow-lg shadow-slate-900/20',
-            inactiveClass: tabInactiveClass,
-            count: null
-        },
-        {
-            id: 'contacts',
-            label: 'Contacts',
-            icon: UsersIcon,
-            activeClass: 'bg-blue-600 text-white shadow-lg shadow-blue-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.contacts
-        },
-        {
-            id: 'groups',
-            label: 'Groups',
-            activeClass: 'bg-amber-600 text-white shadow-lg shadow-amber-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.groups
-        },
-        {
-            id: 'pipelines',
-            label: 'Pipelines',
-            activeClass: 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.pipelines
-        },
-        {
-            id: 'forms',
-            label: 'Form Builder',
-            activeClass: 'bg-violet-600 text-white shadow-lg shadow-violet-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.forms
-        },
-        {
-            id: 'follow-up',
-            label: 'Follow-up',
-            activeClass: 'bg-rose-600 text-white shadow-lg shadow-rose-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.followUps
-        },
-        {
-            id: 'inputs',
-            label: 'Custom Fields',
-            activeClass: 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/20',
-            inactiveClass: tabInactiveClass,
-            count: counts.inputs
-        },
-    ].filter(tab => {
-        const moduleMap: Record<string, string> = {
-            'dashboard': 'Lead Dashboard',
-            'contacts': 'Contact List',
-            'groups': 'Contact Groups',
-            'pipelines': 'Pipelines',
-            'forms': 'Form Builder',
-            'follow-up': 'Follow-up',
-            'inputs': 'Input Fields'
-        };
-        return hasAccess(moduleMap[tab.id], ACCESS_TYPES.READ);
-    });
+    useEffect(() => {
+        // Fallback to first accessible tab if activeTab is not allowed
+        const isAllowed = tabs.some(tab => tab.id === activeTab);
+        if (!isAllowed && tabs.length > 0) {
+            setActiveTab(tabs[0].id);
+        }
+    }, [tabs, activeTab]);
 
     return (
         <div className="flex flex-col h-full w-full bg-slate-50 overflow-hidden relative container-mobile-fix">
