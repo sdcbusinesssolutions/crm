@@ -32,8 +32,37 @@ proxyVars.forEach(v => {
 // Explicitly set NO_PROXY just in case
 process.env.NO_PROXY = 'googleapis.com,sheets.googleapis.com,oauth2.googleapis.com';
 
+// --- DYNAMIC CLIENT CONFIG SYNCHRONIZATION ---
+// Automatically syncs server environment variables to the statically served frontend's config.js
+// on startup. This prevents login failures due to blank client configuration files.
+try {
+  const fs = require('fs');
+  const clientBuildPath = process.env.CLIENT_BUILD_PATH || path.join(__dirname, '../client/dist');
+  const publicConfigPath = path.join(__dirname, '../client/public');
+  
+  const configContent = `window.env = {
+  VITE_SUPABASE_URL: ${JSON.stringify(process.env.SUPABASE_URL || '')},
+  VITE_SUPABASE_ANON_KEY: ${JSON.stringify(process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '')},
+  VITE_CLIENT_URL: "__DYNAMIC_ORIGIN__",
+  VITE_API_URL: ${JSON.stringify(process.env.API_URL || '/api')},
+  VITE_MASTER_URL: ${JSON.stringify(process.env.VITE_MASTER_URL || '')},
+  VITE_BRIDGE_DOMAIN: ${JSON.stringify(process.env.BRIDGE_DOMAIN || '')}
+};
+`;
 
-
+  // Write to client build folder
+  if (fs.existsSync(clientBuildPath)) {
+    fs.writeFileSync(path.join(clientBuildPath, 'config.js'), configContent);
+    console.log(`✅ [ConfigSync] Synced runtime config to static build path: ${clientBuildPath}`);
+  }
+  // Write to client public folder (dev mode fallback)
+  if (fs.existsSync(publicConfigPath)) {
+    fs.writeFileSync(path.join(publicConfigPath, 'config.js'), configContent);
+    console.log(`✅ [ConfigSync] Synced runtime config to source public path: ${publicConfigPath}`);
+  }
+} catch (err) {
+  console.warn(`⚠️ [ConfigSync] Warning: Could not automatically sync client config: ${err.message}`);
+}
 // Import the shared static client for middleware verification
 const { supabase } = require('./lib/supabaseClient');
 const { overrideConsole } = require('./utils/logger');

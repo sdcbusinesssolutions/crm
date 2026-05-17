@@ -3,6 +3,8 @@ import { staffApi } from '../api/staffApi';
 import PermissionMatrix from '../components/PermissionMatrix';
 import { MODULES, ACCESS_TYPES } from '../constants';
 import { usePermissions } from '../hooks/usePermissions';
+import Modal from '../../../components/Modal';
+
 const getAvatarStyle = (name: string) => {
   if (!name) return 'bg-indigo-50 text-indigo-600 border border-indigo-100';
   const charCode = name.charCodeAt(0) + (name.charCodeAt(name.length - 1) || 0);
@@ -21,6 +23,8 @@ const StaffManagement: React.FC = () => {
   const [staffList, setStaffList] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPermModalOpen, setIsPermModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [staffToDelete, setStaffToDelete] = useState<{id: string, name: string} | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '', role: 'staff' });
   const [currentPermissions, setCurrentPermissions] = useState<any>({});
