@@ -500,14 +500,17 @@ const MainApp: React.FC = () => {
     const handleLogout = useCallback(async () => {
         await supabase.auth.signOut();
         setSession(null);
+        setStaffSession(null);
         tokenService.clearAccessToken();
         themeService.resetTheme();
 
-        // Clear Dashboard Caches to prevent data leakage between sessions
+        // Clear Dashboard Caches and Staff Sessions to prevent data leakage between sessions
         localStorage.removeItem('dashboard_stats_cache');
         localStorage.removeItem('lead_dashboard_cache');
         localStorage.removeItem('connection_cache'); // If exists
-    }, []);
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staffData');
+    }, [setStaffSession]);
 
     const handleNavigateToWhatsAppBuilder = useCallback((flowId: string | null) => {
         setCurrentWhatsAppFlowId(flowId);
