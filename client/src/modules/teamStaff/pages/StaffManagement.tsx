@@ -3,6 +3,19 @@ import { staffApi } from '../api/staffApi';
 import PermissionMatrix from '../components/PermissionMatrix';
 import { MODULES, ACCESS_TYPES } from '../constants';
 import { usePermissions } from '../hooks/usePermissions';
+const getAvatarStyle = (name: string) => {
+  if (!name) return 'bg-indigo-50 text-indigo-600 border border-indigo-100';
+  const charCode = name.charCodeAt(0) + (name.charCodeAt(name.length - 1) || 0);
+  const styles = [
+    'bg-indigo-50 text-indigo-600 border border-indigo-100',
+    'bg-emerald-50 text-emerald-600 border border-emerald-100',
+    'bg-amber-50 text-amber-600 border border-amber-100',
+    'bg-purple-50 text-purple-600 border border-purple-100',
+    'bg-pink-50 text-pink-600 border border-pink-100',
+    'bg-sky-50 text-sky-600 border border-sky-100'
+  ];
+  return styles[charCode % styles.length];
+};
 
 const StaffManagement: React.FC = () => {
   const [staffList, setStaffList] = useState([]);
@@ -140,8 +153,8 @@ const StaffManagement: React.FC = () => {
                 <tr key={staff.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
                   <td className="px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm">
-                        {staff.name[0].toUpperCase()}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-transform hover:scale-105 shadow-sm ${getAvatarStyle(staff.name)}`}>
+                        {staff.name ? staff.name[0].toUpperCase() : 'U'}
                       </div>
                       <div>
                         <div className="font-bold text-slate-900">{staff.name}</div>
