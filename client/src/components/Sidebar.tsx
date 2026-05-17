@@ -30,7 +30,6 @@ export type MenuItem =
     | 'Webhook Events'
     | 'Gallery'
     | 'FAQ Bot'
-    | 'FAQ Bot'
     | 'AI Buddy'
     | 'Flows'
     | 'Pipelines'
@@ -43,9 +42,10 @@ export type MenuItem =
     | 'Knowledge Base'
     | 'Developers'
     | 'WhatsApp API'
-    | 'AI Buddy'
     | 'Drip Campaigns'
-    | 'Team Staff';
+    | 'Team Staff'
+    | 'My Plan'
+    | 'G Automation';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -164,10 +164,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
     const isVisible = (item: MenuItem): boolean => {
         const moduleMap: Record<string, string> = {
-            'Dashboard': 'Lead Dashboard',
+            'Dashboard': 'LeadCRM',
             'Inbox': 'Inbox',
             'Contacts': 'Contact List', // Parent for Lead CRM
-            'Overview': 'Lead Dashboard',
+            'Overview': 'LeadCRM',
             'Contact List': 'Contact List',
             'Contact Groups': 'Contact Groups',
             'Pipelines': 'Pipelines',
@@ -177,7 +177,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Input Fields': 'Input Fields',
             'Campaigns': 'Campaigns',
             'Flows': 'Flows',
-            'Drip Campaigns': 'Drip+Campaigns',
+            'Drip Campaigns': 'Drip Campaigns',
+            'G Automation': 'G+Automation',
+            'AI Buddy': 'AI Buddy',
+            'Gallery': 'Gallery',
             'Manage': 'Whatsapp Templates', // Using templates as proxy for manage parent
             'Whatsapp Templates': 'Whatsapp Templates',
             'Whatsapp Forms': 'Whatsapp Forms',
