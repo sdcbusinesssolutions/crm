@@ -55,7 +55,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [quickFilter, setQuickFilter] = useState<'All' | 'Mine' | 'Unassigned' | 'Quick Reply'>('All');
+    const [quickFilter, setQuickFilter] = useState<string>('All');
     const [filterTag, setFilterTag] = useState('');
     const [messageInput, setMessageInput] = useState('');
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
@@ -1846,7 +1846,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <div className="relative">
                                 <button
                                     onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag ? 'bg-brand-600 text-white shadow-brand-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag || quickFilter.startsWith('staff:') ? 'bg-brand-600 text-white shadow-brand-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                                     title="Filter"
                                 >
                                     <FilterIcon className="w-5 h-5" />
@@ -1870,9 +1870,31 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         ))}
                                                     </select>
                                                 </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1.5">By Staff</label>
+                                                    <select
+                                                        value={quickFilter.startsWith('staff:') ? quickFilter : ''}
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                setQuickFilter(e.target.value);
+                                                            } else {
+                                                                // Only reset to 'All' if current filter was staff-based
+                                                                if (quickFilter.startsWith('staff:')) setQuickFilter('All');
+                                                            }
+                                                        }}
+                                                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                                                    >
+                                                        <option value="">All Staff</option>
+                                                        {staffMembers.map((s: any) => (
+                                                            <option key={s.id} value={`staff:${s.id}`}>
+                                                                {s.name || s.email}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
                                                 <div className="pt-2 border-t border-slate-100 flex justify-end">
                                                     <button
-                                                        onClick={() => { setFilterTag(''); setIsFilterMenuOpen(false); }}
+                                                        onClick={() => { setFilterTag(''); if (quickFilter.startsWith('staff:')) setQuickFilter('All'); setIsFilterMenuOpen(false); }}
                                                         className="text-xs text-slate-500 hover:text-brand-600 font-medium"
                                                     >
                                                         Clear Filters

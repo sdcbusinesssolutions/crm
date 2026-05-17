@@ -15,9 +15,25 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             .select('*', { count: 'exact' })
             .eq('user_id', req.user.id);
 
-        // Apply filters if needed (simple implementation)
+        // Apply search filter
         if (search) {
             query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%,last_message.ilike.%${search}%`);
+        }
+
+        // Apply quickFilter
+        if (quickFilter === 'Unassigned') {
+            query = query.or('assigned_to.is.null,assigned_to.eq.');
+        } else if (quickFilter && quickFilter.startsWith('staff:')) {
+            // Staff-wise filter: quickFilter = "staff:<staffId>"
+            const staffId = quickFilter.replace('staff:', '');
+            if (staffId) {
+                query = query.eq('assigned_to', staffId);
+            }
+        }
+
+        // Apply tag filter
+        if (filterTag) {
+            query = query.contains('tags', [filterTag]);
         }
 
         const { data, count, error } = await query
