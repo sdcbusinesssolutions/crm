@@ -95,7 +95,13 @@ const getAuthenticatedSupabase = (req) => {
                     detectSessionInUrl: false
                 },
                 global: {
-                    headers: { Authorization: authHeader }
+                    headers: { Authorization: authHeader },
+                    fetch: (url, options) => {
+                        return fetch(url, {
+                            ...options,
+                            signal: AbortSignal.timeout(30000)
+                        });
+                    }
                 }
             });
         }

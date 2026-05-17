@@ -3,6 +3,11 @@ const cors = require('cors');
 const compression = require('compression');
 const serverless = require('serverless-http');
 const path = require('path');
+const dns = require('dns');
+
+// Globally force IPv4 resolution first to prevent Node 18+ IPv6 connect timeout errors
+dns.setDefaultResultOrder('ipv4first');
+
 
 // Load env vars only if not in production/Netlify (where they are injected)
 try {
