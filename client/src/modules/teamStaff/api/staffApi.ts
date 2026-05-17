@@ -1,6 +1,12 @@
 import { tokenService } from '../../../services/tokenService';
+import { AppConfig } from '../../../AppConfig';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+let API_URL = AppConfig.VITE_API_URL || '/api';
+
+// Normalize absolute API URLs to ensure the '/api' suffix is appended if omitted
+if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+    API_URL = `${API_URL}/api`;
+}
 
 // Use shared token service for headers
 const getAuthHeaders = async () => {
@@ -10,7 +16,7 @@ const getAuthHeaders = async () => {
 export const staffApi = {
   // Staff Login
   login: async (credentials: any) => {
-    const res = await fetch(`${API_URL}/api/team-staff/login`, {
+    const res = await fetch(`${API_URL}/team-staff/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials)
@@ -41,7 +47,7 @@ export const staffApi = {
   // Owner: Manage Staff
   createStaff: async (staffData: any) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff`, {
+    const res = await fetch(`${API_URL}/team-staff`, {
       method: 'POST',
       headers,
       body: JSON.stringify(staffData)
@@ -52,14 +58,14 @@ export const staffApi = {
 
   listStaff: async () => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff`, { headers });
+    const res = await fetch(`${API_URL}/team-staff`, { headers });
     if (!res.ok) throw new Error('Failed to list staff');
     return await res.json();
   },
 
   updatePermissions: async (staffId: string, permissions: any) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff/${staffId}/permissions`, {
+    const res = await fetch(`${API_URL}/team-staff/${staffId}/permissions`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ permissions })
@@ -70,7 +76,7 @@ export const staffApi = {
 
   assignLead: async (leadId: string, staffId: string) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff/assign-lead`, {
+    const res = await fetch(`${API_URL}/team-staff/assign-lead`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ leadId, staffId })
@@ -81,14 +87,14 @@ export const staffApi = {
 
   getLeadAssignments: async (leadId: string) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff/leads/${leadId}/assignments`, { headers });
+    const res = await fetch(`${API_URL}/team-staff/leads/${leadId}/assignments`, { headers });
     if (!res.ok) throw new Error('Failed to fetch assignments');
     return await res.json();
   },
 
   unassignLead: async (leadId: string, staffId: string) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff/unassign-lead`, {
+    const res = await fetch(`${API_URL}/team-staff/unassign-lead`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ leadId, staffId })
@@ -99,7 +105,7 @@ export const staffApi = {
 
   deleteStaff: async (staffId: string) => {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}/api/team-staff/${staffId}`, {
+    const res = await fetch(`${API_URL}/team-staff/${staffId}`, {
       method: 'DELETE',
       headers
     });
