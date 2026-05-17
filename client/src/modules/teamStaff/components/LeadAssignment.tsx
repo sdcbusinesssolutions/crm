@@ -187,15 +187,16 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
         </button>
 
         {showNames && assignedStaffIds.length > 0 && staffList.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1 ml-1">
-              {assignedStaffIds.map(id => {
+          <div className="flex items-center -space-x-1.5 ml-1">
+              {assignedStaffIds.slice(0, 2).map((id, index) => {
                   const staff = staffList.find(s => s.id === id);
                   if (!staff) return null;
                   const initials = staff.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
                   return (
                       <div 
                           key={id} 
-                          className="w-6 h-6 rounded-full bg-emerald-100 text-[#00684a] border border-emerald-200 flex items-center justify-center text-[9px] font-black shadow-sm relative group cursor-pointer hover:bg-emerald-200 transition-colors"
+                          style={{ zIndex: 10 - index }}
+                          className="w-6 h-6 rounded-full bg-emerald-100 text-[#00684a] border border-white flex items-center justify-center text-[9px] font-black shadow-sm relative group cursor-pointer hover:bg-emerald-200 transition-colors"
                       >
                           {initials}
                           <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50 shadow-lg">
@@ -205,6 +206,14 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                       </div>
                   );
               })}
+              {assignedStaffIds.length > 2 && (
+                  <div 
+                      style={{ zIndex: 8 }}
+                      className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-white flex items-center justify-center text-[9px] font-black shadow-sm relative group cursor-pointer hover:bg-slate-200 transition-colors"
+                  >
+                      +{assignedStaffIds.length - 2}
+                  </div>
+              )}
           </div>
         )}
       </div>

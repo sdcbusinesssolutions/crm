@@ -1243,6 +1243,14 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 </div>
                                                                 <div className="text-[12px] font-medium text-black truncate pr-2">{lead.name || 'Unnamed Lead'}</div>
                                                             </div>
+                                                            <div className="shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                                                                <LeadAssignment 
+                                                                    leadId={lead.id} 
+                                                                    contact={lead} 
+                                                                    onAssigned={() => loadBoard(selectedPipelineId!)}
+                                                                    className="p-1 rounded-full transition-colors group/btn relative hover:bg-emerald-50 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[#00684a]"
+                                                                />
+                                                            </div>
                                                         </div>
 
                                                         <div className="space-y-0.5 mb-1.5 bg-gradient-to-br from-slate-50 to-white p-1.5 rounded-lg border border-slate-200/60 shadow-sm">
@@ -1340,12 +1348,6 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
                                                                 </button>
 
-                                                                {/* Team Assignment */}
-                                                                <LeadAssignment 
-                                                                    leadId={lead.id} 
-                                                                    contact={lead} 
-                                                                    onAssigned={() => loadBoard(selectedPipelineId!)}
-                                                                />
 
                                                                 {/* Delete */}
                                                                 <button
