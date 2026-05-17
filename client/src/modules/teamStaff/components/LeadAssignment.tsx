@@ -9,15 +9,17 @@ interface Props {
   contact?: any; 
   onAssigned?: () => void;
   className?: string;
+  showNames?: boolean;
 }
 
-const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className }) => {
+const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className, showNames = true }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
   // Defensive initialization
   const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!contact?.assigned_staff_ids);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [resolvedLeadId, setResolvedLeadId] = useState<string | null>(null);
 
   // Sync state with props when board data refreshes
   useEffect(() => {
@@ -42,12 +44,40 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       const allStaff = await staffApi.listStaff();
       setStaffList(allStaff);
       
+      let actualLeadId: string | null = targetId;
+      let leadData = null;
+
+      // Try to fetch as direct lead ID first
+      if (targetId && !targetId.startsWith('cnt-')) {
+        try {
+            leadData = await getLead(targetId);
+        } catch (e) {
+            leadData = null; // Failed to fetch, might be a Contact ID
+        }
+      }
+
+      // If no lead found directly, it might be a Contact ID. Try finding by phone.
+      if (!leadData && (initialData?.phone || initialData?.contact_phone)) {
+        const phoneToSearch = initialData.phone || initialData.contact_phone;
+        const leads: any = await getLeads(undefined, undefined, 1, 1, { search: phoneToSearch });
+        const leadsData = leads?.data || leads || [];
+        if (Array.isArray(leadsData) && leadsData.length > 0) {
+            actualLeadId = leadsData[0].id;
+            leadData = leadsData[0];
+        } else {
+            actualLeadId = null; // No lead exists yet
+        }
+      } else if (!leadData) {
+          actualLeadId = null;
+      }
+
+      setResolvedLeadId(actualLeadId);
+
       // Use initial data if available, otherwise fetch
       if (initialData && Array.isArray(initialData.assigned_staff_ids)) {
         setAssignedStaffIds(initialData.assigned_staff_ids);
       } else {
-        const lead = await getLead(targetId);
-        setAssignedStaffIds(Array.isArray(lead?.assigned_staff_ids) ? lead.assigned_staff_ids : []);
+        setAssignedStaffIds(Array.isArray(leadData?.assigned_staff_ids) ? leadData.assigned_staff_ids : []);
       }
     } catch (err) {
       console.error('Failed to load lead assignments:', err);
@@ -68,20 +98,42 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
     setLoading(true);
 
     try {
-      // 3. Persist to server
-      const updatedLead = await updateLead(leadId, { assigned_staff_ids: newIds });
+      let currentLeadId = resolvedLeadId;
       
-      if (updatedLead) {
-        // 4. Confirm with server data
-        const serverIds = updatedLead.assigned_staff_ids || [];
-        setAssignedStaffIds(serverIds);
-        if (onAssigned) onAssigned();
+      // 3. Persist to server
+      if (!currentLeadId && contact) {
+          // We need to create a lead first!
+          const newLead = await createLead({
+              name: contact.name || contact.contact_name || 'Unnamed Contact',
+              email: contact.email || '',
+              phone: contact.phone || contact.contact_phone || '',
+              company: contact.company || contact.custom_data?.company || '',
+              source: contact.source || 'Manual',
+              assigned_staff_ids: newIds
+          });
+          currentLeadId = newLead.id;
+          setResolvedLeadId(newLead.id);
+          
+          if (onAssigned) onAssigned();
+      } else if (currentLeadId) {
+          const updatedLead = await updateLead(currentLeadId, { assigned_staff_ids: newIds });
+          
+          if (updatedLead) {
+            // 4. Confirm with server data
+            const serverIds = updatedLead.assigned_staff_ids || [];
+            setAssignedStaffIds(serverIds);
+            if (onAssigned) onAssigned();
+          }
       }
     } catch (err) {
       console.error('Failed to update assignments:', err);
       // Revert on error
-      const lead = await getLead(leadId);
-      setAssignedStaffIds(Array.isArray(lead?.assigned_staff_ids) ? lead.assigned_staff_ids : []);
+      if (resolvedLeadId) {
+          const lead = await getLead(resolvedLeadId);
+          setAssignedStaffIds(Array.isArray(lead?.assigned_staff_ids) ? lead.assigned_staff_ids : []);
+      } else {
+          setAssignedStaffIds(Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
+      }
     } finally {
       setLoading(false);
     }
@@ -114,24 +166,48 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
 
   return (
     <>
-      <button
-        onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
-        className={className || `p-1.5 rounded-lg transition-colors group/btn relative ${
-          assignedStaffIds.length > 0 
-            ? 'text-[#00684a] bg-emerald-50 hover:bg-emerald-100' 
-            : 'text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[#00684a] hover:bg-emerald-50'
-        }`}
-        title="Assign Team"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-        {assignedStaffIds.length > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-[#00684a] text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white px-0.5">
-            {assignedStaffIds.length}
-          </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          onClick={(e) => { e.stopPropagation(); setIsModalOpen(true); }}
+          className={className || `p-1.5 rounded-lg transition-colors group/btn relative ${
+            assignedStaffIds.length > 0 
+              ? 'text-[#00684a] bg-emerald-50 hover:bg-emerald-100' 
+              : 'text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[#00684a] hover:bg-emerald-50'
+          }`}
+          title="Assign Team"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          {assignedStaffIds.length > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-[#00684a] text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white px-0.5">
+              {assignedStaffIds.length}
+            </span>
+          )}
+        </button>
+
+        {showNames && assignedStaffIds.length > 0 && staffList.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 ml-1">
+              {assignedStaffIds.map(id => {
+                  const staff = staffList.find(s => s.id === id);
+                  if (!staff) return null;
+                  const initials = staff.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+                  return (
+                      <div 
+                          key={id} 
+                          className="w-6 h-6 rounded-full bg-emerald-100 text-[#00684a] border border-emerald-200 flex items-center justify-center text-[9px] font-black shadow-sm relative group cursor-pointer hover:bg-emerald-200 transition-colors"
+                      >
+                          {initials}
+                          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50 shadow-lg">
+                              {staff.name}
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 border-4 border-transparent border-t-slate-800"></div>
+                          </div>
+                      </div>
+                  );
+              })}
+          </div>
         )}
-      </button>
+      </div>
 
       <Modal
         isOpen={isModalOpen}

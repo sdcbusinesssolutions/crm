@@ -2128,6 +2128,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 {activeLeadId ? (
                                     <LeadAssignment 
                                         leadId={activeLeadId} 
+                                        showNames={false}
                                         className="p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
                                         onAssigned={() => {
                                             loadConversations(1, false, searchTerm, quickFilter, filterTag, true);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getPipelines, getPipelineStages, moveLeadToStage, updateLead, createLead } from '../../../services/lead-management-api';
+import { getPipelines, getPipelineStages, moveLeadToStage, updateLead, createLead, getLeads, getLead } from '../../../services/lead-management-api';
 import Modal from '../../../components/Modal';
 import { Pipeline, PipelineStage, Lead } from '../../../types/lead-management';
 import { BriefcaseIcon, ChevronRightIcon, CheckIcon, PlusIcon } from '../../../components/icons';
@@ -13,14 +13,51 @@ interface PipelineAssignmentProps {
 const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact, onAssignmentComplete }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+    const [activePipelineId, setActivePipelineId] = useState<string | null>(contact.pipeline_id || null);
+    const [activeStageId, setActiveStageId] = useState<string | null>(contact.stage_id || null);
     const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(contact.pipeline_id || null);
     const [stages, setStages] = useState<PipelineStage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
+        const loadActiveAssignment = async () => {
+            try {
+                let existingLead = null;
+                if (leadId) {
+                    existingLead = await getLead(leadId);
+                } else if (contact.phone || contact.contact_phone) {
+                    const phoneToSearch = contact.phone || contact.contact_phone;
+                    const leads: any = await getLeads(undefined, undefined, 1, 1, { search: phoneToSearch });
+                    const leadsData = leads?.data || leads || [];
+                    if (Array.isArray(leadsData) && leadsData.length > 0) {
+                        existingLead = leadsData[0];
+                    }
+                }
+                
+                if (existingLead) {
+                    if (existingLead.pipeline_id) {
+                        setActivePipelineId(existingLead.pipeline_id);
+                        if (!isOpen && !selectedPipelineId) setSelectedPipelineId(existingLead.pipeline_id);
+                    }
+                    if (existingLead.stage_id) {
+                        setActiveStageId(existingLead.stage_id);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load active assignment", err);
+            }
+        };
+        
+        loadActiveAssignment();
+    }, [leadId, contact.phone, contact.contact_phone]);
+
+    useEffect(() => {
         if (isOpen) {
             loadPipelines();
+            if (activePipelineId && !selectedPipelineId) {
+                setSelectedPipelineId(activePipelineId);
+            }
         }
     }, [isOpen]);
 
@@ -60,27 +97,45 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
             
             if (leadId) {
                 // It's already a lead, just update/move
-                if (contact.pipeline_id === selectedPipelineId) {
+                if (activePipelineId === selectedPipelineId) {
                     result = await moveLeadToStage(leadId, stageId);
                 } else {
                     result = await updateLead(leadId, { pipeline_id: selectedPipelineId!, stage_id: stageId });
                 }
             } else {
-                // It's a contact, create as a new lead
-                result = await createLead({
-                    name: contact.name,
-                    email: contact.email,
-                    phone: contact.phone,
-                    company: contact.company || contact.custom_data?.company,
-                    pipeline_id: selectedPipelineId!,
-                    stage_id: stageId,
-                    source: contact.source || 'Manual'
-                });
+                // It's a contact, check if a lead already exists for this phone
+                let existingLeadId = null;
+                if (contact.phone || contact.contact_phone) {
+                    const phoneToSearch = contact.phone || contact.contact_phone;
+                    const leads: any = await getLeads(undefined, undefined, 1, 1, { search: phoneToSearch });
+                    const leadsData = leads?.data || leads || [];
+                    if (Array.isArray(leadsData) && leadsData.length > 0) {
+                        existingLeadId = leadsData[0].id;
+                    }
+                }
+
+                if (existingLeadId) {
+                    result = await updateLead(existingLeadId, { pipeline_id: selectedPipelineId!, stage_id: stageId });
+                } else {
+                    // Create as a new lead
+                    result = await createLead({
+                        name: contact.name || contact.contact_name || 'Unnamed Contact',
+                        email: contact.email || '',
+                        phone: contact.phone || contact.contact_phone || '',
+                        company: contact.company || contact.custom_data?.company || '',
+                        pipeline_id: selectedPipelineId!,
+                        stage_id: stageId,
+                        source: contact.source || 'Manual'
+                    });
+                }
             }
 
             if (result && onAssignmentComplete) {
                 onAssignmentComplete(result);
             }
+            // Update local state to reflect changes instantly
+            setActivePipelineId(selectedPipelineId);
+            setActiveStageId(stageId);
             setIsOpen(false);
         } catch (error) {
             console.error('Failed to assign pipeline', error);
@@ -90,8 +145,8 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
         }
     };
 
-    const currentStage = stages.find(s => s.id === contact.stage_id);
-    const currentPipeline = pipelines.find(p => p.id === selectedPipelineId) || pipelines.find(p => p.id === contact.pipeline_id);
+    const currentStage = stages.find(s => s.id === activeStageId);
+    const currentPipeline = pipelines.find(p => p.id === selectedPipelineId) || pipelines.find(p => p.id === activePipelineId);
 
     return (
         <div className="relative">
@@ -100,7 +155,7 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                 className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-slate-100 transition-all group border border-transparent hover:border-slate-200"
                 title="Assign Pipeline"
             >
-                {contact.pipeline_id ? (
+                {activePipelineId ? (
                     <div className="flex items-center gap-2">
                         <div 
                             className="w-2.5 h-2.5 rounded-full shadow-sm" 
@@ -187,7 +242,7 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                                         onClick={() => handleStageSelect(s.id)}
                                         disabled={isSaving}
                                         className={`flex flex-col items-start p-3 rounded-xl border-2 transition-all group ${
-                                            contact.stage_id === s.id 
+                                            activeStageId === s.id 
                                                 ? 'border-emerald-500 bg-emerald-50/50' 
                                                 : 'border-slate-100 hover:border-slate-200 bg-slate-50/30'
                                         }`}
@@ -196,7 +251,7 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                                             className="w-full h-1.5 rounded-full mb-2 opacity-60 group-hover:opacity-100 transition-opacity" 
                                             style={{ backgroundColor: s.color || '#3b82f6' }}
                                         />
-                                        <span className={`text-xs font-bold ${contact.stage_id === s.id ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                        <span className={`text-xs font-bold ${activeStageId === s.id ? 'text-emerald-700' : 'text-slate-600'}`}>
                                             {s.name}
                                         </span>
                                     </button>
