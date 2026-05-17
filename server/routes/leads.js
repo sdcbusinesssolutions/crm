@@ -107,7 +107,12 @@ router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
             .eq('user_id', req.user.id)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ error: 'Lead not found' });
+            }
+            throw error;
+        }
 
         if (data) {
             data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined)
@@ -117,7 +122,10 @@ router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
 
         res.json(data);
     } catch (err) {
-        console.error('Error fetching lead:', err);
+        // If it's a PGRST116, we don't need to log it as an error to keep console logs clean
+        if (err.code !== 'PGRST116') {
+            console.error('Error fetching lead:', err);
+        }
         res.status(500).json({ error: err.message });
     }
 });
