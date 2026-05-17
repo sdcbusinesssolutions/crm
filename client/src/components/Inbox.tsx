@@ -4,7 +4,8 @@ import {
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
     UserCircleIcon, ChevronLeftIcon, PhoneIcon, EditIcon, CloseIcon,
     UsersIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon
+    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon,
+    EyeIcon, EyeOffIcon
 } from './icons';
 
 import { inboxService } from '../services/inboxService';
@@ -62,6 +63,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
     const [hasOpenedEmoji, setHasOpenedEmoji] = useState(false);
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+    const [isNumberMasked, setIsNumberMasked] = useState(true);
     const [convPage, setConvPage] = useState(1);
     const [hasMoreConvs, setHasMoreConvs] = useState(true);
     const [isLoadingMoreConvs, setIsLoadingMoreConvs] = useState(false);
@@ -108,6 +110,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
     );
+
+    const formatPhone = (phone: string | undefined | null) => {
+        if (!phone) return '';
+        if (!isNumberMasked) return phone;
+        if (phone.length <= 4) return '****';
+        return phone.substring(0, phone.length - 4).replace(/./g, '*') + phone.substring(phone.length - 4);
+    };
 
     const availableTags = availableTagsList.map(t => t.name); // Derived for filter
     const maxFileSize = 16; // MB
@@ -1821,6 +1830,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                         <div className="flex items-center gap-2">
                             <button
+                                onClick={() => setIsNumberMasked(!isNumberMasked)}
+                                className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-100 text-slate-600' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
+                                title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}
+                            >
+                                {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                            </button>
+                            <button
                                 onClick={handleExportContactList}
                                 className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95"
                                 title="Export Contact List"
@@ -1918,11 +1934,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <div className="flex justify-between items-start mb-1">
                                     <div className="flex items-center space-x-3">
                                         <div className={`w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-sm shrink-0`}>
-                                            {(chat.contact_name || chat.contact_phone).substring(0, 2).toUpperCase()}
+                                            {(chat.contact_name || formatPhone(chat.contact_phone)).substring(0, 2).toUpperCase()}
                                         </div>
                                         <div>
-                                            <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || chat.contact_phone}</h3>
-                                            <span className="text-[10px] text-slate-400 font-medium">{chat.contact_phone}</span>
+                                            <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || formatPhone(chat.contact_phone)}</h3>
+                                            <span className="text-[10px] text-slate-400 font-medium">{formatPhone(chat.contact_phone)}</span>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end">
@@ -2046,11 +2062,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <ChevronLeftIcon className="w-6 h-6" />
                                 </button>
                                 <div className={`w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm border-2 border-white`}>
-                                    {(activeChat.contact_name || activeChat.contact_phone).substring(0, 2).toUpperCase()}
+                                    {(activeChat.contact_name || formatPhone(activeChat.contact_phone)).substring(0, 2).toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h3 className="font-bold text-black text-sm truncate leading-tight">
-                                        {activeChat.contact_name || activeChat.contact_phone}
+                                        {activeChat.contact_name || formatPhone(activeChat.contact_phone)}
                                     </h3>
                                     {(() => {
                                         const lastIncoming = [...messages].reverse().find(m => m.direction === 'in');
@@ -2073,15 +2089,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             <p className="text-xs text-black flex items-center gap-1 truncate">
                                                 {/* Always show phone number if name is present, then status */}
                                                 {activeChat.contact_name && (
-                                                    <span className="font-medium text-black mr-1">{activeChat.contact_phone} •</span>
+                                                    <span className="font-medium text-black mr-1">{formatPhone(activeChat.contact_phone)} •</span>
                                                 )}
                                                 <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${isSessionOpen ? 'bg-green-500' : 'bg-slate-400'}`}></span>
                                                 {statusText}
-                                                {assignedStaffNames.length > 0 && (
-                                                    <span className="ml-1 text-[10px] font-bold text-[#00684a] bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 truncate max-w-[120px]">
-                                                        👤 {assignedStaffNames.join(', ')}
-                                                    </span>
-                                                )}
                                             </p>
                                         );
                                     })()}
@@ -2128,8 +2139,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 {activeLeadId ? (
                                     <LeadAssignment 
                                         leadId={activeLeadId} 
-                                        showNames={false}
-                                        className="p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
+                                        className="flex items-center gap-1 p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
                                         onAssigned={() => {
                                             loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
                                             // Refresh assigned staff names
