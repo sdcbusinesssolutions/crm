@@ -675,6 +675,10 @@ router.get('/onboarding/config', async (req, res) => {
         let settings;
         try {
             settings = await MetaOnboardingService.getSystemSettings(domain);
+            if (!settings) {
+                console.warn(`[Onboarding] Config missing for ${domain}: No settings found`);
+                return res.status(403).json({ error: 'Embedded signup is not configured for this domain.' });
+            }
         } catch (e) {
             // If settings missing, just return disabled state
             console.warn(`[Onboarding] Config missing for ${domain}: ${e.message}`);
@@ -1087,7 +1091,7 @@ router.get('/whatsapp/token-debug', async (req, res) => {
         const targetDomain = getTargetDomain(req);
         let sysSettings = {};
         try {
-            sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
+            sysSettings = (await MetaOnboardingService.getSystemSettings(targetDomain)) || {};
         } catch (e) {
             console.warn(`System settings not found for token debug on ${targetDomain}, using fallback.`);
         }
@@ -1136,7 +1140,7 @@ router.post('/whatsapp/token-extend', async (req, res) => {
         const targetDomain = getTargetDomain(req);
         let sysSettings = {};
         try {
-            sysSettings = await MetaOnboardingService.getSystemSettings(targetDomain);
+            sysSettings = (await MetaOnboardingService.getSystemSettings(targetDomain)) || {};
         } catch (e) {
             console.warn(`System settings missing for token extend on ${targetDomain}`);
         }

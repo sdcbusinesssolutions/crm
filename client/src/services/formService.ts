@@ -85,7 +85,10 @@ export const formService = {
 
     getFormByToken: async (token: string): Promise<Partial<Form> | null> => {
         try {
-            const API_URL = AppConfig.VITE_API_URL || '/api';
+            let API_URL = AppConfig.VITE_API_URL || '/api';
+            if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+                API_URL = `${API_URL}/api`;
+            }
             const res = await fetch(`${API_URL}/forms/token/${token}`);
             if (!res.ok) throw new Error('Form not found');
             return await res.json();
@@ -148,7 +151,10 @@ export const formService = {
     // Submit form (public - no auth required)
     submitForm: async (formToken: string, submissionData: Record<string, any>): Promise<any> => {
         try {
-            const API_URL = AppConfig.VITE_API_URL || '/api';
+            let API_URL = AppConfig.VITE_API_URL || '/api';
+            if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+                API_URL = `${API_URL}/api`;
+            }
             const res = await fetch(`${API_URL}/forms/submit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

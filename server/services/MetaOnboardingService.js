@@ -133,6 +133,9 @@ class MetaOnboardingService {
 
     async exchangeCodeForToken(code, targetDomain = 'clickube.com') {
         const settings = await this.getSystemSettings(targetDomain);
+        if (!settings) {
+            throw new Error(`Embedded signup configuration not found for domain: ${targetDomain}`);
+        }
 
         try {
             logOnboardingEvent('EXCHANGE_TOKEN_START', { code: code ? '***' : 'missing' });

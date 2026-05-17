@@ -4,6 +4,11 @@ import { AppConfig } from '../AppConfig';
 // Helper to determine API URL
 // Logic copied from settingsService to ensure Ngrok compatibility
 let API_URL = AppConfig.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
+
+// Normalize absolute API URLs to ensure the '/api' suffix is appended if omitted
+if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+    API_URL = `${API_URL}/api`;
+}
 if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const apiIsLocal = API_URL.includes('localhost') || API_URL.includes('127.0.0.1');
