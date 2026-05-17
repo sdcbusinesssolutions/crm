@@ -9,7 +9,7 @@ const StaffManagement: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPermModalOpen, setIsPermModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
-  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '' });
+  const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '', role: 'staff' });
   const [currentPermissions, setCurrentPermissions] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const { isStaff } = usePermissions();
@@ -34,7 +34,7 @@ const StaffManagement: React.FC = () => {
       await staffApi.createStaff(newStaff);
       setIsModalOpen(false);
       loadStaff();
-      setNewStaff({ name: '', email: '', password: '', phone: '' });
+      setNewStaff({ name: '', email: '', password: '', phone: '', role: 'staff' });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to create staff';
       alert(`Error: ${msg}`);
@@ -119,14 +119,14 @@ const StaffManagement: React.FC = () => {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">Team Member</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">Role</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-slate-400 uppercase tracking-widest">Actions</th>
+        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-[#00684a]/40 overflow-hidden">
+          <table className="min-w-full border-separate border-spacing-0">
+            <thead className="bg-[#00684a] text-white shadow-md">
+              <tr className="bg-[#00684a] text-white shadow-md border-b border-white/20">
+                <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-[#00684a] border-b border-white/20 whitespace-nowrap">Team Member</th>
+                <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-[#00684a] border-b border-white/20 whitespace-nowrap">Role</th>
+                <th className="px-6 py-5 text-left font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-[#00684a] border-b border-white/20 whitespace-nowrap">Status</th>
+                <th className="px-6 py-5 text-right font-black uppercase tracking-wider text-xs text-white drop-shadow-sm !bg-[#00684a] border-b border-white/20 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -137,8 +137,8 @@ const StaffManagement: React.FC = () => {
                   </td>
                 </tr>
               ) : staffList.map((staff: any) => (
-                <tr key={staff.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
+                <tr key={staff.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
+                  <td className="px-6 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm">
                         {staff.name[0].toUpperCase()}
@@ -149,30 +149,30 @@ const StaffManagement: React.FC = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-b border-slate-100">
                     <span className="text-sm font-semibold text-slate-600 capitalize">{staff.role}</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 border-b border-slate-100">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${staff.status === 'active' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
                       <div className={`w-1.5 h-1.5 rounded-full ${staff.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                       {staff.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-6 py-4 text-right border-b border-slate-100">
+                    <div className="flex justify-end items-center gap-2">
                       <button 
                         onClick={() => openPermissionModal(staff)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-bold text-sm flex items-center gap-1.5"
+                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow border border-indigo-100 active:scale-95"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         Permissions
                       </button>
                       <button 
                         onClick={() => handleDelete(staff.id, staff.name)}
                         disabled={loading}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
+                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-50 active:scale-95"
                       >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
                   </td>

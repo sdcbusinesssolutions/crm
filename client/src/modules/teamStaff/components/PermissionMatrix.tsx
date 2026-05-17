@@ -120,14 +120,14 @@ const getModuleBadge = (module: string) => {
 
 const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChange, loading }) => {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-      <div className="overflow-x-auto">
+    <div className="bg-white rounded-2xl border border-[#00684a]/40 overflow-hidden shadow-sm">
+      <div className="overflow-x-auto animate-fade-in">
         <table className="min-w-full divide-y divide-slate-100">
-          <thead className="bg-slate-50/80 backdrop-blur-sm sticky top-0 z-10">
+          <thead className="bg-slate-50/80 backdrop-blur-sm sticky top-0 z-10 border-b border-[#00684a]/20">
             <tr>
-              <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">CRM Module</th>
+              <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-[#00684a]/20">CRM Module</th>
               {Object.entries(ACCESS_TYPES).map(([value, label]) => (
-                <th key={value} className="px-4 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">{label}</th>
+                <th key={value} className="px-4 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-[#00684a]/20">{label}</th>
               ))}
             </tr>
           </thead>
@@ -147,20 +147,20 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
                   {Object.keys(ACCESS_TYPES).map((value) => {
                     const isActive = permissions[module] === value;
                     
-                    // Color coding based on access type
+                    // Premium Color coding based on access type
                     const activeColors = {
-                      no_access: 'bg-slate-400 border-slate-400 shadow-slate-100',
-                      read: 'bg-sky-500 border-sky-500 shadow-sky-100',
-                      read_write: 'bg-indigo-600 border-indigo-600 shadow-indigo-100',
-                      all_access: 'bg-emerald-500 border-emerald-500 shadow-emerald-100'
-                    }[value] || 'bg-indigo-600 border-indigo-600 shadow-indigo-100';
+                      no_access: 'bg-slate-500 border-slate-500 shadow-slate-100 text-white',
+                      read: 'bg-sky-500 border-sky-500 shadow-sky-100 text-white',
+                      read_write: 'bg-[#00684a] border-[#00684a] shadow-[#00684a]/10 text-white',
+                      all_access: 'bg-emerald-500 border-emerald-500 shadow-emerald-100 text-white'
+                    }[value] || 'bg-[#00684a] border-[#00684a] text-white';
 
-                    const hoverColors = {
-                      no_access: 'hover:border-slate-400',
-                      read: 'hover:border-sky-400',
-                      read_write: 'hover:border-indigo-400',
-                      all_access: 'hover:border-emerald-400'
-                    }[value] || 'hover:border-indigo-300';
+                    const inactiveStyles = {
+                      no_access: 'border-slate-200 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-400',
+                      read: 'border-sky-200 bg-sky-50/10 hover:bg-sky-50/50 hover:border-sky-300',
+                      read_write: 'border-[#00684a]/20 bg-[#00684a]/2 hover:bg-[#00684a]/10 hover:border-[#00684a]/40',
+                      all_access: 'border-emerald-200 bg-emerald-50/10 hover:bg-emerald-50/50 hover:border-emerald-300'
+                    }[value] || 'border-slate-200 hover:bg-slate-50 hover:border-slate-300';
 
                     return (
                       <td key={value} className="px-4 py-4 text-center">
@@ -170,7 +170,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
                           className={`w-7 h-7 rounded-full border-2 transition-all duration-300 flex items-center justify-center mx-auto
                             ${isActive 
                               ? `${activeColors} shadow-lg scale-110` 
-                              : `border-slate-200 ${hoverColors} bg-white shadow-sm`}`}
+                              : `${inactiveStyles} shadow-sm`}`}
                         >
                           {isActive && (
                             <svg className="w-4 h-4 text-white animate-fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
