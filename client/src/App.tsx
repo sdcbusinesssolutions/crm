@@ -382,19 +382,19 @@ const MainApp: React.FC = () => {
 
     // Apply theme on initial load
     useEffect(() => {
-        if (!session) return;
+        if (!session && !staffSession) return;
 
         const loadTheme = async () => {
             const savedTheme = await themeService.getTheme();
             themeService.applyTheme(savedTheme);
         };
         loadTheme();
-    }, [session]);
+    }, [session, staffSession]);
 
     // --- STATE PERSISTENCE EFFECT ---
     // Synchronize current state to URL Query Params
     useEffect(() => {
-        if (isAuthLoading || !session) return;
+        if (isAuthLoading || (!session && !staffSession)) return;
 
         const params = new URLSearchParams(window.location.search);
 
@@ -434,7 +434,7 @@ const MainApp: React.FC = () => {
         activeMenuItem, currentFlowId, currentWhatsAppFlowId, currentTemplateId,
         isTemplateBuilderOpen, currentCampaignId, isCreatingCampaign,
         currentPipelineId, isCreatingSheetAutomation, editingSheetAutomationId,
-        isAuthLoading, session
+        isAuthLoading, session, staffSession
     ]);
 
     const handleNavigateToFlow = useCallback((flowId: string) => {
@@ -743,10 +743,6 @@ const MainApp: React.FC = () => {
                 />
             );
         }
-        if (activeMenuItem === 'Quick Reply') {
-            return <QuickReply />;
-        }
-        
         if (activeMenuItem === 'Team Staff') {
             return <StaffManagement />;
         }

@@ -45,7 +45,8 @@ export type MenuItem =
     | 'Drip Campaigns'
     | 'Team Staff'
     | 'My Plan'
-    | 'G Automation';
+    | 'G Automation'
+    | 'Quick Reply';
 
 interface SidebarProps {
     activeItem: MenuItem;
