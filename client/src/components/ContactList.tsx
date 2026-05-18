@@ -13,7 +13,7 @@ import {
 import Papa from 'papaparse';
 import Toast from './Toast';
 import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
-import { ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { countries } from '../utils/countries';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PipelineAssignment from '../modules/teamStaff/components/PipelineAssignment';
@@ -25,6 +25,11 @@ interface ContactListProps {
 }
 
 const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGroupFilter, onContactCountUpdate }) => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Contact List', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Contact List', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Contact List', ACCESS_TYPES.ALL_ACCESS);
+
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [totalContacts, setTotalContacts] = useState(0); // Added for server-side pagination
     const [isLoading, setIsLoading] = useState(true);
@@ -36,10 +41,23 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     // Sync count with parent
     useEffect(() => {
+        if (!canRead) return;
         if (onContactCountUpdate) {
             onContactCountUpdate(totalContacts);
         }
-    }, [totalContacts, onContactCountUpdate]);
+    }, [totalContacts, onContactCountUpdate, canRead]);
+
+    if (!canRead) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center bg-slate-50">
+                <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 border border-red-100 text-red-500">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+                <h2 className="text-2xl font-bold mb-2 text-slate-900">Access Denied</h2>
+                <p className="max-w-md mx-auto text-slate-500">You do not have permission to view or manage the Contact List. Please contact your administrator if you believe this is an error.</p>
+            </div>
+        );
+    }
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
@@ -131,18 +149,21 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     }, [contacts, allTags]);
 
     useEffect(() => {
+        if (!canRead) return;
         // Small delay to ensure session is fully established after sign-in
         const timer = setTimeout(() => {
             loadInitialData();
         }, 150);
 
         return () => clearTimeout(timer);
-    }, []);
+    }, [canRead]);
 
     // Effect to reload contacts when page or filters change
     useEffect(() => {
-        loadContacts();
-    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate]);
+        if (canRead) {
+            loadContacts();
+        }
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate, canRead]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -914,7 +935,13 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         )}
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap gap-2 justify-end items-center">
+                    {!canWrite && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm animate-fade-in select-none">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Read Only Mode
+                        </span>
+                    )}
                     <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
                         <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
                     </PermissionGate>

@@ -14,8 +14,14 @@ import { themeService } from '../services/themeService';
 import Modal from './Modal';
 import DatabaseSetup from './DatabaseSetup';
 import PhoneInputWithCountry from './PhoneInputWithCountry';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 const FormBuilder: React.FC = () => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Form Builder', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Form Builder', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Form Builder', ACCESS_TYPES.ALL_ACCESS);
+
     const [forms, setForms] = useState<FormDefinition[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentForm, setCurrentForm] = useState<Partial<FormDefinition>>({});
@@ -44,10 +50,12 @@ const FormBuilder: React.FC = () => {
 
     // Load initial data
     useEffect(() => {
-        loadForms();
-        loadPipelines();
-        loadGroups();
-    }, []);
+        if (canRead) {
+            loadForms();
+            loadPipelines();
+            loadGroups();
+        }
+    }, [canRead]);
 
     // Load stages when pipeline changes
     useEffect(() => {
@@ -100,6 +108,7 @@ const FormBuilder: React.FC = () => {
     };
 
     const handleCreateNew = () => {
+        if (!canWrite) return;
         setCurrentForm({
             name: '',
             fields: [
@@ -125,6 +134,7 @@ const FormBuilder: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
+        if (!canDelete) return;
         if (!confirm('Are you sure you want to delete this form?')) return;
         try {
             await deleteForm(id);
@@ -190,6 +200,7 @@ const FormBuilder: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (!canWrite) return;
         setLoading(true);
         try {
             // Normalize field names for standard fields
@@ -337,6 +348,20 @@ const FormBuilder: React.FC = () => {
             </div>
         );
     };
+
+    if (!canRead && !loading) {
+        return (
+            <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 justify-center items-center p-8 min-h-[400px]">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1">Access Denied</h3>
+                    <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view Form Builder. Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (isEditing) {
         return (
@@ -744,12 +769,19 @@ const FormBuilder: React.FC = () => {
                     <h1 className="text-2xl font-bold text-[var(--color-text)]">Form Builder</h1>
                     <p className="text-[var(--color-text)] opacity-60">Create and manage lead capture forms.</p>
                 </div>
-                <button
-                    onClick={handleCreateNew}
-                    className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] font-bold shadow-lg shadow-brand-200 transition-all active:scale-95"
-                >
-                    + Create Form
-                </button>
+                {canWrite ? (
+                    <button
+                        onClick={handleCreateNew}
+                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] font-bold shadow-lg shadow-brand-200 transition-all active:scale-95"
+                    >
+                        + Create Form
+                    </button>
+                ) : (
+                    <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        Read Only Mode
+                    </div>
+                )}
             </div>
 
             {/* Table Content */}
@@ -761,7 +793,14 @@ const FormBuilder: React.FC = () => {
                         </div>
                         <h3 className="text-xl font-bold text-slate-900 mb-2">No Forms Created Yet</h3>
                         <p className="text-slate-500 mb-8 max-w-md mx-auto">Create your first form to start capturing leads directly into your pipeline.</p>
-                        <button onClick={handleCreateNew} className="px-6 py-3 bg-brand-600 text-white rounded-xl font-bold shadow-md hover:bg-brand-700 transition-colors">Create First Form</button>
+                        {canWrite ? (
+                            <button onClick={handleCreateNew} className="px-6 py-3 bg-brand-600 text-white rounded-xl font-bold shadow-md hover:bg-brand-700 transition-colors">Create First Form</button>
+                        ) : (
+                            <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Read Only Mode
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -842,24 +881,28 @@ const FormBuilder: React.FC = () => {
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
                                                     </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setCurrentForm({
-                                                                ...form,
-                                                                default_group_ids: form.default_group_ids?.length ? form.default_group_ids : (form.settings as any)?.default_group_ids,
-                                                                default_tags: form.default_tags?.length ? form.default_tags : (form.settings as any)?.default_tags,
-                                                                success_redirect_url: form.success_redirect_url || (form.settings as any)?.success_redirect_url
-                                                            });
-                                                            setIsEditing(true);
-                                                        }}
-                                                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                                        title="Edit Form"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
-                                                    </button>
-                                                    <button onClick={() => handleDelete(form.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Form">
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                    </button>
+                                                    {canWrite && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setCurrentForm({
+                                                                    ...form,
+                                                                    default_group_ids: form.default_group_ids?.length ? form.default_group_ids : (form.settings as any)?.default_group_ids,
+                                                                    default_tags: form.default_tags?.length ? form.default_tags : (form.settings as any)?.default_tags,
+                                                                    success_redirect_url: form.success_redirect_url || (form.settings as any)?.success_redirect_url
+                                                                });
+                                                                setIsEditing(true);
+                                                            }}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                            title="Edit Form"
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
+                                                        </button>
+                                                    )}
+                                                    {canDelete && (
+                                                        <button onClick={() => handleDelete(form.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Form">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

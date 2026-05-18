@@ -4,6 +4,7 @@ const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 const { logFormBuilderEvent } = require('../utils/logger');
+const requirePermission = require('../middleware/requirePermission');
 const flowEngine = require('../services/flowEngine');
 
 // Helper function to generate unique form token
@@ -17,7 +18,7 @@ function generateFormToken() {
 }
 
 // GET /api/forms (authenticated - get user's forms)
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, requirePermission('Form Builder', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('forms')
@@ -60,7 +61,7 @@ router.get('/token/:token', async (req, res) => {
 });
 
 // GET /api/forms/:id (authenticated - get specific form)
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, requirePermission('Form Builder', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('forms')
@@ -80,7 +81,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
 
 // POST /api/forms (authenticated - create new form)
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requirePermission('Form Builder', 'read_write'), async (req, res) => {
     try {
         const user = req.user;
 
@@ -164,7 +165,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // PUT /api/forms/:id (authenticated - update form)
-router.put('/:id', requireAuth, async (req, res) => {
+router.put('/:id', requireAuth, requirePermission('Form Builder', 'read_write'), async (req, res) => {
     try {
         const {
             name,
@@ -224,7 +225,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 // DELETE /api/forms/:id (authenticated - delete form)
-router.delete('/:id', requireAuth, async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('Form Builder', 'all_access'), async (req, res) => {
     try {
         const { error } = await supabaseAdmin
             .from('forms')
@@ -476,7 +477,7 @@ router.post('/submit', async (req, res) => {
 });
 
 // GET /api/forms/:id/submissions (authenticated - get form submissions)
-router.get('/:id/submissions', requireAuth, async (req, res) => {
+router.get('/:id/submissions', requireAuth, requirePermission('Form Contact', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('form_submissions')

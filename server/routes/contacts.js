@@ -428,7 +428,7 @@ router.post('/', requirePermission('Contact+List', 'read_write'), async (req, re
 });
 
 // TEST endpoint - remove after debugging
-router.get('/bulk-test', (req, res) => {
+router.get('/bulk-test', requirePermission('Contact+List', 'read'), (req, res) => {
   console.log('🧪 Bulk test endpoint hit!');
   res.json({ message: 'Bulk endpoint is accessible', user: req.user ? 'authenticated' : 'not authenticated' });
 });
@@ -906,7 +906,7 @@ router.post('/bulk-delete-all', requirePermission('Contact+List', 'all_access'),
 });
 
 // DELETE /api/contacts/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const id = req.params.id;
