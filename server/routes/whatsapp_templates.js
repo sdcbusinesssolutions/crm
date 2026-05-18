@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const multer = require('multer');
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 const upload = multer({ storage: multer.memoryStorage() });
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
@@ -71,7 +72,7 @@ async function uploadTemplateMedia(fileBuffer, mimeType, accessToken, appId) {
 }
 
 // GET /types - Get Template Types
-router.get('/types', (req, res) => {
+router.get('/types', requirePermission('WhatsApp Templates', 'read'), (req, res) => {
     res.json([
         { id: 'TEXT', label: 'Text', icon: 'FileText' },
         { id: 'IMAGE', label: 'Image', icon: 'Image' },
@@ -82,7 +83,7 @@ router.get('/types', (req, res) => {
 });
 
 // GET /rules - Get Template Rules
-router.get('/rules', (req, res) => {
+router.get('/rules', requirePermission('WhatsApp Templates', 'read'), (req, res) => {
     res.json({
         header: { max_length: 60 },
         body: { max_length: 1024 },
@@ -92,7 +93,7 @@ router.get('/rules', (req, res) => {
 });
 
 // GET /actions - Get Interactive Actions
-router.get('/actions', (req, res) => {
+router.get('/actions', requirePermission('WhatsApp Templates', 'read'), (req, res) => {
     res.json([
         { id: 'NONE', label: 'None' },
         { id: 'CALL_TO_ACTION', label: 'Call to Actions' },
@@ -105,7 +106,7 @@ router.get('/actions', (req, res) => {
 });
 
 // GET / - List Templates
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('WhatsApp Templates', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -280,7 +281,7 @@ router.get('/', async (req, res) => {
 const { logTemplateEvent } = require('../utils/logger');
 
 // POST /create - Create Template
-router.post('/create', upload.any(), async (req, res) => {
+router.post('/create', requirePermission('WhatsApp Templates', 'read_write'), upload.any(), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -602,7 +603,7 @@ router.post('/create', upload.any(), async (req, res) => {
 });
 
 // POST /preview - Generate Preview (Mock or Real)
-router.post('/preview', (req, res) => {
+router.post('/preview', requirePermission('WhatsApp Templates', 'read'), (req, res) => {
     // Just return what's needed for the frontend to render. 
     // The frontend handles the actual visual rendering.
     res.json({
@@ -612,7 +613,7 @@ router.post('/preview', (req, res) => {
 });
 
 // GET /:id - Get Template Details
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('WhatsApp Templates', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
@@ -662,7 +663,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /:id - Update Template
-router.put('/:id', upload.any(), async (req, res) => {
+router.put('/:id', requirePermission('WhatsApp Templates', 'read_write'), upload.any(), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -905,7 +906,7 @@ router.put('/:id', upload.any(), async (req, res) => {
 });
 
 // DELETE /:id - Delete Template
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('WhatsApp Templates', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -956,7 +957,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // POST /:id/duplicate - Duplicate Template
-router.post('/:id/duplicate', async (req, res) => {
+router.post('/:id/duplicate', requirePermission('WhatsApp Templates', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
