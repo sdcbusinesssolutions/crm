@@ -173,7 +173,7 @@ router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) =>
 });
 
 // DELETE /:id - Delete a flow
-router.delete('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
+router.delete('/:id', requirePermission('Flows', 'all_access'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { id } = req.params;
