@@ -24,5 +24,6 @@ export const MODULES = [
   'Tags',
   'Input Fields',
   'Form Contact',
-  'Whatsapp Forms'
+  'Whatsapp Forms',
+  'WhatsApp Management'
 ];

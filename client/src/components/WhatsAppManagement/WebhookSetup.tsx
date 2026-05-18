@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { settingsService } from '../../services/settingsService';
 
-const WebhookSetup: React.FC = () => {
+interface WebhookSetupProps {
+    readOnly?: boolean;
+}
+
+const WebhookSetup: React.FC<WebhookSetupProps> = ({ readOnly }) => {
     const [webhookUrls, setWebhookUrls] = useState<{ phoneNumberId: string, url: string }[]>([]);
     const [verifyToken, setVerifyToken] = useState('');
     const [loading, setLoading] = useState(true);
@@ -37,6 +41,7 @@ const WebhookSetup: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (readOnly) return;
         setSaving(true);
         setMessage(null);
         try {
@@ -113,6 +118,7 @@ const WebhookSetup: React.FC = () => {
                         <button
                             type="button"
                             onClick={async () => {
+                                if (readOnly) return;
                                 setSaving(true);
                                 setMessage(null);
                                 try {
@@ -125,8 +131,8 @@ const WebhookSetup: React.FC = () => {
                                     setSaving(false);
                                 }
                             }}
-                            disabled={saving}
-                            className={`px-4 py-2 bg-white border border-slate-300 shadow-sm text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm transition-all ${saving ? 'opacity-70' : ''}`}
+                            disabled={saving || readOnly}
+                            className={`px-4 py-2 bg-white border border-slate-300 shadow-sm text-slate-700 rounded-lg hover:bg-slate-50 font-medium text-sm transition-all ${saving || readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
                             {saving ? 'Updating...' : 'Refresh Webhook Connection'}
                         </button>
@@ -140,22 +146,25 @@ const WebhookSetup: React.FC = () => {
                             type="text"
                             value={verifyToken}
                             onChange={(e) => setVerifyToken(e.target.value)}
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                            disabled={readOnly}
+                            className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all ${readOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="Enter a secure verify token"
                             required
                         />
                         <p className="mt-1 text-xs text-slate-500">You must enter this same token in the Meta App Dashboard for all accounts.</p>
                     </div>
 
-                    <div className="flex justify-end">
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className={`px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {saving ? 'Saving...' : 'Update Verify Token'}
-                        </button>
-                    </div>
+                    {!readOnly && (
+                        <div className="flex justify-end">
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className={`px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                {saving ? 'Saving...' : 'Update Verify Token'}
+                            </button>
+                        </div>
+                    )}
 
                 </form>
 
@@ -166,14 +175,18 @@ const WebhookSetup: React.FC = () => {
                         Manage the vitality of your connection to Meta. If your token expires, you will stop receiving messages.
                     </p>
 
-                    <TokenManager />
+                    <TokenManager readOnly={readOnly} />
                 </div>
             </div >
         </div >
     );
 };
 
-const TokenManager: React.FC = () => {
+interface TokenManagerProps {
+    readOnly?: boolean;
+}
+
+const TokenManager: React.FC<TokenManagerProps> = ({ readOnly }) => {
     const [info, setInfo] = useState<{ isValid: boolean, expiresAt: number } | null>(null);
     const [loading, setLoading] = useState(false);
     const [extending, setExtending] = useState(false);
@@ -199,6 +212,7 @@ const TokenManager: React.FC = () => {
     };
 
     const handleExtend = async () => {
+        if (readOnly) return;
         setExtending(true);
         setMsg(null);
         try {
@@ -231,13 +245,15 @@ const TokenManager: React.FC = () => {
                         {info?.expiresAt === 0 ? 'Never (Permanent)' : (info?.expiresAt ? new Date(info.expiresAt * 1000).toLocaleString() : 'Unknown')}
                     </div>
                 </div>
-                <button
-                    onClick={handleExtend}
-                    disabled={extending}
-                    className="px-3 py-1.5 bg-brand-100 text-brand-700 rounded hover:bg-brand-200 text-sm font-medium"
-                >
-                    {extending ? 'Extending...' : 'Extend Token'}
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={handleExtend}
+                        disabled={extending}
+                        className="px-3 py-1.5 bg-brand-100 text-brand-700 rounded hover:bg-brand-200 text-sm font-medium"
+                    >
+                        {extending ? 'Extending...' : 'Extend Token'}
+                    </button>
+                )}
             </div>
         </div>
     );

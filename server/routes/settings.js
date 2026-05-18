@@ -6,6 +6,7 @@ const axios = require('axios');
 const qrcode = require('qrcode');
 const crypto = require('crypto');
 const { logOnboardingEvent } = require('../utils/logger');
+const requirePermission = require('../middleware/requirePermission');
 
 // Helper to get user ID from request (populated by requireAuth middleware)
 const getUserId = (req) => req.user.id;
@@ -43,7 +44,7 @@ const getTargetDomain = (req) => {
 // ==========================================
 
 // GET /settings/whatsapp - List all accounts
-router.get('/whatsapp', async (req, res) => {
+router.get('/whatsapp', requirePermission('WhatsApp Management', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -67,7 +68,7 @@ router.get('/whatsapp', async (req, res) => {
 });
 
 // POST /settings/whatsapp - Create new account
-router.post('/whatsapp', async (req, res) => {
+router.post('/whatsapp', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -133,7 +134,7 @@ router.post('/whatsapp', async (req, res) => {
 });
 
 // PUT /settings/whatsapp/:id - Update account
-router.put('/whatsapp/:id', async (req, res) => {
+router.put('/whatsapp/:id', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const accountId = req.params.id;
@@ -199,7 +200,7 @@ router.put('/whatsapp/:id', async (req, res) => {
 });
 
 // DELETE /settings/whatsapp/:id - Delete account
-router.delete('/whatsapp/:id', async (req, res) => {
+router.delete('/whatsapp/:id', requirePermission('WhatsApp Management', 'all_access'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const accountId = req.params.id;
@@ -226,7 +227,7 @@ router.delete('/whatsapp/:id', async (req, res) => {
 // ==========================================
 
 // GET /settings/webhook
-router.get('/webhook', async (req, res) => {
+router.get('/webhook', requirePermission('WhatsApp Management', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -265,7 +266,7 @@ router.get('/webhook', async (req, res) => {
 });
 
 // POST /settings/webhook (Update Verify Token)
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -358,7 +359,7 @@ router.post('/change-password', async (req, res) => {
 // ==========================================
 
 // GET /settings/2fa
-router.get('/2fa', async (req, res) => {
+router.get('/2fa', requirePermission('WhatsApp Management', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -384,7 +385,7 @@ router.get('/2fa', async (req, res) => {
 });
 
 // POST /settings/2fa/generate (Generate New Key)
-router.post('/2fa/generate', async (req, res) => {
+router.post('/2fa/generate', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -426,7 +427,7 @@ router.post('/2fa/generate', async (req, res) => {
 });
 
 // POST /settings/2fa/verify (Verify and Enable)
-router.post('/2fa/verify', async (req, res) => {
+router.post('/2fa/verify', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -465,7 +466,7 @@ router.post('/2fa/verify', async (req, res) => {
 });
 
 // POST /settings/2fa/enable
-router.post('/2fa/enable', async (req, res) => {
+router.post('/2fa/enable', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -509,7 +510,7 @@ router.post('/2fa/enable', async (req, res) => {
 });
 
 // POST /settings/2fa/disable
-router.post('/2fa/disable', async (req, res) => {
+router.post('/2fa/disable', requirePermission('WhatsApp Management', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);

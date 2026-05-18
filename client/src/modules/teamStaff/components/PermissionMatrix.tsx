@@ -110,6 +110,11 @@ const getModuleBadge = (module: string) => {
         icon: <CatalogueIcon className={iconClass} />,
         style: 'bg-amber-50 text-amber-600 border border-amber-100'
       };
+    case 'WhatsApp Management':
+      return {
+        icon: <CatalogueIcon className={iconClass} />,
+        style: 'bg-teal-50 text-teal-600 border border-teal-100'
+      };
     default:
       return {
         icon: <ConditionIcon className={iconClass} />,

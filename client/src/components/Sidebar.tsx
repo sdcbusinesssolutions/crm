@@ -190,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Settings': 'Settings',
             'Branding & Appearance': 'Settings',
             'WhatsApp API': 'Settings',
-            'WhatsApp Management': 'Settings'
+            'WhatsApp Management': 'WhatsApp Management'
         };
 
         const moduleName = moduleMap[item];

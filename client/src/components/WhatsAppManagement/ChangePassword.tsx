@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { settingsService } from '../../services/settingsService';
 
-const ChangePassword: React.FC = () => {
+interface ChangePasswordProps {
+    readOnly?: boolean;
+}
+
+const ChangePassword: React.FC<ChangePasswordProps> = ({ readOnly }) => {
     const [formData, setFormData] = useState({
         oldPassword: '',
         newPassword: '',
@@ -16,6 +20,7 @@ const ChangePassword: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (readOnly) return;
 
         if (formData.newPassword !== formData.confirmPassword) {
             setMessage({ type: 'error', text: 'New passwords do not match' });
@@ -54,7 +59,8 @@ const ChangePassword: React.FC = () => {
                         name="oldPassword"
                         value={formData.oldPassword}
                         onChange={handleChange}
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                        disabled={readOnly}
+                        className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all ${readOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
                         placeholder="Enter current password"
                         required
                     />
@@ -68,7 +74,8 @@ const ChangePassword: React.FC = () => {
                             name="newPassword"
                             value={formData.newPassword}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                            disabled={readOnly}
+                            className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all ${readOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="Enter new password"
                             required
                         />
@@ -80,22 +87,25 @@ const ChangePassword: React.FC = () => {
                             name="confirmPassword"
                             value={formData.confirmPassword}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                            disabled={readOnly}
+                            className={`w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all ${readOnly ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
                             placeholder="Confirm new password"
                             required
                         />
                     </div>
                 </div>
 
-                <div className="flex justify-end pt-4">
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className={`px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
-                    >
-                        {saving ? 'Processing...' : 'Change Password'}
-                    </button>
-                </div>
+                {!readOnly && (
+                    <div className="flex justify-end pt-4">
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className={`px-6 py-2.5 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        >
+                            {saving ? 'Processing...' : 'Change Password'}
+                        </button>
+                    </div>
+                )}
             </form>
         </div>
     );
