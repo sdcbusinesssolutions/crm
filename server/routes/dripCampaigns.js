@@ -121,7 +121,7 @@ router.put('/:id', requirePermission('Drip+Campaigns', 'read_write'), async (req
 });
 
 // DELETE /api/drip-campaigns/:id
-router.delete('/:id', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
+router.delete('/:id', requirePermission('Drip+Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { error } = await supabase
@@ -141,7 +141,7 @@ router.delete('/:id', requirePermission('Drip+Campaigns', 'read_write'), async (
 // --- STEPS ---
 
 // POST /api/drip-campaigns/:id/steps
-router.post('/:id/steps', async (req, res) => {
+router.post('/:id/steps', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Verify ownership of campaign first
@@ -180,7 +180,7 @@ router.post('/:id/steps', async (req, res) => {
 });
 
 // PUT /api/drip-campaigns/:id/steps/:stepId
-router.put('/:id/steps/:stepId', async (req, res) => {
+router.put('/:id/steps/:stepId', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Verify ownership via join or two steps. Simpler is two steps for security.
@@ -216,7 +216,7 @@ router.put('/:id/steps/:stepId', async (req, res) => {
 });
 
 // DELETE /api/drip-campaigns/:id/steps/:stepId
-router.delete('/:id/steps/:stepId', async (req, res) => {
+router.delete('/:id/steps/:stepId', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
 
@@ -348,7 +348,7 @@ router.post('/:id/enroll', requirePermission('Drip+Campaigns', 'read_write'), as
 
 
 // Get Enrollments for a Campaign
-router.get('/:id/enrollments', async (req, res) => {
+router.get('/:id/enrollments', requirePermission('Drip+Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { supabaseAdmin } = require('../lib/supabaseClient');
@@ -402,7 +402,7 @@ router.get('/:id/enrollments', async (req, res) => {
 });
 
 // Stop/Cancel an Enrollment Manually
-router.post('/enrollments/:enrollmentId/stop', async (req, res) => {
+router.post('/enrollments/:enrollmentId/stop', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { data, error } = await supabase
@@ -420,7 +420,7 @@ router.post('/enrollments/:enrollmentId/stop', async (req, res) => {
 });
 
 // Delete an Enrollment
-router.delete('/enrollments/:enrollmentId', async (req, res) => {
+router.delete('/enrollments/:enrollmentId', requirePermission('Drip+Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Ensure user owns the campaign linked to this enrollment (implicit via RLS usually, but safer to check)

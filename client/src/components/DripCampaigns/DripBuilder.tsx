@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 import { format } from 'date-fns';
 import { dripCampaignService, DripCampaign, DripStep } from '../../services/dripCampaignService';
 import { integrationsService } from '../../services/integrationsService';
@@ -90,7 +91,8 @@ const DripCanvas = React.memo(({
     onToggleAddMenu,
     onAddStep,
     onDeleteStep,
-    DripNode
+    DripNode,
+    canWrite
 }: any) => {
     const [viewport, setViewport] = useState({ x: 0, y: 50, zoom: 1 });
     const isPanning = useRef(false);
@@ -206,21 +208,23 @@ const DripCanvas = React.memo(({
                                 isSelected={selectedStep?.id === step.id} 
                                 onClick={() => onSelectStep(step)}
                                 onDelete={onDeleteStep}
+                                canWrite={canWrite}
                             />
 
                             {/* Final Connecting Line */}
-                            <div className="w-[1px] h-12 bg-slate-300"></div>
+                            {canWrite && <div className="w-[1px] h-12 bg-slate-300"></div>}
                         </React.Fragment>
                     ))}
 
                     {/* Add Button */}
-                    <div className="relative z-10 group">
-                        <button
-                            onClick={onToggleAddMenu}
-                            className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-[#00684a] hover:bg-slate-50 text-slate-400 hover:text-[#00684a] flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-[#00684a]/10"
-                        >
-                            <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
-                        </button>
+                    {canWrite && (
+                        <div className="relative z-10 group">
+                            <button
+                                onClick={onToggleAddMenu}
+                                className="w-12 h-12 rounded-full bg-white border border-slate-200 hover:border-[#00684a] hover:bg-slate-50 text-slate-400 hover:text-[#00684a] flex items-center justify-center transition-all shadow-xl group flex flex-col gap-0.5 ring-4 ring-transparent hover:ring-[#00684a]/10"
+                            >
+                                <PlusIcon className="w-6 h-6 transition-transform group-hover:rotate-90" />
+                            </button>
                         {showAddMenu && (
                             <div className="absolute top-14 left-1/2 -translate-x-1/2 w-48 bg-white border border-slate-200 rounded-xl shadow-2xl p-1 z-50">
                                 <button 
@@ -248,6 +252,7 @@ const DripCanvas = React.memo(({
                             </div>
                         )}
                     </div>
+                    )}
 
                     {/* End line fade */}
                     <div className="w-[1px] h-32 bg-gradient-to-b from-slate-300 to-transparent"></div>
@@ -266,6 +271,10 @@ const DripCanvas = React.memo(({
 });
 
 const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignName, onBack }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Drip Campaigns', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Drip Campaigns', ACCESS_TYPES.ALL_ACCESS);
+
     // --- State: Data ---
     // Seed immediately from cache if available — single render, no flash, no skeleton
     const [campaign, setCampaign] = useState<Partial<DripCampaign>>(() => {
@@ -476,6 +485,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
 
     // --- Actions ---
     const handleSaveCampaign = async (exitAfterSave = true) => {
+        if (!canWrite) {
+            alert("You do not have permission to save campaigns.");
+            return;
+        }
         if (loading) return;
         setLoading(true);
         try {
@@ -626,6 +639,10 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     };
 
     const handleDeleteEnrollment = async (id: string) => {
+        if (!canDelete) {
+            alert("You do not have permission to delete enrollments.");
+            return;
+        }
         if (!window.confirm("Delete this enrollment record?")) return;
         try {
             await dripCampaignService.deleteEnrollment(id);
@@ -651,7 +668,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
     };
 
     // --- Internal Memoized Components ---
-    const MemoizedDripNode = React.useMemo(() => React.memo(({ step, isSelected, onClick, onDelete }: any) => (
+    const MemoizedDripNode = React.useMemo(() => React.memo(({ step, isSelected, onClick, onDelete, canWrite }: any) => (
         <div
             onClick={onClick}
             className={`relative z-10 w-80 bg-white rounded-xl overflow-hidden shadow-xl transition-all cursor-pointer group border border-slate-200/60 border-l-4 ${isSelected
@@ -674,9 +691,11 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                     {step.step_type === 'WHATSAPP_MESSAGE' ? <MessageIcon className="w-3.5 h-3.5" /> : step.step_type === 'EMAIL' ? <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> : <SparklesIcon className="w-3.5 h-3.5" />}
                     <h4 className="font-black text-[10px] uppercase tracking-widest leading-none">{step.step_type === 'WHATSAPP_MESSAGE' ? 'WhatsApp' : step.step_type === 'EMAIL' ? 'Email' : 'AI Analysis'}</h4>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 text-white rounded transition-all">
-                    <TrashIcon className="w-3.5 h-3.5" />
-                </button>
+                {canWrite && (
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(step.id); }} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/20 text-white rounded transition-all">
+                        <TrashIcon className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
 
             <div className="p-4 flex items-center gap-4 bg-white">
@@ -803,6 +822,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
                             className="bg-transparent border-none text-slate-900 font-bold text-lg focus:ring-0 p-0 placeholder-slate-400 w-64"
                             placeholder="Untitled Campaign"
+                            disabled={!canWrite}
                         />
                     </div>
                 </div>
@@ -834,31 +854,39 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Status Toggle */}
-                    <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 mr-2">
-                        <button
-                            onClick={() => setCampaign({ ...campaign, status: 'DRAFT' })}
-                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'DRAFT' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'DRAFT' ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></div>
-                            Draft
-                        </button>
-                        <button
-                            onClick={() => setCampaign({ ...campaign, status: 'ACTIVE' })}
-                            className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-white text-[#00684a] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                        >
-                            <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-[#00684a] animate-pulse' : 'bg-slate-300'}`}></div>
-                            Publish
-                        </button>
-                    </div>
+                    {canWrite ? (
+                        <>
+                            {/* Status Toggle */}
+                            <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 mr-2">
+                                <button
+                                    onClick={() => setCampaign({ ...campaign, status: 'DRAFT' })}
+                                    className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'DRAFT' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'DRAFT' ? 'bg-amber-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                                    Draft
+                                </button>
+                                <button
+                                    onClick={() => setCampaign({ ...campaign, status: 'ACTIVE' })}
+                                    className={`px-3 py-1.5 rounded-md text-[10px] uppercase tracking-wider font-bold transition-all flex items-center gap-1.5 ${campaign.status === 'ACTIVE' ? 'bg-white text-[#00684a] shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    <div className={`w-1.5 h-1.5 rounded-full ${campaign.status === 'ACTIVE' ? 'bg-[#00684a] animate-pulse' : 'bg-slate-300'}`}></div>
+                                    Publish
+                                </button>
+                            </div>
 
-                    <button
-                        onClick={() => handleSaveCampaign(true)}
-                        disabled={loading}
-                        className="px-6 py-2.5 bg-[#00684a] hover:bg-[#005c42] text-white rounded-xl font-bold shadow-lg shadow-[#00684a]/20 transform active:scale-[0.98] transition-all disabled:opacity-50"
-                    >
-                        {loading ? 'Saving...' : (campaign.status === 'ACTIVE' ? 'Publish & Exit' : 'Save & Exit')}
-                    </button>
+                            <button
+                                onClick={() => handleSaveCampaign(true)}
+                                disabled={loading}
+                                className="px-6 py-2.5 bg-[#00684a] hover:bg-[#005c42] text-white rounded-xl font-bold shadow-lg shadow-[#00684a]/20 transform active:scale-[0.98] transition-all disabled:opacity-50"
+                            >
+                                {loading ? 'Saving...' : (campaign.status === 'ACTIVE' ? 'Publish & Exit' : 'Save & Exit')}
+                            </button>
+                        </>
+                    ) : (
+                        <div className="bg-slate-100 text-slate-500 px-4 py-2 rounded-xl text-xs font-bold border border-slate-200">
+                            Read Only Mode
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1127,13 +1155,15 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            <button
-                                                                onClick={() => handleDeleteEnrollment(en.id)}
-                                                                className="p-2.5 text-red-500 hover:bg-red-50 rounded-[12px] border border-transparent hover:border-red-100 transition-all transform active:scale-90"
-                                                                title="Delete Enrollment"
-                                                            >
-                                                                <TrashIcon className="w-4 h-4" />
-                                                            </button>
+                                                            {canDelete && (
+                                                                <button
+                                                                    onClick={() => handleDeleteEnrollment(en.id)}
+                                                                    className="p-2.5 text-red-500 hover:bg-red-50 rounded-[12px] border border-transparent hover:border-red-100 transition-all transform active:scale-90"
+                                                                    title="Delete Enrollment"
+                                                                >
+                                                                    <TrashIcon className="w-4 h-4" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1159,6 +1189,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             onAddStep={handleAddStep}
                             onDeleteStep={handleDeleteStep}
                             DripNode={MemoizedDripNode}
+                            canWrite={canWrite}
                         />
 
                         {/* Settings Overlay Sidebar */}
@@ -1171,7 +1202,8 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/50">
-                                {showCampaignSettings && (
+                                <fieldset disabled={!canWrite} className="contents space-y-6">
+                                    {showCampaignSettings && (
                                     <div className="space-y-6 text-slate-700">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Trigger Event</label>
@@ -1912,6 +1944,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                         </div>
                                     </div>
                                 )}
+                                </fieldset>
                             </div>
 
                         </div>

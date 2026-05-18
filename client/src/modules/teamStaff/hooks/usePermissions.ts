@@ -33,8 +33,19 @@ export const usePermissions = () => {
     // 1. Owner Bypassing
     if (!isStaff) return true;
     
-    // 2. Resolve current access for the module
-    const currentAccess = permissions?.[moduleName] || ACCESS_TYPES.NO_ACCESS;
+    // 2. Resolve current access for the module with robust key cleaning
+    const cleanName = (name: string) => name.replace(/[\s+]/g, '').toLowerCase();
+    const targetClean = cleanName(moduleName);
+    
+    let currentAccess = ACCESS_TYPES.NO_ACCESS;
+    if (permissions) {
+      for (const key of Object.keys(permissions)) {
+        if (cleanName(key) === targetClean) {
+          currentAccess = permissions[key];
+          break;
+        }
+      }
+    }
     
     // 3. Compare using numeric levels for precision
     const currentLevel = ACCESS_LEVELS[currentAccess] || 0;

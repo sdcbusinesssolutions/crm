@@ -23,7 +23,7 @@ import {
     ChevronRightIcon
 } from '../icons';
 import PermissionGate from '../../modules/teamStaff/components/PermissionGate';
-import { ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 // --- In-Memory Cache (survives re-mounts, invalidated after 30s) ---
 const CACHE_TTL_MS = 30_000;
@@ -85,6 +85,9 @@ const StatusToggle: React.FC<{ status: string; onClick: (e: React.MouseEvent) =>
 });
 
 const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }) => {
+    const { hasAccess } = usePermissions();
+    const canDelete = hasAccess('Drip Campaigns', ACCESS_TYPES.ALL_ACCESS);
+
     const [campaigns, setCampaigns] = useState<DripCampaign[]>([]);
     const [loading, setLoading] = useState(true); // Always start loading — like FlowEditor
     const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +139,11 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
 
     const confirmDelete = useCallback(async () => {
         if (!campaignToDelete) return;
+        if (!canDelete) {
+            alert("You do not have permission to delete this campaign.");
+            setIsDeleteModalOpen(false);
+            return;
+        }
         try {
             await dripCampaignService.deleteCampaign(campaignToDelete);
             invalidateCache(); // Force fresh fetch next time
@@ -151,7 +159,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
             setIsDeleteModalOpen(false);
             setCampaignToDelete(null);
         }
-    }, [campaignToDelete]);
+    }, [campaignToDelete, canDelete]);
 
     const handleViewEnrollments = useCallback(async (e: React.MouseEvent, campaign: DripCampaign) => {
         e.preventDefault();
@@ -461,7 +469,7 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                                 <button onClick={() => onEdit(campaign.id, campaign.name)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
                                                                     <EditIcon className="w-4 h-4" />
                                                                 </button>
-                                                                <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                                <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                                                     <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
                                                                         <TrashIcon className="w-4 h-4" />
                                                                     </button>
@@ -517,12 +525,16 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto" onClick={(e) => e.stopPropagation()}>
                                                         <div className="flex items-center gap-3">
                                                             <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2">
-                                                                <StatusToggle status={campaign.status} onClick={(e) => handleToggleStatus(e, campaign)} />
+                                                                <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                                    <StatusToggle status={campaign.status} onClick={(e) => handleToggleStatus(e, campaign)} />
+                                                                </PermissionGate>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-center gap-1">
-                                                            <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                            <PermissionGate moduleName="Drip+Campaigns" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
+                                                                <button onClick={(e) => handleDeleteClick(e, campaign.id)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                            </PermissionGate>
                                                             <button onClick={() => onEdit(campaign.id, campaign.name)} className="ml-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md active:scale-95 transition-all flex items-center gap-1">
                                                                 Manage Steps
                                                             </button>
