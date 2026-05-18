@@ -234,7 +234,7 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                                                         <button className="px-3 py-1.5 bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-xs font-bold rounded-[var(--radius-btn)] hover:bg-[var(--color-surface)] transition-all">
                                                             Archive
                                                         </button>
-                                                        <PermissionGate moduleName="Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                        <PermissionGate moduleName="Campaigns" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                                             <button
                                                                 onClick={(e) => handleDelete(campaign.id, e)}
                                                                 className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 text-xs font-bold rounded-[var(--radius-btn)] hover:bg-red-100 transition-all flex items-center gap-1"

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ChevronLeftIcon, UsersIcon, CheckIcon, DoubleCheckIcon, EyeIcon, CloseIcon } from '../icons';
 import Toast from '../Toast';
+import PermissionGate from '../../modules/teamStaff/components/PermissionGate';
+import { ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+
 
 // Custom Animations for the Dashboard
 const dashboardStyles = `
@@ -221,34 +224,36 @@ const CampaignDetails: React.FC<CampaignDetailsProps> = ({ campaignId, onBack, o
                         Copy Numbers
                     </button>
 
-                    <button onClick={async () => {
-                        try {
-                            const { data: { session } } = await supabase.auth.getSession();
-                            if (!session) return;
+                    <PermissionGate moduleName="Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                        <button onClick={async () => {
+                            try {
+                                const { data: { session } } = await supabase.auth.getSession();
+                                if (!session) return;
 
-                            const query = new URLSearchParams({ status: statusFilter });
-                            const res = await fetch(`/api/campaigns/${campaignId}/phones?${query}`, {
-                                headers: { 'Authorization': `Bearer ${session.access_token}` }
-                            });
-                            const data = await res.json();
-
-                            if (data.phones?.length) {
-                                const cleanPhones = data.phones.map((p: string) => p.replace(/^\+/, ''));
-                                onRetarget({
-                                    templateId: campaign.template_id, // Use string template ID
-                                    manualNumbers: cleanPhones,
-                                    title: `Retarget: ${campaign.title} (${statusFilter === 'all' ? 'All' : statusFilter})`
+                                const query = new URLSearchParams({ status: statusFilter });
+                                const res = await fetch(`/api/campaigns/${campaignId}/phones?${query}`, {
+                                    headers: { 'Authorization': `Bearer ${session.access_token}` }
                                 });
-                            } else {
-                                alert('No numbers found for current filter.');
+                                const data = await res.json();
+
+                                if (data.phones?.length) {
+                                    const cleanPhones = data.phones.map((p: string) => p.replace(/^\+/, ''));
+                                    onRetarget({
+                                        templateId: campaign.template_id, // Use string template ID
+                                        manualNumbers: cleanPhones,
+                                        title: `Retarget: ${campaign.title} (${statusFilter === 'all' ? 'All' : statusFilter})`
+                                    });
+                                } else {
+                                    alert('No numbers found for current filter.');
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                alert('Failed to retarget.');
                             }
-                        } catch (e) {
-                            console.error(e);
-                            alert('Failed to retarget.');
-                        }
-                    }} className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors shadow-sm">
-                        Retarget ({statusFilter === 'all' ? 'All' : statusFilter})
-                    </button>
+                        }} className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors shadow-sm">
+                            Retarget ({statusFilter === 'all' ? 'All' : statusFilter})
+                        </button>
+                    </PermissionGate>
 
                     <button onClick={handleExport} className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors shadow-sm shadow-brand-200">
                         Export CSV
