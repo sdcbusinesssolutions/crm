@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 import { Pipeline, PipelineStage, Lead, KanbanBoard } from '../types/lead-management';
 import { themeService } from '../services/themeService';
@@ -34,6 +35,10 @@ interface PipelineViewProps {
 }
 
 const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Pipelines', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Pipelines', ACCESS_TYPES.ALL_ACCESS);
+
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(initialPipelineId || null);
     const [boardData, setBoardData] = useState<KanbanBoard | null>(null);
@@ -108,6 +113,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const totalLeads = boardData?.pagination?.total || 0;
 
     const handleCreateStage = async () => {
+        if (!canWrite) return;
         if (!newStageName.trim() || !selectedPipelineId) return;
         try {
             await createStage(selectedPipelineId, {
@@ -238,6 +244,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
     const handleDrop = async (e: React.DragEvent, targetStageId: string) => {
         e.preventDefault();
+        if (!canWrite) return;
         const type = e.dataTransfer.getData('type');
         const id = e.dataTransfer.getData('id');
 
@@ -338,6 +345,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const confirmDeleteStage = async () => {
+        if (!canDelete) return;
         if (!stageToDelete) return;
         try {
             await deleteStage(stageToDelete);
@@ -360,6 +368,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleSaveStage = async () => {
+        if (!canWrite) return;
         if (!selectedPipelineId || !editingStage.name) return;
         setStageLoading(true);
         try {
@@ -381,6 +390,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleCreatePipeline = async () => {
+        if (!canWrite) return;
         if (!newPipelineName.trim()) return;
         try {
             const newPipeline = await createPipeline({
@@ -407,11 +417,13 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleDeletePipeline = () => {
+        if (!canDelete) return;
         if (!selectedPipelineId || !selectedPipeline) return;
         setIsDeletePipelineModalOpen(true);
     };
 
     const confirmDeletePipeline = async () => {
+        if (!canDelete) return;
         if (!selectedPipelineId || !selectedPipeline) return;
 
         try {
@@ -441,6 +453,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleSetDefaultPipeline = async () => {
+        if (!canWrite) return;
         if (!selectedPipelineId) return;
         try {
             await setPipelineAsDefault(selectedPipelineId);
@@ -490,6 +503,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleDeleteLeadClick = async (leadId: string) => {
+        if (!canDelete) return;
         if (window.confirm('Are you sure you want to delete this lead?')) {
             try {
                 await deleteLead(leadId);
@@ -511,6 +525,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleAddNote = async () => {
+        if (!canWrite) return;
         if (!editingLead.id || !newNote.title || !newNote.content) return;
         try {
             await createNote({
@@ -530,6 +545,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleAddFollowUp = async () => {
+        if (!canWrite) return;
         if (!editingLead.id || !newTask.title) return;
         try {
             await createTask({
@@ -549,6 +565,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleAddAppointment = async () => {
+        if (!canWrite) return;
         if (!editingLead.id || !newAppointment.title || !newAppointment.start_time) return;
         try {
             await createAppointment({
@@ -569,6 +586,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleAddCallLog = async () => {
+        if (!canWrite) return;
         if (!editingLead.id) return;
         try {
             await createCallLog({
@@ -589,6 +607,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleSaveLead = async () => {
+        if (!canWrite) return;
         if (!editingLead.id) return;
         setLeadLoading(true);
         try {
@@ -775,26 +794,30 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                             {/* Pipeline Actions */}
                             <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    onClick={() => setIsCreatingPipeline(true)}
-                                    className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
-                                    title="New Pipeline"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                </button>
-                                {selectedPipelineId && (
-                                    <button
-                                        onClick={handleSetDefaultPipeline}
-                                        className={`p-1.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
-                                            ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10 border-[var(--color-brand)]/20'
-                                            : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100 hover:bg-[var(--color-surface)] border-[var(--color-border)]'
-                                            }`}
-                                        title={selectedPipeline?.is_default ? "Default Pipeline" : "Set as Default Pipeline"}
-                                    >
-                                        <svg className="w-4 h-4" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                                    </button>
+                                {canWrite && (
+                                    <>
+                                        <button
+                                            onClick={() => setIsCreatingPipeline(true)}
+                                            className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
+                                            title="New Pipeline"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                        </button>
+                                        {selectedPipelineId && (
+                                            <button
+                                                onClick={handleSetDefaultPipeline}
+                                                className={`p-1.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
+                                                    ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10 border-[var(--color-brand)]/20'
+                                                    : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100 hover:bg-[var(--color-surface)] border-[var(--color-border)]'
+                                                    }`}
+                                                title={selectedPipeline?.is_default ? "Default Pipeline" : "Set as Default Pipeline"}
+                                            >
+                                                <svg className="w-4 h-4" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                                            </button>
+                                        )}
+                                    </>
                                 )}
-                                {selectedPipelineId && (
+                                {selectedPipelineId && canDelete && (
                                     <button
                                         onClick={handleDeletePipeline}
                                         className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
@@ -1190,7 +1213,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                 {filteredBoardData?.columns.map(column => (
                                     <div
                                         key={column.stage.id}
-                                        draggable
+                                        draggable={canWrite}
                                         onDragStart={(e) => handleDragStart(e, 'stage', column.stage.id)}
                                         className="w-[85vw] md:w-80 flex-shrink-0 flex flex-col bg-[var(--color-surface)]/50 rounded-2xl border border-[var(--color-border)] h-full backdrop-blur-sm snap-center"
                                         onDragOver={handleDragOver}
@@ -1205,8 +1228,12 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                 <span className="bg-white/20 text-white text-xs px-2.5 py-1 rounded-full font-bold shadow-sm backdrop-blur-sm">{column.total_count}</span>
                                                 {/* Stage Actions */}
                                                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                                    <button onClick={() => handleEditStageClick(column.stage)} className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Edit Stage"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
-                                                    <button onClick={() => handleDeleteStageClick(column.stage.id)} className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Delete Stage"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                                    {canWrite && (
+                                                        <button onClick={() => handleEditStageClick(column.stage)} className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Edit Stage"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>
+                                                    )}
+                                                    {canDelete && (
+                                                        <button onClick={() => handleDeleteStageClick(column.stage.id)} className="p-1 text-white/70 hover:text-white hover:bg-white/20 rounded-lg transition-colors" title="Delete Stage"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -1336,27 +1363,30 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 )}
 
                                                                 {/* Add Task */}
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleEditLeadClick(lead);
-                                                                        setTimeout(() => setActiveTab('follow_up'), 100);
-                                                                    }}
-                                                                    className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
-                                                                    title="Add Task"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                                                                </button>
-
+                                                                {canWrite && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleEditLeadClick(lead);
+                                                                            setTimeout(() => setActiveTab('follow_up'), 100);
+                                                                        }}
+                                                                        className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
+                                                                        title="Add Task"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                                                                    </button>
+                                                                )}
 
                                                                 {/* Delete */}
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleDeleteLeadClick(lead.id); }}
-                                                                    className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors group/btn"
-                                                                    title="Delete Lead"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                </button>
+                                                                {canDelete && (
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteLeadClick(lead.id); }}
+                                                                        className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors group/btn"
+                                                                        title="Delete Lead"
+                                                                    >
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                    </button>
+                                                                )}
                                                             </div>
 
                                                             {/* Right Side: Date */}
@@ -1394,16 +1424,18 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     </div>
                                 ))}
 
-                                {/* Add Stage Button */}
-                                <button
-                                    onClick={() => setIsCreatingStage(true)}
-                                    className="w-[85vw] md:w-80 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded-2xl h-[50vh] md:h-auto md:min-h-[200px] my-auto text-[var(--color-text)] opacity-40 hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 cursor-pointer transition-all duration-200 group snap-center"
-                                >
-                                    <div className="w-12 h-12 md:w-10 md:h-10 rounded-full bg-[var(--color-bg)] flex items-center justify-center mb-3 group-hover:bg-[var(--color-surface)] group-hover:shadow-md transition-all">
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                    </div>
-                                    <span className="font-bold text-base md:text-sm">Add New Stage</span>
-                                </button>
+                                 {/* Add Stage Button */}
+                                 {canWrite && (
+                                     <button
+                                         onClick={() => setIsCreatingStage(true)}
+                                         className="w-[85vw] md:w-80 flex-shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-[var(--color-border)] rounded-2xl h-[50vh] md:h-auto md:min-h-[200px] my-auto text-[var(--color-text)] opacity-40 hover:border-[var(--color-brand)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5 cursor-pointer transition-all duration-200 group snap-center"
+                                     >
+                                         <div className="w-12 h-12 md:w-10 md:h-10 rounded-full bg-[var(--color-bg)] flex items-center justify-center mb-3 group-hover:bg-[var(--color-surface)] group-hover:shadow-md transition-all">
+                                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                         </div>
+                                         <span className="font-bold text-base md:text-sm">Add New Stage</span>
+                                     </button>
+                                 )}
                             </div>
                         </div>
                     </div>
@@ -1496,7 +1528,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                             </td>
                                             <td className="px-6 py-4 text-sm text-[var(--color-text)] opacity-80">{lead.company || '-'}</td>
                                             <td className="px-6 py-4">
-                                                <PipelineAssignment leadId={lead.id} contact={lead} onAssignmentComplete={() => loadBoardData(selectedPipelineId!)} />
+                                                <PipelineAssignment leadId={lead.id} contact={lead} onAssignmentComplete={() => loadBoard(selectedPipelineId!)} />
                                             </td>
                                             <td className="px-6 py-4">
                                                 <LeadAssignment leadId={lead.id} contact={lead} />
@@ -1540,13 +1572,15 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                         >
                             Cancel
                         </button>
-                        <button
-                            onClick={handleSaveLead}
-                            disabled={leadLoading}
-                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity"
-                        >
-                            {leadLoading ? 'Saving...' : 'UPDATE'}
-                        </button>
+                        {canWrite && (
+                            <button
+                                onClick={handleSaveLead}
+                                disabled={leadLoading}
+                                className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity"
+                            >
+                                {leadLoading ? 'Saving...' : 'UPDATE'}
+                            </button>
+                        )}
                     </div>
                 }
             >
@@ -1802,45 +1836,47 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                         {activeTab === 'call_logs' && (
                             <div className="space-y-6">
-                                <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                    <h3 className="font-bold text-[var(--color-text)]">Log Call</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <select
-                                            value={newCallLog.call_type}
-                                            onChange={(e) => setNewCallLog({ ...newCallLog, call_type: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        >
-                                            <option value="outbound">Outbound</option>
-                                            <option value="inbound">Inbound</option>
-                                            <option value="missed">Missed</option>
-                                        </select>
+                                {canWrite && (
+                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
+                                        <h3 className="font-bold text-[var(--color-text)]">Log Call</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <select
+                                                value={newCallLog.call_type}
+                                                onChange={(e) => setNewCallLog({ ...newCallLog, call_type: e.target.value })}
+                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                            >
+                                                <option value="outbound">Outbound</option>
+                                                <option value="inbound">Inbound</option>
+                                                <option value="missed">Missed</option>
+                                            </select>
+                                            <input
+                                                type="number"
+                                                placeholder="Duration (seconds)"
+                                                value={newCallLog.duration || ''}
+                                                onChange={(e) => setNewCallLog({ ...newCallLog, duration: parseInt(e.target.value) || 0 })}
+                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                            />
+                                        </div>
                                         <input
-                                            type="number"
-                                            placeholder="Duration (seconds)"
-                                            value={newCallLog.duration || ''}
-                                            onChange={(e) => setNewCallLog({ ...newCallLog, duration: parseInt(e.target.value) || 0 })}
+                                            type="datetime-local"
+                                            value={newCallLog.called_at}
+                                            onChange={(e) => setNewCallLog({ ...newCallLog, called_at: e.target.value })}
                                             className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
                                         />
+                                        <textarea
+                                            placeholder="Call Notes"
+                                            value={newCallLog.notes}
+                                            onChange={(e) => setNewCallLog({ ...newCallLog, notes: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
+                                        />
+                                        <button
+                                            onClick={handleAddCallLog}
+                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
+                                        >
+                                            Log Call
+                                        </button>
                                     </div>
-                                    <input
-                                        type="datetime-local"
-                                        value={newCallLog.called_at}
-                                        onChange={(e) => setNewCallLog({ ...newCallLog, called_at: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <textarea
-                                        placeholder="Call Notes"
-                                        value={newCallLog.notes}
-                                        onChange={(e) => setNewCallLog({ ...newCallLog, notes: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                    />
-                                    <button
-                                        onClick={handleAddCallLog}
-                                        className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                    >
-                                        Log Call
-                                    </button>
-                                </div>
+                                )}
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Call History</h3>
                                     {callLogs.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No call logs found.</p>}
@@ -1864,34 +1900,36 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                         {activeTab === 'follow_up' && (
                             <div className="space-y-6">
-                                <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                    <h3 className="font-bold text-[var(--color-text)]">Add Follow-up Task</h3>
-                                    <input
-                                        type="text"
-                                        placeholder="Follow-up Title"
-                                        value={newTask.title}
-                                        onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <textarea
-                                        placeholder="Description"
-                                        value={newTask.description}
-                                        onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                    />
-                                    <input
-                                        type="datetime-local"
-                                        value={newTask.due_date}
-                                        onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <button
-                                        onClick={handleAddFollowUp}
-                                        className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                    >
-                                        ADD
-                                    </button>
-                                </div>
+                                {canWrite && (
+                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
+                                        <h3 className="font-bold text-[var(--color-text)]">Add Follow-up Task</h3>
+                                        <input
+                                            type="text"
+                                            placeholder="Follow-up Title"
+                                            value={newTask.title}
+                                            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                        />
+                                        <textarea
+                                            placeholder="Description"
+                                            value={newTask.description}
+                                            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
+                                        />
+                                        <input
+                                            type="datetime-local"
+                                            value={newTask.due_date}
+                                            onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                        />
+                                        <button
+                                            onClick={handleAddFollowUp}
+                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
+                                        >
+                                            ADD
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Tasks</h3>
                                     {tasks.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No tasks found.</p>}
@@ -1910,35 +1948,37 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                         {activeTab === 'notes' && (
                             <div className="space-y-6">
-                                <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                    <h3 className="font-bold text-[var(--color-text)]">Add Note</h3>
-                                    <input
-                                        type="text"
-                                        placeholder="Title *"
-                                        value={newNote.title}
-                                        onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Add Tags (comma separated)"
-                                        value={newNote.tags}
-                                        onChange={(e) => setNewNote({ ...newNote, tags: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <textarea
-                                        placeholder="Write Notes *"
-                                        value={newNote.content}
-                                        onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-32 resize-none"
-                                    />
-                                    <button
-                                        onClick={handleAddNote}
-                                        className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
+                                {canWrite && (
+                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
+                                        <h3 className="font-bold text-[var(--color-text)]">Add Note</h3>
+                                        <input
+                                            type="text"
+                                            placeholder="Title *"
+                                            value={newNote.title}
+                                            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Add Tags (comma separated)"
+                                            value={newNote.tags}
+                                            onChange={(e) => setNewNote({ ...newNote, tags: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                        />
+                                        <textarea
+                                            placeholder="Write Notes *"
+                                            value={newNote.content}
+                                            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-32 resize-none"
+                                        />
+                                        <button
+                                            onClick={handleAddNote}
+                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                )}
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Previous Notes</h3>
                                     {notes.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No notes found.</p>}
@@ -1966,48 +2006,50 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                         {activeTab === 'appointments' && (
                             <div className="space-y-6">
-                                <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                    <h3 className="font-bold text-[var(--color-text)]">Schedule Appointment</h3>
-                                    <input
-                                        type="text"
-                                        placeholder="Title *"
-                                        value={newAppointment.title}
-                                        onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">Start Time</label>
-                                            <input
-                                                type="datetime-local"
-                                                value={newAppointment.start_time}
-                                                onChange={(e) => setNewAppointment({ ...newAppointment, start_time: e.target.value })}
-                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                            />
+                                {canWrite && (
+                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
+                                        <h3 className="font-bold text-[var(--color-text)]">Schedule Appointment</h3>
+                                        <input
+                                            type="text"
+                                            placeholder="Title *"
+                                            value={newAppointment.title}
+                                            onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                        />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">Start Time</label>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={newAppointment.start_time}
+                                                    onChange={(e) => setNewAppointment({ ...newAppointment, start_time: e.target.value })}
+                                                    className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">End Time</label>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={newAppointment.end_time}
+                                                    onChange={(e) => setNewAppointment({ ...newAppointment, end_time: e.target.value })}
+                                                    className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">End Time</label>
-                                            <input
-                                                type="datetime-local"
-                                                value={newAppointment.end_time}
-                                                onChange={(e) => setNewAppointment({ ...newAppointment, end_time: e.target.value })}
-                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                            />
-                                        </div>
+                                        <textarea
+                                            placeholder="Description"
+                                            value={newAppointment.description}
+                                            onChange={(e) => setNewAppointment({ ...newAppointment, description: e.target.value })}
+                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
+                                        />
+                                        <button
+                                            onClick={handleAddAppointment}
+                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
+                                        >
+                                            Schedule
+                                        </button>
                                     </div>
-                                    <textarea
-                                        placeholder="Description"
-                                        value={newAppointment.description}
-                                        onChange={(e) => setNewAppointment({ ...newAppointment, description: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                    />
-                                    <button
-                                        onClick={handleAddAppointment}
-                                        className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                    >
-                                        Schedule
-                                    </button>
-                                </div>
+                                )}
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Upcoming Appointments</h3>
                                     {appointments.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No appointments found.</p>}

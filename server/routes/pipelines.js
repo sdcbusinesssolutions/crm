@@ -27,7 +27,7 @@ router.get('/', requirePermission('Pipelines', 'read'), async (req, res) => {
 });
 
 // GET /api/pipelines/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Pipelines', 'read'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { data, error } = await supabase
@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET /api/pipelines/:id/stages
-router.get('/:id/stages', async (req, res) => {
+router.get('/:id/stages', requirePermission('Pipelines', 'read'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         
@@ -75,7 +75,7 @@ router.get('/:id/stages', async (req, res) => {
 });
 
 // POST /api/pipelines
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Pipelines', 'read_write'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const user = req.user;
@@ -138,7 +138,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/pipelines/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('Pipelines', 'read_write'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { name, description, color, is_active } = req.body;
@@ -174,7 +174,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/pipelines/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Pipelines', 'all_access'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const pipelineId = req.params.id;
@@ -295,7 +295,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // GET /api/pipelines/:id/kanban
-router.get('/:id/kanban', async (req, res) => {
+router.get('/:id/kanban', requirePermission('Pipelines', 'read'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const pipelineId = req.params.id;
@@ -338,6 +338,19 @@ router.get('/:id/kanban', async (req, res) => {
             if (req.query.search) {
                 const s = req.query.search;
                 query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
+            }
+
+            // Quick Filters
+            if (req.query.quickFilter === 'high_value') {
+                query = query.gte('estimated_value', 1000);
+            } else if (req.query.quickFilter === 'hot') {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                query = query.gte('created_at', d.toISOString());
+            } else if (req.query.quickFilter === 'cold') {
+                const d = new Date();
+                d.setDate(d.getDate() - 30);
+                query = query.lt('created_at', d.toISOString());
             }
 
             // Sorting
@@ -394,7 +407,7 @@ router.get('/:id/kanban', async (req, res) => {
 });
 
 // PUT /api/pipelines/:id/default - Set pipeline as default
-router.put('/:id/default', async (req, res) => {
+router.put('/:id/default', requirePermission('Pipelines', 'read_write'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { id } = req.params;
@@ -439,7 +452,7 @@ router.put('/:id/default', async (req, res) => {
 });
 
 // POST /api/pipelines/:id/stages - Create a new stage
-router.post('/:id/stages', async (req, res) => {
+router.post('/:id/stages', requirePermission('Pipelines', 'read_write'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { id } = req.params; // pipeline_id
@@ -479,7 +492,7 @@ router.post('/:id/stages', async (req, res) => {
 });
 
 // PUT /api/pipelines/stages/:stageId - Update a stage
-router.put('/stages/:stageId', async (req, res) => {
+router.put('/stages/:stageId', requirePermission('Pipelines', 'read_write'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { stageId } = req.params;
@@ -516,7 +529,7 @@ router.put('/stages/:stageId', async (req, res) => {
 });
 
 // DELETE /api/pipelines/stages/:stageId - Delete a stage
-router.delete('/stages/:stageId', async (req, res) => {
+router.delete('/stages/:stageId', requirePermission('Pipelines', 'all_access'), async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const { stageId } = req.params;
