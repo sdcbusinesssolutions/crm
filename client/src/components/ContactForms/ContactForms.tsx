@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { submissionService, Flow, Submission } from '../../services/submissionService';
 import { ChevronLeftIcon, UsersIcon, TriggerIcon, ChevronRightIcon } from '../icons';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 export const ContactForms: React.FC = () => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Form Contact', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Form Contact', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Form Contact', ACCESS_TYPES.ALL_ACCESS);
+
     const [view, setView] = useState<'flows' | 'submissions'>('flows');
     const [displayMode, setDisplayMode] = useState<'list' | 'grid'>('list'); // Default to list
     const [flows, setFlows] = useState<Flow[]>([]);
@@ -40,8 +46,10 @@ export const ContactForms: React.FC = () => {
     }>({ isOpen: false, title: '', message: '', type: 'error' });
 
     useEffect(() => {
-        loadFlows();
-    }, []);
+        if (canRead) {
+            loadFlows();
+        }
+    }, [canRead]);
 
     const loadFlows = async () => {
         setLoading(true);
@@ -175,6 +183,7 @@ export const ContactForms: React.FC = () => {
     };
 
     const handleDeleteOne = (id: string) => {
+        if (!canDelete) return;
         setConfirmationModal({
             isOpen: true,
             title: 'Delete Submission',
@@ -198,6 +207,7 @@ export const ContactForms: React.FC = () => {
     };
 
     const handleBulkDelete = () => {
+        if (!canDelete) return;
         if (selectedSubmissions.size === 0) return;
 
         setConfirmationModal({
@@ -224,6 +234,7 @@ export const ContactForms: React.FC = () => {
 
     // --- Edit Handlers ---
     const handleEditClick = (sub: Submission) => {
+        if (!canWrite) return;
         setEditingSubmission(sub);
         // Flatten data for easier editing if needed, or keep structured
         setEditFormData({
@@ -287,6 +298,20 @@ export const ContactForms: React.FC = () => {
 
     const submissionKeys = getSubmissionKeys(submissions);
 
+    if (!canRead && !loading) {
+        return (
+            <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 justify-center items-center p-8 min-h-[400px]">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1">Access Denied</h3>
+                    <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view Form Contacts. Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col w-full h-full bg-canvas-bg font-sans text-canvas-text animate-fade-in relative overflow-hidden">
             {/* Header */}
@@ -330,7 +355,7 @@ export const ContactForms: React.FC = () => {
 
                         {view === 'submissions' ? (
                             <div className="flex items-center gap-3">
-                                {selectedSubmissions.size > 0 && (
+                                {canDelete && selectedSubmissions.size > 0 && (
                                     <button
                                         onClick={handleBulkDelete}
                                         className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-all shadow-sm animate-fade-in"
@@ -605,20 +630,24 @@ export const ContactForms: React.FC = () => {
                                                             </td>
                                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                                                 <div className="flex items-center justify-end gap-2">
-                                                                    <button
-                                                                        onClick={() => handleEditClick(sub)}
-                                                                        className="text-slate-400 hover:text-brand-600 transition-colors p-1 rounded-md hover:bg-brand-50"
-                                                                        title="Edit Submission"
-                                                                    >
-                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => handleDeleteOne(sub.id)}
-                                                                        className="text-slate-400 hover:text-red-600 transition-colors p-1 rounded-md hover:bg-red-50"
-                                                                        title="Delete Submission"
-                                                                    >
-                                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                    </button>
+                                                                    {canWrite && (
+                                                                        <button
+                                                                            onClick={() => handleEditClick(sub)}
+                                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1 rounded-md hover:bg-brand-50"
+                                                                            title="Edit Submission"
+                                                                        >
+                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                                        </button>
+                                                                    )}
+                                                                    {canDelete && (
+                                                                        <button
+                                                                            onClick={() => handleDeleteOne(sub.id)}
+                                                                            className="text-slate-400 hover:text-red-600 transition-colors p-1 rounded-md hover:bg-red-50"
+                                                                            title="Delete Submission"
+                                                                        >
+                                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>

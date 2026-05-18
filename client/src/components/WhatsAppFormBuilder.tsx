@@ -63,7 +63,8 @@ import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePerm
 
 const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowId }) => {
     const { hasAccess } = usePermissions();
-    const canWrite = hasAccess('Form Builder', ACCESS_TYPES.READ_WRITE);
+    const canWrite = hasAccess('Whatsapp Forms', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Whatsapp Forms', ACCESS_TYPES.ALL_ACCESS);
 
     // --- State ---
     // Initialize with a random ID for the first screen
@@ -434,7 +435,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
 
 
     const handleDelete = async () => {
-        if (!flowId) return;
+        if (!flowId || !canDelete) return;
         if (!window.confirm('Are you sure you want to delete this flow? This action cannot be undone.')) {
             return;
         }
@@ -492,7 +493,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {flowId && canWrite && (
+                    {flowId && canDelete && (
                         <button onClick={handleDelete} disabled={isSaving} className="px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 mr-2">
                             <TrashIcon className="w-4 h-4" />
                             Delete
