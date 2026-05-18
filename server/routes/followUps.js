@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/follow-ups
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_id, status, start_date, end_date } = req.query;
@@ -54,7 +55,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/follow-ups
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Follow-up', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_id, title, description, scheduled_at, priority, type, timezone, recurrence_rule } = req.body;
@@ -89,7 +90,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/follow-ups/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { title, description, scheduled_at, status, priority, type, contact_id, recurrence_rule } = req.body;
@@ -122,7 +123,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/follow-ups/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Follow-up', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { error } = await supabase
