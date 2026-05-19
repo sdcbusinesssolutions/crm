@@ -228,14 +228,18 @@ const StaffManagement: React.FC = () => {
                           setIsPasswordModalOpen(true);
                         }}
                         title="Change Password"
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all disabled:opacity-50 active:scale-95"
+                        className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 hover:shadow-md transition-all flex items-center justify-center disabled:opacity-50 active:scale-90"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m-3.418 3.84a6 6 0 111.414-1.414L20.586 17H18v2.5H15.5V22h-3L10.5 20.08" /></svg>
                       </button>
                       <button 
                         onClick={() => handleToggleStatus(staff)}
                         title={staff.status === 'active' ? "Lock Account" : "Unlock Account"}
-                        className={`p-2 rounded-xl transition-all disabled:opacity-50 active:scale-95 ${staff.status === 'active' ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-amber-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                        className={`w-8 h-8 rounded-full border transition-all flex items-center justify-center disabled:opacity-50 active:scale-90 ${
+                          staff.status === 'active' 
+                            ? 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:shadow-md' 
+                            : 'bg-amber-50 border-amber-200 text-amber-600 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 hover:shadow-md'
+                        }`}
                       >
                         {staff.status === 'active' ? (
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -246,7 +250,7 @@ const StaffManagement: React.FC = () => {
                       <button 
                         onClick={() => handleDelete(staff.id, staff.name)}
                         disabled={loading}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all disabled:opacity-50 active:scale-95"
+                        className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 hover:bg-rose-600 hover:text-white hover:border-rose-600 hover:shadow-md transition-all flex items-center justify-center disabled:opacity-50 active:scale-90"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
