@@ -143,11 +143,11 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-[#00684a]"></div>
-          <span>Read + Write: View & modify</span>
+          <span>Read + Write: Create & edit (No delete)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-          <span>All Access: Full administrative rights</span>
+          <span>All Access: Full rights (Includes delete)</span>
         </div>
       </div>
 
@@ -161,8 +161,8 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
                   const infoText = {
                     no_access: 'Staff member cannot view or access this module at all.',
                     read: 'Staff member can view lists and details, but cannot create, edit, or delete.',
-                    read_write: 'Staff member can view, create, edit, and delete items.',
-                    all_access: 'Full administrative access and control over the module.'
+                    read_write: 'Staff member can view, create, and edit, but cannot delete.',
+                    all_access: 'Full administrative access and control, including deletion.'
                   }[value] || '';
 
                   return (
