@@ -132,32 +132,32 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Quick Info Bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-slate-50/50 border border-[#00684a]/15 rounded-2xl">
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white rounded-xl shadow-sm border border-slate-200/80 hover:border-slate-400 hover:bg-slate-50/30 transition-all duration-200">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-3 bg-slate-50/50 border border-[#00684a]/20 rounded-2xl">
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-50/50 rounded-xl shadow-sm border border-slate-300 hover:border-slate-400 hover:bg-slate-100/60 transition-all duration-200 cursor-default">
           <div className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0"></div>
           <div>
-            <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">No Access</div>
+            <div className="text-[10px] font-black text-slate-500 uppercase tracking-wider">No Access</div>
             <div className="text-[11px] font-bold text-slate-700 leading-tight mt-0.5">Hidden entirely</div>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white rounded-xl shadow-sm border border-sky-200 hover:border-sky-400 hover:bg-sky-50/20 transition-all duration-200">
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-sky-50/40 rounded-xl shadow-sm border border-sky-300 hover:border-sky-400 hover:bg-sky-50/80 transition-all duration-200 cursor-default">
           <div className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0"></div>
           <div>
-            <div className="text-[10px] font-extrabold text-sky-500 uppercase tracking-wider">Read Only</div>
+            <div className="text-[10px] font-black text-sky-600 uppercase tracking-wider">Read Only</div>
             <div className="text-[11px] font-bold text-slate-700 leading-tight mt-0.5">View only</div>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white rounded-xl shadow-sm border border-[#00684a]/25 hover:border-[#00684a]/50 hover:bg-emerald-50/15 transition-all duration-200">
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-emerald-50/30 rounded-xl shadow-sm border border-[#00684a]/40 hover:border-[#00684a]/70 hover:bg-emerald-50/60 transition-all duration-200 cursor-default">
           <div className="w-2.5 h-2.5 rounded-full bg-[#00684a] shrink-0"></div>
           <div>
-            <div className="text-[10px] font-extrabold text-[#00684a] uppercase tracking-wider">Read + Write</div>
+            <div className="text-[10px] font-black text-[#00684a] uppercase tracking-wider">Read + Write</div>
             <div className="text-[11px] font-bold text-slate-700 leading-tight mt-0.5">Create & edit (No delete)</div>
           </div>
         </div>
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-white rounded-xl shadow-sm border border-emerald-300 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all duration-200">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></div>
+        <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-violet-50/40 rounded-xl shadow-sm border border-violet-300 hover:border-violet-400 hover:bg-violet-50/80 transition-all duration-200 cursor-default">
+          <div className="w-2.5 h-2.5 rounded-full bg-violet-500 shrink-0"></div>
           <div>
-            <div className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider">All Access</div>
+            <div className="text-[10px] font-black text-violet-600 uppercase tracking-wider">All Access</div>
             <div className="text-[11px] font-bold text-slate-700 leading-tight mt-0.5">Full rights (Includes delete)</div>
           </div>
         </div>
