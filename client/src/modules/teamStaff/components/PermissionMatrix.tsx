@@ -181,7 +181,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
                     <th key={value} className="px-4 py-4 text-center text-[11px] font-extrabold text-[#00684a] uppercase tracking-wider border-b border-[#00684a]/15">
                       <div className="flex items-center justify-center gap-1.5">
                         <span>{label}</span>
-                        <span className="cursor-help text-[#00684a]/50 hover:text-[#00684a] transition-all duration-200" title={infoText}>
+                        <span className="cursor-help text-[#00684a]/55 hover:text-[#00684a] hover:scale-125 hover:drop-shadow-[0_0_4px_rgba(0,104,74,0.35)] transition-all duration-300 inline-block" title={infoText}>
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
