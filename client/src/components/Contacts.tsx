@@ -202,7 +202,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             },
         ].filter(tab => {
             const moduleMap: Record<string, string> = {
-                'dashboard': 'Lead Dashboard',
+                'dashboard': 'Overview',
                 'contacts': 'Contact List',
                 'groups': 'Contact Groups',
                 'pipelines': 'Pipelines',

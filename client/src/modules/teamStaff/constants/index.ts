@@ -7,6 +7,7 @@ export const ACCESS_TYPES = {
 
 export const MODULES = [
   'Inbox',
+  'Overview',
   'LeadCRM',
   'Campaigns',
   'Flows',

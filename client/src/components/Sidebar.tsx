@@ -212,7 +212,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Dashboard': 'LeadCRM',
             'Inbox': 'Inbox',
             'Contacts': 'Contact List', // Parent for Lead CRM
-            'Overview': 'LeadCRM',
+            'Overview': 'Overview',
             'Contact List': 'Contact List',
             'Contact Groups': 'Contact Groups',
             'Pipelines': 'Pipelines',
