@@ -166,9 +166,9 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
       <div className="bg-white rounded-2xl border border-[#00684a]/40 overflow-hidden shadow-sm">
         <div className="overflow-x-auto animate-fade-in">
           <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/80 backdrop-blur-sm sticky top-0 z-10 border-b border-[#00684a]/20">
+            <thead className="bg-[#00684a]/8 backdrop-blur-sm sticky top-0 z-10 border-b-2 border-[#00684a]/25">
               <tr>
-                <th className="px-6 py-4 text-left text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-[#00684a]/20">CRM Module</th>
+                <th className="px-6 py-4 text-left text-[11px] font-extrabold text-[#00684a] uppercase tracking-wider border-b border-[#00684a]/15">CRM Module</th>
                 {Object.entries(ACCESS_TYPES).map(([value, label]) => {
                   const infoText = {
                     no_access: 'Staff member cannot view or access this module at all.',
@@ -178,11 +178,11 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({ permissions, onChan
                   }[value] || '';
 
                   return (
-                    <th key={value} className="px-4 py-4 text-center text-[11px] font-black text-slate-400 uppercase tracking-widest border-b border-[#00684a]/20">
-                      <div className="flex items-center justify-center gap-1">
+                    <th key={value} className="px-4 py-4 text-center text-[11px] font-extrabold text-[#00684a] uppercase tracking-wider border-b border-[#00684a]/15">
+                      <div className="flex items-center justify-center gap-1.5">
                         <span>{label}</span>
-                        <span className="cursor-help text-slate-300 hover:text-slate-500 transition-colors" title={infoText}>
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <span className="cursor-help text-[#00684a]/50 hover:text-[#00684a] transition-all duration-200" title={infoText}>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </span>
