@@ -114,5 +114,19 @@ export const staffApi = {
       throw new Error(error.error || 'Failed to delete staff');
     }
     return await res.json();
+  },
+
+  updateStaff: async (staffId: string, staffData: any) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/team-staff/${staffId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(staffData)
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to update staff' }));
+      throw new Error(error.error || 'Failed to update staff');
+    }
+    return await res.json();
   }
 };

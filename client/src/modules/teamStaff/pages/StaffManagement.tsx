@@ -29,6 +29,9 @@ const StaffManagement: React.FC = () => {
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '', role: 'staff' });
   const [currentPermissions, setCurrentPermissions] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [selectedStaffForPassword, setSelectedStaffForPassword] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState('');
   const { isStaff } = usePermissions();
 
   useEffect(() => {
@@ -95,6 +98,40 @@ const StaffManagement: React.FC = () => {
       loadStaff();
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to delete staff';
+      alert(`Error: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStatus = async (staff: any) => {
+    const newStatus = staff.status === 'active' ? 'inactive' : 'active';
+    setLoading(true);
+    try {
+      await staffApi.updateStaff(staff.id, { status: newStatus });
+      loadStaff();
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Failed to update status';
+      alert(`Error: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      alert('Password must be at least 6 characters long.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await staffApi.updateStaff(selectedStaffForPassword.id, { password: newPassword });
+      setIsPasswordModalOpen(false);
+      setNewPassword('');
+      alert('Password updated successfully.');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || 'Failed to update password';
       alert(`Error: ${msg}`);
     } finally {
       setLoading(false);
@@ -183,6 +220,28 @@ const StaffManagement: React.FC = () => {
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         Permissions
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setSelectedStaffForPassword(staff);
+                          setNewPassword('');
+                          setIsPasswordModalOpen(true);
+                        }}
+                        title="Change Password"
+                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all disabled:opacity-50 active:scale-95"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m-3.418 3.84a6 6 0 111.414-1.414L20.586 17H18v2.5H15.5V22h-3L10.5 20.08" /></svg>
+                      </button>
+                      <button 
+                        onClick={() => handleToggleStatus(staff)}
+                        title={staff.status === 'active' ? "Lock Account" : "Unlock Account"}
+                        className={`p-2 rounded-xl transition-all disabled:opacity-50 active:scale-95 ${staff.status === 'active' ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-amber-500 hover:text-emerald-600 hover:bg-emerald-50'}`}
+                      >
+                        {staff.status === 'active' ? (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        ) : (
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2z" /></svg>
+                        )}
                       </button>
                       <button 
                         onClick={() => handleDelete(staff.id, staff.name)}
@@ -367,6 +426,60 @@ const StaffManagement: React.FC = () => {
                     type="button" 
                     onClick={() => setIsModalOpen(false)} 
                     className="w-full text-slate-400 font-bold py-2 text-sm hover:text-slate-600 transition-colors uppercase tracking-widest"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Change Password Modal */}
+        {isPasswordModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white rounded-3xl p-0 w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-scale-up">
+              <div className="bg-slate-50/80 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight">Change Password</h2>
+                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">{selectedStaffForPassword?.name}</p>
+                </div>
+                <button onClick={() => setIsPasswordModalOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-white hover:text-slate-600 rounded-full transition-all shadow-sm">✕</button>
+              </div>
+
+              <form onSubmit={handlePasswordChangeSubmit} className="p-8">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                    <div className="relative group">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      </span>
+                      <input 
+                        type="password" placeholder="Min. 6 characters" required minLength={6}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 flex flex-col gap-3">
+                  <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                  >
+                    {loading ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    ) : (
+                      'Update Password'
+                    )}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsPasswordModalOpen(false)} 
+                    className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-600 transition-colors uppercase tracking-widest"
                   >
                     Cancel
                   </button>

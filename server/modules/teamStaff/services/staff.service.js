@@ -272,6 +272,57 @@ const StaffService = {
 
     console.log('✅ [StaffService] Staff member deleted successfully.');
     return true;
+  },
+
+  /**
+   * Update staff member (password, status, role, name, phone)
+   */
+  async updateStaff(ownerId, staffId, updateData) {
+    console.log(`✏️ [StaffService] Updating Staff: ${staffId}, Owner: ${ownerId}`);
+    const { password, status, name, phone, role } = updateData;
+    const updates = {};
+    
+    if (password) {
+      updates.password_hash = hashPassword(password);
+    }
+    
+    if (status !== undefined) {
+      updates.status = status;
+    }
+
+    if (name !== undefined) {
+      updates.name = name;
+    }
+
+    if (phone !== undefined) {
+      updates.phone = phone;
+    }
+
+    if (role !== undefined) {
+      updates.role = role;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return null;
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin
+      .from('team_staff')
+      .update(updates)
+      .eq('id', staffId)
+      .eq('tenant_id', ownerId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ [StaffService] Error updating staff:', error);
+      throw error;
+    }
+
+    console.log('✅ [StaffService] Staff member updated successfully.');
+    return data;
   }
 };
 

@@ -175,6 +175,20 @@ const StaffController = {
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
+  },
+
+  /**
+   * Update staff member profile or status (Owner only)
+   */
+  async updateStaff(req, res) {
+    try {
+      const { staffId } = req.params;
+      const ownerId = req.user.id;
+      const staff = await StaffService.updateStaff(ownerId, staffId, req.body);
+      res.json(staff);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
   }
 };
 
