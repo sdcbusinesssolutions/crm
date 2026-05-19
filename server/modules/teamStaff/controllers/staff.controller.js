@@ -178,12 +178,29 @@ const StaffController = {
   },
 
   /**
-   * Update staff member profile or status (Owner only)
+   * Update staff member profile or status (Owner/Admin can update all; Staff can only change own password)
    */
   async updateStaff(req, res) {
     try {
       const { staffId } = req.params;
       const ownerId = req.user.id;
+
+      if (req.user.isStaff) {
+        // Staff members can only update their own record and only their password
+        if (req.user.staffId !== staffId) {
+          return res.status(403).json({ error: 'Access denied: staff cannot modify other accounts' });
+        }
+        
+        const { password } = req.body;
+        if (!password) {
+          return res.status(400).json({ error: 'Staff can only update their password' });
+        }
+        
+        const staff = await StaffService.updateStaff(ownerId, staffId, { password });
+        return res.json(staff);
+      }
+
+      // Owners, Admins, and Super Admins can update everything (status/lock, role, details)
       const staff = await StaffService.updateStaff(ownerId, staffId, req.body);
       res.json(staff);
     } catch (error) {

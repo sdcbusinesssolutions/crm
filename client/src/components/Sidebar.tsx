@@ -8,6 +8,7 @@ import {
     LinkIcon, GalleryIcon, MicrophoneIcon, QuickReplyIcon
 } from './icons';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+import { staffApi } from '../modules/teamStaff/api/staffApi';
 
 export type MenuItem =
     | 'Dashboard'
@@ -57,7 +58,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClose, userEmail }) => {
-    const { hasAccess } = usePermissions();
+    const { hasAccess, isStaff } = usePermissions();
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isContactsOpen, setIsContactsOpen] = useState(false);
@@ -69,6 +70,49 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
     const [sidebarDisplay, setSidebarDisplay] = useState<'both' | 'logo_only' | 'name_only'>('both');
     const [isThemeLoaded, setIsThemeLoaded] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newPassword || newPassword.length < 6) {
+            alert('Password must be at least 6 characters.');
+            return;
+        }
+
+        const staffData = localStorage.getItem('staffData');
+        if (!staffData) {
+            alert('Staff session not found.');
+            return;
+        }
+
+        let staffId = '';
+        try {
+            const parsed = JSON.parse(staffData);
+            staffId = parsed.id || parsed.staffId;
+        } catch (err) {
+            alert('Failed to parse staff session.');
+            return;
+        }
+
+        if (!staffId) {
+            alert('Staff ID not found in session.');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await staffApi.updateStaff(staffId, { password: newPassword });
+            setIsPasswordModalOpen(false);
+            setNewPassword('');
+            alert('Password updated successfully.');
+        } catch (err: any) {
+            alert(`Error: ${err.message || 'Failed to update password'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // LOGIC UPDATE: DETERMINE COLLAPSED STATE
     // If the sidebar is technically "collapsed" (user preference on desktop), 
@@ -453,6 +497,19 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                                 ? 'left-full bottom-2 ml-2 w-36 origin-bottom-left'
                                 : 'bottom-full left-4 right-4 mb-2 origin-bottom'}`}
                         >
+                            {isStaff && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsUserMenuOpen(false);
+                                        setIsPasswordModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center gap-2 p-1.5 hover:bg-slate-50 text-slate-600 hover:text-brand-600 rounded-lg transition-colors text-sm font-bold border-b border-slate-100"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m-5 8a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2v10a2 2 0 01-2 2h-2z" /></svg>
+                                    Change Password
+                                </button>
+                            )}
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleSignOut(); }}
                                 className="w-full flex items-center gap-2 p-1.5 hover:bg-slate-50 text-slate-600 hover:text-red-600 rounded-lg transition-colors text-sm font-bold"
@@ -482,6 +539,52 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                     </div>
                 </div>
             </div>
+
+            {isPasswordModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden animate-fade-in">
+                        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <h3 className="font-bold text-slate-900">Change Staff Password</h3>
+                            <button
+                                onClick={() => setIsPasswordModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition-colors"
+                            >
+                                <CloseIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <form onSubmit={handlePasswordChangeSubmit} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">New Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    minLength={6}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password"
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                />
+                            </div>
+                            <div className="flex gap-3 justify-end pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPasswordModalOpen(false)}
+                                    className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 border border-slate-200 rounded-xl transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="px-4 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl transition-all shadow-md shadow-brand-100"
+                                >
+                                    {loading ? 'Updating...' : 'Update Password'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
