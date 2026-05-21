@@ -311,6 +311,7 @@ router.use('/admin/plans', adminPlanRoutes);
 router.use('/admin/subscriptions', adminSubscriptionRoutes);
 
 router.use('/admin/settings', adminSettingsRoutes);
+router.use('/admin/limits', require('./routes/admin/featureLimitsRoutes'));
 // EXPERIMENTAL FIX: Mount integrations explicitly to avoid wildcard shadowing
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);

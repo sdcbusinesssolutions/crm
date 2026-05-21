@@ -20,6 +20,7 @@ const verifyPassword = (password, storedHash) => {
 };
 const { supabaseAdmin } = require('../../../lib/supabaseClient');
 const { ACCESS_TYPES, MODULES } = require('../constants');
+const FeatureLimitsService = require('../../../services/FeatureLimitsService');
 
 // Custom Repository Implementation using Supabase Admin (Bypassing RLS for management)
 const StaffService = {
@@ -29,6 +30,33 @@ const StaffService = {
   async createStaff(ownerId, staffData) {
     const { name, email, phone, password, role } = staffData;
     console.log(`🚀 [StaffService] Starting creation for: ${email}, Owner: ${ownerId}`);
+    
+    // --- Enforce Staff Limit ---
+    try {
+      // 1. Get current staff count
+      const { count, error: countErr } = await supabaseAdmin
+        .from('team_staff')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', ownerId);
+
+      if (countErr) throw countErr;
+
+      // 2. Fetch owner domain if possible
+      let domainId = null;
+      const { data: profile } = await supabaseAdmin.from('profiles').select('domain_id').eq('id', ownerId).maybeSingle();
+      if (profile && profile.domain_id) domainId = profile.domain_id;
+
+      // 3. Get allowed limit
+      const maxStaffLimit = await FeatureLimitsService.getFeatureLimit(ownerId, domainId, 'STAFF');
+
+      if (count >= maxStaffLimit) {
+        throw new Error(`Staff limit reached (${maxStaffLimit}). Please contact support to increase your limit.`);
+      }
+    } catch (err) {
+      if (err.message.includes('limit reached')) throw err;
+      console.error('⚠️ [StaffService] Limit check failed/skipped:', err);
+    }
+    // ----------------------------
     
     // Hash password
     const password_hash = hashPassword(password);
