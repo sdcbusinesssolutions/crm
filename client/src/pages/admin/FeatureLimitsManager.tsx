@@ -19,8 +19,48 @@ const FeatureLimitsManager: React.FC = () => {
         target_id: '',
         max_limit: 10
     });
+    
+    const [lookupData, setLookupData] = useState<{users: any[], domains: any[]}>({ users: [], domains: [] });
+    const [domainFilter, setDomainFilter] = useState('');
+    const [features, setFeatures] = useState<string[]>(['STAFF']);
 
-    const features = ['STAFF', 'CONTACTS', 'PIPELINES', 'FLOWS'];
+    const fetchFeatures = async () => {
+        try {
+            console.log('[FeatureLimitsManager] Fetching features...');
+            const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+            const res = await fetch('/api/admin/limits/features?_cb=' + Date.now(), {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            console.log('[FeatureLimitsManager] Fetch features status:', res.status);
+            if (res.ok) {
+                const data = await res.json();
+                console.log('[FeatureLimitsManager] Features data:', data);
+                if (Array.isArray(data) && data.length > 0) {
+                    setFeatures(data);
+                }
+            } else {
+                console.error('[FeatureLimitsManager] Failed to fetch features, status:', res.status, await res.text());
+            }
+        } catch (error) {
+            console.error('[FeatureLimitsManager] Error fetching features:', error);
+        }
+    };
+
+    const fetchLookupData = async () => {
+        try {
+            const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+            const url = domainFilter ? `/api/admin/limits/targets/lookup?domain=${domainFilter}` : '/api/admin/limits/targets/lookup';
+            const res = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setLookupData(data);
+            }
+        } catch (error) {
+            console.error('Error fetching lookup data', error);
+        }
+    };
 
     const fetchLimits = async () => {
         setLoading(true);
@@ -45,8 +85,16 @@ const FeatureLimitsManager: React.FC = () => {
     };
 
     useEffect(() => {
+        fetchFeatures();
+    }, []);
+
+    useEffect(() => {
         fetchLimits();
     }, [selectedFeature]);
+
+    useEffect(() => {
+        fetchLookupData();
+    }, [domainFilter]);
 
     const handleSaveLimit = async () => {
         if (!formData.target_id) return alert('Target ID is required');
@@ -194,10 +242,57 @@ const FeatureLimitsManager: React.FC = () => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Target ID</label>
+                                {formData.target_type === 'USER' ? (
+                                    <>
+                                        <select 
+                                            className="w-full border-2 border-gray-200 rounded-xl p-2.5 outline-none focus:border-purple-500 text-sm mb-2"
+                                            value={domainFilter}
+                                            onChange={e => setDomainFilter(e.target.value)}
+                                        >
+                                            <option value="">-- All Domains (Filter) --</option>
+                                            {lookupData.domains.map(d => (
+                                                <option key={d.id || d.domain} value={d.domain}>
+                                                    {d.domain}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <select 
+                                            className="w-full border-2 border-gray-200 rounded-xl p-2.5 outline-none focus:border-purple-500 text-sm"
+                                            value={formData.target_id}
+                                            onChange={e => setFormData({ ...formData, target_id: e.target.value })}
+                                        >
+                                            <option value="">Select a User...</option>
+                                            {lookupData.users.map(u => (
+                                                <option key={u.id} value={u.id}>
+                                                    {u.full_name || u.email} ({u.email}) - {u.signup_domain}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </>
+                                ) : (
+                                    <select 
+                                        className="w-full border-2 border-gray-200 rounded-xl p-2.5 outline-none focus:border-purple-500 text-sm"
+                                        value={formData.target_id}
+                                        onChange={e => setFormData({ ...formData, target_id: e.target.value })}
+                                    >
+                                        <option value="">Select a Domain...</option>
+                                        {lookupData.domains.length > 0 ? (
+                                            lookupData.domains.map(d => (
+                                                <option key={d.id} value={d.id}>
+                                                    {d.domain}
+                                                </option>
+                                            ))
+                                        ) : (
+                                            // Fallback to typing if domains table isn't populated
+                                            <option value="" disabled>No domains found in DB</option>
+                                        )}
+                                    </select>
+                                )}
+                                {/* Fallback manual input just in case */}
                                 <input 
                                     type="text" 
-                                    placeholder="Enter User ID or Domain ID"
-                                    className="w-full border-2 border-gray-200 rounded-xl p-2.5 outline-none focus:border-purple-500 font-mono text-sm"
+                                    placeholder="Or paste UUID manually..."
+                                    className="w-full border-2 border-gray-200 rounded-xl p-2.5 outline-none focus:border-purple-500 font-mono text-sm mt-2"
                                     value={formData.target_id}
                                     onChange={e => setFormData({ ...formData, target_id: e.target.value })}
                                 />

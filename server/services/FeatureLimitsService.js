@@ -99,6 +99,13 @@ const FeatureLimitsService = {
       .eq('id', id);
     if (error) throw error;
     return true;
+  },
+
+  /**
+   * Get all available features
+   */
+  getAvailableFeatures() {
+    return Object.keys(DEFAULT_LIMITS);
   }
 };
 

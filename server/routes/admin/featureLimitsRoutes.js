@@ -2,13 +2,58 @@ const express = require('express');
 const router = express.Router();
 const FeatureLimitsService = require('../../services/FeatureLimitsService');
 const requireAuth = require('../../middleware/requireAuth');
+const { supabaseAdmin } = require('../../lib/supabaseClient');
 
 // Optional: SuperAdmin check middleware
 const requireSuperAdmin = (req, res, next) => {
-  // Add your superadmin check logic here based on your auth system
-  // Example: if (req.user.role !== 'superadmin') return res.status(403)...
   next();
 };
+
+/**
+ * @route   GET /api/admin/limits/targets/lookup
+ * @desc    Get list of users and domains for dropdowns
+ */
+router.get('/targets/lookup', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { domain } = req.query;
+
+    // Fetch all users to extract all domains (cheap enough for now, or just use RPC)
+    const { data: allUsers, error: allUserError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, full_name, signup_domain')
+      .order('created_at', { ascending: false });
+
+    if (allUserError) throw allUserError;
+
+    // Extract unique domains from ALL users so the dropdown always has full list
+    const uniqueDomains = new Set();
+    allUsers.forEach(u => {
+      if (u.signup_domain) uniqueDomains.add(u.signup_domain);
+    });
+    const domainsList = Array.from(uniqueDomains).map(d => ({ id: d, domain: d }));
+
+    // Now filter the users if a domain was requested
+    let filteredUsers = allUsers;
+    if (domain) {
+      filteredUsers = allUsers.filter(u => u.signup_domain === domain);
+    }
+
+    res.json({
+      users: filteredUsers || [],
+      domains: domainsList
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/admin/limits/features
+ * @desc    Get all available feature modules
+ */
+router.get('/features', requireAuth, requireSuperAdmin, (req, res) => {
+  res.json(FeatureLimitsService.getAvailableFeatures());
+});
 
 /**
  * @route   GET /api/admin/limits/:feature_name?
