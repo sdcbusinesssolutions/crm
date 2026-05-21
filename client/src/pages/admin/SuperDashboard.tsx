@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import FeatureLimitsManager from './FeatureLimitsManager';
 
 interface TenantSummary {
     domain: string;
@@ -389,6 +390,9 @@ const SuperDashboard: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Feature Limits Section */}
+            <FeatureLimitsManager />
 
             {/* Custom Animations */}
             <style>{`
