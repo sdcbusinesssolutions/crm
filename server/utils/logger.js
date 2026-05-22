@@ -52,18 +52,27 @@ function getCurrentLogFile(prefix, maxSize) {
     if (!canWriteToFile) return null;
 
     const dateStr = getTodayDateString();
-    const baseName = `${prefix}_${dateStr}`;
-
-    // Find all files matching today's pattern
-    let maxPart = 1;
-    let currentFile = path.join(LOG_DIR, `${baseName}_part${maxPart}.log`);
+    const dateFolder = path.join(LOG_DIR, dateStr);
 
     try {
-        const files = fs.readdirSync(LOG_DIR);
-        // regex to match: {prefix}_DD-MM-YYYY_part(\d+).log
-        // Escape special chars in prefix if any
+        if (!fs.existsSync(dateFolder)) {
+            fs.mkdirSync(dateFolder, { recursive: true });
+        }
+    } catch (e) {
+        console.error(`Logger Error creating date folder ${dateFolder}:`, e);
+        return null;
+    }
+
+    const baseName = prefix;
+
+    let maxPart = 1;
+    let currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
+
+    try {
+        const files = fs.readdirSync(dateFolder);
+        // regex to match: {prefix}_part(\d+).log
         const safePrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`^${safePrefix}_${dateStr}_part(\\d+)\\.log$`);
+        const regex = new RegExp(`^${safePrefix}_part(\\d+)\\.log$`);
 
         const parts = [];
         files.forEach(file => {
@@ -75,14 +84,14 @@ function getCurrentLogFile(prefix, maxSize) {
 
         if (parts.length > 0) {
             maxPart = Math.max(...parts);
-            currentFile = path.join(LOG_DIR, `${baseName}_part${maxPart}.log`);
+            currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
 
             // Check size
             if (fs.existsSync(currentFile)) {
                 const stats = fs.statSync(currentFile);
                 if (stats.size >= maxSize) {
                     maxPart++;
-                    currentFile = path.join(LOG_DIR, `${baseName}_part${maxPart}.log`);
+                    currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
                 }
             }
         }
