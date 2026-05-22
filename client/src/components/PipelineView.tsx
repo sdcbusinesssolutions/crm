@@ -1274,8 +1274,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 <LeadAssignment 
                                                                     leadId={lead.id} 
                                                                     contact={lead} 
+                                                                    showNames={false}
                                                                     onAssigned={() => loadBoard(selectedPipelineId!)}
-                                                                    className="p-1 rounded-full transition-colors group/btn relative hover:bg-emerald-50 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[#00684a]"
+                                                                    className="p-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 inline-block relative"
                                                                 />
                                                             </div>
                                                         </div>
@@ -1531,7 +1532,12 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                 <PipelineAssignment leadId={lead.id} contact={lead} onAssignmentComplete={() => loadBoard(selectedPipelineId!)} />
                                             </td>
                                             <td className="px-6 py-4">
-                                                <LeadAssignment leadId={lead.id} contact={lead} />
+                                                <LeadAssignment 
+                                                    leadId={lead.id} 
+                                                    contact={lead} 
+                                                    showNames={false}
+                                                    className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 inline-block relative"
+                                                />
                                             </td>
                                             <td className="px-6 py-4 text-sm font-bold text-[var(--color-text)] opacity-90">
                                                 {lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : '-'}
