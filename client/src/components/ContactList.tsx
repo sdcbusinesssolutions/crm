@@ -781,6 +781,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     };
 
     return (
+        <>
         <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-3 flex-1 lg:max-w-4xl">
@@ -1199,6 +1200,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     </div>
                 </div>
             </div>
+        </div>
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
@@ -1395,7 +1397,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     onClose={() => setToast(null)}
                 />
             )}
-        </div>
+        </>
     );
 };
 
