@@ -316,6 +316,41 @@ function logGoogleSheetEvent(type, data) {
     _logToFile('google_sheet_automation', type, data, MAX_GSHEET_AUTOMATION_LOG_SIZE);
 }
 
+const RETENTION_DAYS = 14; 
+
+async function cleanupOldLogs() {
+    if (!canWriteToFile || !fs.existsSync(LOG_DIR)) return;
+    
+    try {
+        const now = new Date();
+        const files = fs.readdirSync(LOG_DIR);
+        
+        for (const folder of files) {
+            const folderPath = path.join(LOG_DIR, folder);
+            const stats = fs.statSync(folderPath);
+            
+            if (stats.isDirectory()) {
+                const daysOld = (now - stats.mtime) / (1000 * 60 * 60 * 24);
+                if (daysOld > RETENTION_DAYS) {
+                    // Use async rm to prevent blocking the event loop
+                    fs.rm(folderPath, { recursive: true, force: true }, (err) => {
+                        if (err) console.error(`[Logger Cleanup] Failed to delete: ${folder}`, err);
+                        else console.log(`[Logger Cleanup] Deleted old log folder (>${RETENTION_DAYS} days): ${folder}`);
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[Logger Cleanup] Error during cleanup:', e);
+    }
+}
+
+// Run cleanup once on startup (delayed by 1 min to not impact boot time) and then every 24 hours
+if (canWriteToFile) {
+    setTimeout(cleanupOldLogs, 60 * 1000).unref();
+    setInterval(cleanupOldLogs, 24 * 60 * 60 * 1000).unref();
+}
+
 module.exports = {
     logCampaignRequest,
     logInboxMessage,
