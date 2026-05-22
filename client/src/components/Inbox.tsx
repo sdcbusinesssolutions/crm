@@ -1966,6 +1966,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     <LeadAssignment 
                                                         contact={chat} 
                                                         leadId={chat.id} 
+                                                        showNames={false}
                                                         onAssigned={() => fetchConversations(true)}
                                                         className="p-0.5 rounded-full transition-colors group/btn relative hover:bg-emerald-50 text-slate-400 hover:text-[#00684a]"
                                                     />
@@ -2171,6 +2172,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 {activeLeadId ? (
                                     <LeadAssignment 
                                         leadId={activeLeadId} 
+                                        showNames={false}
                                         className="flex items-center gap-1 p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
                                         onAssigned={() => {
                                             loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
