@@ -147,6 +147,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
     );
   }, [staffList, searchQuery]);
 
+  const validAssignedStaffIds = useMemo(() => {
+    if (!Array.isArray(assignedStaffIds)) return [];
+    if (staffList.length === 0 && fetching) return assignedStaffIds;
+    return assignedStaffIds.filter(id => staffList.some(s => s.id === id));
+  }, [assignedStaffIds, staffList, fetching]);
+
   if (!isOwner && !hasAccess('Lead Management', ACCESS_TYPES.READ_WRITE)) {
     return null; 
   }
@@ -179,16 +185,16 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
-          {assignedStaffIds.length > 0 && (
+          {validAssignedStaffIds.length > 0 && (
             <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-[#00684a] text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white px-0.5">
-              {assignedStaffIds.length}
+              {validAssignedStaffIds.length}
             </span>
           )}
         </button>
 
-        {showNames && assignedStaffIds.length > 0 && staffList.length > 0 && (
+        {showNames && validAssignedStaffIds.length > 0 && staffList.length > 0 && (
           <div className="flex items-center -space-x-1.5 ml-1">
-              {assignedStaffIds.slice(0, 2).map((id, index) => {
+              {validAssignedStaffIds.slice(0, 2).map((id, index) => {
                   const staff = staffList.find(s => s.id === id);
                   if (!staff) return null;
                   const initials = staff.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
@@ -206,12 +212,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                       </div>
                   );
               })}
-              {assignedStaffIds.length > 2 && (
+              {validAssignedStaffIds.length > 2 && (
                   <div 
                       style={{ zIndex: 8 }}
                       className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 border border-white flex items-center justify-center text-[9px] font-black shadow-sm relative group cursor-pointer hover:bg-slate-200 transition-colors"
                   >
-                      +{assignedStaffIds.length - 2}
+                      +{validAssignedStaffIds.length - 2}
                   </div>
               )}
           </div>
@@ -241,7 +247,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
              </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div className="bg-white px-4 py-2 rounded-xl border border-emerald-200 shadow-sm flex items-center">
-                   <span className="text-xs font-black text-[#00684a] mr-2">{Array.isArray(assignedStaffIds) ? assignedStaffIds.length : 0}</span>
+                   <span className="text-xs font-black text-[#00684a] mr-2">{validAssignedStaffIds.length}</span>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected</span>
                 </div>
                 {loading && (

@@ -4,6 +4,7 @@ import PermissionMatrix from '../components/PermissionMatrix';
 import { MODULES, ACCESS_TYPES } from '../constants';
 import { usePermissions } from '../hooks/usePermissions';
 import Modal from '../../../components/Modal';
+import Toast from '../../../components/Toast';
 
 const getAvatarStyle = (name: string) => {
   if (!name) return 'bg-indigo-50 text-indigo-600 border border-indigo-100';
@@ -28,6 +29,7 @@ const StaffManagement: React.FC = () => {
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', phone: '', role: 'staff' });
   const [currentPermissions, setCurrentPermissions] = useState<any>({});
+  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedStaffForPassword, setSelectedStaffForPassword] = useState<any>(null);
@@ -55,9 +57,10 @@ const StaffManagement: React.FC = () => {
       setIsModalOpen(false);
       loadStaff();
       setNewStaff({ name: '', email: '', password: '', phone: '', role: 'staff' });
+      setToast({ type: 'success', title: 'Success', message: 'Staff member created successfully.' });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to create staff';
-      alert(`Error: ${msg}`);
+      setToast({ type: 'error', title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }
@@ -79,26 +82,32 @@ const StaffManagement: React.FC = () => {
       await staffApi.updatePermissions(selectedStaff.id, currentPermissions);
       setIsPermModalOpen(false);
       loadStaff();
+      setToast({ type: 'success', title: 'Permissions Updated', message: 'Permissions have been saved successfully.' });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to update permissions';
-      alert(`Error: ${msg}`);
+      setToast({ type: 'error', title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (staffId: string, staffName: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${staffName}? This action cannot be undone.`)) {
-      return;
-    }
-    
+  const handleDelete = (staffId: string, staffName: string) => {
+    setStaffToDelete({ id: staffId, name: staffName });
+    setIsDeleteModalOpen(true);
+  };
+
+  const proceedDelete = async () => {
+    if (!staffToDelete) return;
     setLoading(true);
     try {
-      await staffApi.deleteStaff(staffId);
+      await staffApi.deleteStaff(staffToDelete.id);
       loadStaff();
+      setIsDeleteModalOpen(false);
+      setStaffToDelete(null);
+      setToast({ type: 'success', title: 'Deleted', message: 'Staff member deleted successfully.' });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to delete staff';
-      alert(`Error: ${msg}`);
+      setToast({ type: 'error', title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }
@@ -110,9 +119,10 @@ const StaffManagement: React.FC = () => {
     try {
       await staffApi.updateStaff(staff.id, { status: newStatus });
       loadStaff();
+      setToast({ type: 'success', title: 'Status Updated', message: `Staff member is now ${newStatus}.` });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to update status';
-      alert(`Error: ${msg}`);
+      setToast({ type: 'error', title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }
@@ -121,7 +131,7 @@ const StaffManagement: React.FC = () => {
   const handlePasswordChangeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
-      alert('Password must be at least 6 characters long.');
+      setToast({ type: 'error', title: 'Invalid Password', message: 'Password must be at least 6 characters long.' });
       return;
     }
     setLoading(true);
@@ -129,10 +139,10 @@ const StaffManagement: React.FC = () => {
       await staffApi.updateStaff(selectedStaffForPassword.id, { password: newPassword });
       setIsPasswordModalOpen(false);
       setNewPassword('');
-      alert('Password updated successfully.');
+      setToast({ type: 'success', title: 'Success', message: 'Password updated successfully.' });
     } catch (err: any) {
       const msg = err.response?.data?.error || err.message || 'Failed to update password';
-      alert(`Error: ${msg}`);
+      setToast({ type: 'error', title: 'Error', message: msg });
     } finally {
       setLoading(false);
     }
@@ -497,6 +507,50 @@ const StaffManagement: React.FC = () => {
               </form>
             </div>
           </div>
+        )}
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+              <div className="p-6">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto bg-red-100">
+                  <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Delete Staff Member?</h3>
+                <p className="text-slate-500 text-center mb-6 text-sm">
+                  Are you sure you want to delete {staffToDelete?.name}? This action cannot be undone and they will lose access immediately.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setIsDeleteModalOpen(false);
+                      setStaffToDelete(null);
+                    }}
+                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={proceedDelete}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-lg shadow-red-200 transition-colors flex items-center justify-center gap-2"
+                    disabled={loading}
+                  >
+                    {loading ? 'Processing...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            type={toast.type}
+            title={toast.title}
+            message={toast.message}
+            onClose={() => setToast(null)}
+          />
         )}
       </div>
     </div>

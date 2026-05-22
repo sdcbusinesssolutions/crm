@@ -52,7 +52,10 @@ export const staffApi = {
       headers,
       body: JSON.stringify(staffData)
     });
-    if (!res.ok) throw new Error('Failed to create staff');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to create staff');
+    }
     return await res.json();
   },
 
