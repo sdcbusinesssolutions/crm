@@ -1968,7 +1968,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         leadId={chat.id} 
                                                         showNames={false}
                                                         onAssigned={() => fetchConversations(true)}
-                                                        className="p-0.5 rounded-full transition-colors group/btn relative hover:bg-emerald-50 text-slate-400 hover:text-[#00684a]"
+                                                        className="p-1.5 rounded-lg transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow"
                                                     />
                                                 </div>
                                             </div>
@@ -2173,7 +2173,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <LeadAssignment 
                                         leadId={activeLeadId} 
                                         showNames={false}
-                                        className="flex items-center gap-1 p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors relative"
+                                        className="p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 relative"
                                         onAssigned={() => {
                                             loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
                                             // Refresh assigned staff names

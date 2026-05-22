@@ -182,11 +182,11 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
           }`}
           title="Assign Team"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 15.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
           {validAssignedStaffIds.length > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-[#00684a] text-white text-[8px] font-black rounded-full flex items-center justify-center border border-white px-0.5">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-emerald-600 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm px-1">
               {validAssignedStaffIds.length}
             </span>
           )}
@@ -282,9 +282,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                         : 'bg-white border-slate-100 hover:border-[#0D9668]/40 hover:shadow-sm'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-sm font-black shadow-sm transition-all ${
-                      isSelected ? 'bg-[#00684a] text-white scale-105' : `${getAvatarColor(staff.name)} text-white`
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-sm font-black shadow-sm transition-all text-white relative ${getAvatarColor(staff.name)} ${isSelected ? 'scale-105 ring-2 ring-offset-2 ring-emerald-500' : ''}`}>
                       {staff.name?.charAt(0).toUpperCase()}
                     </div>
                     <div className="text-left overflow-hidden flex-1">
