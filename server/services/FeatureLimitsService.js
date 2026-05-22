@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../lib/supabaseClient');
+const domainToUUID = require('../utils/domainUUID');
 
 // Centralized configuration for default limits
 const DEFAULT_LIMITS = {
@@ -33,12 +34,13 @@ const FeatureLimitsService = {
 
     // 2. Check for Domain Limit (Medium Priority)
     if (domainId) {
+      const targetId = domainToUUID(domainId);
       const { data: domainLimit, error: domainErr } = await supabaseAdmin
         .from('feature_limits')
         .select('max_limit')
         .eq('feature_name', featureName)
         .eq('target_type', 'DOMAIN')
-        .eq('target_id', domainId)
+        .eq('target_id', targetId)
         .maybeSingle();
 
       if (!domainErr && domainLimit) {

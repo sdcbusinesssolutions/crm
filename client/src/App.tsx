@@ -11,6 +11,7 @@ import AdminPlans from './pages/admin/plans/Plans';
 import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
 import AdminSettings from './pages/admin/settings/Settings';
 import AdminLayout from './layouts/admin/AdminLayout';
+import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
 import { Session } from '@supabase/supabase-js';
 import Dashboard from './components/Dashboard';
 import FlowEditor from './components/FlowEditor';
@@ -840,6 +841,7 @@ const App: React.FC = () => {
                     <Route path="subscriptions" element={<AdminSubscriptions />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="super" element={<SuperDashboard />} />
+                    <Route path="limits" element={<FeatureLimitsManager />} />
                 </Route>
 
                 {/* Public Form Route */}

@@ -223,12 +223,12 @@ const FeatureLimitsManager: React.FC = () => {
 
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-                        <div className="p-6 border-b border-gray-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-gray-200 shrink-0">
                             <h3 className="text-xl font-bold text-gray-800">Add Limit Override</h3>
                             <p className="text-gray-500 text-sm mt-1">For Feature: <span className="font-bold text-purple-600">{selectedFeature}</span></p>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-6 space-y-4 overflow-y-auto">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Target Type</label>
                                 <select 
@@ -307,7 +307,7 @@ const FeatureLimitsManager: React.FC = () => {
                                 />
                             </div>
                         </div>
-                        <div className="p-6 bg-gray-50 rounded-b-2xl flex justify-end gap-3">
+                        <div className="p-6 bg-gray-50 rounded-b-2xl flex justify-end gap-3 shrink-0">
                             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg font-medium">Cancel</button>
                             <button onClick={handleSaveLimit} className="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700">Save Override</button>
                         </div>
