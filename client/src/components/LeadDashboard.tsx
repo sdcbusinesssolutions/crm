@@ -217,7 +217,13 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         // If no pipeline is active, or if we just loaded fresh data and haven't manually changed it,
         // we should try to pick the default one.
         if (!targetPipelineId && (!activePipelineId || !availablePipelines.some(p => p.id === activePipelineId))) {
-            const defaultPipe = availablePipelines.find((p: any) => p.is_default) || availablePipelines[0];
+            const staffData = localStorage.getItem('staffData');
+            const uid = staffData ? JSON.parse(staffData).id : 'admin';
+            const localDefaultId = localStorage.getItem(`default_pipeline_${uid}`);
+            
+            const defaultPipe = availablePipelines.find((p: any) => p.id === localDefaultId) 
+                             || availablePipelines.find((p: any) => p.is_default) 
+                             || availablePipelines[0];
             currentPipeId = defaultPipe?.id || null;
         }
         

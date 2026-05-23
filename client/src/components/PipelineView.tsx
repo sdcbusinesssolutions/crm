@@ -151,10 +151,24 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const loadPipelines = async () => {
         try {
             const data = await getPipelines();
-            setPipelines(data);
-            if (data.length > 0 && !selectedPipelineId) {
-                // Find default pipeline or use the first one (backend already sorts by is_default DESC)
-                const defaultPipeline = data.find(p => p.is_default) || data[0];
+            
+            // Allow user-specific default pipeline via localStorage
+            let localDefaultId = null;
+            const staffData = localStorage.getItem('staffData');
+            const uid = staffData ? JSON.parse(staffData).id : 'admin';
+            localDefaultId = localStorage.getItem(`default_pipeline_${uid}`);
+
+            let mappedData = data;
+            if (localDefaultId && data.some(p => p.id === localDefaultId)) {
+                mappedData = data.map(p => ({
+                    ...p,
+                    is_default: p.id === localDefaultId
+                }));
+            }
+
+            setPipelines(mappedData);
+            if (mappedData.length > 0 && !selectedPipelineId) {
+                const defaultPipeline = mappedData.find(p => p.is_default) || mappedData[0];
                 setSelectedPipelineId(defaultPipeline.id);
             }
         } catch (error: any) {
@@ -453,10 +467,22 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     const handleSetDefaultPipeline = async () => {
-        if (!canWrite) return;
         if (!selectedPipelineId) return;
         try {
-            await setPipelineAsDefault(selectedPipelineId);
+            // Save to localStorage for staff or personal preference
+            const staffData = localStorage.getItem('staffData');
+            const uid = staffData ? JSON.parse(staffData).id : 'admin';
+            localStorage.setItem(`default_pipeline_${uid}`, selectedPipelineId);
+
+            // Attempt to update backend if user has write access (for admin global default)
+            if (canWrite) {
+                try {
+                    await setPipelineAsDefault(selectedPipelineId);
+                } catch (e) {
+                    console.warn('Backend update failed, but local preference saved', e);
+                }
+            }
+
             setToast({
                 type: 'success',
                 title: 'Default Pipeline Set',
@@ -795,27 +821,25 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                             {/* Pipeline Actions */}
                             <div className="flex items-center gap-1 shrink-0">
                                 {canWrite && (
-                                    <>
-                                        <button
-                                            onClick={() => setIsCreatingPipeline(true)}
-                                            className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
-                                            title="New Pipeline"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                                        </button>
-                                        {selectedPipelineId && (
-                                            <button
-                                                onClick={handleSetDefaultPipeline}
-                                                className={`p-1.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
-                                                    ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10 border-[var(--color-brand)]/20'
-                                                    : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100 hover:bg-[var(--color-surface)] border-[var(--color-border)]'
-                                                    }`}
-                                                title={selectedPipeline?.is_default ? "Default Pipeline" : "Set as Default Pipeline"}
-                                            >
-                                                <svg className="w-4 h-4" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                                            </button>
-                                        )}
-                                    </>
+                                    <button
+                                        onClick={() => setIsCreatingPipeline(true)}
+                                        className="p-1.5 text-[var(--color-text)] opacity-40 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors border border-[var(--color-border)] md:border-transparent"
+                                        title="New Pipeline"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                    </button>
+                                )}
+                                {selectedPipelineId && (
+                                    <button
+                                        onClick={handleSetDefaultPipeline}
+                                        className={`p-1.5 rounded-lg transition-all border md:border-transparent ${selectedPipeline?.is_default
+                                            ? 'text-[var(--color-brand)] bg-[var(--color-brand)]/10 border-[var(--color-brand)]/20'
+                                            : 'text-[var(--color-text)] opacity-40 hover:text-[var(--color-text)] hover:opacity-100 hover:bg-[var(--color-surface)] border-[var(--color-border)]'
+                                            }`}
+                                        title={selectedPipeline?.is_default ? "Default Pipeline" : "Set as Default Pipeline"}
+                                    >
+                                        <svg className="w-4 h-4" fill={selectedPipeline?.is_default ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                                    </button>
                                 )}
                                 {selectedPipelineId && canDelete && (
                                     <button
