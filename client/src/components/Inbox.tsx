@@ -301,6 +301,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 }
 
                 await inboxService.markAsRead(activeChatId);
+                
+                // --- OPTIMISTIC UI UPDATE ---
+                // Instantly clear the unread badge locally without waiting for the realtime DB event
+                setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, unread_count: 0 } : c));
+
             } catch (error) {
                 console.error('Failed to load messages:', error);
             } finally {
@@ -1295,20 +1300,44 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             case 'location':
                 return (
-                    <div className="mb-1 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                        <div className="w-full h-32 bg-slate-200 flex items-center justify-center relative">
-                            <MapIcon className="w-10 h-10 text-slate-400 opacity-50" />
-                            <div className="absolute inset-x-0 bottom-0 bg-white/90 p-2 backdrop-blur-sm">
-                                <p className="text-xs font-bold text-slate-800 truncate">{msg.text || 'Location Pin'}</p>
+                    <div className="mb-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all duration-300">
+                        {/* Map Background Area */}
+                        <div className="w-full h-36 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex flex-col items-center justify-center relative overflow-hidden group/map cursor-pointer"
+                             onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${msg.text ? encodeURIComponent(msg.text) : `${msg.latitude},${msg.longitude}`}`, '_blank')}
+                        >
+                            
+                            {/* SVG Grid Pattern */}
+                            <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+CjxwYXRoIGQ9Ik0wIDBoNDB2NDBIMHoiIGZpbGw9Im5vbmUiLz4KPHBhdGggZD0iTTAgMTBoNDBNMTAgMHY0ME0wIDIwaDQwTTIwIDB2NDBNMCAzMGg0ME0zMCAwdjQwIiBzdHJva2U9IiMzM2NjOTkiIHN0cm9rZS13aWR0aD0iMSIvPgo8L3N2Zz4=')]"></div>
+
+                            {/* Animated Pin */}
+                            <div className="relative z-10 flex flex-col items-center transform group-hover/map:scale-110 group-hover/map:-translate-y-1 transition-all duration-300">
+                                {/* Pulse Effect */}
+                                <div className="absolute w-12 h-12 bg-red-500 rounded-full animate-ping opacity-30 top-1"></div>
+                                
+                                {/* Pin Body */}
+                                <div className="w-12 h-12 bg-white rounded-full shadow-lg flex items-center justify-center mb-1 border-2 border-red-50 relative z-20">
+                                    <MapIcon className="w-7 h-7 text-red-500" />
+                                </div>
+                                {/* Pin Shadow/Dot */}
+                                <div className="w-2 h-1 bg-black/20 rounded-full blur-[1px]"></div>
+                            </div>
+                            
+                            {/* Glassmorphic Address Overlay */}
+                            <div className="absolute inset-x-0 bottom-0 bg-white/70 backdrop-blur-md p-2.5 border-t border-white/60">
+                                <p className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight drop-shadow-sm text-center">
+                                    {msg.text || 'Pinned Location'}
+                                </p>
                             </div>
                         </div>
+                        
+                        {/* Action Bar */}
                         <a
                             href={`https://www.google.com/maps/search/?api=1&query=${msg.text ? encodeURIComponent(msg.text) : `${msg.latitude},${msg.longitude}`}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="block p-3 text-sm text-[#00a884] hover:bg-slate-50 font-bold text-center border-t border-slate-200 transition-colors"
+                            className="flex items-center justify-center gap-2 w-full py-2.5 px-3 text-[13px] text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 font-bold text-center transition-colors"
                         >
-                            View on Google Maps
+                            <span>Open in Google Maps</span>
                         </a>
                     </div>
                 );
