@@ -7,15 +7,15 @@ import Modal from '../../../components/Modal';
 import Toast from '../../../components/Toast';
 
 const getAvatarStyle = (name: string) => {
-  if (!name) return 'bg-indigo-50 text-indigo-600 border border-indigo-100';
+  if (!name) return { outer: 'border-indigo-200/70', inner: 'bg-indigo-600 shadow-indigo-600/30' };
   const charCode = name.charCodeAt(0) + (name.charCodeAt(name.length - 1) || 0);
   const styles = [
-    'bg-indigo-50 text-indigo-600 border border-indigo-100',
-    'bg-emerald-50 text-emerald-600 border border-emerald-100',
-    'bg-amber-50 text-amber-600 border border-amber-100',
-    'bg-purple-50 text-purple-600 border border-purple-100',
-    'bg-pink-50 text-pink-600 border border-pink-100',
-    'bg-sky-50 text-sky-600 border border-sky-100'
+    { outer: 'border-emerald-300/70', inner: 'bg-emerald-600 shadow-emerald-600/30' },
+    { outer: 'border-blue-300/70', inner: 'bg-blue-600 shadow-blue-600/30' },
+    { outer: 'border-orange-300/70', inner: 'bg-orange-600 shadow-orange-600/30' },
+    { outer: 'border-rose-300/70', inner: 'bg-rose-600 shadow-rose-600/30' },
+    { outer: 'border-indigo-300/70', inner: 'bg-indigo-600 shadow-indigo-600/30' },
+    { outer: 'border-purple-300/70', inner: 'bg-purple-600 shadow-purple-600/30' }
   ];
   return styles[charCode % styles.length];
 };
@@ -176,7 +176,7 @@ const StaffManagement: React.FC = () => {
           </div>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="group flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all active:scale-95"
+            className="group flex items-center gap-2 bg-[#00684a] hover:bg-[#00523a] text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-[#00684a]/20 transition-all active:scale-95"
           >
             <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
             Add Team Member
@@ -203,9 +203,11 @@ const StaffManagement: React.FC = () => {
               ) : staffList.map((staff: any) => (
                 <tr key={staff.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100">
                   <td className="px-6 py-4 border-b border-slate-100">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm transition-transform hover:scale-105 shadow-sm ${getAvatarStyle(staff.name)}`}>
-                        {staff.name ? staff.name[0].toUpperCase() : 'U'}
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-[14px] border-[1.5px] bg-white flex items-center justify-center shrink-0 ${getAvatarStyle(staff.name).outer}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-white text-sm shadow-md transition-transform hover:scale-105 ${getAvatarStyle(staff.name).inner}`}>
+                          {staff.name ? staff.name[0].toUpperCase() : 'U'}
+                        </div>
                       </div>
                       <div>
                         <div className="font-bold text-slate-900">{staff.name}</div>
@@ -226,7 +228,7 @@ const StaffManagement: React.FC = () => {
                     <div className="flex justify-end items-center gap-2">
                       <button 
                         onClick={() => openPermissionModal(staff)}
-                        className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow border border-indigo-100 active:scale-95"
+                        className="px-4 py-2 bg-[#00684a]/5 hover:bg-[#00684a]/10 text-[#00684a] rounded-xl transition-all font-bold text-xs flex items-center gap-1.5 shadow-sm hover:shadow border border-[#00684a]/15 active:scale-95"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                         Permissions
@@ -238,7 +240,7 @@ const StaffManagement: React.FC = () => {
                           setIsPasswordModalOpen(true);
                         }}
                         title="Change Password"
-                        className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 hover:shadow-md transition-all flex items-center justify-center disabled:opacity-50 active:scale-90"
+                        className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 text-slate-500 hover:bg-[#00684a] hover:text-white hover:border-[#00684a] hover:shadow-md transition-all flex items-center justify-center disabled:opacity-50 active:scale-90"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
@@ -343,81 +345,81 @@ const StaffManagement: React.FC = () => {
         {/* Create Staff Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-            <div className="bg-white rounded-3xl p-0 w-full max-w-2xl shadow-2xl border border-slate-100 overflow-hidden animate-scale-up">
-              <div className="bg-slate-50/80 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
+            <div className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl border-2 border-slate-200 animate-scale-up">
+              <div className="flex justify-between items-start mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">Add Team Member</h2>
-                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Staff Credentials</p>
+                  <p className="text-slate-400 text-[11px] font-black uppercase tracking-widest mt-1">Staff Credentials</p>
                 </div>
-                <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-white hover:text-slate-600 rounded-full transition-all shadow-sm">✕</button>
+                <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-full border border-slate-100 transition-all hover:bg-slate-50 shadow-sm">✕</button>
               </div>
 
-              <form onSubmit={handleCreate} className="p-8">
+              <form onSubmit={handleCreate}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                       </span>
                       <input 
                         type="text" placeholder="e.g. John Smith" required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-[#5b4dec] placeholder:text-slate-400 focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm outline-none"
                         value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 00-2 2z" /></svg>
                       </span>
                       <input 
                         type="email" placeholder="john@company.com" required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-[#5b4dec] placeholder:text-slate-400 focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm outline-none"
                         value={newStaff.email} onChange={e => setNewStaff({...newStaff, email: e.target.value})}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Temporary Password</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Temporary Password</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                       </span>
                       <input 
                         type="password" placeholder="••••••••" required
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-[#5b4dec] placeholder:text-slate-400 focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm outline-none"
                         value={newStaff.password} onChange={e => setNewStaff({...newStaff, password: e.target.value})}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone Number</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Phone Number</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                       </span>
                       <input 
                         type="text" placeholder="+1 (555) 000-0000"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        className="w-full bg-white border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-[#5b4dec] placeholder:text-slate-400 focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm outline-none"
                         value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Account Role</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Account Role</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                       </span>
                       <select 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm outline-none appearance-none"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-[#5b4dec] focus:bg-white focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm outline-none appearance-none"
                         value={newStaff.role || 'staff'} onChange={e => setNewStaff({...newStaff, role: e.target.value})}
                       >
                         <option value="staff">Staff Member</option>
@@ -427,11 +429,18 @@ const StaffManagement: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-10 flex flex-col gap-3">
+                <div className="mt-8 flex gap-3 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)} 
+                    className="flex-1 bg-[#00684a] hover:bg-[#00523a] text-white font-black py-3.5 rounded-2xl border border-[#00684a] shadow-lg shadow-[#00684a]/20 transition-all active:scale-[0.98] flex items-center justify-center"
+                  >
+                    Cancel
+                  </button>
                   <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 bg-[#00684a] hover:bg-[#00523a] text-white py-3.5 rounded-2xl font-black shadow-lg shadow-[#00684a]/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -442,13 +451,6 @@ const StaffManagement: React.FC = () => {
                       </>
                     )}
                   </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)} 
-                    className="w-full text-slate-400 font-bold py-2 text-sm hover:text-slate-600 transition-colors uppercase tracking-widest"
-                  >
-                    Cancel
-                  </button>
                 </div>
               </form>
             </div>
@@ -458,7 +460,7 @@ const StaffManagement: React.FC = () => {
         {/* Change Password Modal */}
         {isPasswordModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-            <div className="bg-white rounded-3xl p-0 w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden animate-scale-up">
+            <div className="bg-white rounded-3xl p-0 w-full max-w-md shadow-2xl border-2 border-slate-200 overflow-hidden animate-scale-up">
               <div className="bg-slate-50/80 px-8 py-6 border-b border-slate-100 flex justify-between items-center">
                 <div>
                   <h2 className="text-xl font-black text-slate-900 tracking-tight">Change Password</h2>
@@ -470,38 +472,38 @@ const StaffManagement: React.FC = () => {
               <form onSubmit={handlePasswordChangeSubmit} className="p-8">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password</label>
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">New Password</label>
                     <div className="relative group">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-[#00684a] transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 00-2 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                       </span>
                       <input 
                         type="password" placeholder="Min. 6 characters" required minLength={6}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-bold text-sm"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 text-slate-900 placeholder:text-slate-300 focus:bg-white focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all font-bold text-sm"
                         value={newPassword} onChange={e => setNewPassword(e.target.value)}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-8 flex flex-col gap-3">
+                <div className="mt-8 flex gap-3 pt-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsPasswordModalOpen(false)} 
+                    className="flex-1 bg-[#00684a] hover:bg-[#00523a] text-white font-black py-3.5 rounded-2xl border border-[#00684a] shadow-xl shadow-[#00684a]/20 transition-all active:scale-[0.98] text-sm flex items-center justify-center"
+                  >
+                    Cancel
+                  </button>
                   <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-2xl font-black shadow-xl shadow-indigo-200 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                    className="flex-1 bg-[#00684a] hover:bg-[#00523a] text-white py-3.5 rounded-2xl font-black shadow-xl shadow-[#00684a]/20 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
                   >
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     ) : (
                       'Update Password'
                     )}
-                  </button>
-                  <button 
-                    type="button" 
-                    onClick={() => setIsPasswordModalOpen(false)} 
-                    className="w-full text-slate-400 font-bold py-2 text-xs hover:text-slate-600 transition-colors uppercase tracking-widest"
-                  >
-                    Cancel
                   </button>
                 </div>
               </form>
