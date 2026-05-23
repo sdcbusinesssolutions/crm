@@ -35,7 +35,7 @@ interface PipelineViewProps {
 }
 
 const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
-    const { hasAccess } = usePermissions();
+    const { hasAccess, isStaff } = usePermissions();
     const canWrite = hasAccess('Pipelines', ACCESS_TYPES.READ_WRITE);
     const canDelete = hasAccess('Pipelines', ACCESS_TYPES.ALL_ACCESS);
 
@@ -474,8 +474,8 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             const uid = staffData ? JSON.parse(staffData).id : 'admin';
             localStorage.setItem(`default_pipeline_${uid}`, selectedPipelineId);
 
-            // Attempt to update backend if user has write access (for admin global default)
-            if (canWrite) {
+            // Attempt to update backend if user is NOT staff (admin global default)
+            if (!isStaff) {
                 try {
                     await setPipelineAsDefault(selectedPipelineId);
                 } catch (e) {
