@@ -1397,7 +1397,8 @@ class CampaignWorker {
                     _rendered_body: renderedBody,
                     _rendered_buttons: _rendered_buttons,
                     _footer_text: footerText,
-                    _rendered_cards: _rendered_cards
+                    _rendered_cards: _rendered_cards,
+                    _media_url: campaign.media_url || null
                 };
 
                 await whatsappService.logOutboundMessage(
