@@ -6,7 +6,8 @@ import {
     deleteForm,
     getPipelines,
     getPipelineStages,
-    getFormPublicUrl
+    getFormPublicUrl,
+    getFormSubmissions
 } from '../services/lead-management-api';
 import { FormDefinition, Pipeline, PipelineStage, FormField, ContactGroup } from '../types/lead-management';
 import { supabase } from '../lib/supabase';
@@ -47,6 +48,26 @@ const FormBuilder: React.FC = () => {
         isOpen: false,
         token: '',
         name: ''
+    });
+
+    const [submissionsModal, setSubmissionsModal] = useState<{
+        isOpen: boolean;
+        formId: string | null;
+        formName: string;
+        submissions: any[];
+        page: number;
+        hasMore: boolean;
+        isLoading: boolean;
+        total: number;
+    }>({
+        isOpen: false,
+        formId: null,
+        formName: '',
+        submissions: [],
+        page: 1,
+        hasMore: true,
+        isLoading: false,
+        total: 0
     });
 
     // Load initial data
@@ -147,6 +168,62 @@ const FormBuilder: React.FC = () => {
                 message: 'Failed to delete form',
                 isError: true
             });
+        }
+    };
+
+    const handleViewSubmissions = async (form: FormDefinition) => {
+        try {
+            setSubmissionsModal(prev => ({ ...prev, isOpen: true, isLoading: true, formId: form.id!, formName: form.name, submissions: [], page: 1, hasMore: true }));
+            const res = await getFormSubmissions(form.id!, 1, 20);
+            
+            // Handle both old flat-array response and new paginated object response
+            const isArray = Array.isArray(res);
+            const submissionsData = isArray ? res : (res.data || []);
+            const totalPages = isArray ? 1 : (res.totalPages || 1);
+            const total = isArray ? submissionsData.length : (res.total || 0);
+
+            setSubmissionsModal({
+                isOpen: true,
+                formId: form.id!,
+                formName: form.name,
+                submissions: submissionsData,
+                page: 1,
+                hasMore: isArray ? false : (res.page < totalPages),
+                isLoading: false,
+                total: total
+            });
+        } catch (e) {
+            console.error('Failed to load submissions', e);
+            setSubmissionsModal(prev => ({ ...prev, isLoading: false }));
+        }
+    };
+
+    const loadMoreSubmissions = async () => {
+        if (!submissionsModal.hasMore || submissionsModal.isLoading || !submissionsModal.formId) return;
+        
+        try {
+            setSubmissionsModal(prev => ({ ...prev, isLoading: true }));
+            const nextPage = submissionsModal.page + 1;
+            const res = await getFormSubmissions(submissionsModal.formId, nextPage, 20);
+            
+            setSubmissionsModal(prev => ({
+                ...prev,
+                submissions: [...prev.submissions, ...(res.data || [])],
+                page: nextPage,
+                hasMore: nextPage < res.totalPages,
+                isLoading: false,
+                total: res.total || prev.total
+            }));
+        } catch (e) {
+            console.error('Failed to load more submissions', e);
+            setSubmissionsModal(prev => ({ ...prev, isLoading: false }));
+        }
+    };
+
+    const handleScrollSubmissions = (e: React.UIEvent<HTMLDivElement>) => {
+        const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop - e.currentTarget.clientHeight < 50;
+        if (bottom) {
+            loadMoreSubmissions();
         }
     };
 
@@ -714,6 +791,62 @@ const FormBuilder: React.FC = () => {
                 {/* Database Setup Modal */}
                 <DatabaseSetup isOpen={showDbSetup} onClose={() => setShowDbSetup(false)} />
 
+                {/* Submissions Modal */}
+                <Modal
+                    isOpen={submissionsModal.isOpen}
+                    onClose={() => setSubmissionsModal({ ...submissionsModal, isOpen: false })}
+                    title={`Submissions: ${submissionsModal.formName}`}
+                    size="3xl"
+                    footer={
+                        <button
+                            onClick={() => setSubmissionsModal({ ...submissionsModal, isOpen: false })}
+                            className="px-6 py-2 bg-[#00684a] text-white rounded-lg font-bold hover:bg-[#00523a] transition-all"
+                        >
+                            Close
+                        </button>
+                    }
+                >
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar" onScroll={handleScrollSubmissions}>
+                        {submissionsModal.submissions.length === 0 && !submissionsModal.isLoading ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                                <svg className="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                                <p className="text-xs font-medium uppercase tracking-wider">No submissions yet</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {submissionsModal.submissions.map((sub, idx) => (
+                                    <div key={idx} className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden group">
+                                        <div className="bg-slate-50/50 px-4 py-2 border-b border-slate-100 flex justify-between items-center group-hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                                <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                                                    {new Date(sub.submitted_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-sm">
+                                                #{submissionsModal.submissions.length - idx}
+                                            </span>
+                                        </div>
+                                        <div className="p-4 flex flex-wrap gap-4">
+                                            {Object.entries(sub.submission_data || {}).map(([key, value]: any) => (
+                                                <div key={key} className="flex flex-col gap-1 min-w-[140px] flex-1">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{key}</span>
+                                                    <span className="text-slate-700 font-medium text-[13px] bg-slate-50/80 px-2.5 py-1.5 rounded-md border border-slate-100 break-words">{value?.toString() || '-'}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                {submissionsModal.isLoading && (
+                                    <div className="flex justify-center py-4">
+                                        <div className="w-6 h-6 border-2 border-[#00684a]/20 border-t-[#00684a] rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </Modal>
+
                 {/* Embed Code Modal */}
                 <Modal
                     isOpen={embedConfig.isOpen}
@@ -881,6 +1014,13 @@ const FormBuilder: React.FC = () => {
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleViewSubmissions(form)}
+                                                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                        title="View Submissions"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                                                    </button>
                                                     {canWrite && (
                                                         <button
                                                             onClick={() => {
@@ -916,6 +1056,62 @@ const FormBuilder: React.FC = () => {
 
             {/* Database Setup Modal for List View */}
             <DatabaseSetup isOpen={showDbSetup} onClose={() => setShowDbSetup(false)} />
+
+            {/* Submissions Modal for List View */}
+            <Modal
+                isOpen={submissionsModal.isOpen}
+                onClose={() => setSubmissionsModal({ ...submissionsModal, isOpen: false })}
+                title={`Submissions: ${submissionsModal.formName}`}
+                size="3xl"
+                footer={
+                    <button
+                        onClick={() => setSubmissionsModal({ ...submissionsModal, isOpen: false })}
+                        className="px-6 py-2 bg-[#00684a] text-white rounded-lg font-bold hover:bg-[#00523a] transition-all"
+                    >
+                        Close
+                    </button>
+                }
+            >
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar" onScroll={handleScrollSubmissions}>
+                    {submissionsModal.submissions.length === 0 && !submissionsModal.isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+                            <svg className="w-12 h-12 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                            <p className="text-xs font-medium uppercase tracking-wider">No submissions yet</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {submissionsModal.submissions.map((sub, idx) => (
+                                <div key={idx} className="bg-white border border-[#00684a]/20 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden group">
+                                    <div className="bg-[#00684a]/[0.03] px-4 py-2 border-b border-[#00684a]/10 flex justify-between items-center group-hover:bg-[#00684a]/[0.06] transition-colors">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-[#00684a] shadow-[0_0_8px_rgba(0,104,74,0.5)]"></div>
+                                            <span className="text-[10px] font-bold tracking-wider text-[#00684a] uppercase">
+                                                {new Date(sub.submitted_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] font-black text-white bg-[#00684a] px-2 py-0.5 rounded shadow-sm">
+                                            #{submissionsModal.submissions.length - idx}
+                                        </span>
+                                    </div>
+                                    <div className="p-4 flex flex-wrap gap-4 bg-white">
+                                        {Object.entries(sub.submission_data || {}).map(([key, value]: any) => (
+                                            <div key={key} className="flex flex-col gap-1 min-w-[140px] flex-1">
+                                                <span className="text-[10px] font-bold text-[#00684a]/70 uppercase tracking-wider">{key}</span>
+                                                <span className="text-slate-800 font-medium text-[13px] bg-[#00684a]/[0.02] px-2.5 py-1.5 rounded-md border border-[#00684a]/10 break-words">{value?.toString() || '-'}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            {submissionsModal.isLoading && (
+                                <div className="flex justify-center py-4">
+                                    <div className="w-6 h-6 border-2 border-[#00684a]/20 border-t-[#00684a] rounded-full animate-spin"></div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </Modal>
 
             {/* Embed Code Modal */}
             <Modal

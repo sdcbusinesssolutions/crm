@@ -477,17 +477,41 @@ router.post('/submit', async (req, res) => {
 });
 
 // GET /api/forms/:id/submissions (authenticated - get form submissions)
-router.get('/:id/submissions', requireAuth, requirePermission('Form Contact', 'read'), async (req, res) => {
+router.get('/:id/submissions', requireAuth, requirePermission('Form Builder', 'read'), async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        // Verify form ownership first
+        const { data: form, error: formError } = await supabaseAdmin
+            .from('forms')
+            .select('id')
+            .eq('id', req.params.id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (formError || !form) {
+            return res.status(404).json({ error: 'Form not found or unauthorized' });
+        }
+
+        // Fetch submissions
+        const { data, count, error } = await supabaseAdmin
             .from('form_submissions')
-            .select('*, forms!inner(user_id)')
+            .select('*', { count: 'exact' })
             .eq('form_id', req.params.id)
-            .eq('forms.user_id', req.user.id)
-            .order('submitted_at', { ascending: false });
+            .order('submitted_at', { ascending: false })
+            .range(from, to);
 
         if (error) throw error;
-        res.json(data || []);
+        
+        res.json({
+            data: data || [],
+            total: count || 0,
+            page,
+            totalPages: Math.ceil((count || 0) / limit)
+        });
     } catch (err) {
         console.error('Error fetching submissions:', err);
         res.status(500).json({ error: err.message });
