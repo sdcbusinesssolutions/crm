@@ -263,7 +263,6 @@ const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 // Public Routes
 
 router.use('/forms', formRoutes);
-router.use('/upload', uploadRoutes);
 router.use('/team-staff', staffRoutes);
 router.use('/', webhookRoutes); // Meta Webhook (Mounted at root to match /api/:userId/:phoneId/webhook)
 router.use('/webhooks', incomingWebhookRoutes); // Dynamic Incoming Webhooks

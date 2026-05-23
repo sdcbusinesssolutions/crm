@@ -43,8 +43,8 @@ const StaffService = {
 
       // 2. Fetch owner domain if possible
       let domainId = null;
-      const { data: profile } = await supabaseAdmin.from('profiles').select('domain_id').eq('id', ownerId).maybeSingle();
-      if (profile && profile.domain_id) domainId = profile.domain_id;
+      const { data: profile } = await supabaseAdmin.from('profiles').select('signup_domain').eq('id', ownerId).maybeSingle();
+      if (profile && profile.signup_domain) domainId = profile.signup_domain;
 
       // 3. Get allowed limit
       const maxStaffLimit = await FeatureLimitsService.getFeatureLimit(ownerId, domainId, 'STAFF');
