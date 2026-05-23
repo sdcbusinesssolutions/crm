@@ -8,8 +8,8 @@ router.use((req, res, next) => {
     next();
 });
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
+const { logInboxMessage, logWebhookEvent } = require('../utils/logger');
 const { extractMessageContent } = require('../utils/whatsappParser');
-const { logInboxMessage } = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -442,7 +442,10 @@ router.get('/:userId/:phoneNumberId/webhook', async (req, res) => {
 router.post('/webhook', async (req, res) => {
     const rawBody = req.body;
     console.log('[Global Webhook POST] Event received');
-    // console.log(JSON.stringify(rawBody, null, 2));
+    
+    if (logWebhookEvent) {
+        logWebhookEvent('GLOBAL_WEBHOOK', rawBody);
+    }
 
     try {
         const entry = rawBody.entry?.[0];
@@ -513,6 +516,11 @@ router.post('/:userId/:phoneNumberId/webhook', async (req, res) => {
 // SHARED Webhook Event Handler
 async function handleWebhookEvent(req, res, userId, phoneNumberId) {
     const rawBody = req.body;
+    
+    // Log raw webhook to rotating file
+    if (logWebhookEvent) {
+        logWebhookEvent('INCOMING_WEBHOOK', rawBody);
+    }
 
     // --- SECURITY FIX: TRUST PAYLOAD METADATA OVER URL PARAMS ---
     const entry = rawBody.entry?.[0];
@@ -1106,6 +1114,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     dbMessageText = JSON.stringify(extracted.raw.interactive);
                 } else if (!dbMessageText && extracted.type === 'button' && extracted.button?.text) {
                     dbMessageText = extracted.button.text;
+                } else if (!dbMessageText && extracted.type === 'location') {
+                    const locName = extracted.location?.name;
+                    const locAddr = extracted.location?.address;
+                    dbMessageText = [locName, locAddr].filter(Boolean).join(', ') || null;
                 }
 
                 // Determine Preview Text

@@ -1299,7 +1299,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         <div className="w-full h-32 bg-slate-200 flex items-center justify-center relative">
                             <MapIcon className="w-10 h-10 text-slate-400 opacity-50" />
                             <div className="absolute inset-x-0 bottom-0 bg-white/90 p-2 backdrop-blur-sm">
-                                <p className="text-xs font-bold text-slate-800 truncate">Location Pin</p>
+                                <p className="text-xs font-bold text-slate-800 truncate">{msg.text || 'Location Pin'}</p>
                             </div>
                         </div>
                         <a

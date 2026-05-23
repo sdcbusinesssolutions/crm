@@ -364,6 +364,7 @@ module.exports = {
     logAuthBridgeEvent,
     logGoogleEvent,
     logGoogleSheetEvent,
+    logWebhookEvent: (type, data) => _logToFile('webhook_logs', type, data, 5 * 1024 * 1024),
     logContactImportEvent: (type, data) => _logToFile('contact_imports', type, data, 2 * 1024 * 1024),
     overrideConsole
 };
