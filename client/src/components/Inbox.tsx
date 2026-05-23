@@ -1303,7 +1303,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             </div>
                         </div>
                         <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${msg.latitude},${msg.longitude}`}
+                            href={`https://www.google.com/maps/search/?api=1&query=${msg.text ? encodeURIComponent(msg.text) : `${msg.latitude},${msg.longitude}`}`}
                             target="_blank"
                             rel="noreferrer"
                             className="block p-3 text-sm text-[#00a884] hover:bg-slate-50 font-bold text-center border-t border-slate-200 transition-colors"
