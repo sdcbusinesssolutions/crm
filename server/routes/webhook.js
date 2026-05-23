@@ -107,10 +107,13 @@ function downloadBinaryWithCurl(url, token, forceIPv4 = true) {
                 let binaryData = stdout;
 
                 if (stdout && stdout.length > 0) {
-                    const outputStr = stdout.toString('utf8');
-                    const markerIndex = outputStr.lastIndexOf(debugMarker);
+                    const debugMarkerBuffer = Buffer.from(debugMarker);
+                    const markerIndex = stdout.lastIndexOf(debugMarkerBuffer);
+                    
                     if (markerIndex !== -1) {
-                        const debugPart = outputStr.substring(markerIndex + debugMarker.length);
+                        const debugPartBuffer = stdout.slice(markerIndex + debugMarkerBuffer.length);
+                        const debugPart = debugPartBuffer.toString('utf8');
+                        
                         debugPart.split('|').forEach(pair => {
                             const [k, v] = pair.split(':');
                             if (k && v) debugInfo[k] = v.trim();
