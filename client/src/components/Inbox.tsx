@@ -1230,7 +1230,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <img
                                 src={msg.media_url}
                                 alt={type}
-                                className={`rounded-lg max-w-full cursor-pointer object-contain bg-slate-50 ${type === 'sticker' ? 'w-32' : 'max-h-80'}`}
+                                className={`rounded-xl border border-emerald-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all max-w-full cursor-pointer object-contain bg-slate-50 ${type === 'sticker' ? 'w-32' : 'max-h-80'}`}
                                 onClick={() => window.open(msg.media_url, '_blank')}
                                 onLoad={() => {
                                     if (isAtBottomRef.current) scrollToBottom();
@@ -2365,7 +2365,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </div>
                                             )}
                                             <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-lg px-3 py-2 shadow-sm relative group ${msg.direction === 'out' ? 'bg-brand-100 border border-brand-200 rounded-tr-none' : 'bg-white border border-slate-200 rounded-tl-none'}`}>
+                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-xl px-3 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-emerald-200 hover:border-emerald-300 rounded-tr-none' : 'bg-white border border-emerald-200 hover:border-emerald-300 rounded-tl-none'}`}>
 
                                                     {renderMessageContent(msg)}
 
