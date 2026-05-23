@@ -341,14 +341,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     const handleDeleteAllFiltered = () => {
         setIsBulkDropdownOpen(false);
-        if (contacts.length === 0) return;
-        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'filtered' });
+        if (totalContacts === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: totalContacts, id: 'filtered' });
     };
 
     const handleDeleteEntireCRM = () => {
         setIsBulkDropdownOpen(false);
-        if (contacts.length === 0) return;
-        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'all' });
+        if (totalContacts === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: totalContacts, id: 'all' });
     };
 
     const proceedDelete = async () => {
