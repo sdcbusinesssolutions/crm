@@ -15,6 +15,7 @@ import Modal from './Modal';
 import DatabaseSetup from './DatabaseSetup';
 import PhoneInputWithCountry from './PhoneInputWithCountry';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+import { contactGroupService } from '../services/contactGroupService';
 
 const FormBuilder: React.FC = () => {
     const { hasAccess } = usePermissions();
@@ -90,9 +91,8 @@ const FormBuilder: React.FC = () => {
 
     const loadGroups = async () => {
         try {
-            const { data, error } = await supabase.from('contact_groups').select('*');
-            if (error) throw error;
-            setGroups(data || []);
+            const data = await contactGroupService.getGroups();
+            setGroups(data as any || []);
         } catch (error) {
             console.error('Failed to load groups', error);
         }
