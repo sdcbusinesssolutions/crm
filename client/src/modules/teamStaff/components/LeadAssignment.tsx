@@ -232,21 +232,21 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       >
         <div className="space-y-5">
           {/* Search & Counter Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border-2 border-emerald-400 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
              <div className="relative flex-1">
                 <input 
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search staff members..."
-                  className="w-full bg-white border border-emerald-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#00684a]/20 focus:border-[#00684a] transition-all pl-10 shadow-sm"
+                  className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all pl-10 shadow-sm"
                 />
                 <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
              </div>
               <div className="flex items-center gap-3 shrink-0">
-                <div className="bg-white px-4 py-2 rounded-xl border border-emerald-200 shadow-sm flex items-center">
+                <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center">
                    <span className="text-xs font-black text-[#00684a] mr-2">{validAssignedStaffIds.length}</span>
                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Selected</span>
                 </div>
