@@ -232,7 +232,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       >
         <div className="space-y-5">
           {/* Search & Counter Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50/80 to-teal-50/60 p-4 rounded-2xl border border-emerald-200/60">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border-2 border-emerald-400 shadow-sm">
              <div className="relative flex-1">
                 <input 
                   type="text"

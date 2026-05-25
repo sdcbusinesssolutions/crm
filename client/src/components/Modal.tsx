@@ -49,7 +49,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in duration-200">
             <div
                 ref={modalRef}
-                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-[2rem] shadow-[0_30px_90px_rgba(0,0,0,0.4)] w-full ${sizeClasses[size]} transform transition-all border border-white/20 flex flex-col max-h-[90vh] ${extraClassName} animate-in zoom-in-95 duration-200`}
+                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-[2rem] shadow-[0_30px_90px_rgba(0,0,0,0.4)] w-full ${sizeClasses[size]} transform transition-all border-2 border-slate-900 flex flex-col max-h-[90vh] ${extraClassName} animate-in zoom-in-95 duration-200`}
                 role="dialog"
                 aria-modal="true"
                 onClick={(e) => e.stopPropagation()}
@@ -58,9 +58,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
                     <h3 className="text-xl font-black tracking-tight text-slate-800">{title}</h3>
                     <button
                         onClick={(e) => { e.stopPropagation(); onClose(); }}
-                        className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all active:scale-90"
+                        className="w-8 h-8 rounded-full bg-[#00684a] flex items-center justify-center text-white hover:bg-[#005c42] transition-all active:scale-90 shadow-md border border-[#005c42]"
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
