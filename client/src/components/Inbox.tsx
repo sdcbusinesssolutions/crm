@@ -1991,15 +1991,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         </div>
                                         <div>
                                             <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || formatPhone(chat.contact_phone)}</h3>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <span className="text-[10px] text-slate-400 font-medium">{formatPhone(chat.contact_phone)}</span>
-                                                <div onClick={(e) => e.stopPropagation()}>
+                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                <span className="text-[11px] text-slate-500 font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
+                                                <div onClick={(e) => e.stopPropagation()} className="flex items-center shrink-0">
                                                     <LeadAssignment 
                                                         contact={chat} 
                                                         leadId={chat.id} 
                                                         showNames={false}
                                                         onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
-                                                        className="p-1.5 rounded-lg transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow"
+                                                        className="p-1 rounded-full transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
                                                     />
                                                 </div>
                                             </div>
