@@ -368,3 +368,78 @@ exports.getTenantsList = async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };
+
+exports.updateTenantLimit = async (req, res) => {
+    try {
+        if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
+        
+        if (req.admin?.role !== 'super_admin') {
+            return res.status(403).json({ message: 'Access Denied: Super Admin required' });
+        }
+
+        const { target_domain, new_limit } = req.body;
+        if (!target_domain || new_limit === undefined) {
+            return res.status(400).json({ message: 'Missing target_domain or new_limit' });
+        }
+
+        const { error } = await supabaseAdmin.from('tenant_limits').upsert({ domain: target_domain, user_limit: new_limit, updated_at: new Date() }, { onConflict: 'domain' });
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error updating limit:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+exports.addTenant = async (req, res) => {
+    try {
+        if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
+        if (req.admin?.role !== 'super_admin') return res.status(403).json({ message: 'Access Denied: Super Admin required' });
+
+        let { domain, user_limit, plan_name } = req.body;
+        if (!domain) return res.status(400).json({ message: 'Domain is required' });
+
+        domain = domain.trim().toLowerCase();
+        user_limit = user_limit || 10;
+        plan_name = plan_name || 'Free';
+
+        const brand_name = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+
+        // Insert into settings
+        await supabaseAdmin.from('domain_settings').upsert({ domain, brand_name }, { onConflict: 'domain' });
+        await supabaseAdmin.from('tenant_limits').upsert({ domain, user_limit }, { onConflict: 'domain' });
+        
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        await supabaseAdmin.from('tenant_plans').upsert({ domain, plan_name, status: 'active', expires_at: expiresAt }, { onConflict: 'domain' });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error adding tenant:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
+exports.deleteTenant = async (req, res) => {
+    try {
+        if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
+        if (req.admin?.role !== 'super_admin') return res.status(403).json({ message: 'Access Denied: Super Admin required' });
+
+        const { target_domain } = req.body;
+        if (!target_domain) return res.status(400).json({ message: 'Domain required' });
+        if (target_domain === 'clickube.com') return res.status(400).json({ message: 'Cannot delete the Master Tenant (clickube.com)' });
+
+        await Promise.all([
+            supabaseAdmin.from('tenant_limits').delete().eq('domain', target_domain),
+            supabaseAdmin.from('tenant_plans').delete().eq('domain', target_domain),
+            supabaseAdmin.from('domain_settings').delete().eq('domain', target_domain),
+            supabaseAdmin.from('profiles').delete().eq('signup_domain', target_domain)
+        ]);
+
+        res.json({ success: true, message: `Tenant ${target_domain} deleted.` });
+    } catch (err) {
+        console.error('Error deleting tenant:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+};

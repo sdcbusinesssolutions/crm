@@ -68,19 +68,27 @@ const SuperDashboard: React.FC = () => {
     const addNewTenant = async () => {
         if (!newTenantDomain) return;
         try {
-            const { error } = await supabase.rpc('add_new_tenant' as any, {
-                new_domain: newTenantDomain,
-                initial_limit: 10,
-                plan_name: 'Free'
-            } as any);
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/dashboard/tenants/add', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    domain: newTenantDomain,
+                    user_limit: 10,
+                    plan_name: 'Free'
+                })
+            });
 
-            if (error) throw error;
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed to add tenant');
+            }
 
             fetchTenants();
             setIsAddModalOpen(false);
             setNewTenantDomain('');
-        } catch (e) {
-            alert('Failed to add tenant: ' + (e as Error).message);
+        } catch (e: any) {
+            alert('Failed to add tenant: ' + e.message);
         }
     };
 
@@ -92,26 +100,46 @@ const SuperDashboard: React.FC = () => {
     const saveLimit = async () => {
         if (!editingDomain) return;
         try {
-            const { error } = await supabase.rpc('update_tenant_limit' as any, {
-                target_domain: editingDomain,
-                new_limit: newLimit
-            } as any);
-            if (error) throw error;
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/dashboard/tenants/limit', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_domain: editingDomain,
+                    new_limit: parseInt(newLimit.toString())
+                })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed to update limit');
+            }
 
             fetchTenants();
             setEditingDomain(null);
-        } catch (e) {
-            alert('Failed to update limit: ' + (e as Error).message);
+        } catch (e: any) {
+            alert('Failed to update limit: ' + e.message);
         }
     };
 
     const deleteTenant = async (domain: string) => {
+        if (!confirm(`Are you sure you want to completely delete ${domain} and all its data?`)) return;
         try {
-            const { error } = await supabase.rpc('delete_tenant' as any, { target_domain: domain });
-            if (error) throw error;
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/dashboard/tenants/delete', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_domain: domain })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || 'Failed to delete tenant');
+            }
+
             fetchTenants();
-        } catch (e) {
-            alert('Failed to delete tenant: ' + (e as Error).message);
+        } catch (e: any) {
+            alert('Failed to delete tenant: ' + e.message);
         }
     };
 
