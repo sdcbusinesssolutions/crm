@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const DripTriggerService = require('../services/DripTriggerService');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/contacts
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Default 50, Max 100
@@ -20,6 +21,22 @@ router.get('/', async (req, res) => {
       .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at', { count: 'exact' })
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    // Filter by assigned leads if restricted
+    if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+      const { data: assignedLeads } = await supabaseAdmin
+        .from('leads')
+        .select('phone')
+        .eq('user_id', userId)
+        .contains('assigned_staff_ids', [req.staff.staffId]);
+      
+      const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+      if (assignedPhones.length > 0) {
+        query = query.in('phone', assignedPhones);
+      } else {
+        query = query.in('phone', ['dummy-no-phone']);
+      }
+    }
 
     // --- SEARCH FILTERING ---
     if (req.query.search) {
@@ -85,7 +102,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/contacts/export - Fetch all contacts for downloading
-router.get('/export', async (req, res) => {
+router.get('/export', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const userId = req.user.id;
     let allContacts = [];
@@ -103,6 +120,22 @@ router.get('/export', async (req, res) => {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .range(from, to);
+
+      // Filter by assigned leads if restricted
+      if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+        const { data: assignedLeads } = await supabaseAdmin
+          .from('leads')
+          .select('phone')
+          .eq('user_id', userId)
+          .contains('assigned_staff_ids', [req.staff.staffId]);
+        
+        const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+        if (assignedPhones.length > 0) {
+          query = query.in('phone', assignedPhones);
+        } else {
+          query = query.in('phone', ['dummy-no-phone']);
+        }
+      }
 
       // Apply same filters if present
       if (req.query.search) {
@@ -150,13 +183,29 @@ router.get('/export', async (req, res) => {
 });
 
 // GET /api/contacts/phones - Fetch ONLY phone numbers matching filters
-router.get('/phones', async (req, res) => {
+router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
     const { search, groupId, tag, startDate, endDate } = req.query;
 
     let query = supabase.from('contacts').select('phone').eq('user_id', userId);
+
+    // Filter by assigned leads if restricted
+    if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+      const { data: assignedLeads } = await supabaseAdmin
+        .from('leads')
+        .select('phone')
+        .eq('user_id', userId)
+        .contains('assigned_staff_ids', [req.staff.staffId]);
+      
+      const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+      if (assignedPhones.length > 0) {
+        query = query.in('phone', assignedPhones);
+      } else {
+        query = query.in('phone', ['dummy-no-phone']);
+      }
+    }
 
     if (search) {
       const searchTerms = search.split(' ').filter(t => t.length > 0);
@@ -190,7 +239,7 @@ router.get('/phones', async (req, res) => {
 });
 
 // POST /api/contacts
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const user = req.user; // populated by requireAuth middleware
@@ -379,7 +428,7 @@ router.post('/', async (req, res) => {
 });
 
 // TEST endpoint - remove after debugging
-router.get('/bulk-test', (req, res) => {
+router.get('/bulk-test', requirePermission('Contact+List', 'read'), (req, res) => {
   console.log('🧪 Bulk test endpoint hit!');
   res.json({ message: 'Bulk endpoint is accessible', user: req.user ? 'authenticated' : 'not authenticated' });
 });
@@ -387,7 +436,7 @@ router.get('/bulk-test', (req, res) => {
 const { logCRMEvent, logContactImportEvent } = require('../utils/logger'); // Import Logger
 
 // POST /api/contacts/bulk
-router.post('/bulk', async (req, res) => {
+router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   console.log('📦 Bulk import endpoint hit');
   const startTime = Date.now();
 
@@ -613,7 +662,7 @@ async function chunkedNullify(table, column, ids, chunkSize = 200) {
 }
 
 // POST /api/contacts/bulk-delete
-router.post('/bulk-delete', async (req, res) => {
+router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { ids } = req.body; // Expects { ids: ['id1', 'id2'] }
@@ -672,7 +721,7 @@ router.post('/bulk-delete', async (req, res) => {
 });
 
 // POST /api/contacts/bulk-delete-filtered
-router.post('/bulk-delete-filtered', async (req, res) => {
+router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
@@ -772,7 +821,7 @@ router.post('/bulk-delete-filtered', async (req, res) => {
 });
 
 // POST /api/contacts/bulk-delete-all
-router.post('/bulk-delete-all', async (req, res) => {
+router.post('/bulk-delete-all', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const userId = req.user.id;
     console.log(`[Wipe CRM] User ${userId} requested full CRM wipeout.`);
@@ -857,7 +906,7 @@ router.post('/bulk-delete-all', async (req, res) => {
 });
 
 // DELETE /api/contacts/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const id = req.params.id;
@@ -952,3 +1001,4 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
+

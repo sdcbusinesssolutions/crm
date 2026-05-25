@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // List Automations
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('G+Automation', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('sheet_automations')
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get Single Automation
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('G+Automation', 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('sheet_automations')
@@ -38,7 +39,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create Automation
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('G+Automation', 'read_write'), async (req, res) => {
     try {
         const {
             name,
@@ -84,7 +85,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update Automation
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('G+Automation', 'read_write'), async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -107,7 +108,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete Automation
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('G+Automation', 'all_access'), async (req, res) => {
     try {
         const { error } = await supabaseAdmin
             .from('sheet_automations')
@@ -122,7 +123,7 @@ router.delete('/:id', async (req, res) => {
     }
 });
 // Toggle Status (Active/Paused)
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', requirePermission('G+Automation', 'read_write'), async (req, res) => {
     try {
         const { id } = req.params;
         const { status } = req.body;
@@ -148,7 +149,7 @@ router.patch('/:id/status', async (req, res) => {
 });
 const SheetAutomationService = require('../services/SheetAutomationService');
 
-router.post('/:id/trigger', async (req, res) => {
+router.post('/:id/trigger', requirePermission('G+Automation', 'read_write'), async (req, res) => {
     try {
         const { id } = req.params;
         // Verify ownership and trigger via Service

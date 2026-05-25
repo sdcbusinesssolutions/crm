@@ -11,6 +11,7 @@ import AdminPlans from './pages/admin/plans/Plans';
 import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
 import AdminSettings from './pages/admin/settings/Settings';
 import AdminLayout from './layouts/admin/AdminLayout';
+import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
 import { Session } from '@supabase/supabase-js';
 import Dashboard from './components/Dashboard';
 import FlowEditor from './components/FlowEditor';
@@ -48,6 +49,8 @@ import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
 import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
+import StaffManagement from './modules/teamStaff/pages/StaffManagement';
+import StaffLogin from './modules/teamStaff/pages/StaffLogin';
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
     // Handles cross-domain impersonation redirects from Supabase Magic Links
@@ -78,6 +81,7 @@ const MainApp: React.FC = () => {
     }, []);
 
     const [session, setSession] = useState<Session | null>(null);
+    const [staffSession, setStaffSession] = useState<any>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
 
     // PERSISTENT HASH TRACKING (FIX for Impersonation Redirect Loop)
@@ -271,7 +275,22 @@ const MainApp: React.FC = () => {
 
         const checkSession = async () => {
             try {
-                // getSession() will check local storage AND process the URL fragment if present
+                // 1. Check for staff session first (Local & Fast)
+                const storedStaff = localStorage.getItem('staffData');
+                if (storedStaff) {
+                    try {
+                        const parsed = JSON.parse(storedStaff);
+                        setStaffSession(parsed);
+                        console.log("✅ Initial Session: Staff detected", parsed.name);
+                        setIsAuthLoading(false);
+                        return; // Don't block on Supabase if staff
+                    } catch (e) {
+                        localStorage.removeItem('staffData');
+                        localStorage.removeItem('staffToken');
+                    }
+                }
+
+                // 2. getSession() will check local storage AND process the URL fragment if present
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) {
                     console.warn("Session check warning:", error.message);
@@ -364,19 +383,19 @@ const MainApp: React.FC = () => {
 
     // Apply theme on initial load
     useEffect(() => {
-        if (!session) return;
+        if (!session && !staffSession) return;
 
         const loadTheme = async () => {
             const savedTheme = await themeService.getTheme();
             themeService.applyTheme(savedTheme);
         };
         loadTheme();
-    }, [session]);
+    }, [session, staffSession]);
 
     // --- STATE PERSISTENCE EFFECT ---
     // Synchronize current state to URL Query Params
     useEffect(() => {
-        if (isAuthLoading || !session) return;
+        if (isAuthLoading || (!session && !staffSession)) return;
 
         const params = new URLSearchParams(window.location.search);
 
@@ -416,7 +435,7 @@ const MainApp: React.FC = () => {
         activeMenuItem, currentFlowId, currentWhatsAppFlowId, currentTemplateId,
         isTemplateBuilderOpen, currentCampaignId, isCreatingCampaign,
         currentPipelineId, isCreatingSheetAutomation, editingSheetAutomationId,
-        isAuthLoading, session
+        isAuthLoading, session, staffSession
     ]);
 
     const handleNavigateToFlow = useCallback((flowId: string) => {
@@ -482,14 +501,17 @@ const MainApp: React.FC = () => {
     const handleLogout = useCallback(async () => {
         await supabase.auth.signOut();
         setSession(null);
+        setStaffSession(null);
         tokenService.clearAccessToken();
         themeService.resetTheme();
 
-        // Clear Dashboard Caches to prevent data leakage between sessions
+        // Clear Dashboard Caches and Staff Sessions to prevent data leakage between sessions
         localStorage.removeItem('dashboard_stats_cache');
         localStorage.removeItem('lead_dashboard_cache');
         localStorage.removeItem('connection_cache'); // If exists
-    }, []);
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staffData');
+    }, [setStaffSession]);
 
     const handleNavigateToWhatsAppBuilder = useCallback((flowId: string | null) => {
         setCurrentWhatsAppFlowId(flowId);
@@ -725,8 +747,8 @@ const MainApp: React.FC = () => {
                 />
             );
         }
-        if (activeMenuItem === 'Quick Reply') {
-            return <QuickReply />;
+        if (activeMenuItem === 'Team Staff') {
+            return <StaffManagement />;
         }
 
         return (
@@ -755,7 +777,7 @@ const MainApp: React.FC = () => {
         return null;
     }
 
-    if (!session) {
+    if (!session && !staffSession) {
         return <AuthPage />;
     }
 
@@ -771,7 +793,7 @@ const MainApp: React.FC = () => {
                 onNavigate={handleMenuNavigation}
                 isOpen={isSidebarOpen}
                 onClose={() => setSidebarOpen(false)}
-                userEmail={session?.user?.email}
+                userEmail={session?.user?.email || staffSession?.email}
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
@@ -819,6 +841,7 @@ const App: React.FC = () => {
                     <Route path="subscriptions" element={<AdminSubscriptions />} />
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="super" element={<SuperDashboard />} />
+                    <Route path="limits" element={<FeatureLimitsManager />} />
                 </Route>
 
                 {/* Public Form Route */}
@@ -832,6 +855,9 @@ const App: React.FC = () => {
 
                 {/* Generic Multi-Domain Auth Callback */}
                 <Route path="/auth_callback" element={<AuthCentralCallback />} />
+
+                {/* Staff Login Portal */}
+                <Route path="/staff/login" element={<StaffLogin />} />
 
                 {/* Main App Catch-All */}
                 <Route path="/*" element={<MainApp />} />

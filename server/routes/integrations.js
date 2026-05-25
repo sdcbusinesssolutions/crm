@@ -3,12 +3,13 @@ const router = express.Router();
 const facebookService = require('../services/FacebookLeadService');
 const { supabaseAdmin } = require('../lib/supabaseClient');
 const { logFacebookLeadEvent } = require('../utils/logger');
+const { requirePermission, ACCESS_TYPES } = require('../middleware/requirePermission');
 
 
 
 // ...
 // ...
-router.get('/facebook/pages', async (req, res) => {
+router.get('/facebook/pages', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const userId = req.user.id;
         const pages = await facebookService.getAllPages(userId);
@@ -19,7 +20,7 @@ router.get('/facebook/pages', async (req, res) => {
     }
 });
 
-router.get('/facebook/pages/:pageId/forms', async (req, res) => {
+router.get('/facebook/pages/:pageId/forms', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const userId = req.user.id;
         const { pageId } = req.params;
@@ -31,7 +32,7 @@ router.get('/facebook/pages/:pageId/forms', async (req, res) => {
     }
 });
 
-router.post('/facebook/leads/sync', async (req, res) => {
+router.post('/facebook/leads/sync', requirePermission('Integrations', ACCESS_TYPES.READ_WRITE), async (req, res) => {
     try {
         const userId = req.user.id;
         const { pageId, formId } = req.body;
@@ -43,7 +44,7 @@ router.post('/facebook/leads/sync', async (req, res) => {
     }
 });
 
-router.get('/facebook/config', async (req, res) => {
+router.get('/facebook/config', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     try {
         const { appId, configId } = await facebookService.getAppCredentials();
 
@@ -57,7 +58,7 @@ router.get('/facebook/config', async (req, res) => {
     }
 });
 
-router.get('/facebook/status', async (req, res) => {
+router.get('/facebook/status', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
     // ...
     try {
         const userId = req.user.id;
@@ -69,7 +70,7 @@ router.get('/facebook/status', async (req, res) => {
     }
 });
 
-router.post('/facebook/connect', async (req, res) => {
+router.post('/facebook/connect', requirePermission('Integrations', ACCESS_TYPES.READ_WRITE), async (req, res) => {
     try {
         const { access_token } = req.body;
         const userId = req.user.id;
@@ -162,7 +163,7 @@ router.post('/facebook/connect', async (req, res) => {
 
 
 
-router.post('/facebook/pages/:pageId/toggle', async (req, res) => {
+router.post('/facebook/pages/:pageId/toggle', requirePermission('Integrations', ACCESS_TYPES.READ_WRITE), async (req, res) => {
     try {
         const userId = req.user.id;
         const { pageId } = req.params;
@@ -187,29 +188,27 @@ router.post('/facebook/subscribe', async (req, res) => {
 
 
 // --- Google Integration ---
-// --- Google Integration ---
-// --- Google Integration ---
 const googleRoutes = require('./integrations/google');
-router.use('/google', googleRoutes);
+router.use('/google', requirePermission('Integrations', ACCESS_TYPES.READ), googleRoutes);
 
 // --- Gmail Integration ---
 const gmailRoutes = require('./integrations/gmail');
-router.use('/gmail', gmailRoutes);
+router.use('/gmail', requirePermission('Integrations', ACCESS_TYPES.READ), gmailRoutes);
 
 // --- Google Calendar Integration ---
 const calendarRoutes = require('./integrations/calendar');
-router.use('/calendar', calendarRoutes);
+router.use('/calendar', requirePermission('Integrations', ACCESS_TYPES.READ), calendarRoutes);
 
 // --- Google Contacts Integration ---
 const contactsRoutes = require('./integrations/contacts');
-router.use('/contacts', contactsRoutes);
+router.use('/contacts', requirePermission('Integrations', ACCESS_TYPES.READ), contactsRoutes);
 
 // --- SMTP Integration ---
 const smtpRoutes = require('./integrations/smtp');
-router.use('/smtp', smtpRoutes);
+router.use('/smtp', requirePermission('Integrations', ACCESS_TYPES.READ), smtpRoutes);
 
 // --- OpenAI Integration ---
 const openaiRoutes = require('./integrations/openai');
-router.use('/openai', openaiRoutes);
+router.use('/openai', requirePermission('Integrations', ACCESS_TYPES.READ), openaiRoutes);
 
 module.exports = router;

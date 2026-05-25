@@ -96,107 +96,103 @@ const AuthPage: React.FC = () => {
                 if (error) throw error;
                 setMessage('Registration successful! Please check your email to confirm your account.');
             } else {
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-                if (error) throw error;
-
-                // --- TENANCY & REDIRECTION LOGIC ---
-                // Fetch the authoritative domain from the profiles table
-                // (User metadata might be stale or missing for older users)
-                if (data.user) {
-                    const { data: profile } = await supabase
-                        .from('profiles')
-                        .select('signup_domain, role')
-                        .eq('id', data.user.id)
-                        .single();
-
-                    const assignedDomain = profile?.signup_domain;
-                    const currentDomain = window.location.hostname;
-
-                    // Normalize domains (ignore port for localhost)
-                    const normalize = (d: string) => d.trim().toLowerCase()
-                        .replace(/^https?:\/\//, '')
-                        .replace(/^www\./, '');
-
-                    const assigned = normalize(assignedDomain || '');
-                    const current = normalize(currentDomain || '');
-
-                    const isLocalhost = current.includes('localhost') || current.includes('127.0.0.1');
-
-                    // CHECK 1: If user belongs to a domain, they should be ON that domain.
-                    if (assigned && assigned !== current && !isLocalhost) {
-                        // User is on the wrong domain (e.g., api@apiautomation.in on clickube.com)
-
-                        // Action: Sign out and Redirect to the correct domain
-                        await supabase.auth.signOut();
-
-                        // Construct redirect URL
-                        // Warning: This assumes https for production.
-                        const protocol = window.location.protocol;
-                        const targetUrl = `${protocol}//${assigned}/login?email=${encodeURIComponent(email)}&redirect_reason=domain_mismatch&expected=${assigned}&actual=${current}`;
-
-                        alert(`You belong to ${assigned}. Redirecting you there...`);
-                        window.location.href = targetUrl;
-                        return; // Stop execution
-                    }
-
-                    // CHECK 2: Plan Status (Safeguarded)
-                    try {
-                        const { data: userCheck, error: planError } = await supabase.rpc('check_user_plan_status', {
-                            target_user_id: data.user.id
-                        });
-
-                        // Treat plan check as non-blocking if RPC fails (e.g., function missing)
-                        if (!planError && userCheck && (userCheck as any).length > 0) {
-                            const status = (userCheck as any)[0];
-                            if (status.is_allowed === false) {
-                                await supabase.auth.signOut();
-                                throw new Error(status.message || 'Subscription Plan Expired');
+                try {
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                        email,
+                        password,
+                    });
+                    
+                    if (error) {
+                        // If Supabase login fails, check if it's a staff member
+                        // But only if it's an "Invalid login credentials" error (most common case for mixed login)
+                        const isInvalidCreds = error.message?.toLowerCase().includes('invalid');
+                        
+                        if (isInvalidCreds) {
+                            console.log('🔄 Owner login failed (Supabase). Attempting staff fallback for:', email);
+                            try {
+                                const { staffApi } = await import('../modules/teamStaff/api/staffApi');
+                                const staffData = await staffApi.login({ email, password });
+                                
+                                console.log('🎉 Staff login SUCCESS:', staffData.staff.name);
+                                
+                                // Success! Store staff tokens
+                                localStorage.setItem('staffToken', staffData.token);
+                                localStorage.setItem('staffData', JSON.stringify(staffData.staff));
+                                
+                                setMessage(`Welcome back, ${staffData.staff.name}! Redirecting...`);
+                                setTimeout(() => window.location.href = '/dashboard', 1000);
+                                return;
+                            } catch (staffErr: any) {
+                                console.warn('❌ Staff fallback failed:', staffErr.message);
+                                // Always show the original Supabase error when standard login fails
+                                throw error;
                             }
-                            if (status.message === 'PLAN_EXPIRING_SOON') {
-                                alert(`⚠️ Note: Your subscription expires in ${status.days_left} days.`);
-                            }
+                        } else {
+                            // If it's another error (like "Email not confirmed" or "Unexpected token"), throw it
+                            throw error;
                         }
-                    } catch (e: any) {
-                        // Only block if explicitly set to blocked. Log other errors.
-                        if (e.message?.includes('Subscription Plan Expired')) throw e;
-                        console.warn("Plan Check Skipped:", e.message);
                     }
 
-                    // CHECK 3: Global Ban/Block Status (Safeguarded)
-                    try {
-                        const { data: adminCheck, error: adminRpcError } = await supabase.rpc('check_admin_status', {
-                            check_domain: assignedDomain || currentDomain
-                        });
+                    // --- TENANCY & REDIRECTION LOGIC (Existing Owner Logic) ---
+                    if (data.user) {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('signup_domain, role')
+                            .eq('id', data.user.id)
+                            .single();
 
-                        if (!adminRpcError && adminCheck && (adminCheck as any).length > 0) {
-                            const result = (adminCheck as any)[0];
-                            if (result.is_banned) {
-                                await supabase.auth.signOut();
-                                throw new Error(result.fail_reason || 'This Workspace (Domain) access is blocked by Super Admin.');
-                            }
+                        const assignedDomain = profile?.signup_domain;
+                        const currentDomain = window.location.hostname;
+
+                        const normalize = (d: string) => d.trim().toLowerCase()
+                            .replace(/^https?:\/\//, '')
+                            .replace(/^www\./, '');
+
+                        const assigned = normalize(assignedDomain || '');
+                        const current = normalize(currentDomain || '');
+                        const isLocalhost = current.includes('localhost') || current.includes('127.0.0.1');
+
+                        if (assigned && assigned !== current && !isLocalhost) {
+                            await supabase.auth.signOut();
+                            const protocol = window.location.protocol;
+                            const targetUrl = `${protocol}//${assigned}/login?email=${encodeURIComponent(email)}&redirect_reason=domain_mismatch&expected=${assigned}&actual=${current}`;
+                            alert(`You belong to ${assigned}. Redirecting you there...`);
+                            window.location.href = targetUrl;
+                            return;
                         }
-                    } catch (e: any) {
-                        if (e.message?.includes('blocked')) throw e;
-                        console.warn("Admin Status Check Skipped:", e.message);
+
+                        // Plan Check
+                        try {
+                            const { data: userCheck, error: planError } = await supabase.rpc('check_user_plan_status', {
+                                target_user_id: data.user.id
+                            });
+                            if (!planError && userCheck && (userCheck as any).length > 0) {
+                                const status = (userCheck as any)[0];
+                                if (status.is_allowed === false) {
+                                    await supabase.auth.signOut();
+                                    throw new Error(status.message || 'Subscription Plan Expired');
+                                }
+                            }
+                        } catch (e: any) {
+                            if (e.message?.includes('Plan Expired')) throw e;
+                        }
                     }
+                } catch (e: any) {
+                    throw e;
                 }
             }
         } catch (err: any) {
             let errorMsg = err.message || 'An unexpected error occurred';
-
-            // Handle generic Supabase/Postgres trigger errors
-            if (errorMsg.includes('Database error saving new user')) {
-                // This usually typically means the 'check_tenant_limit' trigger failed
-                errorMsg = 'Signup Failed: This workspace has reached its user limit. Please contact the administrator.';
+            
+            // Handle common technical errors gracefully
+            if (errorMsg.includes('Unexpected token') || errorMsg.includes('valid JSON')) {
+                errorMsg = 'Connection Error: The server returned an invalid response. Please refresh (Ctrl+F5) and try again.';
+            } else if (errorMsg.includes('Database error saving new user')) {
+                errorMsg = 'Signup Failed: This workspace has reached its user limit.';
+            } else if (errorMsg.includes('fetch')) {
+                errorMsg = 'Network Error: Cannot reach the authentication server. Please check your internet.';
             }
-            else if (errorMsg.includes('Signup Limit Reached')) {
-                // If the raw Postgres exception leaks through, clean it up
-                errorMsg = errorMsg.replace('Database error: ', '');
-            }
-
+            
             setError(errorMsg);
         } finally {
             setLoading(false);

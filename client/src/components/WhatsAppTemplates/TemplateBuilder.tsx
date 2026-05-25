@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import TemplatePreview from './TemplatePreview';
 import Toast from '../Toast';
 import { TrashIcon, PlusIcon, MessageIcon, ImageFileIcon, VideoFileIcon, DocumentFileIcon, MapIcon, CloseIcon, CtaIcon, QuickReplyIcon, CarouselIcon, CatalogueIcon, FormIcon, ZapIcon } from '../icons';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 interface TemplateBuilderProps {
     templateId: string | null;
@@ -124,6 +125,8 @@ const SUPPORTED_LANGUAGES = [
 ];
 
 const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack }) => {
+    const { canWrite: getCanWrite } = usePermissions();
+    const canWrite = getCanWrite('WhatsApp Templates');
     const [types, setTypes] = useState<any[]>([]);
     const [rules, setRules] = useState<any>({});
     const [actionTypes, setActionTypes] = useState<any[]>([]);
@@ -537,6 +540,10 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
     };
 
     const handleSubmit = async () => {
+        if (!canWrite) {
+            alert('You do not have permission to modify WhatsApp Templates.');
+            return;
+        }
         // Basic Validation
         if (!name) {
             setToast({ type: 'error', title: 'Validation Error', message: 'Template Name is required.' });
@@ -696,17 +703,25 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                 <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-none">{templateId ? 'Edit Template' : 'New Template'}</h1>
                             </div>
                         </div>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            className="py-1.5 px-4 bg-[#00a884] text-white text-sm font-bold rounded-lg hover:bg-[#008f6f] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                            {isSubmitting && <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-                            {templateId ? 'Update' : 'Save'}
-                        </button>
+                        {canWrite ? (
+                            <button
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                                className="py-1.5 px-4 bg-[#00a884] text-white text-sm font-bold rounded-lg hover:bg-[#008f6f] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isSubmitting && <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {templateId ? 'Update' : 'Save'}
+                            </button>
+                        ) : (
+                            <div className="py-1.5 px-3 bg-slate-100 text-slate-500 font-bold rounded-lg border border-slate-200 shadow-sm flex items-center gap-1.5 text-xs">
+                                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Read Only
+                            </div>
+                        )}
                     </div>
 
                     <div className="px-5 pb-20 space-y-6">
+                        <fieldset disabled={!canWrite} className="contents">
                         {/* Basic Info Card */}
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1188,6 +1203,7 @@ const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ templateId, onBack })
                                 </div>
                             </div>
                         )}
+                        </fieldset>
                     </div>
                 </div>
 

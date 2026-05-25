@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
     isOpen: boolean;
@@ -9,9 +10,10 @@ interface ModalProps {
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | 'full';
     noPadding?: boolean;
     scrollable?: boolean;
+    extraClassName?: string;
 }
 
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md', noPadding = false, scrollable = true }) => {
+const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md', noPadding = false, scrollable = true, extraClassName = '' }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -43,22 +45,23 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
         full: 'max-w-full m-4'
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
+    const modalContent = (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-in fade-in duration-200">
             <div
                 ref={modalRef}
-                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-xl shadow-2xl w-full ${sizeClasses[size]} transform transition-all border-2 border-[#0D9668] flex flex-col max-h-[90vh]`}
+                className={`bg-[var(--color-surface)] text-[var(--color-text)] rounded-[2rem] shadow-[0_30px_90px_rgba(0,0,0,0.4)] w-full ${sizeClasses[size]} transform transition-all border border-white/20 flex flex-col max-h-[90vh] ${extraClassName} animate-in zoom-in-95 duration-200`}
                 role="dialog"
                 aria-modal="true"
+                onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-6 border-b border-[#0D9668] flex-shrink-0">
-                    <h3 className="text-xl font-bold">{title}</h3>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100/50 flex-shrink-0">
+                    <h3 className="text-xl font-black tracking-tight text-slate-800">{title}</h3>
                     <button
-                        onClick={onClose}
-                        className="text-[var(--color-text)] opacity-40 hover:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); onClose(); }}
+                        className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all active:scale-90"
                     >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
@@ -68,13 +71,17 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
                 </div>
 
                 {footer && (
-                    <div className="p-6 border-t border-[#0D9668] bg-[var(--color-bg)] rounded-b-xl flex justify-end gap-3 flex-shrink-0">
+                    <div className="p-6 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl flex justify-end gap-3 flex-shrink-0">
                         {footer}
                     </div>
                 )}
             </div>
+            {/* Backdrop click closer */}
+            <div className="absolute inset-0 -z-10" onClick={(e) => { e.stopPropagation(); onClose(); }}></div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 };
 
 export default Modal;

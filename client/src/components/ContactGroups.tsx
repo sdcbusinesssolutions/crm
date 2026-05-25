@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ContactGroup } from '../types';
 import { contactGroupService } from '../services/contactGroupService';
 import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, UsersIcon, ChevronDownIcon, BriefcaseIcon, DownloadIcon } from './icons';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 interface ContactGroupsProps {
     onGroupClick?: (groupId: string) => void;
@@ -10,6 +11,10 @@ interface ContactGroupsProps {
 }
 
 const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCountUpdate }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Contact Groups', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Contact Groups', ACCESS_TYPES.ALL_ACCESS);
+
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
         return new Date(dateStr).toLocaleString([], { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -52,6 +57,7 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     };
 
     const handleOpenModal = (group?: ContactGroup) => {
+        if (!canWrite) return;
         if (group) { setEditingGroup(group); setFormData({ ...group }); }
         else { setEditingGroup(null); setFormData({ name: '', description: '', contactCount: 0 }); }
         setIsModalOpen(true);
@@ -59,6 +65,7 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!canWrite) return;
         if (!formData.name?.trim()) return;
         const newGroup: ContactGroup = {
             id: editingGroup ? editingGroup.id : `grp-${Date.now()}`,
@@ -72,10 +79,12 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     };
 
     const handleDelete = (id: string) => {
+        if (!canDelete) return;
         setDeleteModal({ isOpen: true, type: 'single', id });
     };
 
     const proceedDelete = async () => {
+        if (!canDelete) return;
         if (deleteModal.type === 'single' && deleteModal.id) {
             await contactGroupService.deleteGroup(deleteModal.id);
             const newSet = new Set(selectedIds); newSet.delete(deleteModal.id); setSelectedIds(newSet);
@@ -88,6 +97,7 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     };
 
     const handleArchive = async (group: ContactGroup) => {
+        if (!canWrite) return;
         const newStatus = group.status === 'Active' ? 'Archive' : 'Active';
         await contactGroupService.saveGroup({ ...group, status: newStatus as 'Active' | 'Archive' });
         await loadGroups();
@@ -148,6 +158,8 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
     };
 
     const handleBulkAction = async (action: 'delete' | 'archive') => {
+        if (!canWrite) return;
+        if (action === 'delete' && !canDelete) return;
         setIsBulkDropdownOpen(false);
         if (selectedIds.size === 0) return;
         if (action === 'delete') {
@@ -183,17 +195,23 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                         <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="pl-10 pr-4 py-2.5 w-full bg-white border border-brand-600 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" />
                     </div>
 
-                    <div className="relative bulk-action-container">
-                        <button onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} disabled={selectedIds.size === 0} className={`w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-btn shadow-sm flex items-center justify-center gap-2 transition-all border ${selectedIds.size > 0 ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700 shadow-md shadow-brand-200' : 'bg-brand-600 text-white border-brand-600 opacity-60 cursor-not-allowed'}`}>Bulk <ChevronDownIcon className="w-3 h-3" /></button>
-                        {isBulkDropdownOpen && selectedIds.size > 0 && (
-                            <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-btn shadow-xl z-30 py-1 overflow-hidden animate-fade-in">
-                                <button onClick={() => handleBulkAction('archive')} className="block w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-medium transition-colors">{activeTab === 'Active' ? 'Archive Selected' : 'Activate Selected'}</button>
-                                <button onClick={() => handleBulkAction('delete')} className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors">Delete Selected</button>
-                            </div>
-                        )}
-                    </div>
+                    {canWrite && (
+                        <div className="relative bulk-action-container">
+                            <button onClick={() => setIsBulkDropdownOpen(!isBulkDropdownOpen)} disabled={selectedIds.size === 0} className={`w-full sm:w-auto px-4 py-2.5 text-sm font-bold rounded-btn shadow-sm flex items-center justify-center gap-2 transition-all border ${selectedIds.size > 0 ? 'bg-brand-600 text-white border-brand-600 hover:bg-brand-700 shadow-md shadow-brand-200' : 'bg-brand-600 text-white border-brand-600 opacity-60 cursor-not-allowed'}`}>Bulk <ChevronDownIcon className="w-3 h-3" /></button>
+                            {isBulkDropdownOpen && selectedIds.size > 0 && (
+                                <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-btn shadow-xl z-30 py-1 overflow-hidden animate-fade-in">
+                                    <button onClick={() => handleBulkAction('archive')} className="block w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 font-medium transition-colors">{activeTab === 'Active' ? 'Archive Selected' : 'Activate Selected'}</button>
+                                    {canDelete && (
+                                        <button onClick={() => handleBulkAction('delete')} className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors">Delete Selected</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
-                <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto"><PlusIcon /><span>Create Group</span></button>
+                {canWrite && (
+                    <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto"><PlusIcon /><span>Create Group</span></button>
+                )}
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -207,7 +225,9 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                             <table className="min-w-full divide-y divide-slate-100">
                                 <thead className="bg-brand-600 text-white shadow-md">
                                     <tr>
-                                        <th className="px-6 py-4 text-left w-10 !bg-brand-600 text-white"><input type="checkbox" className="rounded border-brand-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer" checked={currentEntries.length > 0 && currentEntries.every(g => selectedIds.has(g.id))} onChange={handleSelectAll} /></th>
+                                        {canWrite && (
+                                            <th className="px-6 py-4 text-left w-10 !bg-brand-600 text-white"><input type="checkbox" className="rounded border-brand-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer" checked={currentEntries.length > 0 && currentEntries.every(g => selectedIds.has(g.id))} onChange={handleSelectAll} /></th>
+                                        )}
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Title</th>
                                         <th className="px-6 py-4 text-center text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Contacts</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Created</th>
@@ -219,7 +239,9 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {currentEntries.map((group) => (
                                         <tr key={group.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(group.id) ? 'bg-brand-50/30' : ''}`}>
-                                            <td className="px-6 py-4"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer" checked={selectedIds.has(group.id)} onChange={() => handleSelectRow(group.id)} /></td>
+                                            {canWrite && (
+                                                <td className="px-6 py-4"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer" checked={selectedIds.has(group.id)} onChange={() => handleSelectRow(group.id)} /></td>
+                                            )}
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <button
                                                     onClick={() => onGroupClick?.(group.id)}
@@ -242,12 +264,18 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                                                         {exportingId === group.id ? (
                                                             <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                                                         ) : (
-                                                            <DownloadIcon className="w-4 h-4" />
+                                                            <DownloadIcon className="w-4 h-4 text-slate-400 hover:text-green-600" />
                                                         )}
                                                     </button>
-                                                    <button onClick={() => handleOpenModal(group)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleArchive(group)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><BriefcaseIcon className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleDelete(group.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                    {canWrite && (
+                                                        <>
+                                                            <button onClick={() => handleOpenModal(group)} className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Edit Group"><EditIcon className="w-4 h-4" /></button>
+                                                            <button onClick={() => handleArchive(group)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Archive Group"><BriefcaseIcon className="w-4 h-4" /></button>
+                                                            {canDelete && (
+                                                                <button onClick={() => handleDelete(group.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Group"><TrashIcon className="w-4 h-4" /></button>
+                                                            )}
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -259,7 +287,9 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                         <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">
                             {currentEntries.map(group => (
                                 <div key={group.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(group.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}>
-                                    <div className="absolute top-5 right-5"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(group.id)} onChange={() => handleSelectRow(group.id)} /></div>
+                                    {canWrite && (
+                                        <div className="absolute top-5 right-5"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(group.id)} onChange={() => handleSelectRow(group.id)} /></div>
+                                    )}
                                     <h3 className="font-bold text-slate-900 text-lg">{group.name}</h3>
                                     <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
                                         <button onClick={() => handleExport(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-green-600 border border-slate-200 hover:border-green-200">
@@ -269,8 +299,14 @@ const ContactGroups: React.FC<ContactGroupsProps> = ({ onGroupClick, onGroupCoun
                                                 <DownloadIcon className="w-4 h-4" />
                                             )}
                                         </button>
-                                        <button onClick={() => handleOpenModal(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button>
-                                        <button onClick={() => handleDelete(group.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button>
+                                        {canWrite && (
+                                            <>
+                                                <button onClick={() => handleOpenModal(group)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button>
+                                                {canDelete && (
+                                                    <button onClick={() => handleDelete(group.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))}

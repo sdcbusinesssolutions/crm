@@ -6,6 +6,7 @@ import { tagService, Tag } from '../services/tagService';
 import { formService } from '../services/formService';
 import { supabase } from '../lib/supabase';
 import { UsersIcon, KanbanIcon, TagIcon, ClockIcon, CatalogueIcon, ChevronRightIcon, ZapIcon, BookmarkIcon } from './icons';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 // Temporary icon fallbacks if not in icons.tsx
 const DollarIconFallback = ({ className }: { className?: string }) => (
@@ -109,6 +110,7 @@ const scrollbarStyles = `
 `;
 
 const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContactsCount }) => {
+    const { hasAccess } = usePermissions();
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -215,7 +217,13 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
         // If no pipeline is active, or if we just loaded fresh data and haven't manually changed it,
         // we should try to pick the default one.
         if (!targetPipelineId && (!activePipelineId || !availablePipelines.some(p => p.id === activePipelineId))) {
-            const defaultPipe = availablePipelines.find((p: any) => p.is_default) || availablePipelines[0];
+            const staffData = localStorage.getItem('staffData');
+            const uid = staffData ? JSON.parse(staffData).id : 'admin';
+            const localDefaultId = localStorage.getItem(`default_pipeline_${uid}`);
+            
+            const defaultPipe = availablePipelines.find((p: any) => p.id === localDefaultId) 
+                             || availablePipelines.find((p: any) => p.is_default) 
+                             || availablePipelines[0];
             currentPipeId = defaultPipe?.id || null;
         }
         
@@ -343,112 +351,120 @@ const LeadDashboard: React.FC<LeadDashboardProps> = ({ onNavigate, totalContacts
                 {/* Statistics Overview */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                     {/* Leads Card */}
-                    <div onClick={() => onNavigate('contacts')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#A3DC9A] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+                    {hasAccess('Contact List', ACCESS_TYPES.READ) && (
+                        <div onClick={() => onNavigate('contacts')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#A3DC9A] shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
 
-                        <div className="p-6 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-5 relative z-10">
-                                <div className="flex items-center gap-5">
-                                    <div className="p-4 rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
-                                        <UsersIcon className="w-6 h-6 text-white" />
+                            <div className="p-6 relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-5 relative z-10">
+                                    <div className="flex items-center gap-5">
+                                        <div className="p-4 rounded-2xl bg-emerald-600 shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform duration-300">
+                                            <UsersIcon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">{stats.totalLeads.toLocaleString()}</div>
+                                            <div className="text-[12px] font-black uppercase tracking-[0.1em] text-emerald-600">Lead CRM</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="text-3xl md:text-4xl font-[900] text-emerald-950 tracking-tighter leading-none mb-1">{stats.totalLeads.toLocaleString()}</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-emerald-600">Lead CRM</div>
+                                    <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
+                                        <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                        <span>+100%</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[12px] font-black text-emerald-700 bg-emerald-100/80 px-3 py-1.5 rounded-full border border-emerald-200 shadow-sm backdrop-blur-sm">
-                                    <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                                    <span>+100%</span>
+                                <div className="relative z-10 pl-[76px]">
+                                    <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">Lifetime Audience</div>
                                 </div>
-                            </div>
-                            <div className="relative z-10 pl-[76px]">
-                                <div className="inline-block px-4 py-1.5 rounded-xl bg-emerald-50 border border-emerald-100 text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-inner">Lifetime Audience</div>
-                            </div>
 
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Forms Card */}
-                    <div onClick={() => onNavigate('forms')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E2A16F] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+                    {hasAccess('Form Builder', ACCESS_TYPES.READ) && (
+                        <div onClick={() => onNavigate('forms')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#E2A16F] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
 
-                        <div className="p-6 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-5 relative z-10">
-                                <div className="flex items-center gap-5">
-                                    <div className="p-4 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
-                                        <CatalogueIcon className="w-6 h-6 text-white" />
+                            <div className="p-6 relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-5 relative z-10">
+                                    <div className="flex items-center gap-5">
+                                        <div className="p-4 rounded-2xl bg-blue-600 shadow-lg shadow-blue-200 group-hover:scale-110 transition-transform duration-300">
+                                            <CatalogueIcon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl md:text-4xl font-[900] text-blue-950 tracking-tighter leading-none mb-1">{stats.formCount}</div>
+                                            <div className="text-[12px] font-black uppercase tracking-[0.1em] text-blue-600">Forms</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="text-3xl md:text-4xl font-[900] text-blue-950 tracking-tighter leading-none mb-1">{stats.formCount}</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-blue-600">Forms</div>
+                                    <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-100/80 px-3 py-1.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-sm">
+                                        <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                        <span>5%</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[12px] font-black text-blue-700 bg-blue-100/80 px-3 py-1.5 rounded-full border border-blue-200 shadow-sm backdrop-blur-sm">
-                                    <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                                    <span>5%</span>
+                                <div className="relative z-10 pl-[76px]">
+                                    <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">Flow Automation Flow</div>
                                 </div>
-                            </div>
-                            <div className="relative z-10 pl-[76px]">
-                                <div className="inline-block px-4 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-inner">Flow Automation Flow</div>
-                            </div>
 
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Pipelines Card */}
-                    <div onClick={() => onNavigate('pipelines')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#FFB399] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+                    {hasAccess('Pipelines', ACCESS_TYPES.READ) && (
+                        <div onClick={() => onNavigate('pipelines')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#FFB399] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
 
-                        <div className="p-6 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-5 relative z-10">
-                                <div className="flex items-center gap-5">
-                                    <div className="p-4 rounded-2xl bg-orange-600 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-300">
-                                        <KanbanIcon className="w-6 h-6 text-white" />
+                            <div className="p-6 relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-5 relative z-10">
+                                    <div className="flex items-center gap-5">
+                                        <div className="p-4 rounded-2xl bg-orange-600 shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform duration-300">
+                                            <KanbanIcon className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl md:text-4xl font-[900] text-orange-950 tracking-tighter leading-none mb-1">{stats.pipelineCount}</div>
+                                            <div className="text-[12px] font-black uppercase tracking-[0.1em] text-orange-600">Pipelines</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="text-3xl md:text-4xl font-[900] text-orange-950 tracking-tighter leading-none mb-1">{stats.pipelineCount}</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-orange-600">Pipelines</div>
+                                    <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-100/80 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm backdrop-blur-sm">
+                                        <TrendingUpIconFallback className="w-3.5 h-3.5" />
+                                        <span>{Math.round((stats.pipelineCount / (stats.totalLeads || 1)) * 100)}%</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[12px] font-black text-orange-700 bg-orange-100/80 px-3 py-1.5 rounded-full border border-orange-200 shadow-sm backdrop-blur-sm">
-                                    <TrendingUpIconFallback className="w-3.5 h-3.5" />
-                                    <span>{Math.round((stats.pipelineCount / (stats.totalLeads || 1)) * 100)}%</span>
+                                <div className="relative z-10 pl-[76px]">
+                                    <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">
+                                        {stats.leadsBySource[0] ? `Top Source: ${stats.leadsBySource[0].name.replace('_', ' ')}` : 'Lead Channels Active'}
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="relative z-10 pl-[76px]">
-                                <div className="inline-block px-4 py-1.5 rounded-xl bg-orange-50 border border-orange-100 text-[11px] font-black uppercase tracking-wider text-orange-700 shadow-inner">
-                                    {stats.leadsBySource[0] ? `Top Source: ${stats.leadsBySource[0].name.replace('_', ' ')}` : 'Lead Channels Active'}
-                                </div>
-                            </div>
 
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* Tasks Card */}
-                    <div onClick={() => onNavigate('follow-up')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#696FC7] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
+                    {hasAccess('Follow-up', ACCESS_TYPES.READ) && (
+                        <div onClick={() => onNavigate('follow-up')} className="relative overflow-hidden rounded-3xl bg-white border-2 border-[#696FC7] ring-2 ring-white ring-inset shadow-lg hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group min-h-[170px]">
 
-                        <div className="p-6 relative overflow-hidden">
-                            <div className="flex justify-between items-start mb-5 relative z-10">
-                                <div className="flex items-center gap-5">
-                                    <div className={`bg-[#942CAE] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
-                                        <ClockIcon className="w-5 h-5 text-white" />
+                            <div className="p-6 relative overflow-hidden">
+                                <div className="flex justify-between items-start mb-5 relative z-10">
+                                    <div className="flex items-center gap-5">
+                                        <div className={`bg-[#942CAE] w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110`}>
+                                            <ClockIcon className="w-5 h-5 text-white" />
+                                        </div>
+                                        <div>
+                                            <div className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tighter leading-none mb-1">{stats.followUpCount}</div>
+                                            <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Follow Up</div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <div className="text-3xl md:text-4xl font-[900] text-slate-900 tracking-tighter leading-none mb-1">{stats.followUpCount}</div>
-                                        <div className="text-[12px] font-black uppercase tracking-[0.1em] text-[#942CAE]">Follow Up</div>
+                                    <div className="flex items-center gap-1.5 text-[12px] font-black text-purple-700 bg-purple-100/80 px-3 py-1.5 rounded-full border border-purple-200 shadow-sm backdrop-blur-sm">
+                                        <ClockIcon className="w-3.5 h-3.5" />
+                                        <span>{stats.followUpCount > 0 ? 'URGENT' : 'CLEAR'}</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[12px] font-black text-purple-700 bg-purple-100/80 px-3 py-1.5 rounded-full border border-purple-200 shadow-sm backdrop-blur-sm">
-                                    <ClockIcon className="w-3.5 h-3.5" />
-                                    <span>{stats.followUpCount > 0 ? 'URGENT' : 'CLEAR'}</span>
+                                <div className="relative z-10 pl-[76px]">
+                                    <div className="inline-block px-4 py-1.5 rounded-xl bg-purple-50 border border-purple-100 text-[11px] font-black uppercase tracking-wider text-purple-700 shadow-inner">
+                                        {stats.followUpCount} Pending Tasks
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="relative z-10 pl-[76px]">
-                                <div className="inline-block px-4 py-1.5 rounded-xl bg-purple-50 border border-purple-100 text-[11px] font-black uppercase tracking-wider text-purple-700 shadow-inner">
-                                    {stats.followUpCount} Pending Tasks
-                                </div>
-                            </div>
 
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* 4-COLUMN MAIN GRID - 3:1 PARTITIONING */}

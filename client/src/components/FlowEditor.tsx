@@ -14,7 +14,12 @@ interface FlowEditorProps {
   onBack: () => void;
 }
 
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+
 const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
+  const { hasAccess } = usePermissions();
+  const canWrite = hasAccess('Flows', ACCESS_TYPES.READ_WRITE);
+
   const [flowName, setFlowName] = useState('Untitled Flow');
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -635,15 +640,23 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
           <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end bg-slate-800/30 p-1.5 rounded-xl border border-slate-800/50">
             <div className="flex items-center gap-2 px-2">
               <span className={`text-[10px] font-black uppercase tracking-wider transition-colors ${flowStatus === 'Published' ? 'text-emerald-400' : 'text-slate-500'}`}>{flowStatus}</span>
-              <button onClick={() => setFlowStatus(s => s === 'Draft' ? 'Published' : 'Draft')} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none border-2 ${flowStatus === 'Published' ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-700 border-slate-600'}`} title={`Switch to ${flowStatus === 'Draft' ? 'Published' : 'Draft'}`}>
+              <button 
+                onClick={() => canWrite && setFlowStatus(s => s === 'Draft' ? 'Published' : 'Draft')} 
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none border-2 ${flowStatus === 'Published' ? 'bg-emerald-500 border-emerald-600' : 'bg-slate-700 border-slate-600'} ${!canWrite ? 'cursor-not-allowed opacity-70' : ''}`} 
+                title={canWrite ? `Switch to ${flowStatus === 'Draft' ? 'Published' : 'Draft'}` : "Read Only"}
+              >
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${flowStatus === 'Published' ? 'translate-x-5' : 'translate-x-0.5'}`} />
               </button>
             </div>
 
             <div className="h-8 w-px bg-slate-700/50 hidden sm:block"></div>
 
-            <button onClick={handleSave} disabled={saving} className={`flex items-center gap-2 px-6 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-b-2 border-brand-800 hover:border-brand-700 active:border-t-2 active:border-b-0`}>
-              {saving ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>Saving...</span></>) : (<span>Save & Exit</span>)}
+            <button 
+              onClick={canWrite ? handleSave : onBack} 
+              disabled={saving} 
+              className={`flex items-center gap-2 px-6 py-1.5 ${canWrite ? 'bg-brand-600 hover:bg-brand-500 border-brand-800 hover:border-brand-700' : 'bg-slate-700 hover:bg-slate-600 border-slate-800'} text-white text-sm font-bold rounded-lg shadow-lg shadow-brand-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed border-b-2 active:border-t-2 active:border-b-0`}
+            >
+              {saving ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div><span>Saving...</span></>) : (<span>{canWrite ? 'Save & Exit' : 'Close'}</span>)}
             </button>
           </div>
         </div>
@@ -703,19 +716,21 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
           </div>
         </div>
 
-        <div className={`absolute inset-y-0 right-0 z-30 transform transition-all duration-300 ease-in-out bg-slate-900 shadow-2xl border-l border-slate-800 h-full ${isNodesPanelOpen ? 'translate-x-0' : 'translate-x-full'} md:relative ${isNodesPanelOpen ? 'md:w-72 md:translate-x-0' : 'md:w-0 md:border-none md:overflow-hidden'}`}>
-          <div className="w-72 h-full">
-            <NodesPanel onAddNode={(type) => addNode(type)} onClose={() => setIsNodesPanelOpen(false)} />
+        {canWrite && (
+          <div className={`absolute inset-y-0 right-0 z-30 transform transition-all duration-300 ease-in-out bg-slate-900 shadow-2xl border-l border-slate-800 h-full ${isNodesPanelOpen ? 'translate-x-0' : 'translate-x-full'} md:relative ${isNodesPanelOpen ? 'md:w-72 md:translate-x-0' : 'md:w-0 md:border-none md:overflow-hidden'}`}>
+            <div className="w-72 h-full">
+              <NodesPanel onAddNode={(type) => addNode(type)} onClose={() => setIsNodesPanelOpen(false)} />
+            </div>
           </div>
-        </div>
+        )}
 
-        {!isNodesPanelOpen && (
+        {!isNodesPanelOpen && canWrite && (
           <button onClick={() => setIsNodesPanelOpen(true)} className="absolute bottom-24 right-6 w-14 h-14 bg-brand-600 text-white rounded-full shadow-2xl shadow-brand-900/50 flex items-center justify-center z-50 hover:bg-brand-500 active:scale-90 transition-all border-2 border-white/10" title="Open Components">
             <PlusIcon className="w-8 h-8" />
           </button>
         )}
 
-        {selectedNode && <SettingsPanel selectedNode={selectedNode} nodes={nodes} edges={edges} onUpdateNode={updateNodeData} onClose={() => setSelectedNodeId(null)} onShowNotification={showNotification} />}
+        {selectedNode && <SettingsPanel selectedNode={selectedNode} nodes={nodes} edges={edges} onUpdateNode={updateNodeData} onClose={() => setSelectedNodeId(null)} onShowNotification={showNotification} canWrite={canWrite} />}
       </div>
     </div>
   );

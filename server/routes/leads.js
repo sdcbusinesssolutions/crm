@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 const { logCRMEvent } = require('../utils/logger');
 const flowEngine = require('../services/flowEngine');
 const DripTriggerService = require('../services/DripTriggerService');
 
 // GET /api/leads
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = Math.min(parseInt(req.query.limit) || 50, 100);
@@ -14,28 +15,35 @@ router.get('/', async (req, res) => {
         const to = from + limit - 1;
 
         const supabase = getAuthenticatedSupabase(req);
-        const { pipeline_id, stage_id } = req.query;
+        
+        // Handle both camelCase and snake_case query params gracefully
+        const pipelineId = req.query.pipeline_id || req.query.pipelineId;
+        const stageId = req.query.stage_id || req.query.stageId;
+        const status = req.query.status;
 
         let query = supabase
             .from('leads')
-            .select('id, name, phone, email, company, status, pipeline_id, stage_id, estimated_value, created_at, source', { count: 'exact' })
+            .select('*', { count: 'exact' })
             .eq('user_id', req.user.id);
 
-
-        if (pipeline_id) {
-            query = query.eq('pipeline_id', pipeline_id);
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            query = query.contains('assigned_staff_ids', [req.staff.staffId]);
         }
 
-        if (stage_id) {
-            query = query.eq('stage_id', stage_id);
+        if (pipelineId) {
+            query = query.eq('pipeline_id', pipelineId);
+        }
+
+        if (stageId) {
+            query = query.eq('stage_id', stageId);
+        }
+
+        if (status) {
+            query = query.eq('status', status);
         }
 
         // Search Support
         if (req.query.search) {
-            // Sanitize and quote the search string properly for PostgREST syntax if needed, 
-            // but for ilike with supa-js, simple string interpolation works unless it contains comma.
-            // However, Supabase client handles parameterization, but in .or() raw string, we must be careful.
-            // Replacing comma with nothing or handling it is safer.
             const s = req.query.search.replace(/,/g, '');
             if (s) {
                 query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,company.ilike.%${s}%`);
@@ -67,14 +75,22 @@ router.get('/', async (req, res) => {
             query = query.order('created_at', { ascending: false });
         }
 
-        // Add Pagination (Always Enforced to Prevent Egress Spikes)
-
+        // Range Pagination
         query = query.range(from, to);
 
         const { data, error } = await query;
 
         if (error) throw error;
-        res.json(data || []);
+
+        // Map and fallback assigned_staff_ids for UI consistency
+        const mappedData = (data || []).map(lead => ({
+            ...lead,
+            assigned_staff_ids: (lead.assigned_staff_ids && lead.assigned_staff_ids.length > 0)
+                ? lead.assigned_staff_ids
+                : (lead.custom_data && lead.custom_data.assigned_staff_ids) || []
+        }));
+
+        res.json(mappedData);
     } catch (err) {
         console.error('Error fetching leads:', err);
         if (err.code === '42P01' || (err.message && err.message.includes('does not exist'))) {
@@ -85,25 +101,46 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/leads/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
+        let query = supabase
             .from('leads')
             .select('*')
             .eq('id', req.params.id)
-            .single();
+            .eq('user_id', req.user.id);
 
-        if (error) throw error;
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            query = query.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data, error } = await query.single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return res.status(404).json({ error: 'Lead not found' });
+            }
+            throw error;
+        }
+
+        if (data) {
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined)
+                ? data.assigned_staff_ids
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
+
         res.json(data);
     } catch (err) {
-        console.error('Error fetching lead:', err);
+        // If it's a PGRST116, we don't need to log it as an error to keep console logs clean
+        if (err.code !== 'PGRST116') {
+            console.error('Error fetching lead:', err);
+        }
         res.status(500).json({ error: err.message });
     }
 });
 
 // POST /api/leads
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const user = req.user;
@@ -125,8 +162,15 @@ router.post('/', async (req, res) => {
             priority,
             estimated_value,
             source,
-            type
+            type,
+            assigned_staff_ids
         } = req.body;
+
+        const staffIds = assigned_staff_ids || [];
+        const customDataPayload = {
+            ...(custom_data || {}),
+            assigned_staff_ids: staffIds
+        };
 
         const { data, error } = await supabase
             .from('leads')
@@ -139,17 +183,24 @@ router.post('/', async (req, res) => {
                 phone: phone || '',
                 company: company || '',
                 tags: tags || [],
-                custom_data: custom_data || {},
+                custom_data: customDataPayload,
                 status: status || 'active',
                 priority: priority || 'medium',
-                estimated_value: estimated_value || null,
+                estimated_value: estimated_value || 0,
                 source: source || 'manual',
-                type: type || 'Lead'
+                type: type || 'Lead',
+                assigned_staff_ids: staffIds
             }])
             .select()
             .single();
 
         if (error) throw error;
+
+        if (data) {
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined)
+                ? data.assigned_staff_ids
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
 
         try {
             logCRMEvent('CREATE_LEAD', {
@@ -188,62 +239,74 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/leads/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const {
-            pipeline_id,
-            stage_id,
-            name,
-            email,
-            phone,
-            company,
-            tags,
-            custom_data,
-            status,
-            priority,
-            estimated_value,
-            type
-        } = req.body;
+        const updates = req.body;
+        
+        // Don't allow changing user_id
+        delete updates.user_id;
+        updates.updated_at = new Date().toISOString();
 
-        const payload = {};
-        if (pipeline_id !== undefined) payload.pipeline_id = pipeline_id;
-        if (stage_id !== undefined) payload.stage_id = stage_id;
-        if (name !== undefined) payload.name = name;
-        if (email !== undefined) payload.email = email;
-        if (phone !== undefined) payload.phone = phone;
-        if (company !== undefined) payload.company = company;
-        if (tags !== undefined) payload.tags = tags;
-        if (custom_data !== undefined) payload.custom_data = custom_data;
-        if (status !== undefined) payload.status = status;
-        if (priority !== undefined) payload.priority = priority;
-        if (estimated_value !== undefined) payload.estimated_value = estimated_value;
-        if (type !== undefined) payload.type = type;
+        // 1. Verify lead exists and belongs to this tenant/user
+        let checkQuery = supabase
+            .from('leads')
+            .select('user_id, custom_data')
+            .eq('id', req.params.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            checkQuery = checkQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data: leadCheck, error: checkError } = await checkQuery.single();
+
+        if (checkError || !leadCheck) {
+            return res.status(404).json({ error: 'Lead not found' });
+        }
+
+        // Security check: Ensure the lead belongs to the requester's tenant
+        if (leadCheck.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to update this lead' });
+        }
+
+        // Handle assigned_staff_ids: save to column AND custom_data for backward compatibility
+        if (updates.assigned_staff_ids !== undefined) {
+            const existingCustomData = leadCheck.custom_data || {};
+            updates.custom_data = {
+                ...existingCustomData,
+                ...(updates.custom_data || {}),
+                assigned_staff_ids: updates.assigned_staff_ids
+            };
+        }
 
         const { data, error } = await supabase
             .from('leads')
-            .update(payload)
+            .update(updates)
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
             .select()
             .single();
 
         if (error) throw error;
 
+        if (data) {
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined)
+                ? data.assigned_staff_ids
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
+
         try {
             logCRMEvent('UPDATE_LEAD', {
                 leadId: req.params.id,
-                updates: Object.keys(payload)
+                updates: Object.keys(updates)
             });
 
-            if (payload.stage_id) {
-                // If stage changed, trigger drips
-                DripTriggerService.handleStageChanged(req.user.id, data, payload.stage_id).catch(err => console.error('Lead Update Drip Error:', err));
+            if (updates.stage_id) {
+                DripTriggerService.handleStageChanged(req.user.id, data, updates.stage_id).catch(err => console.error('Lead Update Drip Error:', err));
             }
         } catch (e) { }
 
         try {
-            if ((payload.pipeline_id || payload.stage_id) && data.phone) {
+            if ((updates.pipeline_id || updates.stage_id) && data.phone) {
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
@@ -266,25 +329,54 @@ router.put('/:id', async (req, res) => {
     }
 });
 
-// PUT /api/leads/:id/move (move to different stage)
-router.put('/:id/move', async (req, res) => {
+// PUT /api/leads/:id/move
+router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const { stage_id } = req.body;
-
         if (!stage_id) {
             return res.status(400).json({ error: 'stage_id is required' });
         }
 
+        const supabase = getAuthenticatedSupabase(req);
+
+        // Verify lead exists and belongs to this tenant/user
+        let checkQuery = supabase
+            .from('leads')
+            .select('user_id')
+            .eq('id', req.params.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            checkQuery = checkQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { data: leadCheck, error: checkError } = await checkQuery.single();
+
+        if (checkError || !leadCheck) {
+            return res.status(404).json({ error: 'Lead not found' });
+        }
+
+        // Security check: Ensure the lead belongs to the requester's tenant
+        if (leadCheck.user_id !== req.user.id) {
+            return res.status(403).json({ error: 'You do not have permission to update this lead' });
+        }
+
         const { data, error } = await supabase
             .from('leads')
-            .update({ stage_id })
+            .update({
+                stage_id,
+                updated_at: new Date().toISOString()
+            })
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
             .select()
             .single();
 
         if (error) throw error;
+
+        if (data) {
+            data.assigned_staff_ids = (data.assigned_staff_ids !== null && data.assigned_staff_ids !== undefined)
+                ? data.assigned_staff_ids
+                : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
+        }
 
         try {
             logCRMEvent('MOVE_LEAD_STAGE', {
@@ -320,14 +412,20 @@ router.put('/:id/move', async (req, res) => {
 });
 
 // DELETE /api/leads/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        let deleteQuery = supabase
             .from('leads')
             .delete()
             .eq('id', req.params.id)
             .eq('user_id', req.user.id);
+
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            deleteQuery = deleteQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+        }
+
+        const { error } = await deleteQuery;
 
         if (error) throw error;
 
@@ -338,6 +436,34 @@ router.delete('/:id', async (req, res) => {
         res.json({ success: true });
     } catch (err) {
         console.error('Error deleting lead:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/leads/stats/dashboard
+router.get('/dashboard/stats', requirePermission('LeadCRM', 'read'), async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+        const userId = req.user.id;
+        const { data: leads, error } = await supabase
+            .from('leads')
+            .select('status, created_at, estimated_value')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+
+        // Aggregate statistics
+        const stats = {
+            total: leads.length,
+            active: leads.filter(l => l.status === 'active').length,
+            won: leads.filter(l => l.status === 'won').length,
+            lost: leads.filter(l => l.status === 'lost').length,
+            totalValue: leads.reduce((sum, l) => sum + (l.estimated_value || 0), 0)
+        };
+
+        res.json(stats);
+    } catch (err) {
+        console.error('Error fetching dashboard stats:', err);
         res.status(500).json({ error: err.message });
     }
 });

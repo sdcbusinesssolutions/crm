@@ -3,6 +3,7 @@ const router = express.Router();
 const axios = require('axios');
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const { logWhatsAppFormEvent } = require('../utils/logger');
+const requirePermission = require('../middleware/requirePermission');
 
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
 
@@ -21,7 +22,7 @@ async function getWhatsAppConfig(supabase, userId) {
 }
 
 // GET / - List Flows
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Whatsapp Forms', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -161,7 +162,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /:id - Get Flow Details
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Whatsapp Forms', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -188,7 +189,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET /:id/fields - Get Flow Input Fields
-router.get('/:id/fields', async (req, res) => {
+router.get('/:id/fields', requirePermission('Whatsapp Forms', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -246,7 +247,7 @@ router.get('/:id/fields', async (req, res) => {
 });
 
 // GET /:id/start_screen - Get Flow Start Screen ID
-router.get('/:id/start_screen', async (req, res) => {
+router.get('/:id/start_screen', requirePermission('Whatsapp Forms', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -290,7 +291,7 @@ router.get('/:id/start_screen', async (req, res) => {
 });
 
 // POST / - Create Flow
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -339,7 +340,7 @@ router.post('/', async (req, res) => {
 });
 
 // POST /:id - Update Flow Metadata (Name, Categories)
-router.post('/:id', async (req, res) => {
+router.post('/:id', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -377,7 +378,7 @@ router.post('/:id', async (req, res) => {
 });
 
 // POST /:id/json - Update Flow JSON Asset
-router.post('/:id/json', async (req, res) => {
+router.post('/:id/json', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -429,7 +430,7 @@ router.post('/:id/json', async (req, res) => {
 });
 
 // POST /:id/publish - Publish Flow
-router.post('/:id/publish', async (req, res) => {
+router.post('/:id/publish', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -454,7 +455,7 @@ router.post('/:id/publish', async (req, res) => {
 });
 
 // POST /:id/deprecate - Deprecate Flow
-router.post('/:id/deprecate', async (req, res) => {
+router.post('/:id/deprecate', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -479,7 +480,7 @@ router.post('/:id/deprecate', async (req, res) => {
 });
 
 // DELETE /:id - Delete Flow (Only DRAFT)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Whatsapp Forms', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -506,7 +507,7 @@ router.delete('/:id', async (req, res) => {
 
 // GET /:id/submissions - Get Submissions for a specific Flow
 // GET /:id/submissions - Get Submissions for a specific Flow
-router.get('/:id/submissions', async (req, res) => {
+router.get('/:id/submissions', requirePermission('Form Contact', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
@@ -530,7 +531,7 @@ router.get('/:id/submissions', async (req, res) => {
 });
 
 // DELETE /submissions/:id - Delete a specific submission
-router.delete('/submissions/:id', async (req, res) => {
+router.delete('/submissions/:id', requirePermission('Form Contact', 'all_access'), async (req, res) => {
     try {
         const { id } = req.params;
         // Use supabaseAdmin to allow deletion
@@ -547,8 +548,8 @@ router.delete('/submissions/:id', async (req, res) => {
     }
 });
 
-// POST /submissions/bulk_delete - Bulk Delete Submissions
-router.post('/submissions/bulk', async (req, res) => {
+// POST /submissions/bulk - Bulk Delete Submissions
+router.post('/submissions/bulk', requirePermission('Form Contact', 'all_access'), async (req, res) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -569,7 +570,7 @@ router.post('/submissions/bulk', async (req, res) => {
 });
 
 // PUT /submissions/:id - Update a submission
-router.put('/submissions/:id', async (req, res) => {
+router.put('/submissions/:id', requirePermission('Form Contact', 'read_write'), async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
@@ -603,7 +604,7 @@ router.put('/submissions/:id', async (req, res) => {
 
 
 // POST /:id/send - Send Flow to User
-router.post('/:id/send', async (req, res) => {
+router.post('/:id/send', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();

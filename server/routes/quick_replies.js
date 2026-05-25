@@ -256,11 +256,13 @@ function buildWhatsAppPayload(node) {
 // POST /test-direct — Test an unsaved quick reply (direct payload)
 router.post('/test-direct', async (req, res) => {
     try {
+        const supabase = getAuthenticatedSupabase(req);
         const { to, node } = req.body;
         if (!to || !node) return res.status(400).json({ error: 'Missing "to" or "node" data.' });
 
         console.log(`[Test-Direct] Starting test send to ${to}...`);
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
         
         const whatsappService = require('../services/whatsappService');
         const { msgType, content } = buildWhatsAppPayload(node);
@@ -298,7 +300,9 @@ router.post('/:id/test-send', async (req, res) => {
             return res.status(404).json({ error: 'Quick reply not found.' });
         }
 
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+        
         const node = reply.nodes?.[0];
         
         if (!node) {
@@ -321,5 +325,3 @@ router.post('/:id/test-send', async (req, res) => {
 });
 
 module.exports = router;
-
-

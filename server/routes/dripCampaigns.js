@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // --- CAMPAIGNS ---
 
 // GET /api/drip-campaigns
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Drip+Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
 
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/drip-campaigns/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Drip+Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
 
@@ -50,7 +51,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/drip-campaigns
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { name, description, trigger_type, trigger_config, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
@@ -84,7 +85,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/drip-campaigns/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { name, description, trigger_type, trigger_config, status, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
@@ -120,7 +121,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/drip-campaigns/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Drip+Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { error } = await supabase
@@ -140,7 +141,7 @@ router.delete('/:id', async (req, res) => {
 // --- STEPS ---
 
 // POST /api/drip-campaigns/:id/steps
-router.post('/:id/steps', async (req, res) => {
+router.post('/:id/steps', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Verify ownership of campaign first
@@ -179,7 +180,7 @@ router.post('/:id/steps', async (req, res) => {
 });
 
 // PUT /api/drip-campaigns/:id/steps/:stepId
-router.put('/:id/steps/:stepId', async (req, res) => {
+router.put('/:id/steps/:stepId', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Verify ownership via join or two steps. Simpler is two steps for security.
@@ -215,7 +216,7 @@ router.put('/:id/steps/:stepId', async (req, res) => {
 });
 
 // DELETE /api/drip-campaigns/:id/steps/:stepId
-router.delete('/:id/steps/:stepId', async (req, res) => {
+router.delete('/:id/steps/:stepId', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
 
@@ -247,7 +248,7 @@ router.delete('/:id/steps/:stepId', async (req, res) => {
 
 // POST /api/drip-campaigns/:id/enroll
 // POST /api/drip-campaigns/:id/enroll
-router.post('/:id/enroll', async (req, res) => {
+router.post('/:id/enroll', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_ids, stop_at, notification_rules, is_looping } = req.body;
@@ -347,7 +348,7 @@ router.post('/:id/enroll', async (req, res) => {
 
 
 // Get Enrollments for a Campaign
-router.get('/:id/enrollments', async (req, res) => {
+router.get('/:id/enrollments', requirePermission('Drip+Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { supabaseAdmin } = require('../lib/supabaseClient');
@@ -401,7 +402,7 @@ router.get('/:id/enrollments', async (req, res) => {
 });
 
 // Stop/Cancel an Enrollment Manually
-router.post('/enrollments/:enrollmentId/stop', async (req, res) => {
+router.post('/enrollments/:enrollmentId/stop', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         const { data, error } = await supabase
@@ -419,7 +420,7 @@ router.post('/enrollments/:enrollmentId/stop', async (req, res) => {
 });
 
 // Delete an Enrollment
-router.delete('/enrollments/:enrollmentId', async (req, res) => {
+router.delete('/enrollments/:enrollmentId', requirePermission('Drip+Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
         // Ensure user owns the campaign linked to this enrollment (implicit via RLS usually, but safer to check)
@@ -441,7 +442,7 @@ router.delete('/enrollments/:enrollmentId', async (req, res) => {
 });
 
 // SYNC: Retroactively enroll contacts with the matching tag
-router.post('/:id/sync', async (req, res) => {
+router.post('/:id/sync', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const DripTriggerService = require('../services/DripTriggerService');
         const result = await DripTriggerService.syncCampaignEnrollments(req.user.id, req.params.id);

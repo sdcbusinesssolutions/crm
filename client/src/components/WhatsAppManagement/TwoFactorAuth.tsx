@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { settingsService } from '../../services/settingsService';
 
-const TwoFactorAuth: React.FC = () => {
+interface TwoFactorAuthProps {
+    readOnly?: boolean;
+}
+
+const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({ readOnly }) => {
     const [enabled, setEnabled] = useState(false);
     const [setupKey, setSetupKey] = useState<string | null>(null);
     const [qrCode, setQrCode] = useState<string | null>(null);
@@ -28,6 +32,7 @@ const TwoFactorAuth: React.FC = () => {
     };
 
     const handleGenerate = async () => {
+        if (readOnly) return;
         setProcessing(true);
         setMessage(null);
         try {
@@ -45,7 +50,7 @@ const TwoFactorAuth: React.FC = () => {
     };
 
     const handleVerifyAndEnable = async () => {
-        if (!verifyCode) return;
+        if (readOnly || !verifyCode) return;
         setProcessing(true);
         setMessage(null);
         try {
@@ -63,6 +68,7 @@ const TwoFactorAuth: React.FC = () => {
     };
 
     const handleDisable = async () => {
+        if (readOnly) return;
         if (!window.confirm('Are you sure you want to disable 2FA?')) return;
         setProcessing(true);
         setMessage(null);
@@ -99,7 +105,7 @@ const TwoFactorAuth: React.FC = () => {
                             {enabled ? 'Enabled' : 'Disabled'}
                         </p>
                     </div>
-                    {enabled && (
+                    {enabled && !readOnly && (
                         <button
                             onClick={handleDisable}
                             disabled={processing}
@@ -114,7 +120,7 @@ const TwoFactorAuth: React.FC = () => {
                     <div className="border-t border-slate-100 pt-6">
                         <h3 className="text-lg font-medium text-slate-800 mb-4">Setup 2FA</h3>
 
-                        {!qrCode && !setupKey && (
+                        {!qrCode && !setupKey && !readOnly && (
                             <button
                                 onClick={handleGenerate}
                                 disabled={processing}
@@ -122,6 +128,10 @@ const TwoFactorAuth: React.FC = () => {
                             >
                                 {processing ? 'Generating...' : 'Generate New Key'}
                             </button>
+                        )}
+
+                        {readOnly && !qrCode && !setupKey && (
+                            <p className="text-sm text-slate-500">2FA setup is disabled in Read Only Mode.</p>
                         )}
 
                         {(qrCode || setupKey) && (
@@ -152,25 +162,27 @@ const TwoFactorAuth: React.FC = () => {
                                             </p>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Verify Code</label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={verifyCode}
-                                                    onChange={(e) => setVerifyCode(e.target.value)}
-                                                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
-                                                    placeholder="Enter 6-digit code"
-                                                />
-                                                <button
-                                                    onClick={handleVerifyAndEnable}
-                                                    disabled={processing || !verifyCode}
-                                                    className="px-6 py-2 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                                >
-                                                    {processing ? 'Verifying...' : 'Verify & Enable'}
-                                                </button>
+                                        {!readOnly && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Verify Code</label>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={verifyCode}
+                                                        onChange={(e) => setVerifyCode(e.target.value)}
+                                                        className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                                                        placeholder="Enter 6-digit code"
+                                                    />
+                                                    <button
+                                                        onClick={handleVerifyAndEnable}
+                                                        disabled={processing || !verifyCode}
+                                                        className="px-6 py-2 bg-brand-600 text-white font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                    >
+                                                        {processing ? 'Verifying...' : 'Verify & Enable'}
+                                                    </button>
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

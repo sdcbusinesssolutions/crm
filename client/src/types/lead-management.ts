@@ -113,6 +113,7 @@ export interface Lead {
 
     // Assignment & Ownership
     owner_id?: string;
+    assigned_staff_ids?: string[];
 
     // Categorization
     tags: string[];

@@ -7,6 +7,7 @@ import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
 import { useDashboardStats, useRevenueStats } from '../hooks/useDashboard';
 import { monitorApiCall } from '../utils/apiOptimization';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 // --- Types ---
 export interface DashboardStats {
@@ -714,6 +715,7 @@ const WhatsAppScannerCard: React.FC<{
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline, onToggleSidebar }) => {
+    const { hasAccess } = usePermissions();
     // ── Helpers ─────────────────────────────────────────────────────────────────
     const CACHE_KEY = 'dashboard_stats_cache_v3';
     // DISPLAY TTL: how long before we silently background-refresh (not show skeleton)
@@ -784,20 +786,20 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 setLoading(false); // ← never show skeleton if we have ANY cached data
             }
 
-            // ── PHASE 2: Get auth token ──────────────────────────────────────────────
-            let token = tokenService.getAccessToken();
+            // ── PHASE 2: Get auth headers ───────────────────────────────────────────
+            const authHeader = await tokenService.getAuthHeader();
             let userId: string | undefined;
-            if (!token) {
-                const { data: { session } } = await supabase.auth.getSession();
-                token = session?.access_token || '';
-                userId = session?.user?.id;
-            } else {
+
+            // Attempt to extract userId for cache isolation
+            const token = authHeader['Authorization']?.split(' ')[1];
+            if (token) {
                 try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    userId = payload.sub;
+                    // Safer decoding for base64url (replaces - with + and _ with /)
+                    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                    const payload = JSON.parse(atob(base64));
+                    userId = payload.sub || payload.tenantId; // Supabase uses 'sub', staff uses 'tenantId'
                 } catch {
                     const { data: { session } } = await supabase.auth.getSession();
-                    token = session?.access_token || '';
                     userId = session?.user?.id;
                 }
             }
@@ -808,8 +810,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                 setStats(null);
                 setLoading(true); // legitimate fresh user — show skeleton
             }
-
-            const authHeader = { 'Authorization': `Bearer ${token}` };
 
             // Always fetch fresh data — but if we already had cache data, this is a silent background refresh
             // If no cache data at all — this is the only time the skeleton shows

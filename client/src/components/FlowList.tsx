@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { flowService } from '../services/flowService';
 import { Flow } from '../types';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { UploadIcon, PlusIcon, CopyIcon, DownloadIcon, TrashIcon, SearchIcon, FilterIcon, EditIcon, TriggerIcon, MenuIcon } from './icons';
 import Modal from './Modal';
 
@@ -38,6 +39,9 @@ const PublishToggle: React.FC<{ isPublished: boolean; onClick: (e: React.MouseEv
 
 
 const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Flows', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Flows', ACCESS_TYPES.ALL_ACCESS);
 
     const [flows, setFlows] = useState<Flow[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +100,11 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
 
     const confirmDeleteFlow = async () => {
         if (!flowToDelete) return;
+        if (!canDelete) {
+            alert("You do not have permission to delete this flow.");
+            setIsDeleteModalOpen(false);
+            return;
+        }
 
         const previousFlows = [...flows];
         setFlows(prevFlows => prevFlows.filter(f => String(f.id) !== String(flowToDelete)));
@@ -279,13 +288,17 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Design and automate conversations visually.</p>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
-                        <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
-                        <button onClick={handleImportClick} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
-                            <UploadIcon /> <span className="hidden sm:inline">Import</span>
-                        </button>
-                        <button onClick={handleCreateFlow} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
-                            <PlusIcon /> <span>New Flow</span>
-                        </button>
+                        {canWrite && (
+                            <>
+                                <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
+                                <button onClick={handleImportClick} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
+                                    <UploadIcon /> <span className="hidden sm:inline">Import</span>
+                                </button>
+                                <button onClick={handleCreateFlow} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
+                                    <PlusIcon /> <span>New Flow</span>
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -445,21 +458,31 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                                                                 <div className="flex items-center space-x-2 mr-4 border-r border-slate-200 pr-4">
                                                                     <PublishToggle
                                                                         isPublished={isPublished}
-                                                                        onClick={(e) => handleTogglePublish(e, flow)}
+                                                                        onClick={(e) => canWrite && handleTogglePublish(e, flow)}
                                                                     />
                                                                 </div>
-                                                                <button onClick={() => onNavigateToFlow(flow.id)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
-                                                                    <EditIcon className="w-4 h-4" />
-                                                                </button>
-                                                                <button onClick={(e) => handleDuplicateFlow(e, flow)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Duplicate">
-                                                                    <CopyIcon className="w-4 h-4" />
-                                                                </button>
-                                                                <button onClick={(e) => handleExportFlow(e, flow)} className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" title="Export JSON">
-                                                                    <DownloadIcon className="w-4 h-4" />
-                                                                </button>
-                                                                <button onClick={(e) => handleDeleteFlowClick(e, flow.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
-                                                                    <TrashIcon className="w-4 h-4" />
-                                                                </button>
+                                                                {canWrite ? (
+                                                                    <>
+                                                                        <button onClick={() => onNavigateToFlow(flow.id)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="Edit">
+                                                                            <EditIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button onClick={(e) => handleDuplicateFlow(e, flow)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Duplicate">
+                                                                            <CopyIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                        <button onClick={(e) => handleExportFlow(e, flow)} className="p-2 rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-colors" title="Export JSON">
+                                                                            <DownloadIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                        {canDelete && (
+                                                                            <button onClick={(e) => handleDeleteFlowClick(e, flow.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors" title="Delete">
+                                                                                <TrashIcon className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <button onClick={() => onNavigateToFlow(flow.id)} className="p-2 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600 transition-colors" title="View">
+                                                                        <TriggerIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -506,16 +529,22 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                                                     <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-auto" onClick={(e) => e.stopPropagation()}>
                                                         <div className="flex items-center gap-3">
                                                             <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2">
-                                                                <PublishToggle isPublished={isPublished} onClick={(e) => handleTogglePublish(e, flow)} />
+                                                                <PublishToggle isPublished={isPublished} onClick={(e) => canWrite && handleTogglePublish(e, flow)} />
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-1">
-                                                            <button onClick={(e) => handleDuplicateFlow(e, flow)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"><CopyIcon className="w-4 h-4" /></button>
-                                                            <button onClick={(e) => handleExportFlow(e, flow)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><DownloadIcon className="w-4 h-4" /></button>
-                                                            <button onClick={(e) => handleDeleteFlowClick(e, flow.id)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>
-                                                            <button onClick={() => onNavigateToFlow(flow.id)} className="ml-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md active:scale-95 transition-all flex items-center gap-1">
-                                                                Open Editor
+                                                         <div className="flex items-center gap-1">
+                                                            {canWrite && (
+                                                                <>
+                                                                    <button onClick={(e) => handleDuplicateFlow(e, flow)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors"><CopyIcon className="w-4 h-4" /></button>
+                                                                    <button onClick={(e) => handleExportFlow(e, flow)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-colors"><DownloadIcon className="w-4 h-4" /></button>
+                                                                    {canDelete && (
+                                                                        <button onClick={(e) => handleDeleteFlowClick(e, flow.id)} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                            <button onClick={() => onNavigateToFlow(flow.id)} className="ml-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md active:scale-[0.95] transition-all flex items-center gap-1">
+                                                                {canWrite ? 'Open Editor' : 'View Flow'}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -597,20 +626,11 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                 }
             >
                 <div className="flex flex-col gap-4">
-                    <div className="p-4 bg-red-50 rounded-lg border border-red-100 flex items-start gap-3">
-                        <div className="p-2 bg-white rounded-full text-red-500 shrink-0">
-                            <TrashIcon className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h4 className="text-sm font-bold text-red-800 mb-1">Warning</h4>
-                            <p className="text-xs text-red-600 leading-relaxed">
-                                You are about to permanently delete this flow. This action cannot be undone and may affect any campaigns using this flow.
-                            </p>
-                        </div>
+                    <div className="p-4 bg-red-50 border border-red-100 rounded-lg">
+                        <p className="text-sm text-red-700">
+                            <strong>Warning:</strong> Are you sure you want to delete this flow? This action cannot be undone and all associated analytics and logs will be permanently removed.
+                        </p>
                     </div>
-                    <p className="text-slate-600 font-medium text-sm">
-                        Are you sure you want to delete this flow?
-                    </p>
                 </div>
             </Modal>
         </div>

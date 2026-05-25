@@ -3,8 +3,14 @@ import { MicrophoneIcon, RobotIcon, PhoneIcon, TrashIcon, DocumentFileIcon as Do
 import { aiAgentService, Agent } from '../../services/aiAgentService';
 import CreateAgentModal from './CreateAgentModal';
 import { format } from 'date-fns';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 const AiVoiceAgentView: React.FC = () => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('AI Buddy', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('AI Buddy', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('AI Buddy', ACCESS_TYPES.ALL_ACCESS);
+
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
@@ -65,8 +71,10 @@ const AiVoiceAgentView: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        loadAgents();
-    }, [refreshTrigger]);
+        if (canRead) {
+            loadAgents();
+        }
+    }, [refreshTrigger, canRead]);
 
     const loadAgents = async () => {
         setLoading(true);
@@ -81,11 +89,13 @@ const AiVoiceAgentView: React.FC = () => {
     };
 
     const handleCreate = async (data: any) => {
+        if (!canWrite) return;
         await aiAgentService.createAgent(data);
         setRefreshTrigger(prev => prev + 1);
     };
 
     const handleDelete = async (id: string) => {
+        if (!canDelete) return;
         if (!confirm('Delete this agent?')) return;
         try {
             await aiAgentService.deleteAgent(id);
@@ -96,12 +106,12 @@ const AiVoiceAgentView: React.FC = () => {
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, agentId: string) => {
+        if (!canWrite) return;
         if (e.target.files && e.target.files[0]) {
             setUploadingFor(agentId);
             try {
                 await aiAgentService.uploadKnowledge(agentId, e.target.files[0]);
                 alert('Knowledge uploaded successfully!');
-                // Could refresh knowledge list here
             } catch (err: any) {
                 alert('Upload failed: ' + err.message);
             } finally {
@@ -110,24 +120,46 @@ const AiVoiceAgentView: React.FC = () => {
         }
     };
 
+    if (!canRead) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center bg-slate-50">
+                <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 border border-red-100 text-red-500">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+                <h2 className="text-2xl font-bold mb-2 text-slate-900">Access Denied</h2>
+                <p className="max-w-md mx-auto text-slate-500">You do not have permission to view or manage AI Buddy. Please contact your administrator if you believe this is an error.</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex-1 flex flex-col h-full bg-slate-50 p-8 overflow-y-auto">
             <div className="max-w-6xl mx-auto w-full">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800">AI Buddy</h1>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl font-bold text-slate-800">AI Buddy</h1>
+                            {!canWrite && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                    Read Only Mode
+                                </span>
+                            )}
+                        </div>
                         <p className="text-slate-500 mt-1">Create and manage your AI-powered assistants</p>
                     </div>
                     <div className="flex gap-3">
                         <a href="#" className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm flex items-center gap-2">
                             <span>📚</span> Documentation
                         </a>
-                        <button
-                            onClick={() => setIsCreating(true)}
-                            className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200 flex items-center gap-2"
-                        >
-                            <span>+</span> Create Agent
-                        </button>
+                        {canWrite && (
+                            <button
+                                onClick={() => setIsCreating(true)}
+                                className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200 flex items-center gap-2"
+                            >
+                                <span>+</span> Create Agent
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -319,15 +351,17 @@ const AiVoiceAgentView: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
                         {agents.map(agent => (
                             <div key={agent.id} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow relative group">
-                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                    <button
-                                        onClick={() => handleDelete(agent.id)}
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                                        title="Delete"
-                                    >
-                                        <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                </div>
+                                {canDelete && (
+                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                        <button
+                                            onClick={() => handleDelete(agent.id)}
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                            title="Delete"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${agent.type === 'voice' ? 'bg-blue-100 text-blue-600' :
@@ -355,18 +389,20 @@ const AiVoiceAgentView: React.FC = () => {
                                         </span>
                                     </div>
 
-                                    <div className="flex gap-2">
-                                        <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                            <DocumentIcon className="w-4 h-4 text-slate-500" />
-                                            <span>{uploadingFor === agent.id ? 'Uploading...' : 'Add Knowledge'}</span>
-                                            <input
-                                                type="file"
-                                                className="hidden"
-                                                accept=".pdf,.txt,.md,.csv,.docx"
-                                                onChange={(e) => handleFileUpload(e, agent.id)}
-                                            />
-                                        </label>
-                                    </div>
+                                    {canWrite && (
+                                        <div className="flex gap-2">
+                                            <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <DocumentIcon className="w-4 h-4 text-slate-500" />
+                                                <span>{uploadingFor === agent.id ? 'Uploading...' : 'Add Knowledge'}</span>
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
+                                                    accept=".pdf,.txt,.md,.csv,.docx"
+                                                    onChange={(e) => handleFileUpload(e, agent.id)}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ))}

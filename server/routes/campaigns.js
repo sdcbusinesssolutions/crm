@@ -3,6 +3,8 @@ const router = express.Router();
 const axios = require('axios');
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const { logCampaignRequest } = require('../utils/logger');
+const requirePermission = require('../middleware/requirePermission');
+
 
 const GRAPH_API_URL = 'https://graph.facebook.com/v25.0';
 
@@ -73,7 +75,7 @@ async function getMetaLimits(phoneNumberId, accessToken) {
 
 
 // GET / - List
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -88,7 +90,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /create
-router.post('/create', async (req, res) => {
+router.post('/create', requirePermission('Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data: { user } } = await supabase.auth.getUser();
@@ -329,7 +331,7 @@ router.post('/create', async (req, res) => {
 });
 
 // GET /:id details
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { data } = await supabase.from('campaigns').select('*').eq('id', req.params.id).single();
@@ -368,7 +370,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET /:id/phones - Extract phone numbers
-router.get('/:id/phones', async (req, res) => {
+router.get('/:id/phones', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { status } = req.query;
@@ -392,7 +394,7 @@ router.get('/:id/phones', async (req, res) => {
 });
 
 // GET /:id/queue
-router.get('/:id/queue', async (req, res) => {
+router.get('/:id/queue', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const page = parseInt(req.query.page) || 1;
@@ -416,7 +418,7 @@ router.get('/:id/queue', async (req, res) => {
 });
 
 // GET /:id/export - Export Campaign Report
-router.get('/:id/export', async (req, res) => {
+router.get('/:id/export', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
 
@@ -473,7 +475,7 @@ router.get('/:id/export', async (req, res) => {
 });
 
 // DELETE /:id - Delete Campaign
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
 

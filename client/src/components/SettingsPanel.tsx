@@ -18,6 +18,7 @@ interface SettingsPanelProps {
     onUpdateNode: (nodeId: string, data: any) => void;
     onClose: () => void;
     onShowNotification: (message: string, type?: 'success' | 'error') => void;
+    canWrite?: boolean;
 }
 
 type PanelTheme = 'light' | 'dark';
@@ -72,7 +73,7 @@ const FieldRow: React.FC<{ label: string; description?: string; children: ReactN
 );
 
 // Modified SettingsModal to include VariableSidebar
-const SettingsModal: React.FC<{ children: ReactNode, title: string, onClose: () => void, icon?: ReactNode, footer?: ReactNode, availableVariables?: NodeVariables[] }> = ({ children, title, onClose, icon, footer, availableVariables = [] }) => {
+const SettingsModal: React.FC<{ children: ReactNode, title: string, onClose: () => void, icon?: ReactNode, footer?: ReactNode, availableVariables?: NodeVariables[], canWrite?: boolean }> = ({ children, title, onClose, icon, footer, availableVariables = [], canWrite = true }) => {
     const { activeInputSetter } = React.useContext(SettingsContext);
     const [showMobileVariables, setShowMobileVariables] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -109,10 +110,16 @@ const SettingsModal: React.FC<{ children: ReactNode, title: string, onClose: () 
                         </div>
                     </header>
                     <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-900">
-                        {children}
+                        <fieldset disabled={!canWrite} className="space-y-6 contents">
+                            {children}
+                        </fieldset>
                     </div>
-                    <footer className="px-6 py-4 border-t border-slate-800 bg-slate-900 shrink-0 safe-pb">
-                        {footer || <button onClick={onClose} className="w-full px-4 py-3 bg-brand-600 text-white rounded-btn hover:bg-brand-700 text-sm font-bold shadow-lg shadow-brand-900/20 transition-all active:scale-95">Save & Close</button>}
+                     <footer className="px-6 py-4 border-t border-slate-800 bg-slate-900 shrink-0 safe-pb">
+                        {footer || (
+                            <button onClick={onClose} className="w-full px-4 py-3 bg-brand-600 text-white rounded-btn hover:bg-brand-700 text-sm font-bold shadow-lg shadow-brand-900/20 transition-all active:scale-95">
+                                {canWrite ? 'Save & Close' : 'Close'}
+                            </button>
+                        )}
                     </footer>
                 </div>
 
@@ -233,7 +240,7 @@ const CheckConditionSettingsPanel: React.FC<{ selectedNode: Node & { data: Check
     const handleRuleChange = (blockId: string, ruleId: string, field: keyof ConditionRule, value: string) => handleUpdate({ conditions: data.conditions.map(c => c.id === blockId ? { ...c, rules: c.rules.map(r => r.id === ruleId ? { ...r, [field]: value } : r) } : c) });
 
     return (
-        <SettingsModal title="Condition Block" onClose={onClose} icon={<ConditionIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Condition Block" onClose={onClose} icon={<ConditionIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <p className="text-sm text-slate-400 mb-4">Rules are checked sequentially.</p>
             {data.conditions.map((group) => (
                 <div key={group.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-sm space-y-3 relative group">
@@ -272,7 +279,7 @@ const AskAnythingSettingsPanel: React.FC<{ selectedNode: Node & { data: AskAnyth
     const data = selectedNode.data;
     const handleUpdate = (updatedFields: Partial<AskAnythingData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
     return (
-        <SettingsModal title="Ask Question" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Ask Question" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Question Text</label><PanelTextarea value={data.text} onChange={val => handleUpdate({ text: val })} placeholder="Type your question here..." rows={4} maxLength={1024} /></div>
             <ResponseHandlingFields data={data} onUpdate={handleUpdate} allowSaveResponse={true} />
         </SettingsModal>
@@ -389,7 +396,7 @@ const SetWebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: SetWebhoo
     const dynamicUrl = `${window.location.origin}/api/webhooks/${phoneNumberId}/${data.webhookId}/webhook`;
 
     return (
-        <SettingsModal title="Set Webhook (Incoming)" onClose={onClose} icon={<SetWebhookIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Set Webhook (Incoming)" onClose={onClose} icon={<SetWebhookIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-brand-400 uppercase tracking-wider mb-2">Dynamic Webhook URL</label>
@@ -512,7 +519,7 @@ const ListMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: ListMess
     };
 
     return (
-        <SettingsModal title="List Message" onClose={onClose} icon={<ListIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="List Message" onClose={onClose} icon={<ListIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 <div className="space-y-4">
                     <div>
@@ -632,7 +639,7 @@ const CTAMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: CTAMessag
     const handleUpdate = (update: Partial<CTAMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
     return (
-        <SettingsModal title="CTA Message" onClose={onClose} icon={<CtaIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="CTA Message" onClose={onClose} icon={<CtaIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 {/* Header Config */}
                 <div className="bg-slate-800/20 p-3 rounded-lg border border-slate-800">
@@ -727,7 +734,7 @@ const QuickReplySettingsPanel: React.FC<{ selectedNode: Node & { data: QuickRepl
     };
 
     return (
-        <SettingsModal title="Quick Reply" onClose={onClose} icon={<QuickReplyIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Quick Reply" onClose={onClose} icon={<QuickReplyIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 {/* Header Config */}
                 <div className="bg-slate-800/20 p-3 rounded-lg border border-slate-800">
@@ -855,7 +862,7 @@ const CarouselSettingsPanel: React.FC<{ selectedNode: Node & { data: CarouselMes
     };
 
     return (
-        <SettingsModal title="Carousel Message" onClose={onClose} icon={<CarouselIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Carousel Message" onClose={onClose} icon={<CarouselIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message Body</label>
@@ -1010,7 +1017,7 @@ const SendFlowSettingsPanel: React.FC<{ selectedNode: Node & { data: SendFlowDat
     }, [data.flowId]);
 
     return (
-        <SettingsModal title="Send Flow" onClose={onClose} icon={<FlowIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Flow" onClose={onClose} icon={<FlowIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 <div>
                     <div className="flex justify-between items-center mb-2">
@@ -1235,7 +1242,7 @@ const CallApiSettingsPanel: React.FC<{ selectedNode: Node & { data: CallApiData 
     };
 
     return (
-        <SettingsModal title="Call API" onClose={onClose} icon={<CallApiIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Call API" onClose={onClose} icon={<CallApiIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 <div className="bg-slate-800/20 p-3 rounded-lg border border-slate-800 space-y-3">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Request Details</label>
@@ -1414,7 +1421,7 @@ const GenericSettingsPanel: React.FC<{ selectedNode: Node; onUpdateNode: (id: st
     const { data, type } = selectedNode;
     const handleDataChange = (key: string, value: any) => onUpdateNode(selectedNode.id, { ...data, [key]: value });
     return (
-        <SettingsModal title={`${data.label} Settings`} onClose={onClose} icon={<SettingsIcon />} availableVariables={availableVariables}>
+        <SettingsModal title={`${data.label} Settings`} onClose={onClose} icon={<SettingsIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             {type === NodeType.TextMessage ? <div><label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message</label><PanelTextarea value={(data as any).message} onChange={val => handleDataChange('message', val)} /></div> : <p className="text-slate-500 text-center py-8 italic">Settings available in specific panels.</p>}
         </SettingsModal>
     );
@@ -1564,7 +1571,7 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
     };
 
     return (
-        <SettingsModal title="Send Template Message" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Template Message" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 {/* Template Selection */}
                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
@@ -1833,7 +1840,7 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
     };
 
     return (
-        <SettingsModal title="Notify Settings" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Notify Settings" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
                     <div className="flex justify-between items-center mb-2">
@@ -2005,7 +2012,7 @@ const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTr
     }, []);
 
     return (
-        <SettingsModal title="Google Sheet Trigger" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Google Sheet Trigger" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <div className="mb-4">
@@ -2268,7 +2275,7 @@ const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData };
     }, [data.delayValue, data.delayUnit]);
 
     return (
-        <SettingsModal title="Delay" onClose={onClose} icon={<ClockIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Delay" onClose={onClose} icon={<ClockIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Delay Configuration</label>
@@ -2345,7 +2352,7 @@ const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMe
     };
 
     return (
-        <SettingsModal title="Send Media" onClose={onClose} icon={<ImageFileIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Media" onClose={onClose} icon={<ImageFileIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-5">
                 <div className="bg-slate-800/20 p-3 rounded-lg border border-slate-800">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Media</label>
@@ -2567,7 +2574,7 @@ const ManageTagsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageTag
     };
 
     return (
-        <SettingsModal title="Manage Tags" onClose={onClose} icon={<TagIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Manage Tags" onClose={onClose} icon={<TagIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Action</label>
@@ -2654,7 +2661,7 @@ const AskInputSettingsPanel: React.FC<{ selectedNode: Node & { data: AskInputDat
     const inputType = data.inputType || 'Text';
 
     return (
-        <SettingsModal title="Ask Input" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Ask Input" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 {/* 1. Prompt User */}
                 <div>
@@ -2885,7 +2892,7 @@ const ManageGroupsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageG
     const getGroupName = (id: string) => availableGroups.find(g => g.id === id)?.name || 'Unknown Group';
 
     return (
-        <SettingsModal title="Manage Groups" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Manage Groups" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Action</label>
@@ -3147,7 +3154,7 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
     };
 
     return (
-        <SettingsModal title="Google Sheets" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Google Sheets" onClose={onClose} icon={<GsheetIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <div className="flex justify-between items-center mb-4">
@@ -3388,7 +3395,7 @@ const PipelineTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: Pipe
     }, [data.pipelineId]);
 
     return (
-        <SettingsModal title="Added to Pipeline Trigger" onClose={onClose} icon={<BookmarkIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Added to Pipeline Trigger" onClose={onClose} icon={<BookmarkIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Pipeline</label>
@@ -3504,7 +3511,7 @@ const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: Cont
     };
 
     return (
-        <SettingsModal title="Update Pipeline Stage" onClose={onClose} icon={<BookmarkIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Update Pipeline Stage" onClose={onClose} icon={<BookmarkIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <ToggleableField
@@ -3628,7 +3635,7 @@ const OnMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: OnMessageD
     const handleUpdate = (updated: Partial<OnMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
 
     return (
-        <SettingsModal title="On Message (Trigger)" onClose={onClose} icon={<TriggerIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="On Message (Trigger)" onClose={onClose} icon={<TriggerIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trigger Type</label>
@@ -3658,7 +3665,7 @@ const TextMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TextMess
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<TextMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
-        <SettingsModal title="Send Text" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Text" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message</label>
                 <PanelTextarea
@@ -3676,7 +3683,7 @@ const WebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: WebhookData 
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<WebhookData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
-        <SettingsModal title="Webhook Event" onClose={onClose} icon={<WebhookIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Webhook Event" onClose={onClose} icon={<WebhookIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Event Type</label>
                 <PanelTextInput
@@ -3693,7 +3700,7 @@ const WriteAttributeSettingsPanel: React.FC<{ selectedNode: Node & { data: Write
     const { data } = selectedNode;
     const handleUpdate = (updated: any) => onUpdateNode(selectedNode.id, { ...data, ...updated }); // Generic update for now
     return (
-        <SettingsModal title="Write Attribute" onClose={onClose} icon={<EditIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Write Attribute" onClose={onClose} icon={<EditIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Attribute Name</label>
@@ -3713,7 +3720,7 @@ const AskLocationSettingsPanel: React.FC<{ selectedNode: Node & { data: AskLocat
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<AskLocationData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
-        <SettingsModal title="Ask Location" onClose={onClose} icon={<AskLocationIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Ask Location" onClose={onClose} icon={<AskLocationIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Message</label>
                 <PanelTextarea value={data.text} onChange={val => handleUpdate({ text: val })} placeholder="Request location message..." rows={4} />
@@ -3727,7 +3734,7 @@ const CodeSettingsPanel: React.FC<{ selectedNode: Node & { data: CodeData }; onU
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<CodeData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
-        <SettingsModal title="Execute Code" onClose={onClose} icon={<CodeIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Execute Code" onClose={onClose} icon={<CodeIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">JavaScript Code</label>
                 <PanelTextarea value={data.code} onChange={val => handleUpdate({ code: val })} placeholder="// Write JS Code. return { key: value };" rows={12} className="font-mono text-xs" />
@@ -3767,7 +3774,7 @@ const GmailSettingsPanel: React.FC<{ selectedNode: Node & { data: GmailData }; o
     };
 
     return (
-        <SettingsModal title="Send Email (Gmail)" onClose={onClose} icon={<GmailIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Email (Gmail)" onClose={onClose} icon={<GmailIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Google Account</label>
@@ -3930,7 +3937,7 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
     };
 
     return (
-        <SettingsModal title="Google Calendar" onClose={onClose} icon={<CalendarIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Google Calendar" onClose={onClose} icon={<CalendarIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700">
                     <div className="flex justify-between items-center mb-3">
@@ -4171,7 +4178,7 @@ const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskRem
     const handleUpdate = (update: Partial<TaskReminderData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
 
     return (
-        <SettingsModal title="Task Trigger" onClose={onClose} icon={<TimingIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Task Trigger" onClose={onClose} icon={<TimingIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div className="bg-slate-800/20 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trigger Event</label>
@@ -4283,7 +4290,7 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
     }, []);
 
     return (
-        <SettingsModal title="AI Agent" onClose={onClose} icon={<RobotIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="AI Agent" onClose={onClose} icon={<RobotIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-6">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select AI Agent</label>
@@ -4357,7 +4364,7 @@ const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onU
     };
 
     return (
-        <SettingsModal title="Send Email (SMTP)" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables}>
+        <SettingsModal title="Send Email (SMTP)" onClose={onClose} icon={<MessageIcon />} availableVariables={availableVariables} canWrite={canWrite}>
             <div className="space-y-4">
                 <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">SMTP Account</label>
@@ -4429,7 +4436,7 @@ const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onU
     );
 };
 
-const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification }) => {
+const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification, canWrite }) => {
     // ... (rest of SettingsPanel body, I need to ensure I don't overwrite it, wait view_file showed I am replacing SettingsPanel definition if I am not careful)
     // Actually, I should insert SmtpSettingsPanel BEFORE SettingsPanel, and then modify renderPanel inside.
 
@@ -4458,7 +4465,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
         onUpdateNode,
         onClose,
         onShowNotification,
-        availableVariables
+        availableVariables,
+        canWrite
     };
 
     const renderPanel = () => {

@@ -244,9 +244,13 @@ class WhatsAppService {
                         }
                     }
                 }
+                
+                if (!mediaUrl && content._media_url) {
+                    mediaUrl = content._media_url;
+                }
             }
             else if (['image', 'video', 'audio', 'document', 'sticker'].includes(type)) {
-                mediaUrl = content.link || null;
+                mediaUrl = content.link || content._media_url || null;
                 textBody = content.caption || null;
             }
 

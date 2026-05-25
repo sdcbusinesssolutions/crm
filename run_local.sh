@@ -15,6 +15,15 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
+# Check if port 5000 is already in use and free it if needed
+echo "Checking port 5000..."
+PORT_PID=$(lsof -t -i:5000)
+if [ ! -z "$PORT_PID" ]; then
+    echo "Port 5000 is occupied by PID(s): $PORT_PID. Terminating process to free the port..."
+    kill -9 $PORT_PID 2>/dev/null
+    sleep 1
+fi
+
 # Start Backend in background
 echo "Starting Backend Server..."
 cd server

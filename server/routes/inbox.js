@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 const whatsappService = require('../services/whatsappService');
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +13,7 @@ const getUserId = (req) => req.user.id;
 // ==========================================
 // 1. Get Conversations (Paginated)
 // ==========================================
-router.get('/conversations', async (req, res) => {
+router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const { supabaseAdmin } = require('../lib/supabaseClient');
@@ -30,6 +31,22 @@ router.get('/conversations', async (req, res) => {
             .from('conversations')
             .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to', { count: 'exact' })
             .eq('user_id', userId);
+
+        // Filter by assigned leads if restricted
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            const { data: assignedLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [req.staff.staffId]);
+            
+            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+            if (assignedPhones.length > 0) {
+                query = query.in('contact_phone', assignedPhones);
+            } else {
+                query = query.in('contact_phone', ['dummy-no-phone']);
+            }
+        }
 
         if (search) {
             query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`);
@@ -71,7 +88,7 @@ router.get('/conversations', async (req, res) => {
 // ==========================================
 // 2. Get Messages for a Conversation
 // ==========================================
-router.get('/messages/:conversationId', async (req, res) => {
+router.get('/messages/:conversationId', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
         // const supabase = getAuthenticatedSupabase(req);
@@ -84,7 +101,7 @@ router.get('/messages/:conversationId', async (req, res) => {
         // Since we use supabaseAdmin later, we must manually check this authorization.
         const { data: ownedConv, error: ownError } = await supabaseAdmin
             .from('conversations')
-            .select('id')
+            .select('id, contact_phone')
             .eq('id', conversationId)
             .eq('user_id', userId)
             .single();
@@ -92,6 +109,22 @@ router.get('/messages/:conversationId', async (req, res) => {
         if (ownError || !ownedConv) {
             console.warn(`[Inbox] Unauthorized access attempt by ${userId} to conversation ${conversationId}`);
             return res.status(403).json({ error: 'Unauthorized or Conversation not found' });
+        }
+
+        // Additional staff only-assigned filter to secure reading individual messages
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            const { data: assignedLead } = await supabaseAdmin
+                .from('leads')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('phone', ownedConv.contact_phone)
+                .contains('assigned_staff_ids', [req.staff.staffId])
+                .maybeSingle();
+
+            if (!assignedLead) {
+                console.warn(`[Inbox] Restricted staff member ${req.staff.staffId} attempted to fetch messages for unauthorized conversation: ${conversationId}`);
+                return res.status(403).json({ error: 'Unauthorized: This conversation lead is not assigned to you' });
+            }
         }
 
         // CONFIGURATION - Increased limit for better UX
@@ -141,7 +174,7 @@ router.get('/messages/:conversationId', async (req, res) => {
 // ==========================================
 // 3. Send Message (Outbound)
 // ==========================================
-router.post('/messages/:conversationId', async (req, res) => {
+router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -290,7 +323,7 @@ router.post('/messages/:conversationId', async (req, res) => {
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.post('/upload', upload.single('file'), async (req, res) => {
+router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('file'), async (req, res) => {
     try {
         const file = req.file;
         if (!file) {
@@ -336,7 +369,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 // ==========================================
 // 5. Mark Conversation as Read
 // ==========================================
-router.post('/conversations/:conversationId/read', async (req, res) => {
+router.post('/conversations/:conversationId/read', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
@@ -398,7 +431,7 @@ router.post('/conversations/:conversationId/read', async (req, res) => {
 // ==========================================
 // 6. Clear Chat History
 // ==========================================
-router.delete('/messages/:conversationId', async (req, res) => {
+router.delete('/messages/:conversationId', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const userId = getUserId(req);
         const { conversationId } = req.params;
@@ -447,7 +480,7 @@ router.delete('/messages/:conversationId', async (req, res) => {
 // ==========================================
 // 7. Block Contact (User-Specific)
 // ==========================================
-router.post('/conversations/:conversationId/block', async (req, res) => {
+router.post('/conversations/:conversationId/block', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id; // Get the authenticated user's ID
@@ -512,7 +545,7 @@ router.post('/conversations/:conversationId/block', async (req, res) => {
 // ==========================================
 // 8. Unblock Contact (User-Specific)
 // ==========================================
-router.post('/conversations/:conversationId/unblock', async (req, res) => {
+router.post('/conversations/:conversationId/unblock', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         const userId = req.user.id; // Get the authenticated user's ID

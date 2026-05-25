@@ -59,7 +59,13 @@ const COMPONENT_TYPES: { [key: string]: { label: string, icon: any } } = {
 
 const generateRandomId = () => Array(6).fill(0).map(() => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join('');
 
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+
 const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowId }) => {
+    const { hasAccess } = usePermissions();
+    const canWrite = hasAccess('Whatsapp Forms', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Whatsapp Forms', ACCESS_TYPES.ALL_ACCESS);
+
     // --- State ---
     // Initialize with a random ID for the first screen
     const [initialScreenId] = useState(() => `screen_${generateRandomId()}`);
@@ -429,7 +435,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
 
 
     const handleDelete = async () => {
-        if (!flowId) return;
+        if (!flowId || !canDelete) return;
         if (!window.confirm('Are you sure you want to delete this flow? This action cannot be undone.')) {
             return;
         }
@@ -487,7 +493,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {flowId && (
+                    {flowId && canDelete && (
                         <button onClick={handleDelete} disabled={isSaving} className="px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 mr-2">
                             <TrashIcon className="w-4 h-4" />
                             Delete
@@ -500,12 +506,16 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                     <button onClick={() => setShowPreviewLink(true)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                         Preview Link
                     </button>
-                    <button onClick={() => handleSave(false)} disabled={isSaving} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                        Save
-                    </button>
-                    <button onClick={() => handleSave(true)} disabled={isSaving} className="px-4 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-md shadow-brand-200 transition-colors">
-                        {isSaving ? 'Publishing...' : 'Publish'}
-                    </button>
+                    {canWrite && (
+                        <>
+                            <button onClick={() => handleSave(false)} disabled={isSaving} className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                Save
+                            </button>
+                            <button onClick={() => handleSave(true)} disabled={isSaving} className="px-4 py-2 text-sm font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg shadow-md shadow-brand-200 transition-colors">
+                                {isSaving ? 'Publishing...' : 'Publish'}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -529,7 +539,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                     </span>
                                     <span>{screen.title}</span>
                                 </div>
-                                {screens.length > 1 && (
+                                 {screens.length > 1 && canWrite && (
                                     <span onClick={(e) => { e.stopPropagation(); deleteScreen(screen.id); }} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1">
                                         <TrashIcon className="w-4 h-4" />
                                     </span>
@@ -537,11 +547,13 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                             </button>
                         ))}
                     </div>
-                    <div className="p-3 border-t border-slate-100">
-                        <button onClick={addScreen} className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
-                            <PlusIcon className="w-4 h-4" /> Add new
-                        </button>
-                    </div>
+                     {canWrite && (
+                        <div className="p-3 border-t border-slate-100">
+                            <button onClick={addScreen} className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                                <PlusIcon className="w-4 h-4" /> Add new
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Middle Panel: Edit Contents */}
@@ -551,36 +563,41 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                        {/* Screen Title */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Screen title</label>
-                            <input
-                                type="text"
-                                value={activeScreen.title}
-                                onChange={(e) => updateScreen(activeScreenId, { title: e.target.value })}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none"
-                            />
-                        </div>
+                        <fieldset disabled={!canWrite} className="space-y-6 contents">
+                            {/* Screen Title */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Screen title</label>
+                                <input
+                                    type="text"
+                                    value={activeScreen.title}
+                                    onChange={(e) => updateScreen(activeScreenId, { title: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                />
+                            </div>
 
-                        {/* Footer Button Label */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 mb-1">Button Label</label>
-                            <input
-                                type="text"
-                                value={activeScreen.footerLabel || 'Continue'}
-                                onChange={(e) => updateScreen(activeScreenId, { footerLabel: e.target.value })}
-                                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none"
-                            />
-                        </div>
+                            {/* Footer Button Label */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 mb-1">Button Label</label>
+                                <input
+                                    type="text"
+                                    value={activeScreen.footerLabel || 'Continue'}
+                                    onChange={(e) => updateScreen(activeScreenId, { footerLabel: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                />
+                            </div>
+                        </fieldset>
 
-                        {/* Add Content Button */}
-                        <div className="relative" ref={addMenuRef}>
-                            <button
-                                onClick={() => setShowAddMenu(!showAddMenu)}
-                                className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 flex items-center gap-2 hover:bg-slate-100 transition-colors"
-                            >
-                                + Add Content <ChevronDownIcon className="w-4 h-4" />
-                            </button>
+                         {canWrite && (
+                            <div className="relative" ref={addMenuRef}>
+                                <button
+                                    onClick={() => setShowAddMenu(!showAddMenu)}
+                                    className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 flex items-center gap-2 hover:bg-slate-100 transition-colors"
+                                >
+                                    + Add Content <ChevronDownIcon className="w-4 h-4" />
+                                </button>
+                                {/* ... existing addMenu content ... */}
+                            </div>
+                        )}
 
                             {showAddMenu && (
                                 <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden animate-fade-in">
@@ -621,18 +638,21 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                             </div>
                                             <span className="text-sm font-bold text-slate-700">{COMPONENT_TYPES[child.type].label}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={(e) => { e.stopPropagation(); deleteComponent(child.id); }} className="p-1 text-slate-400 hover:text-red-500">
-                                                <TrashIcon className="w-4 h-4" />
-                                            </button>
+                                         <div className="flex items-center gap-2">
+                                            {canWrite && (
+                                                <button onClick={(e) => { e.stopPropagation(); deleteComponent(child.id); }} className="p-1 text-slate-400 hover:text-red-500">
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             {expandedComponentId === child.id ? <ChevronDownIcon className="w-4 h-4 text-slate-400" /> : <ChevronRightIcon className="w-4 h-4 text-slate-400" />}
                                         </div>
                                     </div>
 
-                                    {/* Body (Expanded) */}
+                                     {/* Body (Expanded) */}
                                     {expandedComponentId === child.id && (
                                         <div className="p-4 space-y-4 border-t border-slate-100 animate-fade-in">
-                                            {child.type.startsWith('Text') ? (
+                                            <fieldset disabled={!canWrite} className="space-y-4 contents">
+                                                {child.type.startsWith('Text') ? (
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 mb-1">Text</label>
                                                     <textarea
@@ -782,12 +802,12 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                                         </div>
                                                     </div>
                                                 </>
-                                            )}
+                                                )}
+                                            </fieldset>
                                         </div>
                                     )}
                                 </div>
                             ))}
-                        </div>
                     </div>
                 </div>
 

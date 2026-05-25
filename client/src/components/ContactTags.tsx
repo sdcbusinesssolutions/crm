@@ -2,12 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Tag, tagService } from '../services/tagService'; // You might need to export Tag type from service or shared types
 import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon, ChevronDownIcon, TagIcon, ChevronLeftIcon } from './icons';
 import Toast from './Toast';
+import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 interface ContactTagsProps {
     onTagClick?: (tagId: string) => void;
 }
 
 const ContactTags: React.FC<ContactTagsProps> = () => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Tags', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Tags', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Tags', ACCESS_TYPES.ALL_ACCESS);
+
     // Tag List State
     const [tags, setTags] = useState<Tag[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -33,8 +40,10 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
     const [contactsTotal, setContactsTotal] = useState(0);
 
     useEffect(() => {
-        loadTags();
-    }, []);
+        if (canRead) {
+            loadTags();
+        }
+    }, [canRead]);
 
     useEffect(() => {
         if (viewMode === 'details' && activeTag) {
@@ -156,6 +165,20 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
 
     // Filter Logic for Contacts Inside Tag (handled by server pagination mostly, but we display here)
 
+    if (!canRead && !isLoading) {
+        return (
+            <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 justify-center items-center p-8 min-h-[400px]">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1">Access Denied</h3>
+                    <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view Tags. Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
     if (viewMode === 'details' && activeTag) {
         return (
             <div className="p-4 sm:p-6 space-y-6 animate-fade-in">
@@ -245,15 +268,22 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
                             className="pl-10 pr-4 py-2.5 w-full bg-white border border-brand-600 rounded-btn focus:ring-2 focus:ring-brand-500/20 text-sm shadow-sm outline-none placeholder:text-slate-400"
                         />
                     </div>
-                    {selectedIds.size > 0 && (
+                    {selectedIds.size > 0 && canDelete && (
                         <button onClick={handleBulkDelete} className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 rounded-btn font-bold text-sm hover:bg-red-100">
                             Delete ({selectedIds.size})
                         </button>
                     )}
                 </div>
-                <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md text-sm w-full sm:w-auto">
-                    <PlusIcon /><span>Create Tag</span>
-                </button>
+                {canWrite ? (
+                    <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md text-sm w-full sm:w-auto">
+                        <PlusIcon /><span>Create Tag</span>
+                    </button>
+                ) : (
+                    <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        Read Only Mode
+                    </div>
+                )}
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -328,8 +358,12 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button onClick={() => handleOpenModal(tag)} className="p-2 text-slate-400 hover:text-brand-600 rounded-lg"><EditIcon className="w-4 h-4" /></button>
-                                                <button onClick={() => handleDelete(tag.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg"><TrashIcon className="w-4 h-4" /></button>
+                                                {canWrite && (
+                                                    <button onClick={() => handleOpenModal(tag)} className="p-2 text-slate-400 hover:text-brand-600 rounded-lg"><EditIcon className="w-4 h-4" /></button>
+                                                )}
+                                                {canDelete && (
+                                                    <button onClick={() => handleDelete(tag.id)} className="p-2 text-slate-400 hover:text-red-600 rounded-lg"><TrashIcon className="w-4 h-4" /></button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

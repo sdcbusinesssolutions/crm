@@ -63,13 +63,8 @@ let cachedTheme: ThemeConfig | null = null;
 let loadingPromise: Promise<ThemeConfig> | null = null;
 let lastTokenOffset: string | null = null; // Track token to invalidate cache on user switch
 
-const getAuthHeaders = () => {
-    const token = tokenService.getAccessToken();
-    if (!token) throw new Error('Not authenticated');
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
+const getAuthHeaders = async () => {
+    return await tokenService.getAuthHeader();
 };
 
 export const themeService = {
@@ -107,7 +102,7 @@ export const themeService = {
         loadingPromise = (async () => {
             try {
                 // ... fetch logic ...
-                const headers = getAuthHeaders();
+                const headers = await getAuthHeaders();
                 const response = await fetch(API_URL, { headers });
 
                 // ... rest of fetch ...
@@ -120,7 +115,11 @@ export const themeService = {
                 if (!response.ok) throw new Error(`Failed to fetch theme: ${response.status}`);
 
                 const data = await response.json();
-                if (!data) return PRESETS[0];
+                if (!data) {
+                    cachedTheme = PRESETS[0];
+                    lastTokenOffset = currentTokenSignature;
+                    return PRESETS[0];
+                }
 
                 const themeData = data.data || data;
                 if (themeData && (themeData.id || themeData.colors)) {
@@ -130,7 +129,10 @@ export const themeService = {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(themeData));
                     return themeData;
                 }
-                throw new Error('Invalid theme data');
+                
+                cachedTheme = PRESETS[0];
+                lastTokenOffset = currentTokenSignature;
+                return PRESETS[0];
             } catch (e) {
                 console.warn("Theme load warning:", e);
                 // Fallback to local storage if available and we didn't just clear it aggressively
@@ -139,11 +141,14 @@ export const themeService = {
                     try {
                         const parsed = JSON.parse(stored);
                         cachedTheme = parsed; // Cache this fallback too
+                        lastTokenOffset = currentTokenSignature;
                         return parsed;
                     } catch (err) {
                         console.error("Invalid theme in local storage during fallback", err);
                     }
                 }
+                cachedTheme = PRESETS[0];
+                lastTokenOffset = currentTokenSignature;
                 return PRESETS[0];
             } finally {
                 loadingPromise = null; // Clear loading promise regardless of success or failure
@@ -159,7 +164,7 @@ export const themeService = {
         themeService.applyTheme(theme);
 
         try {
-            const headers = getAuthHeaders();
+            const headers = await getAuthHeaders();
             const response = await fetch(API_URL, {
                 method: 'PUT',
                 headers,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { themeService } from '../../services/themeService';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 interface SheetAutomationWizardProps {
     onClose: () => void;
@@ -10,6 +11,9 @@ interface SheetAutomationWizardProps {
 }
 
 const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, onSave, initialData, editId }) => {
+    const { canWrite: getCanWrite } = usePermissions();
+    const canWrite = getCanWrite('G+Automation');
+
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -352,6 +356,10 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
     };
 
     const handleFinalSubmit = async () => {
+        if (!canWrite) {
+            alert('You do not have permission to modify G+Automation.');
+            return;
+        }
         // Construct payload matching backend
         const payload = {
             name: formData.name,
@@ -419,6 +427,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             </div>
 
             <div className="p-8 min-h-[400px]">
+                <fieldset disabled={!canWrite} className="contents">
                 {/* STEP 1: SCHEDULE */}
                 {step === 1 && (
                     <div className="max-w-md mx-auto space-y-6">
@@ -955,6 +964,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         )}
                     </div>
                 )}
+                </fieldset>
             </div>
 
             {/* Footer */}
@@ -970,13 +980,20 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         Next
                     </button>
                 ) : (
-                    <button
-                        onClick={handleFinalSubmit}
-                        className={`px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? 'Saving...' : 'Finish & Save'}
-                    </button>
+                    canWrite ? (
+                        <button
+                            onClick={handleFinalSubmit}
+                            className={`px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? 'Saving...' : 'Finish & Save'}
+                        </button>
+                    ) : (
+                        <div className="px-6 py-2 bg-slate-100 text-slate-500 font-bold rounded border border-slate-200 shadow-sm flex items-center gap-2 text-sm">
+                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Read Only
+                        </div>
+                    )
                 )}
             </div>
         </div>

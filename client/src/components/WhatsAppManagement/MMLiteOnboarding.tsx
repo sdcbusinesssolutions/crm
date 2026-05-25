@@ -7,7 +7,11 @@ interface WhatsAppAccount {
     phone_number: string;
 }
 
-const MMLiteOnboarding: React.FC = () => {
+interface MMLiteOnboardingProps {
+    readOnly?: boolean;
+}
+
+const MMLiteOnboarding: React.FC<MMLiteOnboardingProps> = ({ readOnly }) => {
     const [accounts, setAccounts] = useState<WhatsAppAccount[]>([]);
     const [selectedAccountId, setSelectedAccountId] = useState<string>('');
     const [loading, setLoading] = useState(true);
@@ -228,14 +232,16 @@ const MMLiteOnboarding: React.FC = () => {
                             </ul>
                         </div>
 
-                        <button 
-                            onClick={handlePartnerOnboarding}
-                            disabled={processing}
-                            className={`w-full max-w-sm py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        >
-                            {processing ? 'Initiating...' : 'Initialize Onboarding Request'}
-                            {!processing && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>}
-                        </button>
+                        {!readOnly && (
+                            <button 
+                                onClick={handlePartnerOnboarding}
+                                disabled={processing}
+                                className={`w-full max-w-sm py-4 bg-blue-600 text-white font-bold rounded-xl shadow-lg hover:bg-blue-700 transition-all flex items-center justify-center gap-2 ${processing ? 'opacity-70 cursor-not-allowed' : ''}`}
+                            >
+                                {processing ? 'Initiating...' : 'Initialize Onboarding Request'}
+                                {!processing && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>}
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -275,13 +281,15 @@ const MMLiteOnboarding: React.FC = () => {
                         </div>
                         <div className="flex gap-4">
                             <button onClick={() => setCurrentStep(1)} className="px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all">Back</button>
-                            <button 
-                                onClick={() => setCurrentStep(3)}
-                                className="flex-1 py-3 bg-brand-600 text-white font-bold rounded-xl shadow-lg hover:bg-brand-700 transition-all flex items-center justify-center gap-2"
-                            >
-                                Agree & Proceed to Eligibility
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                            </button>
+                            {!readOnly && (
+                                <button 
+                                    onClick={() => setCurrentStep(3)}
+                                    className="flex-1 py-3 bg-brand-600 text-white font-bold rounded-xl shadow-lg hover:bg-brand-700 transition-all flex items-center justify-center gap-2"
+                                >
+                                    Agree & Proceed to Eligibility
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -297,7 +305,7 @@ const MMLiteOnboarding: React.FC = () => {
                             <div className="text-center py-12">
                                 <div className={`w-16 h-16 border-4 border-brand-100 border-t-brand-600 rounded-full mx-auto ${processing ? 'animate-spin' : ''}`}></div>
                                 <button
-                                    onClick={checkEligibility}
+                                    onClick={() => checkEligibility()}
                                     disabled={processing}
                                     className="mt-8 px-8 py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-900 transition-all shadow-md active:scale-95"
                                 >
@@ -398,14 +406,16 @@ const MMLiteOnboarding: React.FC = () => {
 
                         <div className="flex gap-4">
                             <button onClick={() => setCurrentStep(3)} className="px-6 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all">Back</button>
-                            <button 
-                                onClick={handleTransition}
-                                disabled={processing}
-                                className={`flex-1 py-3 bg-brand-600 text-white font-bold rounded-xl shadow-lg hover:shadow-brand-100 transition-all flex items-center justify-center gap-2 ${processing ? 'opacity-70 cursor-not-allowed' : 'animate-pulse-subtle'}`}
-                            >
-                                {processing ? 'Processing...' : 'Transition to MM Lite Now'}
-                                {!processing && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>}
-                            </button>
+                            {!readOnly && (
+                                <button 
+                                    onClick={handleTransition}
+                                    disabled={processing}
+                                    className={`flex-1 py-3 bg-brand-600 text-white font-bold rounded-xl shadow-lg hover:shadow-brand-100 transition-all flex items-center justify-center gap-2 ${processing ? 'opacity-70 cursor-not-allowed' : 'animate-pulse-subtle'}`}
+                                >
+                                    {processing ? 'Processing...' : 'Transition to MM Lite Now'}
+                                    {!processing && <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7"></polyline><polyline points="6 17 11 12 6 7"></polyline></svg>}
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

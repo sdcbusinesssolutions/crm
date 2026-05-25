@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import Modal from '../Modal';
 import Toast from '../Toast';
 import TemplatePreview from './TemplatePreview';
+import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
 interface Template {
     id: string;
@@ -26,6 +27,10 @@ interface TemplateListProps {
 }
 
 const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('WhatsApp Templates', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('WhatsApp Templates', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('WhatsApp Templates', ACCESS_TYPES.ALL_ACCESS);
     const [templates, setTemplates] = useState<Template[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -35,8 +40,10 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
 
     useEffect(() => {
-        fetchTemplates();
-    }, []);
+        if (canRead) {
+            fetchTemplates();
+        }
+    }, [canRead]);
 
     const fetchTemplates = async () => {
         setIsLoading(true);
@@ -128,6 +135,20 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
     const currentTemplates = filteredTemplates.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredTemplates.length / itemsPerPage);
 
+    if (!canRead && !isLoading) {
+        return (
+            <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 justify-center items-center p-8 min-h-[400px]">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1">Access Denied</h3>
+                    <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view WhatsApp Templates. Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 animate-fade-in relative overflow-hidden container-mobile-fix">
             {/* Header - Fixed to Top */}
@@ -137,13 +158,20 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">WhatsApp Templates</h1>
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage your message templates.</p>
                     </div>
-                    <button
-                        onClick={() => onNavigateToBuilder(null)}
-                        className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        Create New Template
-                    </button>
+                    {canWrite ? (
+                        <button
+                            onClick={() => onNavigateToBuilder(null)}
+                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                        >
+                            <PlusIcon className="w-5 h-5" />
+                            Create New Template
+                        </button>
+                    ) : (
+                        <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Read Only Mode
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -313,27 +341,33 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                                                         >
                                                             <EyeIcon className="w-5 h-5" />
                                                         </button>
-                                                        <button
-                                                            onClick={() => onNavigateToBuilder(template.id)}
-                                                            className="text-slate-400 hover:text-brand-600 transition-colors p-1"
-                                                            title="Edit"
-                                                        >
-                                                            <EditIcon className="w-5 h-5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(template.id, template.name)}
-                                                            className="text-slate-400 hover:text-red-600 transition-colors p-1"
-                                                            title="Delete"
-                                                        >
-                                                            <TrashIcon className="w-5 h-5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDuplicate(template)}
-                                                            className="text-slate-400 hover:text-blue-600 transition-colors p-1"
-                                                            title="Duplicate"
-                                                        >
-                                                            <CopyIcon className="w-5 h-5" />
-                                                        </button>
+                                                        {canWrite && (
+                                                            <button
+                                                                onClick={() => onNavigateToBuilder(template.id)}
+                                                                className="text-slate-400 hover:text-brand-600 transition-colors p-1"
+                                                                title="Edit"
+                                                            >
+                                                                <EditIcon className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {canDelete && (
+                                                            <button
+                                                                onClick={() => handleDelete(template.id, template.name)}
+                                                                className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                                                                title="Delete"
+                                                            >
+                                                                <TrashIcon className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        {canWrite && (
+                                                            <button
+                                                                onClick={() => handleDuplicate(template)}
+                                                                className="text-slate-400 hover:text-blue-600 transition-colors p-1"
+                                                                title="Duplicate"
+                                                            >
+                                                                <CopyIcon className="w-5 h-5" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

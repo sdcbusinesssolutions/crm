@@ -1,6 +1,11 @@
 import { AppConfig } from '../AppConfig';
 
-const API_URL = AppConfig.VITE_API_URL || '/api';
+let API_URL = AppConfig.VITE_API_URL || '/api';
+
+// Normalize absolute API URLs to ensure the '/api' suffix is appended if omitted
+if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+    API_URL = `${API_URL}/api`;
+}
 
 const getHeaders = () => {
     const token = localStorage.getItem('adminToken');

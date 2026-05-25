@@ -3,8 +3,14 @@ import React, { useState, useEffect } from 'react';
 import { inputFieldService } from '../services/inputFieldService';
 import { InputField } from '../types';
 import { PlusIcon, EditIcon, TrashIcon, CloseIcon, SearchIcon } from './icons';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
 const InputFields: React.FC = () => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Input Fields', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Input Fields', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Input Fields', ACCESS_TYPES.ALL_ACCESS);
+
     const [inputs, setInputs] = useState<InputField[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -15,8 +21,10 @@ const InputFields: React.FC = () => {
     const [formData, setFormData] = useState<Partial<InputField>>({ name: '', type: 'text', placeholder: '' });
 
     useEffect(() => {
-        loadInputs();
-    }, []);
+        if (canRead) {
+            loadInputs();
+        }
+    }, [canRead]);
 
     const loadInputs = async () => {
         setIsLoading(true);
@@ -33,11 +41,13 @@ const InputFields: React.FC = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!canWrite) return;
         const newInput: InputField = { id: editingInput ? editingInput.id : `inp-${Date.now()}`, name: formData.name || 'Unnamed', type: formData.type || 'text', placeholder: formData.placeholder || '' };
         await inputFieldService.saveInput(newInput); await loadInputs(); setIsModalOpen(false);
     };
 
     const handleDelete = async (id: string) => {
+        if (!canDelete) return;
         if (window.confirm('Delete field?')) { await inputFieldService.deleteInput(id); await loadInputs(); }
     };
 
@@ -45,6 +55,20 @@ const InputFields: React.FC = () => {
     const totalPages = Math.ceil(filteredInputs.length / entriesPerPage);
     const currentEntries = filteredInputs.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
     const inputTypeOptions = [{ label: 'Text', value: 'text' }, { label: 'Number', value: 'number' }, { label: 'Email', value: 'email' }, { label: 'URL', value: 'url' }, { label: 'Date', value: 'date' }];
+
+    if (!canRead && !isLoading) {
+        return (
+            <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 justify-center items-center p-8 min-h-[400px]">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-sm">
+                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    </div>
+                    <h3 className="text-lg font-black text-slate-800 mb-1">Access Denied</h3>
+                    <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view Custom Fields. Please contact your administrator.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col w-full h-full bg-slate-50 font-sans text-slate-900 animate-fade-in relative overflow-hidden container-mobile-fix">
@@ -55,9 +79,16 @@ const InputFields: React.FC = () => {
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Custom Fields</h1>
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage custom data fields for your contacts.</p>
                     </div>
-                    <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto">
-                        <PlusIcon /><span>Add Field</span>
-                    </button>
+                    {canWrite ? (
+                        <button onClick={() => handleOpenModal()} className="flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-6 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm w-full sm:w-auto">
+                            <PlusIcon /><span>Add Field</span>
+                        </button>
+                    ) : (
+                        <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center justify-center gap-2 w-full sm:w-auto">
+                            <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Read Only Mode
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -93,8 +124,12 @@ const InputFields: React.FC = () => {
                                                 <td className="px-6 py-4 text-sm text-slate-500"><span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        <button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200 transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                        <button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                        {canWrite && (
+                                                            <button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200 transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                        )}
+                                                        {canDelete && (
+                                                            <button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -110,7 +145,14 @@ const InputFields: React.FC = () => {
                                 <div key={input.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                                     <div className="flex justify-between items-start mb-2">
                                         <div><h3 className="font-bold text-slate-900 text-lg">{input.name}</h3><span className="inline-block mt-1 bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs font-mono border border-slate-200">{inputTypeOptions.find(o => o.value === input.type)?.label || input.type}</span></div>
-                                        <div className="flex gap-2"><button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div>
+                                        <div className="flex gap-2">
+                                            {canWrite && (
+                                                <button onClick={() => handleOpenModal(input)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button>
+                                            )}
+                                            {canDelete && (
+                                                <button onClick={() => handleDelete(input.id)} className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))}

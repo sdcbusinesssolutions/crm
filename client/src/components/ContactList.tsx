@@ -12,7 +12,11 @@ import {
 } from './icons';
 import Papa from 'papaparse';
 import Toast from './Toast';
+import { PermissionGate } from '../modules/teamStaff/components/PermissionGate';
+import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { countries } from '../utils/countries';
+import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
+import PipelineAssignment from '../modules/teamStaff/components/PipelineAssignment';
 
 interface ContactListProps {
     initialGroupFilter?: string | null;
@@ -21,6 +25,11 @@ interface ContactListProps {
 }
 
 const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGroupFilter, onContactCountUpdate }) => {
+    const { hasAccess } = usePermissions();
+    const canRead = hasAccess('Contact List', ACCESS_TYPES.READ);
+    const canWrite = hasAccess('Contact List', ACCESS_TYPES.READ_WRITE);
+    const canDelete = hasAccess('Contact List', ACCESS_TYPES.ALL_ACCESS);
+
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [totalContacts, setTotalContacts] = useState(0); // Added for server-side pagination
     const [isLoading, setIsLoading] = useState(true);
@@ -32,10 +41,23 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     // Sync count with parent
     useEffect(() => {
+        if (!canRead) return;
         if (onContactCountUpdate) {
             onContactCountUpdate(totalContacts);
         }
-    }, [totalContacts, onContactCountUpdate]);
+    }, [totalContacts, onContactCountUpdate, canRead]);
+
+    if (!canRead) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center bg-slate-50">
+                <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-6 border border-red-100 text-red-500">
+                    <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+                <h2 className="text-2xl font-bold mb-2 text-slate-900">Access Denied</h2>
+                <p className="max-w-md mx-auto text-slate-500">You do not have permission to view or manage the Contact List. Please contact your administrator if you believe this is an error.</p>
+            </div>
+        );
+    }
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
@@ -127,18 +149,21 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     }, [contacts, allTags]);
 
     useEffect(() => {
+        if (!canRead) return;
         // Small delay to ensure session is fully established after sign-in
         const timer = setTimeout(() => {
             loadInitialData();
         }, 150);
 
         return () => clearTimeout(timer);
-    }, []);
+    }, [canRead]);
 
     // Effect to reload contacts when page or filters change
     useEffect(() => {
-        loadContacts();
-    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate]);
+        if (canRead) {
+            loadContacts();
+        }
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate, canRead]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -316,14 +341,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     const handleDeleteAllFiltered = () => {
         setIsBulkDropdownOpen(false);
-        if (contacts.length === 0) return;
-        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'filtered' });
+        if (totalContacts === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: totalContacts, id: 'filtered' });
     };
 
     const handleDeleteEntireCRM = () => {
         setIsBulkDropdownOpen(false);
-        if (contacts.length === 0) return;
-        setDeleteModal({ isOpen: true, type: 'bulk', count: contacts.length, id: 'all' });
+        if (totalContacts === 0) return;
+        setDeleteModal({ isOpen: true, type: 'bulk', count: totalContacts, id: 'all' });
     };
 
     const proceedDelete = async () => {
@@ -756,6 +781,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     };
 
     return (
+        <>
         <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-3 flex-1 lg:max-w-4xl">
@@ -814,35 +840,41 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         {isBulkDropdownOpen && (
                             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
                                 {/* Delete Selection */}
-                                <button 
-                                    onClick={handleBulkDelete} 
-                                    disabled={selectedIds.size === 0}
-                                    className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center transition-colors ${selectedIds.size > 0 ? 'text-red-600 hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
-                                >
-                                    <TrashIcon className="w-4 h-4 mr-2" /> Delete Selected ({selectedIds.size})
-                                </button>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                    <button 
+                                        onClick={handleBulkDelete} 
+                                        disabled={selectedIds.size === 0}
+                                        className={`w-full text-left px-4 py-2.5 text-sm font-medium flex items-center transition-colors ${selectedIds.size > 0 ? 'text-red-600 hover:bg-red-50' : 'text-slate-300 cursor-not-allowed'}`}
+                                    >
+                                        <TrashIcon className="w-4 h-4 mr-2" /> Delete Selected ({selectedIds.size})
+                                    </button>
+                                </PermissionGate>
 
                                 <div className="h-px bg-slate-100 my-1"></div>
 
                                 {/* Delete by Filter (Contextual) */}
                                 {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
-                                    <button 
-                                        onClick={handleDeleteAllFiltered}
-                                        className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
-                                    >
-                                        <TrashIcon className="w-4 h-4 mr-2" /> 
-                                        Delete All Matching Filters ({totalContacts})
-                                    </button>
+                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                        <button 
+                                            onClick={handleDeleteAllFiltered}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
+                                        >
+                                            <TrashIcon className="w-4 h-4 mr-2" /> 
+                                            Delete All Matching Filters ({totalContacts})
+                                        </button>
+                                    </PermissionGate>
                                 )}
 
                                 {/* Clear CRM */}
-                                <button 
-                                    onClick={handleDeleteEntireCRM}
-                                    className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
-                                >
-                                    <TrashIcon className="w-4 h-4 mr-2" /> 
-                                    Wipe Entire CRM ({totalContacts})
-                                </button>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
+                                    <button 
+                                        onClick={handleDeleteEntireCRM}
+                                        className="w-full text-left px-4 py-2.5 text-sm text-red-700 hover:bg-red-100 font-bold flex items-center transition-colors"
+                                    >
+                                        <TrashIcon className="w-4 h-4 mr-2" /> 
+                                        Wipe Entire CRM ({totalContacts})
+                                    </button>
+                                </PermissionGate>
 
                                 <div className="h-px bg-slate-100 my-1"></div>
 
@@ -904,12 +936,24 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         )}
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2 justify-end">
-                    <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
+                <div className="flex flex-wrap gap-2 justify-end items-center">
+                    {!canWrite && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 shadow-sm animate-fade-in select-none">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Read Only Mode
+                        </span>
+                    )}
+                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                        <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
+                    </PermissionGate>
                     <div className="flex gap-2">
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
-                        <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
+                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                            <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
+                        </PermissionGate>
+                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ}>
+                            <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
+                        </PermissionGate>
                     </div>
                 </div>
             </div>
@@ -982,6 +1026,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Tags</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Groups</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Assigned To</th>
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
                                 </thead>
@@ -1053,10 +1098,22 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4 border-b !border-black min-w-[200px]">
+                                                    <LeadAssignment 
+                                                        leadId={contact.id} 
+                                                        contact={contact} 
+                                                        showNames={false}
+                                                        className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 inline-block relative"
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center justify-end space-x-2 transition-opacity">
-                                                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
-                                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
+                                                        </PermissionGate>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
+                                                        </PermissionGate>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -1065,7 +1122,37 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 </tbody>
                             </table>
                         </div>
-                        <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">{currentEntries.map((contact) => (<div key={contact.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(contact.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}><div className="absolute top-5 right-5"><input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} /></div><h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3><p className="text-sm text-slate-500 font-mono">{contact.phone}</p>{contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}<div className="flex justify-end gap-3 pt-3 border-t border-slate-100"><button onClick={() => handleOpenModal(contact)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200"><EditIcon className="w-4 h-4" /></button><button onClick={() => handleDelete(contact.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"><TrashIcon className="w-4 h-4" /></button></div></div>))}</div>
+                        <div className="md:hidden grid grid-cols-1 gap-4 p-4 bg-slate-50/50">
+    {currentEntries.map((contact) => (
+        <div key={contact.id} className={`bg-white p-5 rounded-xl border ${selectedIds.has(contact.id) ? 'border-brand-300 ring-1 ring-brand-200 shadow-md' : 'border-slate-200 shadow-sm'} relative`}>
+            <div className="absolute top-5 right-5">
+                <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
+            </div>
+            <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+            <p className="text-sm text-slate-500 font-mono">{contact.phone}</p>
+            {contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}
+            
+            <div className="mt-4 pt-3 border-t border-slate-100">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned Staff</label>
+                <LeadAssignment 
+                    leadId={contact.id} 
+                    contact={contact} 
+                    showNames={false}
+                    className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 inline-block relative"
+                />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-slate-100">
+                <button onClick={() => handleOpenModal(contact)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200">
+                    <EditIcon className="w-4 h-4" />
+                </button>
+                <button onClick={() => handleDelete(contact.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200">
+                    <TrashIcon className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    ))}
+</div>
                     </>
                 )}
                 <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col xl:flex-row justify-between items-center gap-4">
@@ -1123,13 +1210,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     </div>
                 </div>
             </div>
+        </div>
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" onClick={() => setIsModalOpen(false)}></div>
-                    <div className="relative bg-white w-full sm:w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-slide-up sm:animate-fade-in">
-                        <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-white rounded-t-2xl sticky top-0 z-10"><div><h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{editingContact ? 'Edit Contact' : 'New Lead'}</h3><p className="text-sm text-slate-500 mt-0.5">Fill in the details below to {editingContact ? 'update' : 'add'} a contact.</p></div><button onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><CloseIcon className="w-5 h-5" /></button></div>
-                        <div className="p-8 overflow-y-auto custom-scrollbar bg-slate-50/50">
+                    <div className="relative bg-white w-full sm:w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-slide-up sm:animate-fade-in overflow-hidden">
+                        <div className="flex justify-between items-center px-8 py-6 border-b border-slate-100 bg-white z-10 shrink-0"><div><h3 className="text-xl font-extrabold text-slate-900 tracking-tight">{editingContact ? 'Edit Contact' : 'New Lead'}</h3><p className="text-sm text-slate-500 mt-0.5">Fill in the details below to {editingContact ? 'update' : 'add'} a contact.</p></div><button type="button" onClick={() => setIsModalOpen(false)} className="p-2 bg-slate-50 border border-slate-200 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><CloseIcon className="w-5 h-5" /></button></div>
+                        <div className="p-8 overflow-y-auto custom-scrollbar bg-slate-50/50 flex-1 min-h-0">
                             <form id="contact-form" onSubmit={handleSave} className="space-y-8">
                                 <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><BadgeIcon className="w-4 h-4" /> Core Information</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-5"><div className="sm:col-span-2"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label><input type="text" required className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-bold" placeholder="e.g. John Doe" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></div>
                                     <div>
@@ -1319,7 +1407,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     onClose={() => setToast(null)}
                 />
             )}
-        </div>
+        </>
     );
 };
 

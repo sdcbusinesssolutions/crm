@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Contact Groups', 'read'), async (req, res) => {
   try {
     // Use Admin to bypass row limit (for accurate counts > 1000)
     const supabase = supabaseAdmin;
@@ -80,7 +81,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Contact Groups', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const user = req.user;
@@ -107,7 +108,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Contact Groups', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { error } = await supabase.from('contact_groups').delete().eq('id', req.params.id).eq('user_id', req.user.id);
@@ -119,7 +120,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 
-router.get('/:id/export', async (req, res) => {
+router.get('/:id/export', requirePermission('Contact Groups', 'read'), async (req, res) => {
   try {
     const { id } = req.params;
     // Use Admin to fetch all without limits

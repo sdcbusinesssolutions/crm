@@ -3,6 +3,11 @@ const cors = require('cors');
 const compression = require('compression');
 const serverless = require('serverless-http');
 const path = require('path');
+const dns = require('dns');
+
+// Globally force IPv4 resolution first to prevent Node 18+ IPv6 connect timeout errors
+dns.setDefaultResultOrder('ipv4first');
+
 
 // Load env vars only if not in production/Netlify (where they are injected)
 try {
@@ -27,8 +32,37 @@ proxyVars.forEach(v => {
 // Explicitly set NO_PROXY just in case
 process.env.NO_PROXY = 'googleapis.com,sheets.googleapis.com,oauth2.googleapis.com';
 
+// --- DYNAMIC CLIENT CONFIG SYNCHRONIZATION ---
+// Automatically syncs server environment variables to the statically served frontend's config.js
+// on startup. This prevents login failures due to blank client configuration files.
+try {
+  const fs = require('fs');
+  const clientBuildPath = process.env.CLIENT_BUILD_PATH || path.join(__dirname, '../client/dist');
+  const publicConfigPath = path.join(__dirname, '../client/public');
+  
+  const configContent = `window.env = {
+  VITE_SUPABASE_URL: ${JSON.stringify(process.env.SUPABASE_URL || '')},
+  VITE_SUPABASE_ANON_KEY: ${JSON.stringify(process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '')},
+  VITE_CLIENT_URL: "__DYNAMIC_ORIGIN__",
+  VITE_API_URL: ${JSON.stringify(process.env.API_URL || '/api')},
+  VITE_MASTER_URL: ${JSON.stringify(process.env.VITE_MASTER_URL || '')},
+  VITE_BRIDGE_DOMAIN: ${JSON.stringify(process.env.BRIDGE_DOMAIN || '')}
+};
+`;
 
-
+  // Write to client build folder
+  if (fs.existsSync(clientBuildPath)) {
+    fs.writeFileSync(path.join(clientBuildPath, 'config.js'), configContent);
+    console.log(`✅ [ConfigSync] Synced runtime config to static build path: ${clientBuildPath}`);
+  }
+  // Write to client public folder (dev mode fallback)
+  if (fs.existsSync(publicConfigPath)) {
+    fs.writeFileSync(path.join(publicConfigPath, 'config.js'), configContent);
+    console.log(`✅ [ConfigSync] Synced runtime config to source public path: ${publicConfigPath}`);
+  }
+} catch (err) {
+  console.warn(`⚠️ [ConfigSync] Warning: Could not automatically sync client config: ${err.message}`);
+}
 // Import the shared static client for middleware verification
 const { supabase } = require('./lib/supabaseClient');
 const { overrideConsole } = require('./utils/logger');
@@ -41,11 +75,7 @@ if (!PORT) {
   process.exit(1);
 }
 
-// --- Middleware ---
-app.use(cors());
-app.use(compression());
-
-// --- Supabase Reverse Proxy (Must be BEFORE express.json) ---
+// --- Supabase Reverse Proxy (Must be BEFORE express.json and compression middleware) ---
 try {
   const { createProxyMiddleware } = require('http-proxy-middleware');
   const proxyTarget = process.env.SUPABASE_URL ? process.env.SUPABASE_URL.trim() : '';
@@ -56,6 +86,11 @@ try {
       ws: true,
       pathRewrite: { '^/api/supabase-proxy': '' },
       logLevel: 'error',
+      onProxyReq: (proxyReq, req, res) => {
+        // Force uncompressed responses from Supabase to prevent double-compression/corruption
+        // issues when passing through compression middleware or reverse proxies.
+        proxyReq.setHeader('accept-encoding', 'identity');
+      },
       onProxyReqWs: (proxyReq, req, socket, options, head) => {
         // Essential for WebSocket protocol mirroring
         if (req.headers['sec-websocket-protocol']) {
@@ -66,7 +101,7 @@ try {
         // Ensure CORS headers are always present to override restrictive Supabase defaults if needed
         proxyRes.headers['Access-Control-Allow-Origin'] = req.headers.origin || '*';
         proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, PATCH, OPTIONS';
-        proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization';
+        proxyRes.headers['Access-Control-Allow-Headers'] = 'apikey, X-Client-Info, Content-Type, Authorization, Accept, Accept-Language, X-Authorization, Prefer, x-customer-id, x-vendor-id, x-account-id';
       }
     });
     app.use('/api/supabase-proxy', supabaseProxy);
@@ -78,6 +113,10 @@ try {
 } catch (e) {
   console.log('Skipping proxy setup:', e.message);
 }
+
+// --- Middleware ---
+app.use(cors());
+app.use(compression());
 
 // Force Restart: 2026-01-12 23:25 UTC - Deduplication Active
 app.use(express.json({ limit: '50mb' }));
@@ -208,6 +247,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized route
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
+const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
@@ -223,6 +263,7 @@ const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 // Public Routes
 
 router.use('/forms', formRoutes);
+router.use('/team-staff', staffRoutes);
 router.use('/', webhookRoutes); // Meta Webhook (Mounted at root to match /api/:userId/:phoneId/webhook)
 router.use('/webhooks', incomingWebhookRoutes); // Dynamic Incoming Webhooks
 router.use('/client-logs', clientLogRoutes); // Public Client Logging
@@ -269,6 +310,7 @@ router.use('/admin/plans', adminPlanRoutes);
 router.use('/admin/subscriptions', adminSubscriptionRoutes);
 
 router.use('/admin/settings', adminSettingsRoutes);
+router.use('/admin/limits', require('./routes/admin/featureLimitsRoutes'));
 // EXPERIMENTAL FIX: Mount integrations explicitly to avoid wildcard shadowing
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);

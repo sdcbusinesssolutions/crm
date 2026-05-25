@@ -19,8 +19,16 @@ declare global {
 // Helper to get config values with fallback to import.meta.env (for local dev)
 export const AppConfig = {
     get VITE_SUPABASE_URL() {
+        const currentDomain = window.location.hostname;
+        const isLocalhost = currentDomain.includes('localhost') || currentDomain.includes('127.0.0.1');
+        
         // --- Jio ISP Block Bypass Proxy ---
-        // Instead of targeting the real supabase domain directly, route through our API proxy
+        // Only use the proxy for remote domains (to bypass ISP blocks in India).
+        // For local development, using the direct URL is more reliable and avoids proxy errors.
+        if (isLocalhost) {
+            return window.env?.VITE_SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL || '';
+        }
+        
         return `${window.location.origin}/api/supabase-proxy`;
     },
     get VITE_SUPABASE_ANON_KEY() {

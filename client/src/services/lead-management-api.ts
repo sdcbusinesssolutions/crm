@@ -55,6 +55,18 @@ export const getPipeline = async (id: string): Promise<Pipeline | null> => {
     }
 };
 
+export const getLead = async (id: string): Promise<Lead | null> => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/leads/${id}`, { headers });
+        if (!res.ok) throw new Error('Failed to fetch lead');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to load lead', e);
+        return null;
+    }
+};
+
 export const createPipeline = async (pipeline: CreatePipelineRequest): Promise<Pipeline> => {
     try {
         const headers = await getHeaders();
@@ -427,6 +439,18 @@ export const submitForm = async (token: string, data: any): Promise<any> => {
     }
 };
 
+export const getFormSubmissions = async (formId: string, page = 1, limit = 20): Promise<any> => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/forms/${formId}/submissions?page=${page}&limit=${limit}`, { headers });
+        if (!res.ok) throw new Error('Failed to fetch form submissions');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to load form submissions', e);
+        return { data: [], total: 0, page: 1, totalPages: 0 };
+    }
+};
+
 export const reorderStages = async (stages: { id: string; display_order: number }[]): Promise<void> => {
     const headers = await getHeaders();
     const res = await fetch('/api/stages/reorder', {
@@ -659,5 +683,17 @@ export const deleteCallLog = async (id: string): Promise<boolean> => {
     } catch (e) {
         console.error('Failed to delete call log', e);
         return false;
+    }
+};
+
+export const getStaffList = async () => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch('/api/team-staff', { headers });
+        if (!res.ok) throw new Error('Failed to fetch staff list');
+        return await res.json();
+    } catch (e) {
+        console.error('Failed to load staff list', e);
+        return [];
     }
 };

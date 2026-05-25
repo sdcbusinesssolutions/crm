@@ -1,0 +1,184 @@
+1212:                            </div>
+1215:                    </div>
+1231:                            </div>
+1236:                            </div>
+1239:                    </div>
+1247:                        </div>
+1251:                            <div className="text-xs text-slate-500 italic">Audio Unavailable</div>
+1253:                    </div>
+1261:                        </div>
+1265:                        </div>
+1267:                    </div>
+1277:                            </div>
+1278:                        </div>
+1287:                    </div>
+1295:                        </div>
+1299:                        </div>
+1300:                    </div>
+1313:                        </div>
+1338:                else if (headerParam?.type === 'document') headerMedia = <div className="flex items-center gap-2 p-3 bg-slate-100 rounded-t-lg border-b border-slate-200"><DocumentFileIcon className="w-5 h-5 text-red-500" /> <span className="text-xs font-medium text-slate-700">Document Header</span></div>;
+1404:                                                    </div>
+1406:                                            </div>
+1414:                                                </div>
+1434:                                                    </div>
+1436:                                            </div>
+1437:                                        </div>
+1440:                            </div>
+1441:                        </div>
+1450:                            {headerText && <div className="px-3 pt-3 pb-1 font-bold text-slate-900 leading-tight">{headerText}</div>}
+1456:                                    </div>
+1461:                                        </div>
+1465:                                            </div>
+1467:                                    </div>
+1473:                            </div>
+1502:                                            </div>
+1505:                                </div>
+1507:                        </div>
+1511:                    </div>
+1524:                        </div>
+1533:                        </div>
+1540:                        </div>
+1582:                            </div>
+1591:                            </div>
+1593:                            {/* <div className="px-3 py-2 text-xs text-slate-400 border-t border-slate-100">{data.nfm_reply.body}</div> */}
+1594:                        </div>
+1610:                                </div>
+1635:                                                </div>
+1639:                                                </div>
+1645:                                            </div>
+1658:                                                </div>
+1660:                                        </div>
+1663:                            </div>
+1664:                        </div>
+1694:                            </div>
+1699:                            </div>
+1707:                            </div>
+1711:                        {headerText && <div className="px-3 pt-3 pb-1 font-bold text-slate-900 border-b border-slate-50/50">{headerText}</div>}
+1715:                            </div>
+1716:                        </div>
+1717:                        {footerText && <div className="px-3 pb-3 pt-0 text-[10px] text-slate-400">{footerText}</div>}
+1725:                                </div>
+1743:                                </div>
+1749:                                </div>
+1751:                        </div>
+1752:                    </div>
+1760:                    </div>
+1773:                            </div>
+1777:                        </div>
+1784:                    </div>
+1804:                        </div>
+1823:                                        <div className="fixed inset-0 z-30" onClick={() => setIsFilterMenuOpen(false)}></div>
+1839:                                                </div>
+1847:                                                </div>
+1848:                                            </div>
+1849:                                        </div>
+1852:                            </div>
+1853:                        </div>
+1854:                    </div>
+1873:                    </div>
+1875:                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><SearchIcon /></div>
+1883:                    </div>
+1884:                </div>
+1893:                        </div>
+1905:                                        </div>
+1909:                                        </div>
+1910:                                    </div>
+1916:                                    </div>
+1917:                                </div>
+1983:                                    </div>
+1984:                                </div>
+1985:                            </div>
+1990:                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-600"></div>
+1991:                        </div>
+1993:                </div>
+1994:            </div>
+2016:                    </div>
+2033:                                </div>
+2066:                                </div>
+2067:                            </div>
+2091:                                                </div>
+2093:                                        </div>
+2130:                                            <div className="fixed inset-0 z-40" onClick={() => setIsHeaderMenuOpen(false)}></div>
+2138:                                                <div className="h-px bg-slate-100 my-1"></div>
+2161:                                            </div>
+2164:                                </div>
+2165:                            </div>
+2186:                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-600"></div>
+2188:                                    </div>
+2189:                                </div>
+2194:                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+2195:                                </div>
+2219:                                                </div>
+2235:                                                    </div>
+2237:                                                </div>
+2238:                                            </div>
+2244:                        </div>
+2255:                                    <div className="fixed inset-0 z-30" onClick={() => setIsAttachmentOpen(false)}></div>
+2258:                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center"><DocumentFileIcon className="w-4 h-4" /></div> Document
+2261:                                            <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center"><ImageFileIcon className="w-4 h-4" /></div> Image
+2264:                                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center"><VideoFileIcon className="w-4 h-4" /></div> Video
+2267:                                            <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center"><AudioFileIcon className="w-4 h-4" /></div> Audio
+2269:                                        <div className="h-px bg-slate-100 my-1 mx-2"></div>
+2274:                                            <div className="w-8 h-8 rounded-full bg-green-100 text-[#0D9668] flex items-center justify-center"><QuickReplyIcon className="w-4 h-4" /></div> Quick Reply
+2280:                                            <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center"><MessageIcon className="w-4 h-4" /></div> Template
+2282:                                    </div>
+2304:                                    <div className="fixed inset-0 z-[-1]" onClick={() => setIsEmojiPickerOpen(false)}></div>
+2307:                                    </div>
+2308:                                </div>
+2326:                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+2329:                                    </div>
+2345:                                    </div>
+2346:                                </div>
+2397:                                                    </div>
+2399:                                                </div>
+2402:                                                </div>
+2403:                                            </div>
+2427:                                                                    </div>
+2435:                                                                    </div>
+2436:                                                                </div>
+2442:                                                                </div>
+2449:                                                            </div>
+2452:                                                        </div>
+2454:                                                </div>
+2455:                                            </div>
+2466:                                            </div>
+2467:                                        </div>
+2469:                                </div>
+2484:                        </div>
+2492:                        </div>
+2494:                    </div>
+2503:                        </div>
+2505:                    </div>
+2507:            </div>
+2511:                <div className="fixed inset-0 z-[240] bg-black/20 backdrop-blur-sm" onClick={() => setIsContactInfoOpen(false)}></div>
+2520:                        </div>
+2525:                                </div>
+2569:                                                </div>
+2571:                            </div>
+2583:                                    </div>
+2584:                                </div>
+2589:                                    </div>
+2603:                                            </div>
+2615:                                                    <div className="fixed inset-0 z-40" onClick={() => setIsTagInputOpen(false)}></div>
+2633:                                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: tag.color || '#ccc' }}></div>
+2645:                                                        </div>
+2646:                                                    </div>
+2649:                                        </div>
+2650:                                    </div>
+2651:                                </div>
+2656:                                    </div>
+2662:                                </div>
+2670:                                        </div>
+2674:                                        </div>
+2678:                                        </div>
+2679:                                    </div>
+2680:                                </div>
+2681:                            </div>
+2682:                        </div>
+2683:                    </div>
+2693:                            </div>
+2711:                            </div>
+2712:                        </div>
+2713:                    </div>
+2714:                </div>
+2722:        </div>

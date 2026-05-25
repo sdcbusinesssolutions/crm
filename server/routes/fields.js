@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Input Fields', 'read'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { data: { user } } = await supabase.auth.getUser();
@@ -67,7 +68,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Input Fields', 'read_write'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const user = req.user;
@@ -94,7 +95,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Input Fields', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { error } = await supabase.from('custom_fields').delete().eq('id', req.params.id);
