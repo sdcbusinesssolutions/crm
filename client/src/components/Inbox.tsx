@@ -965,8 +965,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         e.stopPropagation();
 
         const exportData = filteredChats.map(c => ({
-            name: c.contact_name || c.contact_phone,
-            phone: c.contact_phone,
+            name: c.contact_name || formatPhone(c.contact_phone),
+            phone: formatPhone(c.contact_phone),
             status: c.status,
             tags: c.tags?.join(', '),
             assignedTo: c.assigned_to || 'Unassigned'
@@ -988,7 +988,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         const contactData = {
             id: activeChat.id,
             name: activeChat.contact_name,
-            phone: activeChat.contact_phone,
+            phone: formatPhone(activeChat.contact_phone),
             tags: activeChat.tags,
             status: activeChat.status,
             exportedAt: new Date().toISOString()
@@ -1053,7 +1053,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             const date = new Date(msg.created_at);
             const dateStr = date.toLocaleDateString();
             const timeStr = date.toLocaleTimeString();
-            const sender = msg.direction === 'out' ? 'Business' : (activeChat.contact_name || activeChat.contact_phone);
+            const sender = msg.direction === 'out' ? 'Business' : (activeChat.contact_name || formatPhone(activeChat.contact_phone));
             const content = msg.text ? `"${msg.text.replace(/"/g, '""')}"` : (msg.media_url || '[Media]');
             const status = msg.status;
 

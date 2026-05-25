@@ -711,7 +711,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             const row = [
                 `"${(lead.name || '').replace(/"/g, '""')}"`,
                 `"${(lead.email || '').replace(/"/g, '""')}"`,
-                `"${(lead.phone || '').replace(/"/g, '""')}"`,
+                `"${(formatPhone(lead.phone) || '').replace(/"/g, '""')}"`,
                 `"${(lead.company || '').replace(/"/g, '""')}"`,
                 `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
                 lead.estimated_value || 0,

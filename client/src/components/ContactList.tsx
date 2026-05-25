@@ -584,7 +584,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                 const row: any = {
                     Name: c.name,
-                    Phone: c.phone,
+                    Phone: formatPhone(c.phone),
                     Email: c.email || '',
                     Status: c.status,
                     Tags: (c.tags || []).join(', '),
