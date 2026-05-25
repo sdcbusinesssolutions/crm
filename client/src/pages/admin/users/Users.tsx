@@ -53,12 +53,33 @@ const Users = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        // Quick check for Super Admin status (Master Domain)
-        const checkSuperAdmin = () => {
-            // @ts-ignore
-            const MASTER_URL = (import.meta as any).env.VITE_MASTER_URL || '';
-            const hostname = window.location.hostname;
-            const isMaster = MASTER_URL.includes(hostname) || hostname.includes('localhost');
+        // Check for Super Admin status securely via backend
+        const checkSuperAdmin = async () => {
+            let isMaster = false;
+            
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (token) {
+                    const res = await fetch('/api/admin/auth/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const adminData = await res.json();
+                        isMaster = adminData.role === 'super_admin';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to verify admin role', e);
+            }
+
+            // Fallback to hostname check
+            if (!isMaster) {
+                // @ts-ignore
+                const MASTER_URL = (import.meta as any).env.VITE_MASTER_URL || '';
+                const hostname = window.location.hostname;
+                isMaster = MASTER_URL.includes(hostname) || hostname.includes('localhost');
+            }
+
             setIsSuperAdmin(isMaster);
             if (isMaster) fetchDomains();
         };
