@@ -18,58 +18,46 @@ router.get('/', requirePermission('Contact Groups', 'read'), async (req, res) =>
 
     const groupList = data || [];
 
-    // Fetch contacts for accurate count (Deduplicated)
-    let uniqueContacts = [];
-    try {
-      // Loop strategy to fetch ALL contacts for Group Counting
-      let allContacts = [];
-      let pageIndex = 0;
-      const chunkSize = 1000;
-      let hasMore = true;
-      const contactsClient = supabaseAdmin || getAuthenticatedSupabase(req);
+    // Optimization: Instead of downloading 45,000+ contacts into Node.js memory,
+    // we query PostgreSQL directly for the exact count of each group using the GIN index.
+    // We batch requests to avoid overwhelming the Supabase API connection pool.
+    const formatted = [];
+    const batchSize = 10;
+    
+    for (let i = 0; i < groupList.length; i += batchSize) {
+      const batch = groupList.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(async (g) => {
+        try {
+          const { count } = await supabaseAdmin
+            .from('contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', req.user.id)
+            .contains('group_ids', [g.id]);
 
-      while (hasMore) {
-        const from = pageIndex * chunkSize;
-        const to = from + chunkSize - 1;
-
-        const { data: chunk, error: cErr } = await contactsClient
-          .from('contacts')
-          .select('id, phone, group_ids')
-          .eq('user_id', req.user.id)
-          .order('created_at', { ascending: false })
-          .range(from, to);
-
-        if (cErr) throw cErr;
-
-        if (chunk && chunk.length > 0) {
-          allContacts = allContacts.concat(chunk);
-          if (chunk.length < chunkSize) hasMore = false;
-          else pageIndex++;
-        } else {
-          hasMore = false;
+          return {
+            id: g.id,
+            name: g.name,
+            description: g.description,
+            status: g.status,
+            contactCount: count || 0,
+            createdAt: g.created_at,
+            updatedAt: g.updated_at
+          };
+        } catch (e) {
+          console.error(`Error counting contacts for group ${g.id}:`, e);
+          return {
+            id: g.id,
+            name: g.name,
+            description: g.description,
+            status: g.status,
+            contactCount: 0,
+            createdAt: g.created_at,
+            updatedAt: g.updated_at
+          };
         }
-        if (allContacts.length > 150000) break;
-      }
-
-      const rawContacts = allContacts;
-      // Apply same logic as contacts.js (Direct mapping, no dedupe)
-      uniqueContacts = rawContacts;
-    } catch (e) {
-      console.error("Error calculating group counts:", e);
+      }));
+      formatted.push(...batchResults);
     }
-
-    const formatted = groupList.map(g => {
-      const count = uniqueContacts.filter(c => c.group_ids && c.group_ids.includes(g.id)).length;
-      return {
-        id: g.id,
-        name: g.name,
-        description: g.description,
-        status: g.status,
-        contactCount: count,
-        createdAt: g.created_at,
-        updatedAt: g.updated_at
-      };
-    });
 
     res.json(formatted);
   } catch (err) {
