@@ -266,8 +266,16 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                   <div key={i} className="h-[72px] bg-slate-50 animate-pulse rounded-xl border border-slate-100"></div>
                ))
             ) : filteredStaff.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                No staff members match your search.
+              <div className="col-span-full py-12 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <span className="text-slate-400 italic mb-4">No staff members match your search.</span>
+                <button
+                  onClick={() => {
+                    window.location.href = '/?view=Team+Staff';
+                  }}
+                  className="px-5 py-2.5 bg-[#00684a] text-white rounded-xl text-xs font-black shadow-md hover:bg-[#005c42] hover:shadow-lg transition-all uppercase tracking-widest active:scale-95"
+                >
+                  + Create New Staff
+                </button>
               </div>
             ) : (
               filteredStaff.map((staff) => {

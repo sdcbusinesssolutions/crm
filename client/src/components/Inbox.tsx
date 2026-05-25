@@ -1858,13 +1858,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             <h2 className="text-xl font-bold text-slate-900">Inbox</h2>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setIsNumberMasked(!isNumberMasked)}
-                                className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-100 text-slate-600' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
-                                title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}
-                            >
-                                {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                            </button>
+                            {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
+                                <button
+                                    onClick={() => setIsNumberMasked(!isNumberMasked)}
+                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-100 text-slate-600' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
+                                    title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}
+                                >
+                                    {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                </button>
+                            )}
                             <button
                                 onClick={handleExportContactList}
                                 className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95"
@@ -1996,7 +1998,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         contact={chat} 
                                                         leadId={chat.id} 
                                                         showNames={false}
-                                                        onAssigned={() => fetchConversations(true)}
+                                                        onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
                                                         className="p-1.5 rounded-lg transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow"
                                                     />
                                                 </div>

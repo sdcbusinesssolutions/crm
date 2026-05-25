@@ -316,6 +316,34 @@ const StaffManagement: React.FC = () => {
                   </label>
                 </div>
 
+                {/* Can Unmask Numbers Setting */}
+                <div className="mb-6 p-4 bg-[#00684a]/5 rounded-2xl border border-[#00684a]/15 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#00684a]/10 text-[#00684a] rounded-xl flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-slate-900 text-sm">Can Unmask Numbers</div>
+                      <div className="text-slate-500 text-xs font-medium">If enabled, this staff member can view full phone numbers across Inbox, Pipelines, and Contacts.</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={currentPermissions?.can_unmask_numbers === 'all_access'}
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        handlePermissionChange('can_unmask_numbers', isChecked ? 'all_access' : 'no_access');
+                      }}
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#00684a]"></div>
+                  </label>
+                </div>
+
                 <PermissionMatrix 
                   permissions={currentPermissions} 
                   onChange={handlePermissionChange} 

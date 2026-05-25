@@ -7,7 +7,7 @@ import { Contact, ContactGroup, InputField } from '../types';
 import { tagService, Tag } from '../services/tagService';
 import {
     PlusIcon, EditIcon, TrashIcon, SearchIcon, UploadIcon, DownloadIcon,
-    CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon, CalendarIcon
+    CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon, CalendarIcon, EyeIcon, EyeOffIcon
 
 } from './icons';
 import Papa from 'papaparse';
@@ -38,6 +38,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [currentPage, setCurrentPage] = useState(1);
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
+    const [isNumberMasked, setIsNumberMasked] = useState(true);
+
+    const formatPhone = (phone: string | undefined | null) => {
+        if (!phone) return '';
+        if (!isNumberMasked) return phone;
+        if (phone.length <= 4) return '****';
+        return phone.substring(0, phone.length - 4).replace(/./g, '*') + phone.substring(phone.length - 4);
+    };
 
     // Sync count with parent
     useEffect(() => {
@@ -947,12 +955,17 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         <button onClick={() => handleOpenModal()} className="flex items-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl font-bold shadow-md transition-all transform hover:-translate-y-0.5 text-sm"><PlusIcon /><span>Create Contact</span></button>
                     </PermissionGate>
                     <div className="flex gap-2">
+                        {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
+                            <button onClick={() => setIsNumberMasked(!isNumberMasked)} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold" title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}>
+                                {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                            </button>
+                        )}
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} />
                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
-                            <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><UploadIcon /></button>
+                            <button onClick={() => fileInputRef.current?.click()} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold" title="Import Contacts"><UploadIcon className="w-5 h-5" /></button>
                         </PermissionGate>
                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ}>
-                            <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold"><DownloadIcon /></button>
+                            <button onClick={handleExport} className="p-2.5 bg-[var(--color-brand)] text-white hover:opacity-90 rounded-xl transition-all shadow-md font-bold" title="Export Contacts"><DownloadIcon className="w-5 h-5" /></button>
                         </PermissionGate>
                     </div>
                 </div>
@@ -1061,7 +1074,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center gap-2">
                                                         <PhoneIcon className="w-4 h-4 text-[var(--color-brand)] opacity-80" />
-                                                        <div className="text-xs font-bold text-slate-600 font-mono tracking-wide">{contact.phone}</div>
+                                                        <div className="text-xs font-bold text-slate-600 font-mono tracking-wide">{formatPhone(contact.phone)}</div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black">
@@ -1129,7 +1142,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
             </div>
             <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
-            <p className="text-sm text-slate-500 font-mono">{contact.phone}</p>
+            <p className="text-sm text-slate-500 font-mono">{formatPhone(contact.phone)}</p>
             {contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}
             
             <div className="mt-4 pt-3 border-t border-slate-100">

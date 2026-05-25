@@ -137,18 +137,23 @@ exports.createUser = async (req, res) => {
         trialExpiry.setDate(trialExpiry.getDate() + TRIAL_DAYS);
 
         // 3. Create User in Supabase Auth
-        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+        const createPayload = {
             email,
             password,
             email_confirm: true,
-            phone: mobile,
             user_metadata: {
                 full_name: name || '',
                 phone: mobile || '',
                 signup_domain: targetDomain,
                 role: userRole
             }
-        });
+        };
+
+        if (mobile && mobile.trim() !== '') {
+            createPayload.phone = mobile;
+        }
+
+        const { data, error } = await supabaseAdmin.auth.admin.createUser(createPayload);
 
         if (error) {
             console.error('Supabase Create User Error:', error);
