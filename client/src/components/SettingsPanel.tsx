@@ -1,11 +1,12 @@
 import React, { ReactNode, useState, useMemo } from 'react';
-import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData, NotifyData } from '../types';
+import { Node, NodeType, OnMessageData, MediaMessageData, SetWebhookData, ListMessageData, CTAMessageData, QuickReplyMessageData, AskAnythingData, AskInputData, CheckConditionData, WriteAttributeData, MediaType, CallApiData, TemplateMessageData, SwitchData, ManageTagsData, ManageGroupsData, ContactGroup, Edge, TimingData, SendFlowData, CarouselMessageData, CarouselCard, ConditionRule, ConditionGroup, ListItem, AnyNodeData, GsheetData, GmailData, TextMessageData, WebhookData, AskLocationData, CodeData, ContactPipelineData, PipelineTriggerData, TaskReminderData, CalendarData, SheetTriggerData, AIAgentData, SmtpData, NotifyData, AssignLeadData } from '../types';
 import { MessageIcon, ImageFileIcon, WebhookIcon, TimingIcon, ListIcon, QuickReplyIcon, CtaIcon, GsheetIcon, CodeIcon, AskLocationIcon, TrashIcon, EditIcon, SettingsIcon, ConditionIcon, BookmarkIcon, SetWebhookIcon, TriggerIcon, CopyIcon, FlowIcon, CallApiIcon, TagIcon, PlusIcon, CloseIcon, UsersIcon, ClockIcon, CarouselIcon, InfoIcon, GmailIcon, CalendarIcon, RobotIcon } from './icons';
 import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
 import { contactGroupService } from '../services/contactGroupService';
 import { integrationsService } from '../services/integrationsService';
 import { aiAgentService } from '../services/aiAgentService';
+import { staffApi } from '../modules/teamStaff/api/staffApi';
 import DroppableInput from './DroppableInput';
 import VariableSidebar from './VariableSidebar';
 import { getAvailableVariables, NodeVariables } from '../utils/flowVariables';
@@ -229,7 +230,7 @@ const ResponseHandlingFields: React.FC<{ data: any; onUpdate: (u: any) => void, 
 
 // --- Specific Panels ---
 
-const CheckConditionSettingsPanel: React.FC<{ selectedNode: Node & { data: CheckConditionData }; nodes: Node[]; edges: Edge[]; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, availableVariables }) => {
+const CheckConditionSettingsPanel: React.FC<{ selectedNode: Node & { data: CheckConditionData }; nodes: Node[]; edges: Edge[]; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updatedData: Partial<CheckConditionData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedData });
 
@@ -275,7 +276,7 @@ const CheckConditionSettingsPanel: React.FC<{ selectedNode: Node & { data: Check
     )
 };
 
-const AskAnythingSettingsPanel: React.FC<{ selectedNode: Node & { data: AskAnythingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const AskAnythingSettingsPanel: React.FC<{ selectedNode: Node & { data: AskAnythingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const data = selectedNode.data;
     const handleUpdate = (updatedFields: Partial<AskAnythingData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
     return (
@@ -286,7 +287,7 @@ const AskAnythingSettingsPanel: React.FC<{ selectedNode: Node & { data: AskAnyth
     );
 }
 
-const SetWebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: SetWebhookData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const SetWebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: SetWebhookData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const { showNotification } = React.useContext(SettingsContext);
     const [sampleJson, setSampleJson] = useState('');
@@ -634,7 +635,7 @@ const ListMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: ListMess
     );
 };
 
-const CTAMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: CTAMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const CTAMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: CTAMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<CTAMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -821,7 +822,7 @@ const QuickReplySettingsPanel: React.FC<{ selectedNode: Node & { data: QuickRepl
     );
 };
 
-const CarouselSettingsPanel: React.FC<{ selectedNode: Node & { data: CarouselMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const CarouselSettingsPanel: React.FC<{ selectedNode: Node & { data: CarouselMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<CarouselMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -957,7 +958,7 @@ const CarouselSettingsPanel: React.FC<{ selectedNode: Node & { data: CarouselMes
     );
 };
 
-const SendFlowSettingsPanel: React.FC<{ selectedNode: Node & { data: SendFlowData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const SendFlowSettingsPanel: React.FC<{ selectedNode: Node & { data: SendFlowData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<SendFlowData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [flows, setFlows] = useState<{ id: string, name: string }[]>([]);
@@ -1097,7 +1098,7 @@ const SendFlowSettingsPanel: React.FC<{ selectedNode: Node & { data: SendFlowDat
     );
 };
 
-const CallApiSettingsPanel: React.FC<{ selectedNode: Node & { data: CallApiData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const CallApiSettingsPanel: React.FC<{ selectedNode: Node & { data: CallApiData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<CallApiData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [testResponse, setTestResponse] = useState<string>('');
@@ -1417,7 +1418,7 @@ const CallApiSettingsPanel: React.FC<{ selectedNode: Node & { data: CallApiData 
     );
 };
 
-const GenericSettingsPanel: React.FC<{ selectedNode: Node; onUpdateNode: (id: string, data: AnyNodeData) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const GenericSettingsPanel: React.FC<{ selectedNode: Node; onUpdateNode: (id: string, data: AnyNodeData) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data, type } = selectedNode;
     const handleDataChange = (key: string, value: any) => onUpdateNode(selectedNode.id, { ...data, [key]: value });
     return (
@@ -1427,7 +1428,7 @@ const GenericSettingsPanel: React.FC<{ selectedNode: Node; onUpdateNode: (id: st
     );
 };
 
-const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TemplateMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TemplateMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<TemplateMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -1701,7 +1702,7 @@ const TemplateMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: Temp
     );
 };
 
-const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<NotifyData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -2000,7 +2001,7 @@ const NotifySettingsPanel: React.FC<{ selectedNode: Node & { data: NotifyData };
 };
 
 // --- Sheet Trigger Settings Panel ---
-const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const { showNotification } = React.useContext(SettingsContext);
     const handleUpdate = (update: Partial<SheetTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
@@ -2260,7 +2261,7 @@ const SheetTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: SheetTr
 };
 
 // --- Timing Settings Panel ---
-const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<TimingData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
 
@@ -2316,7 +2317,7 @@ const TimingSettingsPanel: React.FC<{ selectedNode: Node & { data: TimingData };
     );
 };
 
-const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<MediaMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -2393,7 +2394,7 @@ const MediaMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: MediaMe
     );
 };
 
-const SwitchSettingsPanel: React.FC<SettingsPanelProps & { availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const SwitchSettingsPanel: React.FC<SettingsPanelProps & { availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     // Import SwitchData type
     const data = selectedNode!.data as any; // Using 'any' briefly to avoid import issues if not yet updated in types.ts imports, but we should cast to SwitchData
     // Ensure data.cases exists
@@ -2517,7 +2518,7 @@ const SwitchSettingsPanel: React.FC<SettingsPanelProps & { availableVariables: N
     );
 };
 
-const ManageTagsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageTagsData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const ManageTagsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageTagsData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<ManageTagsData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -2654,7 +2655,7 @@ const ManageTagsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageTag
 };
 
 
-const AskInputSettingsPanel: React.FC<{ selectedNode: Node & { data: AskInputData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const AskInputSettingsPanel: React.FC<{ selectedNode: Node & { data: AskInputData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updates: Partial<AskInputData>) => onUpdateNode(selectedNode.id, { ...data, ...updates });
 
@@ -2840,7 +2841,7 @@ const AskInputSettingsPanel: React.FC<{ selectedNode: Node & { data: AskInputDat
     );
 };
 
-const ManageGroupsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageGroupsData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const ManageGroupsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageGroupsData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<ManageGroupsData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [availableGroups, setAvailableGroups] = useState<ContactGroup[]>([]);
@@ -2977,7 +2978,7 @@ const ManageGroupsSettingsPanel: React.FC<{ selectedNode: Node & { data: ManageG
 
 import { pipelineService } from '../services/pipelineService';
 
-const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const { showNotification } = React.useContext(SettingsContext);
     const handleUpdate = (update: Partial<GsheetData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
@@ -3356,7 +3357,7 @@ const GsheetSettingsPanel: React.FC<{ selectedNode: Node & { data: GsheetData };
     );
 };
 
-const PipelineTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: PipelineTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const PipelineTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: PipelineTriggerData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<PipelineTriggerData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [pipelines, setPipelines] = useState<{ label: string, value: string }[]>([]);
@@ -3426,7 +3427,7 @@ const PipelineTriggerSettingsPanel: React.FC<{ selectedNode: Node & { data: Pipe
     );
 };
 
-const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: ContactPipelineData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: ContactPipelineData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<ContactPipelineData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [pipelines, setPipelines] = useState<{ label: string, value: string }[]>([]);
@@ -3630,7 +3631,7 @@ const ContactPipelineSettingsPanel: React.FC<{ selectedNode: Node & { data: Cont
     );
 };
 
-const OnMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: OnMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const OnMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: OnMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<OnMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
 
@@ -3661,7 +3662,7 @@ const OnMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: OnMessageD
     );
 };
 
-const TextMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TextMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const TextMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TextMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<TextMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
@@ -3679,7 +3680,7 @@ const TextMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: TextMess
     );
 };
 
-const WebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: WebhookData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const WebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: WebhookData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<WebhookData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
@@ -3696,7 +3697,7 @@ const WebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: WebhookData 
     );
 };
 
-const WriteAttributeSettingsPanel: React.FC<{ selectedNode: Node & { data: WriteAttributeData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const WriteAttributeSettingsPanel: React.FC<{ selectedNode: Node & { data: WriteAttributeData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: any) => onUpdateNode(selectedNode.id, { ...data, ...updated }); // Generic update for now
     return (
@@ -3716,7 +3717,7 @@ const WriteAttributeSettingsPanel: React.FC<{ selectedNode: Node & { data: Write
     );
 };
 
-const AskLocationSettingsPanel: React.FC<{ selectedNode: Node & { data: AskLocationData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const AskLocationSettingsPanel: React.FC<{ selectedNode: Node & { data: AskLocationData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<AskLocationData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
@@ -3730,7 +3731,7 @@ const AskLocationSettingsPanel: React.FC<{ selectedNode: Node & { data: AskLocat
     );
 };
 
-const CodeSettingsPanel: React.FC<{ selectedNode: Node & { data: CodeData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const CodeSettingsPanel: React.FC<{ selectedNode: Node & { data: CodeData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (updated: Partial<CodeData>) => onUpdateNode(selectedNode.id, { ...data, ...updated });
     return (
@@ -3744,7 +3745,7 @@ const CodeSettingsPanel: React.FC<{ selectedNode: Node & { data: CodeData }; onU
     );
 };
 
-const GmailSettingsPanel: React.FC<{ selectedNode: Node & { data: GmailData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const GmailSettingsPanel: React.FC<{ selectedNode: Node & { data: GmailData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const { showNotification } = React.useContext(SettingsContext);
     const handleUpdate = (updatedFields: Partial<GmailData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
@@ -3846,7 +3847,7 @@ const GmailSettingsPanel: React.FC<{ selectedNode: Node & { data: GmailData }; o
     );
 };
 
-const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<CalendarData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
@@ -4173,7 +4174,7 @@ const CalendarSettingsPanel: React.FC<{ selectedNode: Node & { data: CalendarDat
     );
 };
 
-const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskReminderData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskReminderData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<TaskReminderData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
 
@@ -4275,7 +4276,7 @@ const TaskReminderSettingsPanel: React.FC<{ selectedNode: Node & { data: TaskRem
     );
 };
 
-const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<AIAgentData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const [agents, setAgents] = useState<{ id: string, name: string }[]>([]);
@@ -4336,7 +4337,7 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
 };
 
 
-const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables }) => {
+const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
     const { data } = selectedNode;
     const { showNotification } = React.useContext(SettingsContext);
     const handleUpdate = (updatedFields: Partial<SmtpData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedFields });
@@ -4436,17 +4437,133 @@ const SmtpSettingsPanel: React.FC<{ selectedNode: Node & { data: SmtpData }; onU
     );
 };
 
+const AssignLeadSettingsPanel: React.FC<{ selectedNode: Node & { data: AssignLeadData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, canWrite }) => {
+    const { data } = selectedNode;
+    const [staffList, setStaffList] = useState<{ id: string, name: string }[]>([]);
+    
+    React.useEffect(() => {
+        const fetchStaff = async () => {
+            try {
+                const staff = await staffApi.listStaff();
+                setStaffList(staff || []);
+            } catch (err) {
+                console.error("Failed to fetch staff list", err);
+            }
+        };
+        fetchStaff();
+    }, []);
+
+    const handleUpdate = (updatedData: Partial<AssignLeadData>) => onUpdateNode(selectedNode.id, { ...data, ...updatedData });
+
+    const toggleStaff = (staffId: string) => {
+        if (data.assignmentMethod === 'specific_user') {
+            handleUpdate({ staffIds: [staffId] });
+        } else {
+            const current = data.staffIds || [];
+            if (current.includes(staffId)) {
+                const newIds = current.filter(id => id !== staffId);
+                const newPercentages = { ...(data.staffPercentages || {}) };
+                delete newPercentages[staffId];
+                handleUpdate({ staffIds: newIds, staffPercentages: newPercentages });
+            } else {
+                const newIds = [...current, staffId];
+                const newPercentages = { ...(data.staffPercentages || {}) };
+                if (data.assignmentMethod === 'percentage') {
+                    // Initialize with 0 or a balanced split
+                    newPercentages[staffId] = 0; 
+                }
+                handleUpdate({ staffIds: newIds, staffPercentages: newPercentages });
+            }
+        }
+    };
+
+    const updatePercentage = (staffId: string, value: number) => {
+        const current = { ...(data.staffPercentages || {}) };
+        current[staffId] = value;
+        handleUpdate({ staffPercentages: current });
+    };
+
+    const totalPercentage = data.staffIds?.reduce((sum, id) => sum + (data.staffPercentages?.[id] || 0), 0) || 0;
+
+    return (
+        <SettingsModal title="Assign Lead" onClose={onClose} icon={<UsersIcon />} availableVariables={availableVariables} canWrite={canWrite}>
+            <div className="space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Assignment Method</label>
+                    <PanelSelect
+                        value={data.assignmentMethod || 'round_robin'}
+                        onChange={(val) => {
+                            const newMethod = val as 'round_robin' | 'specific_user' | 'percentage';
+                            const currentStaff = data.staffIds || [];
+                            const newStaffIds = newMethod === 'specific_user' && currentStaff.length > 0 ? [currentStaff[0]] : currentStaff;
+                            handleUpdate({ assignmentMethod: newMethod, staffIds: newStaffIds });
+                        }}
+                        options={[
+                            { label: 'Round Robin (Distribute evenly)', value: 'round_robin' },
+                            { label: 'Percentage-based Split', value: 'percentage' },
+                            { label: 'Specific Staff Member', value: 'specific_user' }
+                        ]}
+                    />
+                </div>
+
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                            {data.assignmentMethod === 'round_robin' ? 'Select Staff for Round Robin Pool' : data.assignmentMethod === 'percentage' ? 'Select Staff & Set Percentages' : 'Select Staff Member'}
+                        </label>
+                        {data.assignmentMethod === 'percentage' && (
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded ${totalPercentage === 100 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                                Total: {totalPercentage}%
+                            </span>
+                        )}
+                    </div>
+                    {data.assignmentMethod === 'percentage' && totalPercentage !== 100 && (
+                        <p className="text-[10px] text-amber-500 mb-2 font-medium">
+                            Warning: Percentages should add up to 100%. The system will normalize values automatically if they don't.
+                        </p>
+                    )}
+                    {staffList.length === 0 ? (
+                        <p className="text-sm text-slate-500">No staff members found.</p>
+                    ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                            {staffList.map((staff) => (
+                                <div key={staff.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl border border-slate-700/50 hover:bg-slate-700/50 transition-colors">
+                                    <label className="flex items-center space-x-3 cursor-pointer flex-1">
+                                        <input
+                                            type={data.assignmentMethod === 'specific_user' ? 'radio' : 'checkbox'}
+                                            checked={(data.staffIds || []).includes(staff.id)}
+                                            onChange={() => toggleStaff(staff.id)}
+                                            className={data.assignmentMethod !== 'specific_user' ? "w-4 h-4 text-brand-600 bg-slate-900 border-slate-600 rounded focus:ring-brand-500 focus:ring-2" : "w-4 h-4 text-brand-600 bg-slate-900 border-slate-600 focus:ring-brand-500 focus:ring-2"}
+                                            disabled={!canWrite}
+                                        />
+                                        <span className="text-sm font-medium text-slate-200">{staff.name}</span>
+                                    </label>
+                                    
+                                    {data.assignmentMethod === 'percentage' && (data.staffIds || []).includes(staff.id) && (
+                                        <div className="flex items-center space-x-2">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={data.staffPercentages?.[staff.id] || 0}
+                                                onChange={(e) => updatePercentage(staff.id, parseInt(e.target.value) || 0)}
+                                                className="w-16 bg-slate-900 border border-slate-700 text-white rounded p-1 text-sm text-center focus:outline-none focus:border-brand-500"
+                                                disabled={!canWrite}
+                                            />
+                                            <span className="text-slate-400 text-xs font-bold">%</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </SettingsModal>
+    );
+};
+
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edges, onUpdateNode, onClose, onShowNotification, canWrite }) => {
-    // ... (rest of SettingsPanel body, I need to ensure I don't overwrite it, wait view_file showed I am replacing SettingsPanel definition if I am not careful)
-    // Actually, I should insert SmtpSettingsPanel BEFORE SettingsPanel, and then modify renderPanel inside.
-
-    // I will use replace_file_content in 2 chunks? No, multi_replace.
-    // Chunk 1: Insert SmtpSettingsPanel before SettingsPanel.
-    // Chunk 2: Add Case to renderPanel.
-
-    // I can't write the logic inside this tool call string easily.
-    // I will do it in two separate calls or one multi_replace.
-    // I will use multi_replace.
 
     const [activeInputSetter, setActiveInputSetter] = useState<((token: string) => void) | null>(null);
     const [activeInputId, setActiveInputId] = useState<string | null>(null);
@@ -4503,6 +4620,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.SheetTrigger: return <SheetTriggerSettingsPanel {...commonProps} />;
             case NodeType.AIAgent: return <AIAgentSettingsPanel {...commonProps} />;
             case NodeType.Notify: return <NotifySettingsPanel {...commonProps} />;
+            case NodeType.AssignLead: return <AssignLeadSettingsPanel {...commonProps} />;
             default: return <TextMessageSettingsPanel {...commonProps} />;
         }
     };

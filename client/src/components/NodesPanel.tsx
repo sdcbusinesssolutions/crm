@@ -50,6 +50,7 @@ const crmNodes = [
   { type: NodeType.ManageGroups, label: 'Manage Groups', icon: <UsersIcon /> },
   { type: NodeType.WriteAttribute, label: 'Attribute', icon: <BookmarkIcon /> },
   { type: NodeType.ContactPipeline, label: 'Pipeline Stage', icon: <BookmarkIcon /> },
+  { type: NodeType.AssignLead, label: 'Assign Lead', icon: <UsersIcon /> },
 ];
 
 const integrationNodes = [

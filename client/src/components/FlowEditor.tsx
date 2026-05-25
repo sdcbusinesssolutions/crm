@@ -268,6 +268,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.Gmail: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
       case NodeType.Smtp: baseData.connectionId = ''; baseData.to = ''; baseData.subject = ''; baseData.body = ''; break;
       case NodeType.NewLead: baseData.label = `New Lead${suffix}`; break;
+      case NodeType.AssignLead: baseData.label = `Assign Lead${suffix}`; baseData.assignmentMethod = 'round_robin'; baseData.staffIds = []; break;
     }
 
     let nodePos = position;

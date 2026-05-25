@@ -41,6 +41,7 @@ export enum NodeType {
   AIAgent = 'aiAgent',
   Smtp = 'smtp',
   Notify = 'notify',
+  AssignLead = 'assignLead',
 }
 
 export interface SmtpData extends NodeData {
@@ -476,7 +477,8 @@ export type AnyNodeData =
   | GmailData
   | CalendarData
   | SmtpData
-  | NotifyData;
+  | NotifyData
+  | AssignLeadData;
 
 export interface ContactPipelineData extends NodeData {
   name?: string;
@@ -503,6 +505,12 @@ export interface TaskReminderData extends NodeData {
 
 export interface NewLeadData extends NodeData {
   // No specific configuration needed for now, but good to have the type
+}
+
+export interface AssignLeadData extends NodeData {
+  assignmentMethod: 'round_robin' | 'specific_user' | 'percentage';
+  staffIds: string[]; // List of staff IDs for round-robin pool, or single ID for specific user
+  staffPercentages?: Record<string, number>; // Mapping of staffId to percentage (e.g. { 'u1': 80, 'u2': 20 })
 }
 
 export interface Node {

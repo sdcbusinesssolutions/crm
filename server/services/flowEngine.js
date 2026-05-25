@@ -28,6 +28,7 @@ const gmailExecutor = require('./flow/executors/gmail');
 const calendarExecutor = require('./flow/executors/calendar');
 const aiAgentExecutor = require('./flow/executors/aiAgent');
 const notifyExecutor = require('./flow/executors/notify');
+const assignLeadExecutor = require('./flow/executors/assignLead');
 
 // Executor Map
 const EXECUTORS = {
@@ -56,7 +57,8 @@ const EXECUTORS = {
     'smtp': require('./flow/executors/smtp'),
     'calendar': calendarExecutor,
     'aiAgent': aiAgentExecutor,
-    'notify': notifyExecutor
+    'notify': notifyExecutor,
+    'assignLead': assignLeadExecutor
 };
 
 const { flattenObject } = require('../utils/objectUtils');
