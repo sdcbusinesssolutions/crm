@@ -14,51 +14,23 @@ router.get('/', requirePermission('Contact Groups', 'read'), async (req, res) =>
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    // Optimization: To eliminate API egress completely, we rely on a single
+    // PostgreSQL RPC that does all the GIN index counting directly inside the database
+    // in one single transaction and returns the exact formatted data we need.
+    const { data: rpcData, error: rpcError } = await supabaseAdmin
+      .rpc('get_groups_with_counts', { p_user_id: req.user.id });
 
-    const groupList = data || [];
+    if (rpcError) throw rpcError;
 
-    // Optimization: Instead of downloading 45,000+ contacts into Node.js memory,
-    // we query PostgreSQL directly for the exact count of each group using the GIN index.
-    // We batch requests to avoid overwhelming the Supabase API connection pool.
-    const formatted = [];
-    const batchSize = 10;
-    
-    for (let i = 0; i < groupList.length; i += batchSize) {
-      const batch = groupList.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(async (g) => {
-        try {
-          const { count } = await supabaseAdmin
-            .from('contacts')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', req.user.id)
-            .contains('group_ids', [g.id]);
-
-          return {
-            id: g.id,
-            name: g.name,
-            description: g.description,
-            status: g.status,
-            contactCount: count || 0,
-            createdAt: g.created_at,
-            updatedAt: g.updated_at
-          };
-        } catch (e) {
-          console.error(`Error counting contacts for group ${g.id}:`, e);
-          return {
-            id: g.id,
-            name: g.name,
-            description: g.description,
-            status: g.status,
-            contactCount: 0,
-            createdAt: g.created_at,
-            updatedAt: g.updated_at
-          };
-        }
-      }));
-      formatted.push(...batchResults);
-    }
-
+    const formatted = (rpcData || []).map(g => ({
+      id: g.id,
+      name: g.name,
+      description: g.description,
+      status: g.status,
+      contactCount: g.contactcount, // PostgreSQL returns lowercase column names from RPC
+      createdAt: g.created_at,
+      updatedAt: g.created_at
+    }));
     res.json(formatted);
   } catch (err) {
     // Code 42P01 means table undefined. Return empty array instead of crashing.
