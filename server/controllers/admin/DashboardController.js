@@ -327,20 +327,44 @@ exports.getTenantsList = async (req, res) => {
     try {
         if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
 
-        const { data, error } = await supabaseAdmin.rpc('get_all_tenants_summary');
+        // Fetch all necessary data via supabaseAdmin to bypass RLS issues
+        const [domainsRes, limitsRes, plansRes, profilesRes] = await Promise.all([
+            supabaseAdmin.from('domain_settings').select('domain, brand_name'),
+            supabaseAdmin.from('tenant_limits').select('domain, user_limit'),
+            supabaseAdmin.from('tenant_plans').select('domain, plan_name, status, expires_at'),
+            supabaseAdmin.from('profiles').select('signup_domain')
+        ]);
 
-        if (error) {
-            console.error('Error fetching tenants:', error);
-            // Fallback for demo if RPC missing
-            return res.json([
-                { domain: 'clickube.com', brand_name: 'ClicKube (Master)', user_count: 0 },
-                { domain: 'apiautomation.in', brand_name: 'ApiAutomation', user_count: 0 }
-            ]);
-        }
+        if (domainsRes.error) throw domainsRes.error;
 
-        res.json(data);
+        const limitMap = new Map((limitsRes.data || []).map(l => [l.domain, l.user_limit]));
+        const planMap = new Map((plansRes.data || []).map(p => [p.domain, p]));
+        
+        const countMap = new Map();
+        (profilesRes.data || []).forEach(p => {
+            const dom = p.signup_domain;
+            if (dom) {
+                countMap.set(dom, (countMap.get(dom) || 0) + 1);
+            }
+        });
+
+        const tenants = (domainsRes.data || []).map(ds => {
+            const plan = planMap.get(ds.domain) || {};
+            return {
+                domain: ds.domain,
+                brand_name: ds.brand_name || 'Unknown',
+                user_count: countMap.get(ds.domain) || 0,
+                user_limit: limitMap.get(ds.domain) || 10,
+                plan_name: plan.plan_name || 'Free',
+                plan_status: plan.status || 'active',
+                plan_expires_at: plan.expires_at || null,
+                admin_email: `Admin@${ds.domain}`
+            };
+        });
+
+        res.json(tenants);
     } catch (err) {
-        console.error(err);
+        console.error('Error fetching tenants list:', err);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 };

@@ -23,9 +23,15 @@ const SuperDashboard: React.FC = () => {
 
     const fetchTenants = async () => {
         try {
-            const { data, error } = await supabase.rpc('get_all_tenants_summary' as any);
-            if (error) throw error;
-            setTenants(data as any);
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/admin/dashboard/tenants', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!res.ok) throw new Error('Failed to fetch tenants');
+            const data = await res.json();
+            setTenants(data);
         } catch (err) {
             console.error('Failed to load tenants:', err);
         } finally {
