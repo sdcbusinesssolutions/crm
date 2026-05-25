@@ -287,7 +287,11 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                     </div>
                     <div className="text-left overflow-hidden flex-1">
                       <div className={`text-xs font-black truncate ${isSelected ? 'text-[#00684a]' : 'text-slate-700'}`}>{staff.name}</div>
-                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">{staff.role}</div>
+                      <div className={`text-[9px] font-black uppercase tracking-widest truncate mt-0.5 ${
+                        staff.role?.toLowerCase() === 'manager' 
+                          ? 'text-amber-500' 
+                          : 'text-indigo-500'
+                      }`}>{staff.role}</div>
                     </div>
                     {isSelected && (
                       <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#00684a] flex items-center justify-center text-white shadow-sm">

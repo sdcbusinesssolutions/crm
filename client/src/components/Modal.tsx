@@ -54,8 +54,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
                 aria-modal="true"
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex justify-between items-center p-6 border-b border-slate-100/50 flex-shrink-0">
-                    <h3 className="text-xl font-black tracking-tight text-slate-800">{title}</h3>
+                <div className="flex justify-between items-center p-6 border-b border-slate-100 flex-shrink-0 rounded-t-[2rem]">
+                    <h3 className="text-[22px] font-black tracking-tight text-[#00684a]">{title}</h3>
                     <button
                         onClick={(e) => { e.stopPropagation(); onClose(); }}
                         className="w-8 h-8 rounded-full bg-[#00684a] flex items-center justify-center text-white hover:bg-[#005c42] transition-all active:scale-90 shadow-md border border-[#005c42]"
