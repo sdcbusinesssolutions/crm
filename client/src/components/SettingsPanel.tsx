@@ -468,7 +468,7 @@ const SetWebhookSettingsPanel: React.FC<{ selectedNode: Node & { data: SetWebhoo
         </SettingsModal>
     );
 };
-const ListMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: ListMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[]; nodes: Node[]; edges: Edge[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, nodes, edges }) => {
+const ListMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: ListMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[]; nodes: Node[]; edges: Edge[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, nodes, edges, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<ListMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
 
@@ -707,7 +707,7 @@ const CTAMessageSettingsPanel: React.FC<{ selectedNode: Node & { data: CTAMessag
     );
 };
 
-const QuickReplySettingsPanel: React.FC<{ selectedNode: Node & { data: QuickReplyMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[]; nodes: Node[]; edges: Edge[] }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, nodes, edges }) => {
+const QuickReplySettingsPanel: React.FC<{ selectedNode: Node & { data: QuickReplyMessageData }; onUpdateNode: (id: string, data: any) => void; onClose: () => void; availableVariables: NodeVariables[]; nodes: Node[]; edges: Edge[], canWrite?: boolean }> = ({ selectedNode, onUpdateNode, onClose, availableVariables, nodes, edges, canWrite }) => {
     const { data } = selectedNode;
     const handleUpdate = (update: Partial<QuickReplyMessageData>) => onUpdateNode(selectedNode.id, { ...data, ...update });
     const { showNotification } = React.useContext(SettingsContext);
