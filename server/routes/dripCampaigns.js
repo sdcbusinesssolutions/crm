@@ -54,7 +54,7 @@ router.get('/:id', requirePermission('Drip+Campaigns', 'read'), async (req, res)
 router.post('/', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { name, description, trigger_type, trigger_config, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
+        const { name, description, trigger_type, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
         const status = req.body.status || 'DRAFT';
 
         const { data, error } = await supabase
@@ -65,7 +65,6 @@ router.post('/', requirePermission('Drip+Campaigns', 'read_write'), async (req, 
                 description,
                 trigger_type: trigger_type || 'MANUAL',
                 trigger_value: req.body.trigger_value,
-                trigger_config,
                 stop_on_reply: stop_on_reply !== undefined ? stop_on_reply : true,
                 allow_reentry: allow_reentry || false,
                 status: status,
@@ -88,13 +87,12 @@ router.post('/', requirePermission('Drip+Campaigns', 'read_write'), async (req, 
 router.put('/:id', requirePermission('Drip+Campaigns', 'read_write'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { name, description, trigger_type, trigger_config, status, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
+        const { name, description, trigger_type, status, stop_on_reply, allow_reentry, allowed_days, time_window_start, time_window_end } = req.body;
 
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (description !== undefined) updates.description = description;
         if (trigger_type !== undefined) updates.trigger_type = trigger_type;
-        if (trigger_config !== undefined) updates.trigger_config = trigger_config;
         if (req.body.trigger_value !== undefined) updates.trigger_value = req.body.trigger_value;
         if (status !== undefined) updates.status = status;
         if (stop_on_reply !== undefined) updates.stop_on_reply = stop_on_reply;
