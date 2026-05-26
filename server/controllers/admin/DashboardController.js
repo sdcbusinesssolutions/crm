@@ -328,23 +328,37 @@ exports.getTenantsList = async (req, res) => {
         if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
 
         // Fetch all necessary data via supabaseAdmin to bypass RLS issues
-        const [domainsRes, limitsRes, plansRes, profilesRes] = await Promise.all([
+        const [domainsRes, limitsRes, plansRes, profilesRes, walletsRes] = await Promise.all([
             supabaseAdmin.from('domain_settings').select('domain, brand_name'),
             supabaseAdmin.from('tenant_limits').select('domain, user_limit'),
             supabaseAdmin.from('tenant_plans').select('domain, plan_name, status, expires_at'),
-            supabaseAdmin.from('profiles').select('signup_domain')
+            supabaseAdmin.from('profiles').select('id, signup_domain'),
+            supabaseAdmin.from('user_wallets').select('user_id, balance, wallet_enforced')
         ]);
 
         if (domainsRes.error) throw domainsRes.error;
 
         const limitMap = new Map((limitsRes.data || []).map(l => [l.domain, l.user_limit]));
         const planMap = new Map((plansRes.data || []).map(p => [p.domain, p]));
+        const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w]));
         
         const countMap = new Map();
+        const tenantWalletStats = new Map();
+
         (profilesRes.data || []).forEach(p => {
             const dom = p.signup_domain;
             if (dom) {
                 countMap.set(dom, (countMap.get(dom) || 0) + 1);
+
+                const w = walletMap.get(p.id);
+                if (w) {
+                    if (!tenantWalletStats.has(dom)) {
+                        tenantWalletStats.set(dom, { balance: 0, enforced: false });
+                    }
+                    const stats = tenantWalletStats.get(dom);
+                    stats.balance += Number(w.balance || 0);
+                    if (w.wallet_enforced) stats.enforced = true;
+                }
             }
         });
 
@@ -358,6 +372,8 @@ exports.getTenantsList = async (req, res) => {
                 plan_name: plan.plan_name || 'Free',
                 plan_status: plan.status || 'active',
                 plan_expires_at: plan.expires_at || null,
+                wallet_balance: tenantWalletStats.get(ds.domain)?.balance || 0,
+                wallet_enforced: tenantWalletStats.get(ds.domain)?.enforced || false,
                 admin_email: `Admin@${ds.domain}`
             };
         });

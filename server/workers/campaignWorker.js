@@ -13,6 +13,7 @@ const httpsAgent = new https.Agent({
 
 const { logCampaignRequest } = require('../utils/logger');
 const whatsappService = require('../services/whatsappService');
+const WalletService = require('../services/WalletService');
 
 // --- Configuration ---
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
@@ -1114,6 +1115,28 @@ class CampaignWorker {
                 });
             } catch (ignore) { }
 
+            // --- CONSERVATIVE WALLET BALANCE CHECK (always MARKETING rate = worst-case) ---
+            // We always check against MARKETING rate regardless of template category.
+            // Reason: Meta can reclassify any template to MARKETING at delivery time.
+            // Checking at UTILITY (₹0.22) when Meta will charge MARKETING (₹0.70)
+            // would allow sends that push the balance negative.
+            const hasBalance = await WalletService.hasSufficientBalance(campaign.user_id);
+            if (!hasBalance) {
+                console.warn(`[Worker] 🚫 Skipping send to ${item.phone_number} — INSUFFICIENT WALLET BALANCE (checked at MARKETING rate).`);
+                
+                await this.supabase.from('campaign_queue').update({
+                    status: 'FAILED',
+                    error_message: 'Failed: Insufficient Wallet Balance. Top-up required to continue sending.'
+                }).eq('id', item.id);
+                
+                // Pause the entire campaign to prevent hitting 15,000 FAILED items in rapid succession
+                await this.supabase.from('campaigns').update({
+                    status: 'PAUSED'
+                }).eq('id', campaign.id);
+                
+                return; // Stop processing this item
+            }
+
             // Guard: Don't send if we are currently rate-limited by Meta
             if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
                 const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
@@ -1200,6 +1223,25 @@ class CampaignWorker {
             }).eq('id', item.id);
 
             await this.supabase.rpc('increment_campaign_success', { row_id: campaign.id });
+
+            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
+            // Pre-debit always happens at MARKETING rate (worst-case).
+            // When Meta webhook confirms actual category, WalletService.handleWebhookPricing()
+            // will issue a CREDIT refund for the difference (e.g. UTILITY refund = ₹0.70 - ₹0.22 = ₹0.48)
+            try {
+                await WalletService.preDebit({
+                     userId: campaign.user_id,
+                     waMessageId: response.data.messages[0].id,
+                     category: templateDef?.category || 'MARKETING',
+                     source: 'CAMPAIGN_SEND',
+                     contactPhone: item.phone_number,
+                     campaignId: campaign.id,
+                     whatsappAccountId: config.phone_number_id
+                });
+            } catch (walletErr) {
+                // Log but don't block — message already sent successfully
+                console.error('[Worker] Wallet Pre-debit failed (non-blocking):', walletErr.message);
+            }
 
             // Render Body Text for Inbox Preview
             let renderedBody = null;

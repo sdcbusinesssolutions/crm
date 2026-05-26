@@ -5,7 +5,7 @@ import {
     SparklesIcon, ChevronDownIcon, TriggerIcon, CloseIcon, ChevronLeftIcon, ChevronRightIcon,
     ListIcon, ClockIcon, TagIcon, EditIcon, AppointmentIcon, PhoneIcon, CatalogueIcon,
     CheckSquareIcon, WebhookIcon, CodeIcon, BriefcaseIcon, BadgeIcon, EyeIcon, ConditionIcon,
-    LinkIcon, GalleryIcon, MicrophoneIcon, QuickReplyIcon
+    LinkIcon, GalleryIcon, MicrophoneIcon, QuickReplyIcon, CreditCardIcon
 } from './icons';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { staffApi } from '../modules/teamStaff/api/staffApi';
@@ -46,6 +46,7 @@ export type MenuItem =
     | 'Drip Campaigns'
     | 'Team Staff'
     | 'My Plan'
+    | 'Wallet & Billing'
     | 'G Automation'
     | 'Quick Reply';
 
@@ -199,6 +200,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'WhatsApp API': return <CodeIcon className={baseClass} />;
             case 'WhatsApp Management': return <BriefcaseIcon className={baseClass} />;
             case 'My Plan': return <BadgeIcon className={baseClass} />;
+            case 'Wallet & Billing': return <CreditCardIcon className={baseClass} />;
             case 'Integrations': return <LinkIcon className={baseClass} />;
             case 'Gallery': return <GalleryIcon className={baseClass} />;
             case 'AI Buddy': return <SparklesIcon className={baseClass} />;
@@ -234,7 +236,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Settings': 'Settings',
             'Branding & Appearance': 'Settings',
             'WhatsApp API': 'Settings',
-            'WhatsApp Management': 'WhatsApp Management'
+            'WhatsApp Management': 'WhatsApp Management',
+            'Wallet & Billing': 'Settings'
         };
 
         const moduleName = moduleMap[item];
@@ -483,6 +486,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
+                        {renderItem('Wallet & Billing', <CreditCardIcon className="w-5 h-5" />)}
                         {renderItem('Team Staff', <UsersIcon className="w-5 h-5" />)}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-2 mb-2.5">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}

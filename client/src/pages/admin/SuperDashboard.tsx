@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
+import GlobalRatesModal from './dashboard/GlobalRatesModal';
 
 interface TenantSummary {
     domain: string;
@@ -9,6 +10,8 @@ interface TenantSummary {
     plan_name: string;
     plan_status: string;
     plan_expires_at: string;
+    wallet_balance?: number;
+    wallet_enforced?: boolean;
     admin_email: string;
 }
 
@@ -18,6 +21,7 @@ const SuperDashboard: React.FC = () => {
     const [editingDomain, setEditingDomain] = useState<string | null>(null);
     const [newLimit, setNewLimit] = useState<number>(10);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isGlobalRatesModalOpen, setIsGlobalRatesModalOpen] = useState(false);
     const [newTenantDomain, setNewTenantDomain] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -174,8 +178,17 @@ const SuperDashboard: React.FC = () => {
                         </h1>
                         <p className="text-gray-600 text-lg">Manage all tenants and monitor system-wide metrics</p>
                     </div>
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setIsGlobalRatesModalOpen(true)}
+                            className="group relative px-6 py-3 bg-white text-brand-600 border border-slate-200 rounded-xl font-semibold shadow-sm hover:shadow-md hover:border-brand-300 transition-all duration-300 hover:scale-105 overflow-hidden"
+                        >
+                            <span className="relative z-10 flex items-center gap-2">
+                                🪙 Global Rates
+                            </span>
+                        </button>
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
                         className="group relative px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden"
                     >
                         <span className="relative z-10 flex items-center gap-2">
@@ -186,6 +199,7 @@ const SuperDashboard: React.FC = () => {
                         </span>
                         <div className="absolute inset-0 bg-gradient-to-r from-pink-600 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </button>
+                    </div>
                 </div>
 
                 {/* Stats Overview Cards */}
@@ -271,13 +285,21 @@ const SuperDashboard: React.FC = () => {
                             </button>
                             <button
                                 onClick={addNewTenant}
-                                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg hover:shadow-xl"
                             >
                                 Add Tenant
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isGlobalRatesModalOpen && (
+                <GlobalRatesModal 
+                    isOpen={isGlobalRatesModalOpen} 
+                    onClose={() => setIsGlobalRatesModalOpen(false)} 
+                    onSuccess={() => {}} 
+                />
             )}
 
             {/* EDIT LIMIT MODAL */}
@@ -324,6 +346,7 @@ const SuperDashboard: React.FC = () => {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Domain</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Brand</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Users / Limit</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Wallet</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Plan Status</th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
                             </tr>
@@ -368,6 +391,14 @@ const SuperDashboard: React.FC = () => {
                                                 >
                                                     Edit
                                                 </button>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-sm font-bold text-gray-900">₹{Number(t.wallet_balance || 0).toFixed(2)}</span>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full w-fit ${t.wallet_enforced ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                    {t.wallet_enforced ? 'ENFORCED' : 'REPORT ONLY'}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

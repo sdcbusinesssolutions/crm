@@ -267,7 +267,11 @@ router.post('/test-direct', async (req, res) => {
         const whatsappService = require('../services/whatsappService');
         const { msgType, content } = buildWhatsAppPayload(node);
 
-        const result = await whatsappService.sendMessage(user.id, to.replace(/\D/g, ''), msgType, content);
+        const result = await whatsappService.sendMessage(
+            user.id, to.replace(/\D/g, ''), msgType, content,
+            null, false,
+            { walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined }
+        );
         console.log(`[Test-Direct] Success. Meta ID: ${result?.messages?.[0]?.id}`);
         
         res.json({ success: true, sentTo: to.replace(/\D/g, ''), type: msgType });
@@ -313,7 +317,11 @@ router.post('/:id/test-send', async (req, res) => {
         const whatsappService = require('../services/whatsappService');
         const { msgType, content } = buildWhatsAppPayload(node);
 
-        const result = await whatsappService.sendMessage(user.id, to.replace(/\D/g, ''), msgType, content);
+        const result = await whatsappService.sendMessage(
+            user.id, to.replace(/\D/g, ''), msgType, content,
+            null, false,
+            { walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined }
+        );
         console.log(`[Test-Send] Success. Meta ID: ${result?.messages?.[0]?.id}`);
 
         res.json({ success: true, sentTo: to.replace(/\D/g, ''), type: msgType });

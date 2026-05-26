@@ -1,21 +1,25 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
+const axios = require('axios');
+const path = require('path');
+const { execFile } = require('child_process');
+const { supabaseAdmin, supabase } = require('../lib/supabaseClient');
+const flowEngine = require('../services/flowEngine');
+const { logWebhookEvent } = require('../utils/logger');
+const { executeFlowInternal } = require('../services/flowEngine');
+const WalletService = require('../services/WalletService');
+const { logInboxMessage } = require('../utils/logger');
+const { extractMessageContent } = require('../utils/whatsappParser');
+const fs = require('fs');
+const https = require('https');
 
 // DEBUG: Log all hits to this router
 router.use((req, res, next) => {
     console.log(`[Webhook Router Hit] ${req.method} ${req.originalUrl}`);
     next();
 });
-const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
-const { logInboxMessage, logWebhookEvent } = require('../utils/logger');
-const { extractMessageContent } = require('../utils/whatsappParser');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const https = require('https');
-const { execFile } = require('child_process'); // curl subprocess for media download
-const flowEngine = require('../services/flowEngine');
 const DripTriggerService = require('../services/DripTriggerService');
 
 // --- CONCURRENCY & NETWORK AGENTS ---
@@ -779,6 +783,17 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 } else {
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
+                        
+                        // --- WALLET SYSTEM: 24-HOUR CONVERSATION WINDOW BILLING ---
+                        // Meta charges per CONVERSATION WINDOW (24h), not per MESSAGE.
+                        // We pass both pricing (category, billable) and conversation
+                        // (id, expiration_timestamp) so WalletService can correctly
+                        // check if this window was already billed before charging.
+                        if (['sent'].includes(newStatus) && status.pricing) {
+                            WalletService.handleWebhookPricing(
+                                userId, waMessageId, status.pricing, status.conversation || null
+                            ).catch(err => console.error('[Wallet] Error handling webhook pricing:', err));
+                        }
                     } else {
                         console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);
                     }

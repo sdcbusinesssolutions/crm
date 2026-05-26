@@ -177,7 +177,15 @@ module.exports = {
                     };
 
                     console.log(`[NotifyExecutor] Sending Template Payload to ${to}:`, JSON.stringify(content, null, 2));
-                    const response = await whatsappService.sendMessage(user_id, to, 'template', content);
+                    const response = await whatsappService.sendMessage(
+                        user_id, to, 'template', content,
+                        null,   // phoneNumberId
+                        false,  // skipDBLog
+                        {
+                            walletSource: 'FLOW_SEND',
+                            flowId: session.flow_id || null
+                        }
+                    );
                     results.push({ to, status: 'sent', messageId: response?.messages?.[0]?.id });
                     anySuccess = true;
                 } else {

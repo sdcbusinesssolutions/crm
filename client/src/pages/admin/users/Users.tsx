@@ -12,6 +12,9 @@ import {
 } from '../../../components/icons';
 import Toast from '../../../components/Toast';
 import Modal from '../../../components/Modal';
+import WalletTopupModal from './WalletTopupModal';
+import WalletRatesModal from './WalletRatesModal';
+import AdminWalletLedger from './AdminWalletLedger';
 
 const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -49,6 +52,11 @@ const Users = () => {
     const [planDuration, setPlanDuration] = useState('30');
     const [isCustomDuration, setIsCustomDuration] = useState(false);
 
+    // Wallet State
+    const [isWalletTopupOpen, setIsWalletTopupOpen] = useState(false);
+    const [isWalletRatesOpen, setIsWalletRatesOpen] = useState(false);
+    const [isWalletLedgerOpen, setIsWalletLedgerOpen] = useState(false);
+    const [selectedWalletUser, setSelectedWalletUser] = useState<any>(null);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -420,6 +428,24 @@ const Users = () => {
             return;
         }
 
+        if (action === 'WalletTopup') {
+            setSelectedWalletUser(user);
+            setIsWalletTopupOpen(true);
+            return;
+        }
+
+        if (action === 'WalletRates') {
+            setSelectedWalletUser(user);
+            setIsWalletRatesOpen(true);
+            return;
+        }
+
+        if (action === 'WalletLedger') {
+            setSelectedWalletUser(user);
+            setIsWalletLedgerOpen(true);
+            return;
+        }
+
         console.log(`${action} for user:`, user);
         setToast({ type: 'info', title: 'Action Triggered', message: `${action} for ${user.name}` });
     };
@@ -572,7 +598,7 @@ const Users = () => {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex flex-wrap items-center justify-end gap-2 transition-opacity">
                                                     <button 
                                                         onClick={() => handleAction('Login', user)} 
                                                         disabled={user.status === 'Inactive'}
@@ -594,6 +620,13 @@ const Users = () => {
                                                         fetchPlans();
                                                         setIsPlanModalOpen(true);
                                                     }} className="px-2 py-1 text-xs font-bold text-brand-600 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Plan</button>
+                                                    {isSuperAdmin && (
+                                                        <>
+                                                            <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
+                                                            <button onClick={() => handleAction('WalletRates', user)} className="px-2 py-1 text-xs font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">Rates</button>
+                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
+                                                        </>
+                                                    )}
                                                     <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
                                                     <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
@@ -972,6 +1005,37 @@ const Users = () => {
                     </div>
                 </form>
             </Modal>
+
+            {/* Wallet Modals */}
+            {isWalletTopupOpen && selectedWalletUser && (
+                <WalletTopupModal
+                    isOpen={isWalletTopupOpen}
+                    onClose={() => setIsWalletTopupOpen(false)}
+                    user={selectedWalletUser}
+                    onSuccess={() => {
+                        setToast({ type: 'success', title: 'Success', message: 'Wallet updated successfully' });
+                    }}
+                />
+            )}
+
+            {isWalletRatesOpen && selectedWalletUser && (
+                <WalletRatesModal
+                    isOpen={isWalletRatesOpen}
+                    onClose={() => setIsWalletRatesOpen(false)}
+                    user={selectedWalletUser}
+                    onSuccess={() => {
+                        setToast({ type: 'success', title: 'Success', message: 'Rates updated successfully' });
+                    }}
+                />
+            )}
+
+            {/* Wallet Ledger — full transaction history for a user */}
+            {isWalletLedgerOpen && selectedWalletUser && (
+                <AdminWalletLedger
+                    user={selectedWalletUser}
+                    onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
+                />
+            )}
         </div>
     );
 };

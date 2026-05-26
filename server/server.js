@@ -248,6 +248,7 @@ const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
+const walletRoutes = require('./routes/walletRoutes'); // New: Wallet System
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
@@ -255,10 +256,13 @@ const dripCampaignRoutes = require('./routes/dripCampaigns');
 
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
+const walletAdminRoutes = require('./routes/admin/walletAdminRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
 const adminPlanRoutes = require('./routes/admin/planRoutes');
 const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
+const adminFeatureLimitsRoutes = require('./routes/admin/featureLimitsRoutes');
+const { verifyAdminToken } = require('./middleware/admin/authMiddleware');
 
 // Public Routes
 
@@ -304,6 +308,8 @@ router.use('/upload', requireAuth, uploadRoutes);
 // Admin Routes (Mounted under /admin)
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
+router.use('/wallet/admin', verifyAdminToken, walletAdminRoutes);
+router.use('/wallet', requireAuth, walletRoutes); // Protected wallet routes
 app.use('/api/public-settings', require('./routes/publicSettings'));
 router.use('/admin/users', adminUserRoutes);
 router.use('/admin/plans', adminPlanRoutes);

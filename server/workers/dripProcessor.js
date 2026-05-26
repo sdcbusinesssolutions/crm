@@ -282,6 +282,9 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                                         name: rule.template_name, 
                                         language: { code: rule.lang || 'en' },
                                         components: components
+                                    }, null, false, {
+                                        walletSource: 'DRIP_SEND',
+                                        dripCampaignId: enrollment.drip_campaign_id
                                     });
                                 } else {
                                     // 2. STANDARD TEXT MESSAGE (Old Fallback)
@@ -453,7 +456,18 @@ async function processSingleEnrollment(enrollment, now = new Date()) {
                         };
                         const finalComponents = cleanComponents(components);
 
-                        await WhatsAppService.sendMessage(enrollment.drip_campaign.user_id, enrollment.contact.phone, 'template', { name: templateName, language: { code: langCode }, components: finalComponents });
+                        await WhatsAppService.sendMessage(
+                            enrollment.drip_campaign.user_id,
+                            enrollment.contact.phone,
+                            'template',
+                            { name: templateName, language: { code: langCode }, components: finalComponents },
+                            null,   // phoneNumberId — use default
+                            false,  // skipDBLog
+                            {
+                                walletSource: 'DRIP_SEND',
+                                dripCampaignId: enrollment.drip_campaign_id
+                            }
+                        );
                         console.log(`[DripEngine] SENT WA to ${enrollment.contact.phone}`);
                         success = true;
                     } catch (e) {

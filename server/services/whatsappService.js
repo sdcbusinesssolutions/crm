@@ -15,6 +15,7 @@ const httpsAgent = new https.Agent({
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 const FormData = require('form-data'); // Ensure FormData is available for Node.js
 const { logInboxMessage } = require('../utils/logger');
+const WalletService = require('./WalletService'); // New: Wallet System
 
 class WhatsAppService {
     constructor() {
@@ -51,7 +52,7 @@ class WhatsAppService {
      * @param {object} content - Content object (text body, media url/id, template details)
      * @param {string} [phoneNumberId] - Optional specific phone number ID to send from
      */
-    async sendMessage(userId, to, type, content, phoneNumberId = null, skipDBLog = false) {
+    async sendMessage(userId, to, type, content, phoneNumberId = null, skipDBLog = false, options = {}) {
         try {
             const config = await this.getConfig(userId, phoneNumberId);
             const fromPhoneId = config.phone_number_id;
@@ -116,6 +117,19 @@ class WhatsAppService {
             }
 
             console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'}${body.solution_id ? ', Solution: ' + body.solution_id : ''})`);
+
+            // --- CONSERVATIVE WALLET BALANCE CHECK (always MARKETING rate = worst-case) ---
+            // Always check against MARKETING rate regardless of template category.
+            // Meta can reclassify any template to MARKETING at delivery time,
+            // so we must ensure the user can cover the highest possible cost.
+            if (type === 'template') {
+                const hasBalance = await WalletService.hasSufficientBalance(userId);
+                
+                if (!hasBalance) {
+                    console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — INSUFFICIENT WALLET BALANCE (checked at MARKETING rate).`);
+                    throw new Error('Insufficient Wallet Balance. Top-up required.');
+                }
+            }
 
             let response;
             try {
@@ -193,6 +207,26 @@ class WhatsAppService {
                 this.logOutboundMessage(userId, to, type, content, 'sent', waMessageId).catch(err => {
                     console.error('Background logging failed:', err);
                 });
+            }
+            
+            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
+            // Pre-debit always at MARKETING rate (worst-case).
+            // handleWebhookPricing() will credit back the difference when Meta confirms actual category.
+            // Source defaults to INBOX_SEND for whatsappService (inbox / flow / drip context).
+            // Callers that know their context (e.g. flowEngine) can pass options.walletSource.
+            if (waMessageId && type === 'template') {
+                 const category = content.category || 'MARKETING';
+                 const walletSource = options.walletSource || 'INBOX_SEND';
+                 WalletService.preDebit({
+                     userId,
+                     waMessageId,
+                     category,
+                     source: walletSource,
+                     contactPhone: to,
+                     flowId: options.flowId || null,
+                     dripCampaignId: options.dripCampaignId || null,
+                     whatsappAccountId: fromPhoneId
+                 }).catch(err => console.error('[Wallet] Pre-debit failed:', err));
             }
 
             return response.data;

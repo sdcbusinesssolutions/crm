@@ -280,7 +280,10 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
 
         // 3. Send via WhatsApp Service
         // Pass skipDBLog=true to prevent duplicate insertion by the service logger
-        const waResponse = await whatsappService.sendMessage(userId, conversation.contact_phone, type, content, null, true);
+        // Pass walletSource so wallet ledger shows INBOX_SEND (not default CAMPAIGN_SEND)
+        const waResponse = await whatsappService.sendMessage(userId, conversation.contact_phone, type, content, null, true, {
+            walletSource: type === 'template' ? 'INBOX_SEND' : undefined
+        });
 
         // 4. Save to DB
         const whatsappMessageId = waResponse.messages?.[0]?.id;

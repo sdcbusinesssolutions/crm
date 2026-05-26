@@ -167,7 +167,9 @@ router.post('/send-template', requireAuth, async (req, res) => {
         const result = await whatsappService.sendMessage(
             userId, to, 'template',
             { name: templateName, language: { code: language }, components: cleanComponents },
-            phoneNumberId
+            phoneNumberId,
+            false,  // skipDBLog
+            { walletSource: 'API_SEND' }  // Playground / external API sends
         );
 
         res.json({ success: true, data: result });

@@ -51,6 +51,8 @@ import AuthCentralCallback from './components/AuthCentralCallback';
 import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
 import StaffManagement from './modules/teamStaff/pages/StaffManagement';
 import StaffLogin from './modules/teamStaff/pages/StaffLogin';
+import WalletReport from './pages/dashboard/WalletReport';
+
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
     // Handles cross-domain impersonation redirects from Supabase Magic Links
@@ -641,6 +643,10 @@ const MainApp: React.FC = () => {
             return <GlobalSettings onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
+        if (activeMenuItem === 'Wallet & Billing') {
+            return <WalletReport />;
+        }
+
         if (activeMenuItem === 'WhatsApp Management') {
             return <WhatsAppManagement />;
         }
@@ -797,7 +803,7 @@ const MainApp: React.FC = () => {
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
-                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
                     (
                         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
                             <div className="flex items-center space-x-3">
