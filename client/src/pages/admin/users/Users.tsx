@@ -28,6 +28,8 @@ const Users = () => {
     // Domain / Tenant State (Super Admin Only)
     const [domains, setDomains] = useState<any[]>([]);
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [loggedInMasterBalance, setLoggedInMasterBalance] = useState<number | null>(null);
+
 
     // Toast State
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
@@ -95,8 +97,27 @@ const Users = () => {
             }
 
             setIsSuperAdmin(isMaster);
-            if (isMaster) fetchDomains();
+            if (isMaster) {
+                fetchDomains();
+            } else {
+                // If Tenant Admin, fetch their own master balance to lock UI if depleted
+                try {
+                    const token = localStorage.getItem('adminToken');
+                    if (token) {
+                        const res = await fetch('/api/wallet/admin/master-balance', {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            setLoggedInMasterBalance(Number(data.balance || 0));
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch master balance', e);
+                }
+            }
         };
+
 
         checkSuperAdmin();
         fetchUsers();
@@ -722,7 +743,7 @@ const Users = () => {
                                                         fetchPlans();
                                                         setIsPlanModalOpen(true);
                                                     }} className="px-2 py-1 text-xs font-bold text-brand-600 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Plan</button>
-                                                    {isSuperAdmin && (
+                                                    {isSuperAdmin ? (
                                                         <>
                                                             <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
                                                             {user.is_tenant_admin && (
@@ -731,7 +752,19 @@ const Users = () => {
                                                             <button onClick={() => handleAction('WalletRates', user)} className="px-2 py-1 text-xs font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">Rates</button>
                                                             <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
                                                         </>
+                                                    ) : (
+                                                        <>
+                                                            {loggedInMasterBalance !== null && loggedInMasterBalance <= 0 ? (
+                                                                <button disabled className="px-2 py-1 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed rounded" title="Agency Wallet Depleted. Contact Super Admin.">
+                                                                    ₹ Top-up (Locked)
+                                                                </button>
+                                                            ) : (
+                                                                <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
+                                                            )}
+                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
+                                                        </>
                                                     )}
+
 
                                                     <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
                                                     <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
@@ -1124,20 +1157,25 @@ const Users = () => {
                 />
             )}
 
-            <WalletRatesModal 
-                isOpen={isWalletRatesOpen} 
-                onClose={() => { setIsWalletRatesOpen(false); setSelectedWalletUser(null); }} 
-                userId={selectedWalletUser?.id}
-                userName={selectedWalletUser?.name}
-            />
+            {isWalletRatesOpen && selectedWalletUser && (
+                <WalletRatesModal
+                    isOpen={isWalletRatesOpen}
+                    onClose={() => { setIsWalletRatesOpen(false); setSelectedWalletUser(null); }}
+                    user={selectedWalletUser}
+                    onSuccess={() => {
+                        setToast({ type: 'success', title: 'Success', message: 'Rates updated successfully' });
+                    }}
+                />
+            )}
 
             {/* Wallet Ledger — full transaction history for a user */}
-            <AdminWalletLedger
-                isOpen={isWalletLedgerOpen}
-                onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
-                userId={selectedWalletUser?.id}
-                userName={selectedWalletUser?.name}
-            />
+            {isWalletLedgerOpen && selectedWalletUser && (
+                <AdminWalletLedger
+                    user={selectedWalletUser}
+                    onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
+                />
+            )}
+
 
             <Modal isOpen={isMasterTopupOpen} onClose={() => setIsMasterTopupOpen(false)} title={`Recharge Agency Wallet`}>
                 <form onSubmit={handleMasterTopupSubmit} className="p-6 space-y-6">
