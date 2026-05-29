@@ -188,7 +188,8 @@ router.get('/summary', async (req, res) => {
 //   - Super Admin            → always allowed, direct ADMIN_TOPUP credit
 //   - Tenant Admin + CREDIT_LINE_SUPER user → must use Reseller Transfer
 //                              (deducts from Tenant's Master Wallet)
-//   - Tenant Admin + CREDIT_LINE_TENANT/DIRECT_META → direct credit (unlimited)
+//   - Tenant Admin + CREDIT_LINE_TENANT/DIRECT_META → only if Super Admin
+//     has granted allow_tenant_billing_control AND domain has own Meta App
 // ═══════════════════════════════════════════════════════════════════════════
 router.post('/topup', async (req, res) => {
     try {
@@ -200,10 +201,9 @@ router.post('/topup', async (req, res) => {
         }
 
         // ── Determine who is calling (Super Admin vs Tenant Admin) ──────────
-        // req.admin is set by the auth middleware from the JWT token.
         const adminDomain   = req.admin?.managed_domain || req.admin?.domain;
         const adminRole     = req.admin?.role;
-        const adminUserId   = req.admin?.user_id || req.admin?.id; // Tenant Admin's own user_id
+        const adminUserId   = req.admin?.user_id || req.admin?.id;
         const MASTER_DOMAIN = process.env.VITE_MASTER_URL
             ? new URL(process.env.VITE_MASTER_URL).hostname
             : 'clickube.com';
@@ -211,7 +211,7 @@ router.post('/topup', async (req, res) => {
             adminDomain === MASTER_DOMAIN ||
             adminDomain === 'localhost';
 
-        // ── Domain Authority Check: Tenant Admins can only top-up their own domain users ──
+        // ── Domain Authority Check ──────────────────────────────────────────
         if (!isSuperAdmin) {
             const { data: targetProfile } = await supabaseAdmin
                 .from('profiles')
@@ -226,9 +226,75 @@ router.post('/topup', async (req, res) => {
             }
         }
 
-        // ── Fetch target user's current wallet (to get billing_mode) ────────
+        // ── Fetch target user's current wallet ──────────────────────────────
         const targetWallet = await WalletService.getWallet(uid);
-        const effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'CREDIT_LINE_SUPER';
+        let effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'CREDIT_LINE_SUPER';
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 🔒 SECURITY: Billing Mode Change Authority Validation
+        //
+        // A Tenant Admin CANNOT switch a user to CREDIT_LINE_TENANT or DIRECT_META
+        // unless BOTH conditions are true:
+        //   1. Super Admin granted allow_tenant_billing_control = TRUE for this domain
+        //   2. The domain has its OWN Meta App ID (not using Super Admin's app)
+        //
+        // Attack vector blocked: A Tenant Admin could set CREDIT_LINE_TENANT to give
+        // unlimited free credits to users, and the Meta bill would still come to the
+        // Super Admin (since messages go through Super Admin's WhatsApp App).
+        // ═══════════════════════════════════════════════════════════════════════
+        if (!isSuperAdmin && billing_mode && billing_mode !== targetWallet.billing_mode) {
+            const isEscalating = billing_mode === 'CREDIT_LINE_TENANT' || billing_mode === 'DIRECT_META';
+
+            if (isEscalating) {
+                // Layer 1: Check Super Admin permission flag ──────────────────
+                const { data: domainSettings } = await supabaseAdmin
+                    .from('domain_wallet_settings')
+                    .select('allow_tenant_billing_control')
+                    .eq('domain', adminDomain)
+                    .maybeSingle();
+
+                const isAllowed = domainSettings?.allow_tenant_billing_control === true;
+                if (!isAllowed) {
+                    console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Tenant ${adminUserId} → ${billing_mode} on ${adminDomain} (not permitted by Super Admin)`);
+                    return res.status(403).json({
+                        error: 'Forbidden: You are not authorized to change the billing mode. Only the Super Admin can unlock this. Contact the Super Admin to enable Tenant Billing Control for your domain.'
+                    });
+                }
+
+                // Layer 2: Verify domain has its OWN Meta App ─────────────
+                // If the domain uses the Super Admin's WhatsApp App,
+                // then CREDIT_LINE_TENANT/DIRECT_META would expose Super Admin to unlimited liability.
+                const { data: domainUsers } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .eq('signup_domain', adminDomain)
+                    .limit(50);
+
+                const domainUserIds = (domainUsers || []).map(u => u.id);
+                let hasDomainOwnApp = false;
+
+                if (domainUserIds.length > 0) {
+                    const { data: metaApp } = await supabaseAdmin
+                        .from('whatsapp_config')
+                        .select('meta_app_id')
+                        .in('user_id', domainUserIds)
+                        .not('meta_app_id', 'is', null)
+                        .limit(1)
+                        .maybeSingle();
+
+                    hasDomainOwnApp = !!metaApp?.meta_app_id;
+                }
+
+                if (!hasDomainOwnApp) {
+                    console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Domain ${adminDomain} has no own Meta App — still using Super Admin's credit line.`);
+                    return res.status(403).json({
+                        error: `Forbidden: Billing mode "${billing_mode === 'CREDIT_LINE_TENANT' ? 'Tenant Agency Credit Line' : 'Direct Meta Billing'}" requires your domain to have its own dedicated Meta Business App configured. Without this, all messages are charged to the Super Admin's Meta account. Please contact the Super Admin to configure a dedicated Meta App for your domain.`
+                    });
+                }
+
+                console.log(`[WalletAdmin] ✅ Billing mode escalation APPROVED: Tenant ${adminUserId} changed user ${uid} to ${billing_mode} on ${adminDomain}`);
+            }
+        }
 
         let result = null;
 
