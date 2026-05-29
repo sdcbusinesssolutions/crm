@@ -357,6 +357,21 @@ router.post('/topup', async (req, res) => {
 // POST /api/wallet/admin/topup-master — Super Admin gives wholesale credits to a Tenant Admin
 router.post('/topup-master', async (req, res) => {
     try {
+        // 🔒 SECURITY: Only Super Admin can top-up a Master Wallet
+        const adminDomain   = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole     = req.admin?.role;
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL
+            ? new URL(process.env.VITE_MASTER_URL).hostname
+            : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' ||
+            adminDomain === MASTER_DOMAIN ||
+            adminDomain === 'localhost';
+
+        if (!isSuperAdmin) {
+            console.warn(`[WalletAdmin] 🚨 BLOCKED: Unauthorized attempt to top-up Master Wallet by ${req.admin?.id}`);
+            return res.status(403).json({ error: 'Forbidden: Only Super Admins can recharge a Master Wallet.' });
+        }
+
         const { tenantAdminUserId, amount, description } = req.body;
         if (!tenantAdminUserId || !amount) {
             return res.status(400).json({ error: 'tenantAdminUserId and amount required' });

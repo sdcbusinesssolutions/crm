@@ -58,6 +58,12 @@ const Users = () => {
     const [isWalletLedgerOpen, setIsWalletLedgerOpen] = useState(false);
     const [selectedWalletUser, setSelectedWalletUser] = useState<any>(null);
 
+    // Master Wallet State
+    const [isMasterTopupOpen, setIsMasterTopupOpen] = useState(false);
+    const [masterTopupAmount, setMasterTopupAmount] = useState('');
+    const [masterTopupDescription, setMasterTopupDescription] = useState('Monthly wholesale recharge');
+
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -311,6 +317,38 @@ const Users = () => {
         }
     };
 
+    const handleMasterTopupSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedWalletUser) return;
+        setIsSubmitting(true);
+        try {
+            const token = localStorage.getItem('adminToken');
+            const res = await fetch('/api/wallet/admin/topup-master', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    tenantAdminUserId: selectedWalletUser.id,
+                    amount: Number(masterTopupAmount),
+                    description: masterTopupDescription
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to top-up master wallet');
+            
+            setToast({ type: 'success', title: 'Master Wallet Recharged', message: `Successfully added ₹${masterTopupAmount} to Agency Wallet.` });
+            setIsMasterTopupOpen(false);
+            setMasterTopupAmount('');
+            fetchUsers();
+        } catch (error: any) {
+            setToast({ type: 'error', title: 'Recharge Failed', message: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // Filter Logic
     const filteredUsers = users.filter(user => {
         // Tab Filter
@@ -431,6 +469,13 @@ const Users = () => {
         if (action === 'WalletTopup') {
             setSelectedWalletUser(user);
             setIsWalletTopupOpen(true);
+            return;
+        }
+
+        if (action === 'MasterTopup') {
+            setSelectedWalletUser(user);
+            setMasterTopupAmount('');
+            setIsMasterTopupOpen(true);
             return;
         }
 
@@ -680,10 +725,14 @@ const Users = () => {
                                                     {isSuperAdmin && (
                                                         <>
                                                             <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
+                                                            {user.is_tenant_admin && (
+                                                                <button onClick={() => handleAction('MasterTopup', user)} className="px-2 py-1 text-xs font-bold text-amber-700 bg-amber-100 rounded hover:bg-amber-200 transition-colors animate-pulse-subtle">🏛 Recharge Agency</button>
+                                                            )}
                                                             <button onClick={() => handleAction('WalletRates', user)} className="px-2 py-1 text-xs font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">Rates</button>
                                                             <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
                                                         </>
                                                     )}
+
                                                     <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
                                                     <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
@@ -1075,24 +1124,66 @@ const Users = () => {
                 />
             )}
 
-            {isWalletRatesOpen && selectedWalletUser && (
-                <WalletRatesModal
-                    isOpen={isWalletRatesOpen}
-                    onClose={() => setIsWalletRatesOpen(false)}
-                    user={selectedWalletUser}
-                    onSuccess={() => {
-                        setToast({ type: 'success', title: 'Success', message: 'Rates updated successfully' });
-                    }}
-                />
-            )}
+            <WalletRatesModal 
+                isOpen={isWalletRatesOpen} 
+                onClose={() => { setIsWalletRatesOpen(false); setSelectedWalletUser(null); }} 
+                userId={selectedWalletUser?.id}
+                userName={selectedWalletUser?.name}
+            />
 
             {/* Wallet Ledger — full transaction history for a user */}
-            {isWalletLedgerOpen && selectedWalletUser && (
-                <AdminWalletLedger
-                    user={selectedWalletUser}
-                    onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
-                />
-            )}
+            <AdminWalletLedger
+                isOpen={isWalletLedgerOpen}
+                onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
+                userId={selectedWalletUser?.id}
+                userName={selectedWalletUser?.name}
+            />
+
+            <Modal isOpen={isMasterTopupOpen} onClose={() => setIsMasterTopupOpen(false)} title={`Recharge Agency Wallet`}>
+                <form onSubmit={handleMasterTopupSubmit} className="p-6 space-y-6">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <div className="text-sm font-bold text-amber-800 mb-1">🏛 Wholesale Credit Pool</div>
+                        <p className="text-xs text-amber-700">
+                            You are adding credits directly to the Master Wallet for <strong>{selectedWalletUser?.name} ({selectedWalletUser?.signupDomain})</strong>. They will use this balance to top-up their sub-users.
+                        </p>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Amount (₹)</label>
+                            <input
+                                type="number"
+                                required
+                                min="1"
+                                value={masterTopupAmount}
+                                onChange={(e) => setMasterTopupAmount(e.target.value)}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                placeholder="e.g. 5000"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1">Description</label>
+                            <input
+                                type="text"
+                                required
+                                value={masterTopupDescription}
+                                onChange={(e) => setMasterTopupDescription(e.target.value)}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                                placeholder="Monthly wholesale recharge"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                        <button type="button" onClick={() => setIsMasterTopupOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2">
+                            {isSubmitting ? 'Recharging...' : 'Confirm Recharge'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
