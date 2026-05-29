@@ -54,6 +54,10 @@ exports.getUsers = async (req, res) => {
         const DELETE_WINDOW_DAYS = parseInt(process.env.TENANT_ADMIN_DELETE_WINDOW_DAYS || '9', 10);
         const now = new Date();
 
+        // Fetch wallet balances to display in the UI
+        const { data: wallets } = await supabaseAdmin.from('user_wallets').select('user_id, balance');
+        const walletMap = new Map((wallets || []).map(w => [w.user_id, Number(w.balance || 0)]));
+
         const mappedUsers = targetProfiles.map(u => {
             const createdDate = new Date(u.created_at || now);
             const formattedDate = createdDate.toLocaleDateString('en-GB', {
@@ -84,7 +88,8 @@ exports.getUsers = async (req, res) => {
                 daysOld: daysSinceCreation,
                 isTrialUser,
                 canTenantDelete,
-                lastSignIn: null
+                lastSignIn: null,
+                wallet_balance: walletMap.get(u.id) || 0
             };
         });
 

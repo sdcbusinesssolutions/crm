@@ -527,6 +527,7 @@ const Users = () => {
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Role</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
+                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Wallet</th>
                                         <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
                                         <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Actions</th>
                                     </tr>
@@ -588,6 +589,11 @@ const Users = () => {
                                                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                                     {user.current_plan || 'Free'}
                                                 </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className={`text-xs font-bold ${Number(user.wallet_balance || 0) < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                                                    ₹{Number(user.wallet_balance || 0).toFixed(2)}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-xs text-slate-500">{user.createdOn}</div>
