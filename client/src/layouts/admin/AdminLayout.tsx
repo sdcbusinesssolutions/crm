@@ -12,6 +12,8 @@ const AdminLayout = () => {
     const [isAdminSuper, setIsAdminSuper] = useState(false);
     const [adminEmail, setAdminEmail] = useState('');
     const [adminName, setAdminName] = useState('Admin');
+    const [masterBalance, setMasterBalance] = useState<number | null>(null);
+
 
     useEffect(() => {
         const verifyLegacyToken = async () => {
@@ -68,6 +70,27 @@ const AdminLayout = () => {
 
         checkRole();
     }, []);
+
+    // Fetch Tenant Admin Master Wallet Balance (shown in header)
+    useEffect(() => {
+        if (isAdminSuper) return; // Super Admins don't have a Master Wallet limit
+        const fetchMaster = async () => {
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (!token) return;
+                const res = await fetch('/api/wallet/admin/master-balance', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setMasterBalance(Number(data.balance || 0));
+                }
+            } catch (e) { /* ignore */ }
+        };
+        fetchMaster();
+        const interval = setInterval(fetchMaster, 60000); // Refresh every 60s
+        return () => clearInterval(interval);
+    }, [isAdminSuper]);
 
     const handleLogout = () => {
         localStorage.removeItem('adminToken');
@@ -154,10 +177,26 @@ const AdminLayout = () => {
                     <h2 className="text-lg font-bold text-[var(--text-color)] capitalize">
                         {location.pathname.split('/').pop()}
                     </h2>
-                    <button onClick={handleLogout} className="text-sm font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
-                        Sign Out
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {/* Master Wallet Balance Badge for Tenant Admins */}
+                        {!isAdminSuper && masterBalance !== null && (
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold ${
+                                masterBalance <= 0
+                                    ? 'bg-red-50 border-red-200 text-red-700'
+                                    : masterBalance < 500
+                                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            }`}>
+                                <span>🏛</span>
+                                <span>Agency Wallet: ₹{masterBalance.toFixed(2)}</span>
+                            </div>
+                        )}
+                        <button onClick={handleLogout} className="text-sm font-bold text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
+                            Sign Out
+                        </button>
+                    </div>
                 </header>
+
 
                 <div className="flex-1 overflow-y-auto p-8">
                     <Outlet />

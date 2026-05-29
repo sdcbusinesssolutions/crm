@@ -116,10 +116,10 @@ class WalletService {
     /**
      * CONSERVATIVE BALANCE CHECK — always checks against MARKETING rate (worst-case).
      *
-     * Why always MARKETING?
-     *   Meta can reclassify any template to MARKETING at any time.
-     *   Checking at UTILITY (₹0.22) when true cost may be MARKETING (₹0.70)
-     *   would allow sends that push the balance negative.
+     * Billing Mode logic:
+     *   DIRECT_META        → User pays Meta directly. Only check platform_cost markup.
+     *   CREDIT_LINE_SUPER  → Full cost check (meta + platform). Enforced strictly.
+     *   CREDIT_LINE_TENANT → Full cost check (meta + platform). Enforced strictly.
      *
      * @param {string} userId
      * @param {number} [overrideAmount] - If provided, check this specific amount
@@ -130,8 +130,23 @@ class WalletService {
             const wallet = await this.getWallet(userId);
             if (!wallet.wallet_enforced) return true;
 
-            const marketingRate = await this.getRate(userId, 'MARKETING');
-            const checkAmount = overrideAmount !== null ? overrideAmount : marketingRate.platform_rate;
+            const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
+
+            let checkAmount;
+            if (overrideAmount !== null) {
+                checkAmount = overrideAmount;
+            } else if (billingMode === 'DIRECT_META') {
+                // DIRECT_META: user pays Meta themselves. Only check our platform markup.
+                const marketingRate = await this.getRate(userId, 'MARKETING');
+                checkAmount = Number(marketingRate.platform_rate) - Number(marketingRate.meta_cost);
+                checkAmount = Math.max(checkAmount, 0.01); // Minimum markup check
+                console.log(`[WalletService] DIRECT_META: checking platform markup only = ₹${checkAmount}`);
+            } else {
+                // CREDIT_LINE_SUPER / CREDIT_LINE_TENANT: full cost at worst-case MARKETING rate
+                const marketingRate = await this.getRate(userId, 'MARKETING');
+                checkAmount = marketingRate.platform_rate;
+            }
+
             return Number(wallet.balance) >= Number(checkAmount);
         } catch (e) {
             console.error('[WalletService] Balance check error:', e);
@@ -161,27 +176,44 @@ class WalletService {
             const countryCode = this.getCountryCode(contactPhone);
             const marketingRate = await this.getRate(userId, 'MARKETING', countryCode);
 
+            // ── Billing Mode: determine how much to deduct ──────────────────
+            let debitAmount = Number(marketingRate.platform_rate);
+            let debitMetaCost = Number(marketingRate.meta_cost);
+            let debitDescription = `Conservative pre-debit at MARKETING rate (template category: ${category || '?'}). Will reconcile at webhook.`;
+
+            // Fetch wallet billing_mode
+            const wallet = await this.getWallet(userId);
+            const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
+
+            if (billingMode === 'DIRECT_META') {
+                // DIRECT_META: Meta charges user directly — only deduct our platform markup
+                debitAmount = Math.max(Number(marketingRate.platform_rate) - Number(marketingRate.meta_cost), 0.01);
+                debitMetaCost = 0; // We don't incur Meta cost
+                debitDescription = `Platform markup only (DIRECT_META mode). User pays Meta directly. Msg: ${waMessageId}`;
+                console.log(`[WalletService] DIRECT_META: Pre-debit platform markup only = ₹${debitAmount}`);
+            } else {
+                console.log(`[WalletService] ${billingMode}: Pre-debit full MARKETING rate = ₹${debitAmount}`);
+            }
+            // ────────────────────────────────────────────────────────────────
+
             const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
                 p_user_id: userId,
-                p_amount: Number(marketingRate.platform_rate),
+                p_amount: debitAmount,
                 p_type: 'DEBIT',
                 p_source: source || 'INBOX_SEND',
                 p_wa_category: 'MARKETING',
                 p_wa_message_id: waMessageId,
-                // NOTE: wa_conversation_id is NOT known at pre-debit time.
-                // Meta returns it only in the 'sent' status webhook.
-                // We will UPDATE this transaction with the conversation ID at webhook time.
-                p_description: `Conservative pre-debit at MARKETING rate (template category: ${category || '?'}). Will reconcile at webhook.`,
+                p_description: debitDescription,
                 p_contact_phone: contactPhone,
                 p_campaign_id: campaignId || null,
                 p_drip_campaign_id: dripCampaignId || null,
                 p_flow_id: flowId || null,
                 p_whatsapp_account_id: whatsappAccountId,
-                p_meta_cost: marketingRate.meta_cost
+                p_meta_cost: debitMetaCost
             });
 
             if (error) throw error;
-            console.log(`[WalletService] ✅ Pre-debit ₹${marketingRate.platform_rate} (MARKETING) for ${category} template. Msg: ${waMessageId}`);
+            console.log(`[WalletService] ✅ Pre-debit ₹${debitAmount} (${billingMode}) for ${category} template. Msg: ${waMessageId}`);
         } catch (e) {
             console.error('[WalletService] Pre-debit error:', e);
             throw e;

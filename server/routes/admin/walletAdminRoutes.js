@@ -181,30 +181,157 @@ router.get('/summary', async (req, res) => {
     }
 });
 
-// POST /api/wallet/admin/topup — top up a user's wallet
+// ═══════════════════════════════════════════════════════════════════════════
+// POST /api/wallet/admin/topup — Smart billing-mode-aware top-up
+//
+// Routing Logic:
+//   - Super Admin            → always allowed, direct ADMIN_TOPUP credit
+//   - Tenant Admin + CREDIT_LINE_SUPER user → must use Reseller Transfer
+//                              (deducts from Tenant's Master Wallet)
+//   - Tenant Admin + CREDIT_LINE_TENANT/DIRECT_META → direct credit (unlimited)
+// ═══════════════════════════════════════════════════════════════════════════
 router.post('/topup', async (req, res) => {
     try {
-        const { userId, targetUserId, amount, description, wallet_enforced } = req.body;
+        const { userId, targetUserId, amount, description, wallet_enforced, billing_mode } = req.body;
         const uid = userId || targetUserId;
-        
+
         if (!uid || amount === undefined) {
             return res.status(400).json({ error: 'User ID and Amount are required' });
         }
-        
+
+        // ── Determine who is calling (Super Admin vs Tenant Admin) ──────────
+        // req.admin is set by the auth middleware from the JWT token.
+        const adminDomain   = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole     = req.admin?.role;
+        const adminUserId   = req.admin?.user_id || req.admin?.id; // Tenant Admin's own user_id
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL
+            ? new URL(process.env.VITE_MASTER_URL).hostname
+            : 'clickube.com';
+        const isSuperAdmin = adminRole === 'super_admin' ||
+            adminDomain === MASTER_DOMAIN ||
+            adminDomain === 'localhost';
+
+        // ── Domain Authority Check: Tenant Admins can only top-up their own domain users ──
+        if (!isSuperAdmin) {
+            const { data: targetProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('signup_domain')
+                .eq('id', uid)
+                .maybeSingle();
+
+            if (!targetProfile || targetProfile.signup_domain !== adminDomain) {
+                return res.status(403).json({
+                    error: 'Forbidden: You can only manage wallets for users on your domain.'
+                });
+            }
+        }
+
+        // ── Fetch target user's current wallet (to get billing_mode) ────────
+        const targetWallet = await WalletService.getWallet(uid);
+        const effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'CREDIT_LINE_SUPER';
+
         let result = null;
-        if (Number(amount) !== 0) {
-            result = await WalletService.addCredit(uid, Number(amount), 'ADMIN_TOPUP', description || 'Admin top-up');
+
+        if (Number(amount) > 0) {
+            if (!isSuperAdmin && effectiveBillingMode === 'CREDIT_LINE_SUPER') {
+                // ── Reseller Transfer: Deduct from Tenant Admin Master Wallet ──
+                if (!adminUserId) {
+                    return res.status(403).json({ error: 'Tenant Admin user ID not found in token.' });
+                }
+
+                const { data: transferResult, error: transferError } = await supabaseAdmin
+                    .rpc('transfer_reseller_balance', {
+                        p_tenant_admin_user_id: adminUserId,
+                        p_target_user_id: uid,
+                        p_amount: Number(amount),
+                        p_description: description || 'Reseller top-up from Agency'
+                    });
+
+                if (transferError) {
+                    const errMsg = transferError.message || '';
+                    if (errMsg.includes('INSUFFICIENT_AGENCY_BALANCE')) {
+                        return res.status(402).json({
+                            error: 'Insufficient Agency Balance. Please contact the Super Admin to recharge your Master Wallet.'
+                        });
+                    }
+                    if (errMsg.includes('MASTER_WALLET_NOT_FOUND')) {
+                        return res.status(404).json({
+                            error: 'Your Agency Master Wallet has not been set up. Please contact the Super Admin.'
+                        });
+                    }
+                    throw transferError;
+                }
+                result = transferResult;
+                console.log(`[WalletAdmin] Reseller transfer: ₹${amount} from Tenant ${adminUserId} → User ${uid}`);
+
+            } else {
+                // ── Direct Credit (Super Admin or non-SUPER modes) ──────────
+                result = await WalletService.addCredit(uid, Number(amount), 'ADMIN_TOPUP', description || 'Admin top-up');
+                console.log(`[WalletAdmin] Direct top-up: ₹${amount} → User ${uid} (mode: ${effectiveBillingMode})`);
+            }
         }
-        
-        if (wallet_enforced !== undefined) {
-            await supabaseAdmin.from('user_wallets')
-                .update({ wallet_enforced })
-                .eq('user_id', uid);
+
+        // ── Update wallet settings (enforcement + billing mode) ─────────────
+        const walletUpdates = {};
+        if (wallet_enforced !== undefined) walletUpdates.wallet_enforced = wallet_enforced;
+        if (billing_mode    !== undefined) walletUpdates.billing_mode    = billing_mode;
+        if (Object.keys(walletUpdates).length > 0) {
+            await supabaseAdmin.from('user_wallets').update(walletUpdates).eq('user_id', uid);
         }
-        
-        res.json({ success: true, transaction: result });
+
+        res.json({ success: true, transaction: result, billing_mode: effectiveBillingMode });
     } catch (error) {
         console.error('Error topping up wallet:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+// ── Tenant Admin: top-up their OWN Master Wallet ─────────────────────────
+// POST /api/wallet/admin/topup-master — Super Admin gives wholesale credits to a Tenant Admin
+router.post('/topup-master', async (req, res) => {
+    try {
+        const { tenantAdminUserId, amount, description } = req.body;
+        if (!tenantAdminUserId || !amount) {
+            return res.status(400).json({ error: 'tenantAdminUserId and amount required' });
+        }
+
+        // Ensure the Tenant Admin Master Wallet row exists
+        const { error: initError } = await supabaseAdmin
+            .rpc('ensure_tenant_master_wallet', { p_tenant_admin_user_id: tenantAdminUserId });
+        if (initError) throw initError;
+
+        // Credit the Master Wallet directly (Super Admin creates money from thin air here)
+        const result = await WalletService.addCredit(
+            tenantAdminUserId, Number(amount), 'ADMIN_TOPUP',
+            description || 'Super Admin wholesale credit to Agency Master Wallet',
+            true // is_tenant_master flag
+        );
+        res.json({ success: true, transaction: result });
+    } catch (error) {
+        console.error('Error topping up master wallet:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/wallet/admin/master-balance — Tenant Admin checks their own Master Wallet
+router.get('/master-balance', async (req, res) => {
+    try {
+        const adminUserId = req.admin?.user_id || req.admin?.id;
+        if (!adminUserId) return res.status(403).json({ error: 'Admin user ID not found in token' });
+
+        const { data: masterWallet } = await supabaseAdmin
+            .from('user_wallets')
+            .select('balance, updated_at')
+            .eq('user_id', adminUserId)
+            .eq('is_tenant_master', true)
+            .maybeSingle();
+
+        res.json({
+            balance: masterWallet?.balance || 0,
+            updated_at: masterWallet?.updated_at || null
+        });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
@@ -326,6 +453,54 @@ router.post('/global-rates', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error setting global rates:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── Domain Wallet Settings (Super Admin only) ─────────────────────────────
+// GET /api/wallet/admin/domain-settings/:domain
+router.get('/domain-settings/:domain', async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('domain_wallet_settings')
+            .select('*')
+            .eq('domain', req.params.domain)
+            .maybeSingle();
+        if (error) throw error;
+        res.json(data || { domain: req.params.domain, default_billing_mode: 'CREDIT_LINE_SUPER', allow_tenant_billing_control: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/wallet/admin/domain-settings — update domain wallet settings
+router.post('/domain-settings', async (req, res) => {
+    try {
+        const { domain, default_billing_mode, tenant_admin_user_id, allow_tenant_billing_control } = req.body;
+        if (!domain) return res.status(400).json({ error: 'domain is required' });
+
+        const upsertData = {
+            domain,
+            default_billing_mode: default_billing_mode || 'CREDIT_LINE_SUPER',
+            allow_tenant_billing_control: allow_tenant_billing_control !== undefined ? allow_tenant_billing_control : true,
+            updated_at: new Date().toISOString()
+        };
+        if (tenant_admin_user_id) upsertData.tenant_admin_user_id = tenant_admin_user_id;
+
+        const { error } = await supabaseAdmin
+            .from('domain_wallet_settings')
+            .upsert(upsertData, { onConflict: 'domain' });
+        if (error) throw error;
+
+        // If a tenant admin is set, ensure their Master Wallet exists
+        if (tenant_admin_user_id) {
+            await supabaseAdmin.rpc('ensure_tenant_master_wallet', {
+                p_tenant_admin_user_id: tenant_admin_user_id
+            });
+        }
+
+        res.json({ success: true });
+    } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
