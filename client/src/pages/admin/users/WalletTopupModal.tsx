@@ -299,6 +299,18 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     </label>
                 </div>
 
+                {/* 🔒 UI Security: Prevent submission if Agency Balance is too low */}
+
+                {!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0) && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
+                        <span className="mt-0.5">🚨</span>
+                        <div>
+                            <strong>Insufficient Agency Balance.</strong> You only have ₹{(masterBalance || 0).toFixed(2)} available. 
+                            You cannot give this user ₹{Number(amount).toFixed(2)}. Please contact the Super Admin to recharge your wallet.
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex justify-between items-center pt-4">
                     <button
                         type="button"
@@ -318,8 +330,8 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 transition-colors disabled:opacity-50"
+                            disabled={isSubmitting || (!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0))}
+                            className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving...' : 'Confirm'}
                         </button>
