@@ -54,9 +54,26 @@ exports.getUsers = async (req, res) => {
         const DELETE_WINDOW_DAYS = parseInt(process.env.TENANT_ADMIN_DELETE_WINDOW_DAYS || '9', 10);
         const now = new Date();
 
-        // Fetch wallet balances to display in the UI
-        const { data: wallets } = await supabaseAdmin.from('user_wallets').select('user_id, balance');
-        const walletMap = new Map((wallets || []).map(w => [w.user_id, Number(w.balance || 0)]));
+        // Fetch ALL wallet rows — both regular and master wallets
+        const { data: wallets } = await supabaseAdmin
+            .from('user_wallets')
+            .select('user_id, balance, is_tenant_master, billing_mode');
+
+        // Regular wallet: user's message-sending balance
+        const walletMap = new Map();
+        // Master wallet: Tenant Admin's wholesale credit pool
+        const masterWalletMap = new Map();
+
+        (wallets || []).forEach(w => {
+            if (w.is_tenant_master) {
+                masterWalletMap.set(w.user_id, Number(w.balance || 0));
+            } else {
+                walletMap.set(w.user_id, {
+                    balance: Number(w.balance || 0),
+                    billing_mode: w.billing_mode || 'CREDIT_LINE_SUPER'
+                });
+            }
+        });
 
         const mappedUsers = targetProfiles.map(u => {
             const createdDate = new Date(u.created_at || now);
@@ -75,6 +92,10 @@ exports.getUsers = async (req, res) => {
             const isTrialUser = (u.plan_name === 'Free Trial' || u.plan_name === 'Free') && daysSinceCreation <= TRIAL_DAYS;
             const canTenantDelete = !u.plan_assigned_by_admin && daysSinceCreation <= DELETE_WINDOW_DAYS;
 
+            const isTenantAdmin = (u.role === 'admin');
+            const walletInfo = walletMap.get(u.id) || { balance: 0, billing_mode: 'CREDIT_LINE_SUPER' };
+            const masterBalance = masterWalletMap.has(u.id) ? masterWalletMap.get(u.id) : null;
+
             return {
                 id: u.id,
                 name: u.full_name || u.name || 'User',
@@ -89,7 +110,14 @@ exports.getUsers = async (req, res) => {
                 isTrialUser,
                 canTenantDelete,
                 lastSignIn: null,
-                wallet_balance: walletMap.get(u.id) || 0
+                wallet_balance: walletInfo.balance,
+                billing_mode: walletInfo.billing_mode,
+                // Tenant Admin-specific fields
+                is_tenant_admin: isTenantAdmin,
+                // master_wallet_balance: null = no master wallet set up yet (not yet funded by Super Admin)
+                // master_wallet_balance: 0   = funded before but now depleted
+                // master_wallet_balance: >0  = has credits to distribute
+                master_wallet_balance: masterBalance
             };
         });
 

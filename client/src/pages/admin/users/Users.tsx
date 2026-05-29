@@ -591,9 +591,60 @@ const Users = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className={`text-xs font-bold ${Number(user.wallet_balance || 0) < 0 ? 'text-red-600' : 'text-slate-900'}`}>
-                                                    ₹{Number(user.wallet_balance || 0).toFixed(2)}
-                                                </div>
+                                                {user.is_tenant_admin ? (
+                                                    /* Tenant Admin: show Master Wallet status */
+                                                    <div>
+                                                        {user.master_wallet_balance === null ? (
+                                                            /* Never been funded by Super Admin */
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                                                                    🏛 No Credit Line
+                                                                </span>
+                                                                <div className="text-[10px] text-slate-400">Not funded yet</div>
+                                                            </div>
+                                                        ) : Number(user.master_wallet_balance) <= 0 ? (
+                                                            /* Depleted — needs recharge urgently */
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 animate-pulse">
+                                                                    🚨 ₹0.00
+                                                                </span>
+                                                                <div className="text-[10px] text-red-500 font-bold">Agency depleted!</div>
+                                                            </div>
+                                                        ) : Number(user.master_wallet_balance) < 500 ? (
+                                                            /* Low balance — warning */
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                                                                    ⚠️ ₹{Number(user.master_wallet_balance).toFixed(2)}
+                                                                </span>
+                                                                <div className="text-[10px] text-amber-600">Agency low</div>
+                                                            </div>
+                                                        ) : (
+                                                            /* Healthy */
+                                                            <div className="flex flex-col gap-1">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                                                    🏛 ₹{Number(user.master_wallet_balance).toFixed(2)}
+                                                                </span>
+                                                                <div className="text-[10px] text-slate-400">Agency wallet</div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    /* Regular User: show their message-sending balance */
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className={`text-xs font-bold ${Number(user.wallet_balance || 0) < 0 ? 'text-red-600' : 'text-slate-900'}`}>
+                                                            ₹{Number(user.wallet_balance || 0).toFixed(2)}
+                                                        </div>
+                                                        {user.billing_mode && user.billing_mode !== 'CREDIT_LINE_SUPER' && (
+                                                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
+                                                                user.billing_mode === 'DIRECT_META'
+                                                                    ? 'bg-amber-100 text-amber-700'
+                                                                    : 'bg-emerald-100 text-emerald-700'
+                                                            }`}>
+                                                                {user.billing_mode === 'DIRECT_META' ? '💳 Direct' : '🏢 Agency'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-xs text-slate-500">{user.createdOn}</div>
