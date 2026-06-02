@@ -38,7 +38,10 @@ jobs:
           cache: 'npm'
 
       - name: Install Project Dependencies
-        run: npm ci || npm install
+        run: |
+          npm ci
+          cd client && npm ci
+          cd ../server && npm ci
 
       - name: Prepare domains.csv (Parameterization)
         shell: bash
