@@ -66,6 +66,15 @@ jobs:
           echo "Domains planned for deployment:"
           cat domains.csv
 
+      - name: Configure SSH (Bypass Host Verification)
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          echo "Host *" > ~/.ssh/config
+          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
       - name: Execute Central Deploy Script
         if: ${{ github.event.inputs.dry_run == 'false' }}
         shell: bash
