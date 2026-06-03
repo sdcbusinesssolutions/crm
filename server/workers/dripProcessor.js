@@ -62,10 +62,21 @@ function isWithinWindow(campaign, now = new Date()) {
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const [startH, startM] = (campaign.time_window_start || '00:00').split(':').map(Number);
     const startMinutes = startH * 60 + startM;
-    const [endH, endM] = (campaign.time_window_end || '23:59').split(':').map(Number);
+    let [endH, endM] = (campaign.time_window_end || '23:59').split(':').map(Number);
+    
+    // Treat 00:00 as the end of the day if it's the end time
+    if (endH === 0 && endM === 0) {
+        endH = 24;
+    }
+    
     const endMinutes = endH * 60 + endM;
 
-    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    if (startMinutes <= endMinutes) {
+        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    } else {
+        // Window wraps around midnight
+        return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+    }
 }
 
 function replaceVariables(text, enrollment) {
