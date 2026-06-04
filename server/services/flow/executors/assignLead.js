@@ -17,6 +17,44 @@ class AssignLeadExecutor {
 
             let assignedStaffId = null;
 
+            // Check if the lead is already assigned to someone in the current pool
+            const { data: currentLeads } = await supabaseAdmin
+                .from('leads')
+                .select('assigned_staff_ids')
+                .eq('user_id', userId)
+                .eq('phone', contactPhone)
+                .limit(1);
+            
+            if (currentLeads && currentLeads.length > 0) {
+                const currentLead = currentLeads[0];
+                if (currentLead.assigned_staff_ids && currentLead.assigned_staff_ids.length > 0) {
+                    const existingStaffId = currentLead.assigned_staff_ids[0];
+                    // If the lead's current agent is in our selected pool, KEEP THEM!
+                    if (staffIds.includes(existingStaffId)) {
+                        console.log(`[AssignLead] Lead ${contactPhone} already assigned to ${existingStaffId}. Keeping assignment.`);
+                        
+                        let existingStaffName = 'Agent';
+                        const { data: staffData } = await supabaseAdmin.from('team_staff').select('name').eq('id', existingStaffId).single();
+                        if (staffData) {
+                            existingStaffName = staffData.name;
+                        }
+
+                        // Ensure conversation routes to them, but don't touch lead updated_at so Round Robin isn't affected
+                        await supabaseAdmin
+                            .from('conversations')
+                            .update({ assigned_to: existingStaffId })
+                            .eq('user_id', userId)
+                            .eq('contact_phone', contactPhone);
+
+                        return {
+                            status: 'success',
+                            assignedStaffId: existingStaffId,
+                            assignedStaffName: existingStaffName
+                        };
+                    }
+                }
+            }
+
             if (assignmentMethod === 'specific_user') {
                 assignedStaffId = staffIds[0];
             } else if (assignmentMethod === 'round_robin') {
