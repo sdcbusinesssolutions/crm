@@ -10,9 +10,10 @@ interface Props {
   onAssigned?: () => void;
   className?: string;
   showNames?: boolean;
+  isContactId?: boolean;
 }
 
-const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className, showNames = true }) => {
+const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className, showNames = true, isContactId = false }) => {
   const [staffList, setStaffList] = useState<any[]>([]);
   // Defensive initialization
   const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
@@ -48,7 +49,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       let leadData = null;
 
       // Try to fetch as direct lead ID first
-      if (targetId && !targetId.startsWith('cnt-')) {
+      if (targetId && !targetId.startsWith('cnt-') && !isContactId) {
         try {
             leadData = await getLead(targetId);
         } catch (e) {
@@ -149,7 +150,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
 
   const validAssignedStaffIds = useMemo(() => {
     if (!Array.isArray(assignedStaffIds)) return [];
-    if (staffList.length === 0 && fetching) return assignedStaffIds;
+    if (staffList.length === 0) return assignedStaffIds; // Fallback to show assignments even if staff list cannot be fetched
     return assignedStaffIds.filter(id => staffList.some(s => s.id === id));
   }, [assignedStaffIds, staffList, fetching]);
 
@@ -192,12 +193,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
           )}
         </button>
 
-        {showNames && validAssignedStaffIds.length > 0 && staffList.length > 0 && (
+        {showNames && validAssignedStaffIds.length > 0 && (
           <div className="flex items-center -space-x-1.5 ml-1">
               {validAssignedStaffIds.slice(0, 2).map((id, index) => {
                   const staff = staffList.find(s => s.id === id);
-                  if (!staff) return null;
-                  const initials = staff.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+                  const initials = staff?.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '👤';
+                  const displayName = staff?.name || 'Assigned Staff';
                   return (
                       <div 
                           key={id} 
@@ -206,7 +207,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                       >
                           {initials}
                           <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50 shadow-lg">
-                              {staff.name}
+                              {displayName}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 border-4 border-transparent border-t-slate-800"></div>
                           </div>
                       </div>

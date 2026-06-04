@@ -4,7 +4,7 @@ const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', requirePermission('Contact Groups', 'read'), async (req, res) => {
+router.get('/', requirePermission(['Contact Groups', 'Pipelines', 'Contact List'], 'read'), async (req, res) => {
   try {
     // Use Admin to bypass row limit (for accurate counts > 1000)
     const supabase = supabaseAdmin;

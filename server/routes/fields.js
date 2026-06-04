@@ -4,7 +4,7 @@ const router = express.Router();
 const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
 
-router.get('/', requirePermission('Input Fields', 'read'), async (req, res) => {
+router.get('/', requirePermission(['Input Fields', 'Pipelines', 'Contact List'], 'read'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { data: { user } } = await supabase.auth.getUser();

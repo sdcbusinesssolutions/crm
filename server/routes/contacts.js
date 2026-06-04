@@ -494,64 +494,83 @@ router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req
       const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
       console.log(`Processing chunk ${chunkIndex} (${chunk.length} items)...`);
 
-      // 1. Try Batch Insert (using supabaseAdmin to bypass RLS for batch operations)
-      const { data, error } = await supabaseAdmin
-        .from('contacts')
-        .insert(chunk)
-        .select();
+      // 1. Separate into new vs duplicates by querying existing phones
+      const chunkPhones = chunk.map(c => c.phone).filter(Boolean);
+      let existingPhoneMap = {};
+      
+      if (chunkPhones.length > 0) {
+        const { data: existingContacts } = await supabaseAdmin
+          .from('contacts')
+          .select('id, phone, group_ids')
+          .eq('user_id', user.id)
+          .in('phone', chunkPhones);
+          
+        if (existingContacts) {
+          existingContacts.forEach(c => {
+            existingPhoneMap[c.phone] = c;
+          });
+        }
+      }
 
-      // 2. Handle Batch Failure by Retrying Individually
-      if (error) {
-        console.warn(`⚠️ Chunk ${chunkIndex} failed (${error.message}). Retrying items individually...`);
-        logContactImportEvent('IMPORT_BATCH_FAIL_RETRY', {
-          userId: user.id,
-          chunkIndex: chunkIndex,
-          error: error.message
-        });
+      const newContactsToInsert = [];
+      
+      for (const item of chunk) {
+        const existing = existingPhoneMap[item.phone];
+        
+        if (existing) {
+          // Handle Duplicate
+          stats.duplicates++;
+          try {
+            // Merge Groups
+            const newGroups = item.group_ids || [];
+            const currentGroups = existing.group_ids || [];
+            const mergedGroups = [...new Set([...currentGroups, ...newGroups])];
 
-        // Serial Retry (using supabaseAdmin to bypass RLS)
-        for (const item of chunk) {
-          const { data: itemData, error: itemError } = await supabaseAdmin
-            .from('contacts')
-            .insert([item])
-            .select();
+            // Only Update if changed
+            if (mergedGroups.length > currentGroups.length) {
+              await supabaseAdmin
+                .from('contacts')
+                .update({ group_ids: mergedGroups })
+                .eq('id', existing.id);
+            }
 
-          if (itemError) {
-            // Check for Unique Constraint (Duplicate)
-            if (itemError.code === '23505') {
-              stats.duplicates++;
+            chunkedResults.push(existing);
+          } catch (mergeErr) {
+            console.error('⚠️ Group merge failed for duplicate:', mergeErr);
+          }
+        } else {
+          // New contact
+          newContactsToInsert.push(item);
+          // Mark as existing so duplicates within the same CSV chunk are caught
+          if (item.phone) {
+             existingPhoneMap[item.phone] = { id: 'pending', group_ids: item.group_ids || [] };
+          }
+        }
+      }
 
-              // Handle Group Merge for Duplicates
-              try {
-                // Fetch the existing contact efficiently (admin to bypass RLS)
-                const { data: existing } = await supabaseAdmin
-                  .from('contacts')
-                  .select('id, group_ids')
-                  .eq('user_id', user.id)
-                  .eq('phone', item.phone)
-                  .maybeSingle();
+      // 2. Batch Insert New Contacts
+      if (newContactsToInsert.length > 0) {
+        const { data, error } = await supabaseAdmin
+          .from('contacts')
+          .insert(newContactsToInsert)
+          .select();
 
-                if (existing) {
-                  // Merge Groups
-                  const newGroups = item.group_ids || [];
-                  const currentGroups = existing.group_ids || [];
-                  const mergedGroups = [...new Set([...currentGroups, ...newGroups])];
+        if (error) {
+          console.warn(`⚠️ Batch insert failed (${error.message}). Retrying items individually...`);
+          logContactImportEvent('IMPORT_BATCH_FAIL_RETRY', {
+            userId: user.id,
+            chunkIndex: chunkIndex,
+            error: error.message
+          });
 
-                  // Only Update if changed
-                  if (mergedGroups.length > currentGroups.length) {
-                    await supabaseAdmin
-                      .from('contacts')
-                      .update({ group_ids: mergedGroups })
-                      .eq('id', existing.id);
-                  }
+          // Serial Retry
+          for (const item of newContactsToInsert) {
+            const { data: itemData, error: itemError } = await supabaseAdmin
+              .from('contacts')
+              .insert([item])
+              .select();
 
-                  // IMPORTANT: Add existing contact to results so caller gets the ID
-                  chunkedResults.push(existing);
-                }
-              } catch (mergeErr) {
-                console.error('⚠️ Group merge failed for duplicate:', mergeErr);
-              }
-            } else {
+            if (itemError) {
               stats.failed++;
               console.error(`❌ Item Failed: ${item.name} (${item.phone}) - ${itemError.message}`);
               logContactImportEvent('IMPORT_ITEM_FAIL', {
@@ -560,22 +579,29 @@ router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req
                 name: item.name,
                 reason: itemError.message
               });
+            } else if (itemData) {
+              stats.inserted++;
+              chunkedResults.push(...itemData);
+              
+              // Trigger drip
+              itemData.forEach(c => {
+                if (c.tags && c.tags.length > 0) {
+                  DripTriggerService.handleTagAdded(user.id, c, c.tags).catch(err => console.error('Bulk Trigger Error:', err));
+                }
+              });
             }
-          } else if (itemData) {
-            stats.inserted++;
-            chunkedResults.push(...itemData);
           }
-        }
-      } else if (data) {
-        stats.inserted += data.length;
-        chunkedResults.push(...data);
+        } else if (data) {
+          stats.inserted += data.length;
+          chunkedResults.push(...data);
 
-        // TRIGGER DRIP CAMPAIGNS for Bulk Inserted Contacts
-        data.forEach(c => {
-          if (c.tags && c.tags.length > 0) {
-            DripTriggerService.handleTagAdded(user.id, c, c.tags).catch(err => console.error('Bulk Trigger Error:', err));
-          }
-        });
+          // TRIGGER DRIP CAMPAIGNS for Bulk Inserted Contacts
+          data.forEach(c => {
+            if (c.tags && c.tags.length > 0) {
+              DripTriggerService.handleTagAdded(user.id, c, c.tags).catch(err => console.error('Bulk Trigger Error:', err));
+            }
+          });
+        }
       }
     }
 

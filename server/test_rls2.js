@@ -1,40 +1,58 @@
-require('dotenv').config();
-const { Client } = require('pg');
+const { getAuthenticatedSupabase } = require('./lib/supabaseClient');
 
-async function fixRLS() {
-    const client = new Client({
-        connectionString: 'postgresql://postgres.ssckorsnhjhzqxyukexm:sonuDEV%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres'
-    });
-    
-    await client.connect();
-    
-    // Check if RLS is enabled
-    const res = await client.query(`SELECT relrowsecurity FROM pg_class WHERE relname = 'drip_campaigns';`);
-    console.log("RLS enabled on drip_campaigns:", res.rows[0]?.relrowsecurity);
-    
-    // If it's enabled but no policies exist, we should probably add one to allow user to manage their own campaigns
-    // Or just disable RLS if it's not meant to be enabled. But standard is to have user_id = auth.uid()
-    // Let's add the standard policy for drip_campaigns:
-    
+async function test() {
     try {
-        await client.query(`
-            DROP POLICY IF EXISTS "Users can manage their own drip campaigns" ON drip_campaigns;
-            CREATE POLICY "Users can manage their own drip campaigns" ON drip_campaigns
-                FOR ALL USING (auth.uid() = user_id);
-        `);
-        console.log("Policy created.");
+        const { supabaseAdmin } = require('./lib/supabaseClient');
+        const email = 'test_rls_' + Date.now() + '@example.com';
+        const password = 'Password123!';
         
-        const resPol = await client.query(`
-            SELECT cmd, qual, with_check 
-            FROM pg_policies 
-            WHERE tablename = 'drip_campaigns';
-        `);
-        console.log("New Policies:", resPol.rows);
+        console.log('Creating temp user...');
+        const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true
+        });
+        if (authErr) throw authErr;
+        const userId = authData.user.id;
+        
+        console.log('Signing in...');
+        const { supabase } = require('./lib/supabaseClient');
+        const { data: sessionData, error: sessionErr } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        if (sessionErr) throw sessionErr;
+        const token = sessionData.session.access_token;
+        
+        const req = {
+            headers: { authorization: `Bearer ${token}` },
+            user: { id: userId }
+        };
+        
+        const client = getAuthenticatedSupabase(req);
+        
+        console.log('Inserting follow_up with fake contact_id...');
+        const { data, error } = await client
+            .from('follow_ups')
+            .insert({
+                user_id: req.user.id,
+                contact_id: '00000000-0000-0000-0000-000000000000', // Fake ID
+                title: 'Test',
+                description: 'Test',
+                scheduled_at: new Date().toISOString(),
+                priority: 'MEDIUM',
+                type: 'TASK',
+                status: 'PENDING'
+            })
+            .select();
+            
+        console.log('Result:', data);
+        if (error) console.log('Error:', error);
+        
+        // Cleanup
+        await supabaseAdmin.auth.admin.deleteUser(userId);
     } catch (e) {
-        console.error("Error creating policy:", e);
+        console.error('Exception:', e);
     }
-    
-    await client.end();
 }
-
-fixRLS();
+test();

@@ -1130,6 +1130,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         leadId={contact.id} 
                                                         contact={contact} 
                                                         showNames={false}
+                                                        isContactId={true}
                                                         className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 inline-block relative"
                                                     />
                                                 </td>
@@ -1165,6 +1166,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     leadId={contact.id} 
                     contact={contact} 
                     showNames={false}
+                    isContactId={true}
                     className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 inline-block relative"
                 />
             </div>

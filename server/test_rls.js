@@ -1,43 +1,76 @@
-require('dotenv').config();
-const { createClient } = require('@supabase/supabase-js');
+const { getAuthenticatedSupabase } = require('./lib/supabaseClient');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-
-async function checkRLS() {
-    // We can query pg_policies using an RPC, but we might not have one.
-    // Alternatively, we can just fetch the schema. 
-    // Since we can't query pg_policies directly via Supabase-js unless there's an RPC, 
-    // we might need to use the pg module to connect directly.
-    
-    // We have postgresql:// URL in domains.csv:
-    // postgresql://postgres.ssckorsnhjhzqxyukexm:sonuDEV%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
-    
-    const { Client } = require('pg');
-    const client = new Client({
-        connectionString: 'postgresql://postgres.ssckorsnhjhzqxyukexm:sonuDEV%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres'
-    });
-    
-    await client.connect();
-    
-    const res = await client.query(`
-        SELECT cmd, qual, with_check 
-        FROM pg_policies 
-        WHERE tablename = 'drip_campaigns';
-    `);
-    
-    console.log("RLS Policies for drip_campaigns:");
-    console.log(res.rows);
-    
-    const resColumns = await client.query(`
-        SELECT column_name, is_nullable, column_default 
-        FROM information_schema.columns 
-        WHERE table_name = 'drip_campaigns';
-    `);
-    
-    console.log("Columns for drip_campaigns:");
-    console.log(resColumns.rows);
-    
-    await client.end();
+async function test() {
+    try {
+        const { supabaseAdmin } = require('./lib/supabaseClient');
+        const email = 'test_rls_' + Date.now() + '@example.com';
+        const password = 'Password123!';
+        
+        console.log('Creating temp user...');
+        const { data: authData, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true
+        });
+        if (authErr) throw authErr;
+        const userId = authData.user.id;
+        
+        console.log('Signing in...');
+        const { supabase } = require('./lib/supabaseClient');
+        const { data: sessionData, error: sessionErr } = await supabase.auth.signInWithPassword({
+            email,
+            password
+        });
+        if (sessionErr) throw sessionErr;
+        const token = sessionData.session.access_token;
+        
+        const req = {
+            headers: { authorization: `Bearer ${token}` },
+            user: { id: userId }
+        };
+        const client = getAuthenticatedSupabase(req);
+        
+        console.log('Inserting contact...');
+        const { data: contactData, error: contactErr } = await client
+            .from('contacts')
+            .insert({
+                user_id: userId,
+                name: 'Test Contact',
+                phone: '1234567890'
+            })
+            .select();
+            
+        if (contactErr) {
+            console.log('Contact Insert Error:', contactErr);
+            await supabaseAdmin.auth.admin.deleteUser(userId);
+            return;
+        }
+        console.log('Contact Insert Result:', contactData);
+        
+        const contactId = contactData[0].id;
+        
+        console.log('Inserting follow_up with contact_id:', contactId);
+        const { data, error } = await client
+            .from('follow_ups')
+            .insert({
+                user_id: userId,
+                contact_id: contactId,
+                title: 'Test',
+                description: 'Test',
+                scheduled_at: new Date().toISOString(),
+                priority: 'MEDIUM',
+                type: 'TASK',
+                status: 'PENDING'
+            })
+            .select();
+            
+        console.log('FollowUp Result:', data);
+        if (error) console.log('FollowUp Error:', error);
+        
+        // Cleanup
+        await supabaseAdmin.auth.admin.deleteUser(userId);
+    } catch (e) {
+        console.error('Exception:', e);
+    }
 }
-
-checkRLS();
+test();

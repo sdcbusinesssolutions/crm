@@ -30,6 +30,7 @@ const getNodeCategory = (type: NodeType): string => {
         case NodeType.Gsheet:
         case NodeType.Payment:
         case NodeType.AIAgent:
+        case NodeType.AssignLead:
             return 'API & Integrations';
         case NodeType.Webhook:
         case NodeType.TaskReminder:
@@ -151,6 +152,11 @@ const NODE_OUTPUT_SCHEMAS: Partial<Record<NodeType, VariableDefinition[]>> = {
     [NodeType.SheetTrigger]: [
         { key: 'trigger.row_index', label: 'Row Index', type: 'number', description: 'The row number that triggered this flow' },
         { key: 'contact.phone', label: 'Contact Phone', type: 'string' }
+    ],
+    [NodeType.AssignLead]: [
+        { key: 'status', label: 'Assignment Status', type: 'string', description: 'success or skipped' },
+        { key: 'assignedStaffId', label: 'Assigned Staff ID', type: 'string', description: 'The ID of the staff member assigned' },
+        { key: 'assignedStaffName', label: 'Assigned Staff Name', type: 'string', description: 'The name of the staff member assigned' }
     ],
     // Add more schemas as needed
 };
