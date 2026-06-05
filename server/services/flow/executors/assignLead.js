@@ -63,7 +63,7 @@ class AssignLeadExecutor {
                     .from('leads')
                     .select('assigned_staff_ids')
                     .eq('user_id', userId)
-                    .order('created_at', { ascending: false })
+                    .order('updated_at', { ascending: false })
                     .limit(5);
 
                 // Find the last staff assigned from the list
@@ -125,17 +125,45 @@ class AssignLeadExecutor {
                 }
 
                 // 1. Update the lead's assigned_staff_ids field (array format)
-                const { error: leadError } = await supabaseAdmin
+                const { data: existingLeads } = await supabaseAdmin
                     .from('leads')
-                    .update({ 
-                        assigned_staff_ids: [assignedStaffId],
-                        updated_at: new Date().toISOString()
-                    })
+                    .select('id')
                     .eq('user_id', userId)
-                    .eq('phone', contactPhone);
-                
-                if (leadError) {
-                    console.error(`[AssignLead] Error updating lead assigned_staff_ids:`, leadError);
+                    .eq('phone', contactPhone)
+                    .limit(1);
+
+                if (existingLeads && existingLeads.length > 0) {
+                    const { error: leadError } = await supabaseAdmin
+                        .from('leads')
+                        .update({ 
+                            assigned_staff_ids: [assignedStaffId],
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('user_id', userId)
+                        .eq('phone', contactPhone);
+                    
+                    if (leadError) {
+                        console.error(`[AssignLead] Error updating lead assigned_staff_ids:`, leadError);
+                    }
+                } else {
+                    const { error: leadError } = await supabaseAdmin
+                        .from('leads')
+                        .insert([{
+                            user_id: userId,
+                            phone: contactPhone,
+                            name: session.contact_name || contactPhone,
+                            assigned_staff_ids: [assignedStaffId],
+                            status: 'active',
+                            source: 'whatsapp_flow',
+                            type: 'Lead',
+                            custom_data: { assigned_staff_ids: [assignedStaffId] },
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        }]);
+
+                    if (leadError) {
+                        console.error(`[AssignLead] Error creating lead assigned_staff_ids:`, leadError);
+                    }
                 }
                 
                 // 2. Update the conversation assigned_to field so it routes in the inbox
