@@ -60,11 +60,17 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       // If no lead found directly, it might be a Contact ID. Try finding by phone.
       if (!leadData && (initialData?.phone || initialData?.contact_phone)) {
         const phoneToSearch = initialData.phone || initialData.contact_phone;
-        const leads: any = await getLeads(undefined, undefined, 1, 1, { search: phoneToSearch });
+        const leads: any = await getLeads(undefined, undefined, 1, 10, { search: phoneToSearch });
         const leadsData = leads?.data || leads || [];
         if (Array.isArray(leadsData) && leadsData.length > 0) {
-            actualLeadId = leadsData[0].id;
-            leadData = leadsData[0];
+            const leadWithAssignment = leadsData.find((l: any) => Array.isArray(l.assigned_staff_ids) && l.assigned_staff_ids.length > 0);
+            if (leadWithAssignment) {
+                actualLeadId = leadWithAssignment.id;
+                leadData = leadWithAssignment;
+            } else {
+                actualLeadId = leadsData[0].id;
+                leadData = leadsData[0];
+            }
         } else {
             actualLeadId = null; // No lead exists yet
         }
