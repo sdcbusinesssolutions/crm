@@ -1995,7 +1995,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 <span className="text-[11px] text-slate-500 font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
                                                 <div onClick={(e) => e.stopPropagation()} className="flex items-center shrink-0">
                                                     <LeadAssignment 
-                                                        contact={chat} 
+                                                        contact={{...chat, assigned_staff_ids: chat.assigned_to ? [chat.assigned_to] : []}} 
                                                         leadId={chat.id} 
                                                         showNames={false}
                                                         onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
