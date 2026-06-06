@@ -663,10 +663,20 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     setCustomInputFields([...currentFields]); // Update UI
 
                     // 4. Process Rows
+                    const seenPhones = new Set<string>();
+                    let fileDuplicates = 0;
+
                     for (const row of results.data as any[]) {
                         // Ensure phone is treated as string and exists
                         const phoneVal = row.Phone || row.phone;
                         if (!phoneVal) continue;
+                        
+                        const phoneStr = String(phoneVal).trim();
+                        if (seenPhones.has(phoneStr)) {
+                            fileDuplicates++;
+                            continue;
+                        }
+                        seenPhones.add(phoneStr);
 
                         // Handle Groups
                         const groupNamesStr = row.Groups || row.groups || '';
@@ -720,6 +730,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     }
 
                     console.log('📋 Parsed contacts from CSV:', importedContacts.length);
+                    if (fileDuplicates > 0) {
+                        console.log(`⚠️ Found ${fileDuplicates} duplicate phone numbers within the CSV file.`);
+                    }
                     console.log('📄 Sample contact:', importedContacts[0]);
 
                     if (importedContacts.length > 0) {
@@ -732,15 +745,16 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         const inserted = stats.inserted !== undefined ? stats.inserted : importedContacts.length;
                         const duplicates = stats.duplicates || 0;
                         const failed = stats.failed || 0;
+                        const totalDuplicates = fileDuplicates + duplicates;
 
                         setToast({
                             type: 'success',
                             title: 'Import Complete',
                             message: `We've finished processing your file. Here's a summary of the results:\n\n` +
-                                `📦 Total Records: ${importedContacts.length}\n` +
+                                `📦 Total Records: ${importedContacts.length + fileDuplicates}\n` +
                                 `───────────────────────\n` +
                                 `✅ New Contacts: ${inserted}\n` +
-                                `🟡 Duplicates: ${duplicates}\n` +
+                                `🟡 Duplicates: ${totalDuplicates} (${fileDuplicates} in file, ${duplicates} in system)\n` +
                                 `❌ Failed: ${failed}\n\n` +
                                 (failed > 0 ? `Please check the server logs for details on the ${failed} failed records.` : `All records were processed successfully!`)
                         });
@@ -1116,6 +1130,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         leadId={contact.id} 
                                                         contact={contact} 
                                                         showNames={false}
+                                                        isContactId={true}
                                                         className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 inline-block relative"
                                                     />
                                                 </td>
@@ -1151,6 +1166,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     leadId={contact.id} 
                     contact={contact} 
                     showNames={false}
+                    isContactId={true}
                     className="p-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 inline-block relative"
                 />
             </div>

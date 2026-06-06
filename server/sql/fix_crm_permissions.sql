@@ -84,3 +84,14 @@ CREATE POLICY "Users can view own pipeline_stages" ON pipeline_stages FOR SELECT
 CREATE POLICY "Users can manage own pipeline_stages" ON pipeline_stages FOR ALL USING (
   EXISTS (SELECT 1 FROM pipelines WHERE id = pipeline_stages.pipeline_id AND user_id = auth.uid())
 );
+
+-- 8. FOLLOW UPS
+DROP POLICY IF EXISTS "Users can view own follow_ups" ON follow_ups;
+DROP POLICY IF EXISTS "Users can insert own follow_ups" ON follow_ups;
+DROP POLICY IF EXISTS "Users can update own follow_ups" ON follow_ups;
+DROP POLICY IF EXISTS "Users can delete own follow_ups" ON follow_ups;
+
+CREATE POLICY "Users can view own follow_ups" ON follow_ups FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own follow_ups" ON follow_ups FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own follow_ups" ON follow_ups FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can delete own follow_ups" ON follow_ups FOR DELETE USING (auth.uid() = user_id);

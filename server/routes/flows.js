@@ -68,9 +68,13 @@ async function syncSheetTriggers(userId, flowId, nodes) {
 router.get('/', requirePermission('Flows', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
+
         const { data, error } = await supabase
             .from('flows')
             .select('*')
+            .eq('user_id', user.id)
             .order('updated_at', { ascending: false });
 
         if (error) throw error;
@@ -90,6 +94,8 @@ const isValidUUID = (uuid) => {
 router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
@@ -100,6 +106,7 @@ router.get('/:id', requirePermission('Flows', 'read'), async (req, res) => {
             .from('flows')
             .select('*')
             .eq('id', id)
+            .eq('user_id', user.id)
             .single();
 
         if (error) throw error;
@@ -153,6 +160,8 @@ router.post('/', requirePermission('Flows', 'read_write'), async (req, res) => {
 router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
@@ -174,6 +183,7 @@ router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) =>
             .from('flows')
             .update(updates)
             .eq('id', id)
+            .eq('user_id', user.id)
             .select()
             .single();
 
@@ -196,6 +206,8 @@ router.put('/:id', requirePermission('Flows', 'read_write'), async (req, res) =>
 router.delete('/:id', requirePermission('Flows', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError) throw userError;
         const { id } = req.params;
 
         if (!isValidUUID(id)) {
@@ -205,7 +217,8 @@ router.delete('/:id', requirePermission('Flows', 'all_access'), async (req, res)
         const { error } = await supabase
             .from('flows')
             .delete()
-            .eq('id', id);
+            .eq('id', id)
+            .eq('user_id', user.id);
 
         if (error) throw error;
 

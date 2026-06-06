@@ -229,6 +229,17 @@ const StaffService = {
       }]);
 
     if (error) throw error;
+    
+    // Sync Conversation assignment
+    try {
+      const { data: lead } = await supabaseAdmin.from('leads').select('phone').eq('id', leadId).single();
+      if (lead && lead.phone) {
+         await supabaseAdmin.from('conversations').update({ assigned_to: staffId }).eq('user_id', ownerId).eq('contact_phone', lead.phone);
+      }
+    } catch(err) {
+      console.error('[StaffService] Error syncing conversation assignment:', err);
+    }
+    
     return true;
   },
 
@@ -261,6 +272,19 @@ const StaffService = {
       .eq('tenant_id', ownerId);
 
     if (error) throw error;
+    
+    // Sync Conversation unassignment
+    try {
+      const { data: lead } = await supabaseAdmin.from('leads').select('phone').eq('id', leadId).single();
+      if (lead && lead.phone) {
+         const { data: assignments } = await supabaseAdmin.from('lead_assignments').select('assigned_to').eq('lead_id', leadId);
+         const nextAssigned = (assignments && assignments.length > 0) ? assignments[0].assigned_to : null;
+         await supabaseAdmin.from('conversations').update({ assigned_to: nextAssigned }).eq('user_id', ownerId).eq('contact_phone', lead.phone);
+      }
+    } catch(err) {
+      console.error('[StaffService] Error syncing conversation unassignment:', err);
+    }
+    
     return true;
   },
 

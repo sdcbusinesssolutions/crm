@@ -4,34 +4,44 @@ import { usePermissions, ACCESS_TYPES } from '../hooks/usePermissions';
 import { createLead, getLeads, updateLead, getLead } from '../../../services/lead-management-api';
 import Modal from '../../../components/Modal';
 
+// Global cache to prevent UI glitches during react-virtuoso scrolling
+const assignmentCache: Record<string, string[]> = {};
+let globalStaffListCache: any[] | null = null;
+
 interface Props {
   leadId: string;
   contact?: any; 
   onAssigned?: () => void;
   className?: string;
   showNames?: boolean;
+  isContactId?: boolean;
+  isConversationId?: boolean;
 }
 
-const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className, showNames = true }) => {
-  const [staffList, setStaffList] = useState<any[]>([]);
-  // Defensive initialization
-  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
+const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, className, showNames = true, isContactId = false, isConversationId = false }) => {
+  const [staffList, setStaffList] = useState<any[]>(globalStaffListCache || []);
+  
+  // Initialize from cache or contact props
+  const initialIds = assignmentCache[leadId] || (Array.isArray(contact?.assigned_staff_ids) ? contact.assigned_staff_ids : []);
+  const [assignedStaffIds, setAssignedStaffIds] = useState<string[]>(initialIds);
   const [loading, setLoading] = useState(false);
-  const [fetching, setFetching] = useState(!contact?.assigned_staff_ids);
+  const [fetching, setFetching] = useState(!initialIds.length);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [resolvedLeadId, setResolvedLeadId] = useState<string | null>(null);
 
-  // Sync state with props when board data refreshes
+  // Sync state with props when board data refreshes, but ONLY if we don't have true lead data
   useEffect(() => {
-    if (Array.isArray(contact?.assigned_staff_ids)) {
+    if (resolvedLeadId) return; // If we resolved a real lead ID, trust the loadData fetch!
+    if (Array.isArray(contact?.assigned_staff_ids) && contact.assigned_staff_ids.length > 0) {
       setAssignedStaffIds(contact.assigned_staff_ids);
+      assignmentCache[leadId] = contact.assigned_staff_ids;
     }
-  }, [contact?.assigned_staff_ids]);
+  }, [contact?.assigned_staff_ids, leadId, resolvedLeadId]);
   const [searchQuery, setSearchQuery] = useState('');
   const { hasAccess } = usePermissions();
   const isOwner = hasAccess('Staff Management', ACCESS_TYPES.ALL_ACCESS); 
 
-  // Initialize data
+  // Initialize data on mount
   useEffect(() => {
     if (leadId) {
       loadData(leadId, contact);
@@ -39,16 +49,25 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
   }, [leadId]);
 
   const loadData = async (targetId: string, initialData?: any) => {
-    setFetching(true);
+    // Only show fetching indicator if we don't have cached data to show immediately
+    if (!assignmentCache[targetId]) {
+        setFetching(true);
+    }
+    
     try {
-      const allStaff = await staffApi.listStaff();
-      setStaffList(allStaff);
+      // Use cached staff list if available to speed up rendering
+      let allStaff = globalStaffListCache;
+      if (!allStaff) {
+          allStaff = await staffApi.listStaff().catch(() => []);
+          globalStaffListCache = allStaff;
+      }
+      setStaffList(allStaff || []);
       
       let actualLeadId: string | null = targetId;
       let leadData = null;
 
       // Try to fetch as direct lead ID first
-      if (targetId && !targetId.startsWith('cnt-')) {
+      if (targetId && !targetId.startsWith('cnt-') && !isContactId && !isConversationId) {
         try {
             leadData = await getLead(targetId);
         } catch (e) {
@@ -59,11 +78,17 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
       // If no lead found directly, it might be a Contact ID. Try finding by phone.
       if (!leadData && (initialData?.phone || initialData?.contact_phone)) {
         const phoneToSearch = initialData.phone || initialData.contact_phone;
-        const leads: any = await getLeads(undefined, undefined, 1, 1, { search: phoneToSearch });
+        const leads: any = await getLeads(undefined, undefined, 1, 10, { search: phoneToSearch });
         const leadsData = leads?.data || leads || [];
         if (Array.isArray(leadsData) && leadsData.length > 0) {
-            actualLeadId = leadsData[0].id;
-            leadData = leadsData[0];
+            const leadWithAssignment = leadsData.find((l: any) => Array.isArray(l.assigned_staff_ids) && l.assigned_staff_ids.length > 0);
+            if (leadWithAssignment) {
+                actualLeadId = leadWithAssignment.id;
+                leadData = leadWithAssignment;
+            } else {
+                actualLeadId = leadsData[0].id;
+                leadData = leadsData[0];
+            }
         } else {
             actualLeadId = null; // No lead exists yet
         }
@@ -73,11 +98,15 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
 
       setResolvedLeadId(actualLeadId);
 
-      // Use initial data if available, otherwise fetch
-      if (initialData && Array.isArray(initialData.assigned_staff_ids)) {
+      if (leadData && Array.isArray(leadData.assigned_staff_ids)) {
+        setAssignedStaffIds(leadData.assigned_staff_ids);
+        assignmentCache[targetId] = leadData.assigned_staff_ids;
+      } else if (initialData && Array.isArray(initialData.assigned_staff_ids) && initialData.assigned_staff_ids.length > 0) {
         setAssignedStaffIds(initialData.assigned_staff_ids);
+        assignmentCache[targetId] = initialData.assigned_staff_ids;
       } else {
-        setAssignedStaffIds(Array.isArray(leadData?.assigned_staff_ids) ? leadData.assigned_staff_ids : []);
+        setAssignedStaffIds([]);
+        assignmentCache[targetId] = [];
       }
     } catch (err) {
       console.error('Failed to load lead assignments:', err);
@@ -95,6 +124,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
     
     // 2. Optimistic Update
     setAssignedStaffIds(newIds);
+    assignmentCache[leadId] = newIds;
     setLoading(true);
 
     try {
@@ -122,6 +152,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
             // 4. Confirm with server data
             const serverIds = updatedLead.assigned_staff_ids || [];
             setAssignedStaffIds(serverIds);
+            assignmentCache[leadId] = serverIds; // Sync cache with backend response
             if (onAssigned) onAssigned();
           }
       }
@@ -149,7 +180,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
 
   const validAssignedStaffIds = useMemo(() => {
     if (!Array.isArray(assignedStaffIds)) return [];
-    if (staffList.length === 0 && fetching) return assignedStaffIds;
+    if (staffList.length === 0) return assignedStaffIds; // Fallback to show assignments even if staff list cannot be fetched
     return assignedStaffIds.filter(id => staffList.some(s => s.id === id));
   }, [assignedStaffIds, staffList, fetching]);
 
@@ -192,12 +223,12 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
           )}
         </button>
 
-        {showNames && validAssignedStaffIds.length > 0 && staffList.length > 0 && (
+        {showNames && validAssignedStaffIds.length > 0 && (
           <div className="flex items-center -space-x-1.5 ml-1">
               {validAssignedStaffIds.slice(0, 2).map((id, index) => {
                   const staff = staffList.find(s => s.id === id);
-                  if (!staff) return null;
-                  const initials = staff.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : 'U';
+                  const initials = staff?.name ? staff.name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() : '👤';
+                  const displayName = staff?.name || 'Assigned Staff';
                   return (
                       <div 
                           key={id} 
@@ -206,7 +237,7 @@ const LeadAssignment: React.FC<Props> = ({ leadId, contact, onAssigned, classNam
                       >
                           {initials}
                           <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50 shadow-lg">
-                              {staff.name}
+                              {displayName}
                               <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 border-4 border-transparent border-t-slate-800"></div>
                           </div>
                       </div>

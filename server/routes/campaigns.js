@@ -334,7 +334,8 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 router.get('/:id', requirePermission('Campaigns', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { data } = await supabase.from('campaigns').select('*').eq('id', req.params.id).single();
+        const { data: { user } } = await supabase.auth.getUser();
+        const { data } = await supabase.from('campaigns').select('*').eq('id', req.params.id).eq('user_id', user.id).single();
         if (!data) throw new Error('Not found');
 
         // Stats
@@ -478,6 +479,11 @@ router.get('/:id/export', requirePermission('Campaigns', 'read'), async (req, re
 router.delete('/:id', requirePermission('Campaigns', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Check if campaign belongs to user first
+        const { data: campaign } = await supabase.from('campaigns').select('id').eq('id', req.params.id).eq('user_id', user.id).single();
+        if (!campaign) throw new Error('Campaign not found or unauthorized');
 
         // 1. Delete associated queue items first (if cascade isn't set, better safe)
         const { error: queueError } = await supabase

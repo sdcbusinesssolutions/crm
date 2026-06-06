@@ -38,7 +38,7 @@ export const contactService = {
             const headers = await getHeaders();
             let url = `/api/contacts?page=${page}&limit=${limit}`;
             
-            if (filters.search) url += `&search=${encodeURIComponent(filters.search.replace(/,/g, ''))}`;
+            if (filters.search) url += `&search=${encodeURIComponent(String(filters.search).replace(/,/g, ''))}`;
             if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
@@ -57,7 +57,7 @@ export const contactService = {
         try {
             const headers = await getHeaders();
             let url = `/api/contacts/export?`;
-            if (filters.search) url += `&search=${encodeURIComponent(filters.search.replace(/,/g, ''))}`;
+            if (filters.search) url += `&search=${encodeURIComponent(String(filters.search).replace(/,/g, ''))}`;
             if (filters.groupId) url += `&groupId=${encodeURIComponent(filters.groupId)}`;
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;

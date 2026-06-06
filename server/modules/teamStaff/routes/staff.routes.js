@@ -22,6 +22,11 @@ const combinedAuth = (req, res, next) => {
 
 router.post('/', requireAuth, StaffController.createStaff);
 router.get('/', combinedAuth, StaffController.listStaff);
+// 3. Team Settings Routes (Owner Only)
+router.get('/settings', requireAuth, StaffController.getSettings);
+router.put('/settings', requireAuth, StaffController.updateSettings);
+
+// 4. Owner-Only Routes for assignments and specific staff members (Must be after /settings)
 router.put('/:staffId/permissions', requireAuth, StaffController.updatePermissions);
 router.post('/assign-lead', requireAuth, StaffController.assignLead);
 router.get('/leads/:leadId/assignments', requireAuth, StaffController.getLeadAssignments);
@@ -30,7 +35,7 @@ router.post('/assign-conversation', requireAuth, StaffController.assignConversat
 router.put('/:staffId', requireAuth, StaffController.updateStaff);
 router.delete('/:staffId', requireAuth, StaffController.deleteStaff);
 
-// 3. Staff-Specific Routes
+// 5. Staff-Specific Routes
 // These use the new staff authentication
 router.get('/me', authenticateStaff, (req, res) => {
   res.json({ staff: req.staff });

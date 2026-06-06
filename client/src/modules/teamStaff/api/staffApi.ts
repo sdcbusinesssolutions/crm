@@ -131,5 +131,23 @@ export const staffApi = {
       throw new Error(error.error || 'Failed to update staff');
     }
     return await res.json();
+  },
+
+  getSettings: async () => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/team-staff/settings`, { headers });
+    if (!res.ok) throw new Error('Failed to fetch team settings');
+    return await res.json();
+  },
+
+  updateSettings: async (settingsData: any) => {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_URL}/team-staff/settings`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(settingsData)
+    });
+    if (!res.ok) throw new Error('Failed to update team settings');
+    return await res.json();
   }
 };

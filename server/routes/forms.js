@@ -18,7 +18,7 @@ function generateFormToken() {
 }
 
 // GET /api/forms (authenticated - get user's forms)
-router.get('/', requireAuth, requirePermission('Form Builder', 'read'), async (req, res) => {
+router.get('/', requireAuth, requirePermission(['Form Builder', 'Pipelines', 'Contact List'], 'read'), async (req, res) => {
     try {
         const { data, error } = await supabaseAdmin
             .from('forms')

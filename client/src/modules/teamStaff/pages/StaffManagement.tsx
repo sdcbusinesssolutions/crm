@@ -34,11 +34,72 @@ const StaffManagement: React.FC = () => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedStaffForPassword, setSelectedStaffForPassword] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
+  
+  // Global Assignment Settings
+  const [autoAssignEnabled, setAutoAssignEnabled] = useState(false);
+  const [autoAssignStaffIds, setAutoAssignStaffIds] = useState<string[]>([]);
+  const [savingSettings, setSavingSettings] = useState(false);
+  
   const { isStaff } = usePermissions();
 
   useEffect(() => {
     loadStaff();
-  }, []);
+    if (!isStaff) loadSettings();
+  }, [isStaff]);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await staffApi.getSettings();
+      if (settings?.auto_assign) {
+        setAutoAssignEnabled(settings.auto_assign.enabled);
+        setAutoAssignStaffIds(settings.auto_assign.staff_ids || []);
+      }
+    } catch (e) {
+      console.error('Failed to load settings', e);
+    }
+  };
+
+  const handleToggleAutoAssign = async (enabled: boolean) => {
+    setAutoAssignEnabled(enabled);
+    setSavingSettings(true);
+    try {
+      await staffApi.updateSettings({
+        auto_assign: {
+          enabled,
+          staff_ids: autoAssignStaffIds
+        }
+      });
+      setToast({ type: 'success', title: 'Settings Saved', message: `Global assignment is now ${enabled ? 'enabled' : 'disabled'}.` });
+    } catch (e: any) {
+      setToast({ type: 'error', title: 'Error', message: e.message || 'Failed to update settings' });
+      setAutoAssignEnabled(!enabled); // revert
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleToggleStaffInPool = async (staffId: string) => {
+    const newPool = autoAssignStaffIds.includes(staffId)
+      ? autoAssignStaffIds.filter(id => id !== staffId)
+      : [...autoAssignStaffIds, staffId];
+    
+    setAutoAssignStaffIds(newPool);
+    setSavingSettings(true);
+    try {
+      await staffApi.updateSettings({
+        auto_assign: {
+          enabled: autoAssignEnabled,
+          staff_ids: newPool
+        }
+      });
+      setToast({ type: 'success', title: 'Settings Saved', message: 'Round-robin pool updated.' });
+    } catch (e: any) {
+      setToast({ type: 'error', title: 'Error', message: e.message || 'Failed to update settings' });
+      setAutoAssignStaffIds(autoAssignStaffIds); // revert
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const loadStaff = async () => {
     try {
@@ -181,6 +242,73 @@ const StaffManagement: React.FC = () => {
             <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
             Add Team Member
           </button>
+        </div>
+
+        {/* Global Assignment Settings Panel */}
+        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-[#00684a]/40 p-6 mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <svg className="w-5 h-5 text-[#00684a]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Global Auto-Assign Incoming Leads
+              </h2>
+              <p className="text-slate-500 text-sm font-medium mt-1">Automatically assign new incoming leads to staff members in a round-robin order.</p>
+            </div>
+            
+            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={autoAssignEnabled}
+                disabled={savingSettings}
+                onChange={(e) => handleToggleAutoAssign(e.target.checked)}
+              />
+              <div className="w-14 h-7 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#00684a]"></div>
+            </label>
+          </div>
+
+          {autoAssignEnabled && (
+            <div className="mt-6 pt-6 border-t border-slate-100 animate-fade-in">
+              <h3 className="text-sm font-black text-slate-700 tracking-wider uppercase mb-4">Round-Robin Pool</h3>
+              <p className="text-xs text-slate-500 mb-4">Select the staff members who should receive leads through auto-assignment.</p>
+              
+              <div className="flex flex-wrap gap-3">
+                {staffList.filter((s: any) => s.status === 'active').length === 0 ? (
+                  <span className="text-sm text-slate-400 italic">No active staff members available.</span>
+                ) : (
+                  staffList.filter((s: any) => s.status === 'active').map((staff: any) => {
+                    const isSelected = autoAssignStaffIds.includes(staff.id);
+                    return (
+                      <button
+                        key={staff.id}
+                        onClick={() => handleToggleStaffInPool(staff.id)}
+                        disabled={savingSettings}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                          isSelected 
+                            ? 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 border border-[#00684a]' 
+                            : 'bg-white text-slate-600 border border-slate-200 hover:border-[#00684a]/50 hover:bg-[#00684a]/5'
+                        } disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
+                      >
+                        <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
+                          isSelected ? 'bg-white border-white text-[#00684a]' : 'border-slate-300 bg-white'
+                        }`}>
+                          {isSelected && <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] shrink-0 ${getAvatarStyle(staff.name).inner}`}>
+                            {staff.name ? staff.name[0].toUpperCase() : 'U'}
+                          </div>
+                          {staff.name}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-[#00684a]/40 overflow-hidden">

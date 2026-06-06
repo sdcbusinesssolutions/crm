@@ -206,6 +206,56 @@ const StaffController = {
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
+  },
+
+  /**
+   * Get team staff settings
+   */
+  async getSettings(req, res) {
+    try {
+      const ownerId = req.user.id;
+      const { supabaseAdmin } = require('../../../lib/supabaseClient');
+      const { data, error } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+      
+      if (error) throw error;
+      
+      const team_settings = data?.user?.user_metadata?.team_settings || { auto_assign: { enabled: false, staff_ids: [] } };
+      res.json(team_settings);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  /**
+   * Update team staff settings
+   */
+  async updateSettings(req, res) {
+    try {
+      const ownerId = req.user.id;
+      const { auto_assign } = req.body;
+      const { supabaseAdmin } = require('../../../lib/supabaseClient');
+      
+      const { data: userObj } = await supabaseAdmin.auth.admin.getUserById(ownerId);
+      const currentUserMetadata = userObj?.user?.user_metadata || {};
+      
+      const updatedMetadata = {
+        ...currentUserMetadata,
+        team_settings: {
+          ...(currentUserMetadata.team_settings || {}),
+          auto_assign
+        }
+      };
+
+      const { error, data: updatedUser } = await supabaseAdmin.auth.admin.updateUserById(ownerId, {
+        user_metadata: updatedMetadata
+      });
+
+      if (error) throw error;
+
+      res.json({ success: true, team_settings: updatedMetadata.team_settings });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
 

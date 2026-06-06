@@ -14,22 +14,8 @@ const requirePermission = (moduleName, requiredAccess = 'read') => {
 
         const permissions = req.staff.permissions || {};
         
-        // Handle case sensitivity or spaces in module names from frontend
-        // The frontend might send 'Contact List' but the key might be 'Contact+List' or 'ContactList'
-        // We'll try to find a match by cleaning both
         const cleanName = (name) => name.replace(/[\s+]/g, '').toLowerCase();
-        const targetClean = cleanName(moduleName);
         
-        let currentAccess = 'no_access';
-        
-        // Search for the permission key
-        for (const key of Object.keys(permissions)) {
-            if (cleanName(key) === targetClean) {
-                currentAccess = permissions[key];
-                break;
-            }
-        }
-
         const levels = {
             'no_access': 0,
             'read': 1,
@@ -37,19 +23,37 @@ const requirePermission = (moduleName, requiredAccess = 'read') => {
             'all_access': 3
         };
 
-        const currentLevel = levels[currentAccess] || 0;
         const requiredLevel = levels[requiredAccess] || 1;
 
-        if (currentLevel >= requiredLevel) {
+        const checkAccess = (targetModuleName) => {
+            const targetClean = cleanName(targetModuleName);
+            for (const key of Object.keys(permissions)) {
+                if (cleanName(key) === targetClean) {
+                    return levels[permissions[key]] || 0;
+                }
+            }
+            return 0;
+        };
+
+        const moduleNames = Array.isArray(moduleName) ? moduleName : [moduleName];
+        let maxLevel = 0;
+        
+        for (const mod of moduleNames) {
+            const level = checkAccess(mod);
+            if (level > maxLevel) {
+                maxLevel = level;
+            }
+        }
+
+        if (maxLevel >= requiredLevel) {
             return next();
         }
 
         return res.status(403).json({
             error: 'Forbidden',
-            message: `Insufficient permissions. Required: ${requiredAccess} for ${moduleName}`,
+            message: `Insufficient permissions. Required: ${requiredAccess} for at least one of [${moduleNames.join(', ')}]`,
             module: moduleName,
-            required: requiredAccess,
-            actual: currentAccess
+            required: requiredAccess
         });
     };
 };
