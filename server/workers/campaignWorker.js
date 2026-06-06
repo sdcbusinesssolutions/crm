@@ -465,7 +465,70 @@ class CampaignWorker {
         if (!config) {
             console.error(`No config found for user ${campaign.user_id}`);
             await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+            await this._releaseReservation(campaign.id, campaign.user_id);
             return;
+        }
+
+        // --- PRE-FLIGHT RESERVATION HOLD (Wallet Architecture V2) ---
+        try {
+            const { data: holdTx } = await this.supabase.from('wallet_transactions')
+                .select('id')
+                .eq('source', 'RESERVATION_HOLD')
+                .eq('campaign_id', campaign.id)
+                .limit(1).maybeSingle();
+
+            if (!holdTx) {
+                const { count } = await this.supabase.from('campaign_queue')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('campaign_id', campaign.id);
+                
+                const estRate = await WalletService.getRate(campaign.user_id, 'MARKETING', 'IN');
+                const estCost = count * estRate.platform_rate;
+
+                try {
+                    const holdResult = await WalletService.holdCampaignReservation(campaign.user_id, campaign.id, estCost, true); // true = allowPartial
+                    const actualHeld = Number(holdResult.actual_held);
+                    const isPartial = holdResult.is_partial;
+
+                    if (isPartial) {
+                        const affordableCount = Math.floor(actualHeld / Number(estRate.platform_rate));
+                        console.warn(`[Worker] Partial hold for campaign ${campaign.id}: Requested ₹${estCost}, held ₹${actualHeld}. Affordable: ${affordableCount}/${count}`);
+                        
+                        if (affordableCount <= 0) {
+                            // Can't afford even 1 message
+                            console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
+                            await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                            return;
+                        }
+
+                        // We can afford some messages. Mark the rest as FAILED.
+                        // We need to fetch the IDs of items that exceed the limit.
+                        const { data: queueItems } = await this.supabase.from('campaign_queue')
+                            .select('id')
+                            .eq('campaign_id', campaign.id)
+                            .order('id', { ascending: true })
+                            .range(affordableCount, count - 1); // skip affordableCount items
+
+                        if (queueItems && queueItems.length > 0) {
+                            const idsToFail = queueItems.map(item => item.id);
+                            await this.supabase.from('campaign_queue')
+                                .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Partial Send)' })
+                                .in('id', idsToFail);
+                        }
+                    } else {
+                        console.log(`[Worker] Held reservation of ₹${estCost} for campaign ${campaign.id}`);
+                    }
+                } catch (e) {
+                    if (e.message?.includes('INSUFFICIENT_BALANCE')) {
+                        console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
+                        await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                        return; // Stop processing
+                    }
+                    console.error('[Worker] Reservation error:', e);
+                }
+            }
+        } catch (e) {
+            console.error('[Worker] Error checking/holding reservation:', e);
         }
 
         // Check if THIS WABA is rate-limited BEFORE doing ANY work
@@ -733,6 +796,7 @@ class CampaignWorker {
             if (count === 0) {
                 console.log(`Campaign ${campaign.id} Completed!`);
                 await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
+                await this._releaseReservation(campaign.id, campaign.user_id);
             } else {
                 // If count > 0 but we found no candidates, it means they are all in SENDING/RETRYING(future)
                 // We should log this so the user knows we are waiting.
@@ -821,6 +885,24 @@ class CampaignWorker {
 
         // Free memory from this batch: axios response bodies, contact objects, payload buffers
         triggerGC('batch complete');
+    }
+
+    async _releaseReservation(campaignId, userId) {
+        try {
+            const { data: heldTx } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'RESERVATION_HOLD').eq('campaign_id', campaignId).maybeSingle();
+            const { data: debits } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'CAMPAIGN_SEND').eq('campaign_id', campaignId);
+            
+            const totalHeld = heldTx ? Number(heldTx.amount) : 0;
+            const totalDebited = debits ? debits.reduce((acc, tx) => acc + Number(tx.amount), 0) : 0;
+            const releaseAmount = totalHeld - totalDebited;
+            
+            if (releaseAmount > 0) {
+                await WalletService.releaseCampaignReservation(userId, campaignId, releaseAmount);
+                console.log(`[Worker] Released unused reservation of ₹${releaseAmount} for campaign ${campaignId}`);
+            }
+        } catch (e) {
+            console.error(`[Worker] Error releasing reservation for campaign ${campaignId}:`, e);
+        }
     }
 
     async sendMessage(item, campaign, config, templateDef, healedMediaId = null) {

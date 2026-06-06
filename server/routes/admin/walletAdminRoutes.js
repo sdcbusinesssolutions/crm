@@ -324,7 +324,9 @@ router.post('/topup', async (req, res) => {
                         p_tenant_admin_user_id: adminUserId,
                         p_target_user_id: uid,
                         p_amount: Number(amount),
-                        p_description: description || 'Reseller top-up from Agency'
+                        p_description: description || 'Reseller top-up from Agency',
+                        p_created_by: req.admin?.user_id || req.admin?.id,
+                        p_ip_address: req.ip
                     });
 
                 if (transferError) {
@@ -346,7 +348,10 @@ router.post('/topup', async (req, res) => {
 
             } else {
                 // ── Direct Credit (Super Admin or non-SUPER modes) ──────────
-                result = await WalletService.addCredit(uid, Number(amount), 'ADMIN_TOPUP', description || 'Admin top-up');
+                result = await WalletService.addCredit(
+                    uid, Number(amount), 'ADMIN_TOPUP', description || 'Admin top-up',
+                    req.admin?.user_id || req.admin?.id, req.ip
+                );
                 console.log(`[WalletAdmin] Direct top-up: ₹${amount} → User ${uid} (mode: ${effectiveBillingMode})`);
             }
         }
@@ -417,7 +422,8 @@ router.post('/topup-master', async (req, res) => {
         const result = await WalletService.addCredit(
             targetUserId, Number(amount), 'ADMIN_TOPUP',
             description || 'Super Admin wholesale credit to Agency Master Wallet',
-            true // is_tenant_master flag
+            req.admin?.user_id || req.admin?.id,
+            req.ip
         );
         res.json({ success: true, transaction: result });
     } catch (error) {
@@ -460,7 +466,10 @@ router.post('/reset', async (req, res) => {
         const currentBalance = Number(wallet.balance);
         if (currentBalance !== 0) {
             const adjustmentAmount = -currentBalance;
-            await WalletService.addCredit(userId, adjustmentAmount, 'ADJUSTMENT', 'Admin manual balance reset to 0');
+            await WalletService.addCredit(
+                userId, adjustmentAmount, 'ADJUSTMENT', 'Admin manual balance reset to 0',
+                req.admin?.user_id || req.admin?.id, req.ip
+            );
         }
         
         res.json({ success: true, oldBalance: currentBalance, newBalance: 0 });
@@ -490,22 +499,43 @@ router.get('/rates/:userId', async (req, res) => {
 // POST /api/wallet/admin/rates — set custom rates
 router.post('/rates', async (req, res) => {
     try {
-        const { userId, rates } = req.body;
+        const { userId, rates, scope } = req.body;
         
         if (!userId || !rates || !Array.isArray(rates)) {
             return res.status(400).json({ error: 'User ID and rates array are required' });
         }
+
+        // Fetch global rates to enforce cost floor
+        const { data: globalRates } = await supabaseAdmin
+            .from('wa_message_rates')
+            .select('category, country_code, meta_cost')
+            .eq('scope', 'GLOBAL')
+            .is('user_id', null);
+
+        const getGlobalMetaCost = (cat, cc) => {
+            const gr = globalRates?.find(g => g.category === cat && g.country_code === cc);
+            return gr ? Number(gr.meta_cost) : 0;
+        };
         
-        const upserts = rates.map(r => ({
-            scope: 'WORKSPACE',
-            user_id: userId,
-            category: r.category,
-            country_code: r.country_code || 'IN',
-            meta_cost: r.meta_cost || 0.0128,
-            platform_rate: r.platform_rate,
-            currency: 'INR',
-            updated_by: null
-        }));
+        const upserts = rates.map(r => {
+            const countryCode = r.country_code || 'IN';
+            const metaCostFloor = getGlobalMetaCost(r.category, countryCode) || r.meta_cost || 0;
+
+            if (Number(r.platform_rate) < metaCostFloor) {
+                throw new Error(`Rate for ${r.category} (${countryCode}) cannot be below the cost floor of ${metaCostFloor}`);
+            }
+
+            return {
+                scope: scope || 'USER', // Allow frontend to specify TENANT or USER
+                user_id: userId,
+                category: r.category,
+                country_code: countryCode,
+                meta_cost: metaCostFloor,
+                platform_rate: r.platform_rate,
+                currency: 'INR',
+                updated_by: null
+            };
+        });
         
         const { error } = await supabaseAdmin
             .from('wa_message_rates')
@@ -515,7 +545,7 @@ router.post('/rates', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error setting rates:', error);
-        res.status(500).json({ error: error.message });
+        res.status(400).json({ error: error.message });
     }
 });
 

@@ -257,6 +257,7 @@ const dripCampaignRoutes = require('./routes/dripCampaigns');
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
 const walletAdminRoutes = require('./routes/admin/walletAdminRoutes');
+const reportRoutes = require('./routes/admin/reportRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
 const adminPlanRoutes = require('./routes/admin/planRoutes');
 const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
@@ -309,6 +310,7 @@ router.use('/upload', requireAuth, uploadRoutes);
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/wallet/admin', verifyAdminToken, walletAdminRoutes);
+router.use('/wallet/admin/reports', verifyAdminToken, reportRoutes);
 router.use('/wallet', requireAuth, walletRoutes); // Protected wallet routes
 app.use('/api/public-settings', require('./routes/publicSettings'));
 router.use('/admin/users', adminUserRoutes);

@@ -9,7 +9,9 @@ CREATE OR REPLACE FUNCTION transfer_reseller_balance(
     p_tenant_admin_user_id  UUID,       -- Tenant Admin being debited
     p_target_user_id        UUID,       -- End user being credited
     p_amount                NUMERIC,    -- Amount to transfer
-    p_description           TEXT DEFAULT NULL
+    p_description           TEXT DEFAULT NULL,
+    p_created_by            UUID DEFAULT NULL,
+    p_ip_address            TEXT DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -20,6 +22,10 @@ DECLARE
     v_target_wallet     public.user_wallets%ROWTYPE;
     v_master_new_bal    NUMERIC;
     v_target_new_bal    NUMERIC;
+    v_master_bal_before NUMERIC;
+    v_target_bal_before NUMERIC;
+    v_master_domain     TEXT;
+    v_target_domain     TEXT;
     v_debit_tx_id       UUID;
     v_credit_tx_id      UUID;
     v_desc              TEXT;
@@ -61,6 +67,12 @@ BEGIN
         RAISE EXCEPTION 'INSUFFICIENT_AGENCY_BALANCE: Master Wallet balance is ₹%. Tried to transfer ₹%.', v_master_wallet.balance, p_amount;
     END IF;
 
+    v_master_bal_before := v_master_wallet.balance;
+    v_target_bal_before := v_target_wallet.balance;
+
+    SELECT signup_domain INTO v_master_domain FROM public.profiles WHERE id = p_tenant_admin_user_id;
+    SELECT signup_domain INTO v_target_domain FROM public.profiles WHERE id = p_target_user_id;
+
     v_master_new_bal := v_master_wallet.balance - p_amount;
     v_target_new_bal := v_target_wallet.balance + p_amount;
     v_desc := COALESCE(p_description, 'Reseller top-up from Agency Master Wallet');
@@ -71,10 +83,12 @@ BEGIN
         WHERE user_id = p_tenant_admin_user_id;
 
     INSERT INTO public.wallet_transactions (
-        user_id, type, amount, balance_after, source, description
+        user_id, type, amount, balance_after, source, description,
+        balance_before, tenant_domain, created_by, ip_address
     ) VALUES (
         p_tenant_admin_user_id, 'DEBIT', p_amount, v_master_new_bal, 'ADMIN_TOPUP',
-        'Agency Master Wallet: Transferred ₹' || p_amount || ' to user ' || p_target_user_id
+        'Agency Master Wallet: Transferred ₹' || p_amount || ' to user ' || p_target_user_id,
+        v_master_bal_before, v_master_domain, p_created_by, p_ip_address
     ) RETURNING id INTO v_debit_tx_id;
 
     -- ── Credit Target User ──
@@ -83,10 +97,12 @@ BEGIN
         WHERE user_id = p_target_user_id;
 
     INSERT INTO public.wallet_transactions (
-        user_id, type, amount, balance_after, source, description
+        user_id, type, amount, balance_after, source, description,
+        balance_before, tenant_domain, created_by, ip_address
     ) VALUES (
         p_target_user_id, 'CREDIT', p_amount, v_target_new_bal, 'ADMIN_TOPUP',
-        v_desc || ' (from Agency Master Wallet)'
+        v_desc || ' (from Agency Master Wallet)',
+        v_target_bal_before, v_target_domain, p_created_by, p_ip_address
     ) RETURNING id INTO v_credit_tx_id;
 
     RETURN jsonb_build_object(

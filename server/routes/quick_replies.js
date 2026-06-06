@@ -270,7 +270,11 @@ router.post('/test-direct', async (req, res) => {
         const result = await whatsappService.sendMessage(
             user.id, to.replace(/\D/g, ''), msgType, content,
             null, false,
-            { walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined }
+            { 
+                walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined,
+                createdBy: req.staff?.id || req.user?.id,
+                ipAddress: req.ip || req.connection.remoteAddress
+            }
         );
         console.log(`[Test-Direct] Success. Meta ID: ${result?.messages?.[0]?.id}`);
         
@@ -320,7 +324,11 @@ router.post('/:id/test-send', async (req, res) => {
         const result = await whatsappService.sendMessage(
             user.id, to.replace(/\D/g, ''), msgType, content,
             null, false,
-            { walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined }
+            { 
+                walletSource: msgType === 'template' ? 'INBOX_SEND' : undefined,
+                createdBy: req.staff?.id || req.user?.id,
+                ipAddress: req.ip || req.connection.remoteAddress
+            }
         );
         console.log(`[Test-Send] Success. Meta ID: ${result?.messages?.[0]?.id}`);
 

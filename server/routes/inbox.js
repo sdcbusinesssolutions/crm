@@ -298,7 +298,9 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // Pass skipDBLog=true to prevent duplicate insertion by the service logger
         // Pass walletSource so wallet ledger shows INBOX_SEND (not default CAMPAIGN_SEND)
         const waResponse = await whatsappService.sendMessage(userId, conversation.contact_phone, type, content, null, true, {
-            walletSource: type === 'template' ? 'INBOX_SEND' : undefined
+            walletSource: 'INBOX_SEND',
+            createdBy: req.staff?.id || req.user?.id,
+            ipAddress: req.ip || req.connection.remoteAddress
         });
 
         // 4. Save to DB

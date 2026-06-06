@@ -225,7 +225,9 @@ class WhatsAppService {
                      contactPhone: to,
                      flowId: options.flowId || null,
                      dripCampaignId: options.dripCampaignId || null,
-                     whatsappAccountId: fromPhoneId
+                     whatsappAccountId: fromPhoneId,
+                     createdBy: options.createdBy,
+                     ipAddress: options.ipAddress
                  }).catch(err => console.error('[Wallet] Pre-debit failed:', err));
             }
 
