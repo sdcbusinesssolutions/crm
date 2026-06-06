@@ -188,15 +188,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     // Fetch lead ID for the active chat
     useEffect(() => {
         if (activeChat) {
-            getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone }).then(res => {
+            getLeads(undefined, undefined, 1, 10, { search: activeChat.contact_phone }).then(res => {
                 // Handle both paginated { data: [] } and direct array [] responses
                 const leadsData = (res as any).data || res;
                 const leads = Array.isArray(leadsData) ? leadsData : [];
 
                 if (leads && leads.length > 0) {
-                    setActiveLeadId(leads[0].id);
+                    const leadWithAssignment = leads.find(l => Array.isArray(l.assigned_staff_ids) && l.assigned_staff_ids.length > 0) || leads[0];
+                    setActiveLeadId(leadWithAssignment.id);
                     // Resolve assigned staff names
-                    const ids: string[] = leads[0].assigned_staff_ids || [];
+                    const ids: string[] = leadWithAssignment.assigned_staff_ids || [];
                     
                     // Only update names if we actually have staff members loaded to compare against
                     // This prevents "flicker" where names disappear during a refresh
@@ -1995,9 +1996,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 <span className="text-[11px] text-slate-500 font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
                                                 <div onClick={(e) => e.stopPropagation()} className="flex items-center shrink-0">
                                                     <LeadAssignment 
-                                                        contact={{...chat, assigned_staff_ids: chat.assigned_to ? [chat.assigned_to] : []}} 
+                                                        contact={{ ...chat, assigned_staff_ids: chat.assigned_to ? [chat.assigned_to] : [] }} 
                                                         leadId={chat.id} 
                                                         showNames={false}
+                                                        isConversationId={true}
                                                         onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
                                                         className="p-1 rounded-full transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
                                                     />
@@ -2200,59 +2202,60 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg">
                                     <SearchIcon className="w-5 h-5" />
                                 </button>
-                                {activeLeadId ? (
-                                    <LeadAssignment 
-                                        leadId={activeLeadId} 
-                                        showNames={false}
-                                        className="p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 relative"
-                                        onAssigned={() => {
-                                            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-                                            // Refresh assigned staff names
-                                            getLead(activeLeadId).then((lead: any) => {
+                                <LeadAssignment 
+                                    leadId={activeLeadId || activeChat.id} 
+                                    contact={{ ...activeChat, assigned_staff_ids: activeChat.assigned_to ? [activeChat.assigned_to] : [] }}
+                                    showNames={true}
+                                    isConversationId={!activeLeadId}
+                                    className="p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 relative"
+                                    onAssigned={() => {
+                                        loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
+                                        // Refresh assigned staff names
+                                        const actualLeadId = activeLeadId || activeChat.id;
+                                        if (!activeLeadId) {
+                                            // Trigger a re-fetch of the active lead since one might have been created
+                                            getLeads(undefined, undefined, 1, 10, { search: activeChat.contact_phone })
+                                                .then((res: any) => {
+                                                    const leads = res.data || res;
+                                                    if (Array.isArray(leads) && leads.length > 0) {
+                                                        const leadWithAssignment = leads.find(l => Array.isArray(l.assigned_staff_ids) && l.assigned_staff_ids.length > 0) || leads[0];
+                                                        setActiveLeadId(leadWithAssignment.id);
+                                                    }
+                                                }).catch(console.error);
+                                        }
+                                        
+                                        // Only attempt to fetch lead if it's a real lead ID
+                                        if (activeLeadId || (actualLeadId && actualLeadId.startsWith('ld-'))) {
+                                            getLead(activeLeadId || actualLeadId).then((lead: any) => {
                                                 const ids: string[] = lead?.assigned_staff_ids || [];
                                                 if (ids.length > 0 && staffMembers.length > 0) {
                                                     setAssignedStaffNames(ids.map((sid: string) => staffMembers.find((s: any) => s.id === sid)?.name).filter(Boolean));
                                                 } else {
                                                     setAssignedStaffNames([]);
                                                 }
-
+    
                                                 // Sync with conversation table so "Mine" filter works
                                                 if (activeChatId && ids.length > 0) {
-                                                    // For now, we sync the first assigned staff to the single 'assigned_to' column
-                                                    // In the future, we might support multiple assignments in conversations too
                                                     inboxService.assignConversation(activeChatId, ids[0]).catch(console.error);
                                                 }
                                             }).catch(console.error);
-                                        }}
-                                    />
-                                ) : (
-                                    <button
-                                        onClick={async () => {
-                                            if (!activeChat) return;
-                                            try {
-                                                const { getLeads, createLead } = await import('../services/lead-management-api');
-                                                const res = await getLeads(undefined, undefined, 1, 1, { search: activeChat.contact_phone });
-                                                const leads = (res as any).data || res;
-                                                if (Array.isArray(leads) && leads.length > 0) {
-                                                    setActiveLeadId(leads[0].id);
-                                                } else {
-                                                    const newLead = await createLead({
-                                                        name: activeChat.contact_name || activeChat.contact_phone,
-                                                        phone: activeChat.contact_phone,
-                                                        status: 'new',
-                                                    });
-                                                    if (newLead) setActiveLeadId(newLead.id);
+                                        } else {
+                                            // Fallback refresh for conversations where lead hasn't been fetched yet
+                                            setTimeout(() => {
+                                                if (activeChatId) {
+                                                    inboxService.getConversations(1, 10, 'all', undefined, activeChat.contact_phone)
+                                                        .then((res: any) => {
+                                                            const conv = res.data?.[0];
+                                                            if (conv?.assigned_to) {
+                                                                const staff = staffMembers.find((s: any) => s.id === conv.assigned_to);
+                                                                if (staff) setAssignedStaffNames([staff.name]);
+                                                            }
+                                                        }).catch(console.error);
                                                 }
-                                            } catch (err) { console.error('Failed to init lead for assignment:', err); }
-                                        }}
-                                        className="p-2 text-[#00684a] hover:bg-emerald-50 rounded-lg transition-colors"
-                                        title="Assign Team"
-                                    >
-                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                                        </svg>
-                                    </button>
-                                )}
+                                            }, 500);
+                                        }
+                                    }}
+                                />
                                 {canWrite && (
                                     <button
                                         onClick={() => setIsClearChatModalOpen(true)}

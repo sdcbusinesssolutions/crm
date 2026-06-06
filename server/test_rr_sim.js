@@ -1,58 +1,11 @@
-const { supabaseAdmin } = require('./lib/supabaseClient');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
 
-async function testSim() {
-    const userId = '1dd0acd9-090a-4c64-896e-4db51c775902';
-    const staffIds = [
-        '550da64f-b6e9-4e76-805c-35d564ef2d97', // u1
-        'd759d5dc-c27d-4767-9d7a-1fdbab51ed6b', // u2
-        '2dd428b4-ef55-46f9-aa2b-58bbceb26a63'  // u3
-    ]; 
-    const contactPhone = '919373393645'; // User's test phone
+const supabaseAdmin = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-    for(let i = 0; i < 3; i++) {
-        // Round robin logic
-        const { data: lastLeads } = await supabaseAdmin
-            .from('leads')
-            .select('assigned_staff_ids, created_at, phone')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-        let lastAssignedId = null;
-        if (lastLeads) {
-            for (const lead of lastLeads) {
-                const ids = lead.assigned_staff_ids || [];
-                const match = ids.find(id => staffIds.includes(id));
-                if (match) {
-                    lastAssignedId = match;
-                    break;
-                }
-            }
-        }
-
-        let assignedStaffId = null;
-        if (!lastAssignedId) {
-            assignedStaffId = staffIds[0];
-        } else {
-            const currentIndex = staffIds.indexOf(lastAssignedId);
-            if (currentIndex === -1 || currentIndex === staffIds.length - 1) {
-                assignedStaffId = staffIds[0];
-            } else {
-                assignedStaffId = staffIds[currentIndex + 1];
-            }
-        }
-
-        console.log(`[SIM ${i}] Decided to assign to: ${assignedStaffId}`);
-
-        // Update the lead
-        const { error } = await supabaseAdmin
-            .from('leads')
-            .update({ assigned_staff_ids: [assignedStaffId] })
-            .eq('user_id', userId)
-            .eq('phone', contactPhone);
-            
-        // small delay
-        await new Promise(r => setTimeout(r, 1000));
-    }
+async function testRoundRobin() {
+    const userId = "c656e1bc-ab2d-4cc8-aa6c-0dfce933dd78"; // user 1
+    const { data: authData } = await supabaseAdmin.auth.admin.getUserById(userId);
+    console.log("Current Auto Assign Settings:", authData.user.user_metadata?.team_settings?.auto_assign);
 }
-testSim();
+testRoundRobin();

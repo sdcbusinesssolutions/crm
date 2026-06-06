@@ -500,6 +500,77 @@ const processWebhookLogic = async (req, res, userId, phoneNumberId) => {
     return handleWebhookEvent(req, res, userId, phoneNumberId);
 };
 
+// Global Auto Assignment Logic
+async function handleGlobalAutoAssign(userId, contactPhone, contactName, conversationId) {
+    try {
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (authError || !authData || !authData.user) return;
+        
+        const settings = authData.user.user_metadata?.team_settings?.auto_assign;
+        if (!settings || !settings.enabled || !settings.staff_ids || settings.staff_ids.length === 0) {
+            return;
+        }
+
+        const pool = settings.staff_ids;
+        let lastIndex = settings.last_assigned_index || 0;
+        let nextIndex = (lastIndex + 1) % pool.length;
+        
+        // Extra safety check in case of unexpected pool mutations
+        if (isNaN(nextIndex) || nextIndex < 0) nextIndex = 0;
+        
+        const assignedStaffId = pool[nextIndex];
+        if (!assignedStaffId) return;
+
+        // Update user metadata with new index
+        const updatedSettings = {
+            ...authData.user.user_metadata,
+            team_settings: {
+                ...authData.user.user_metadata.team_settings,
+                auto_assign: {
+                    ...settings,
+                    last_assigned_index: nextIndex
+                }
+            }
+        };
+        await supabaseAdmin.auth.admin.updateUserById(userId, { user_metadata: updatedSettings });
+
+        // Update Conversation
+        await supabaseAdmin.from('conversations')
+            .update({ assigned_to: assignedStaffId })
+            .eq('id', conversationId);
+
+        // Update or Create Lead
+        const { data: leadData } = await supabaseAdmin.from('leads')
+            .select('id, assigned_staff_ids')
+            .eq('user_id', userId)
+            .eq('phone', contactPhone)
+            .limit(1)
+            .maybeSingle();
+
+        if (leadData) {
+            let currentIds = leadData.assigned_staff_ids || [];
+            if (!currentIds.includes(assignedStaffId)) {
+                await supabaseAdmin.from('leads')
+                    .update({ assigned_staff_ids: [...currentIds, assignedStaffId] })
+                    .eq('id', leadData.id);
+            }
+        } else {
+            await supabaseAdmin.from('leads').insert({
+                user_id: userId,
+                phone: contactPhone,
+                name: contactName !== '~' ? contactName : 'Unknown Contact',
+                assigned_staff_ids: [assignedStaffId],
+                pipeline_id: null,
+                stage_id: null,
+                status: 'new'
+            });
+        }
+        console.log(`[Global Auto-Assign] Assigned ${contactPhone} to staff ${assignedStaffId}`);
+    } catch (err) {
+        console.error('[Global Auto-Assign] Error:', err);
+    }
+}
+
 // Legacy Parameterized POST (Keeping for backward compatibility)
 router.post('/:userId/:phoneNumberId/webhook', async (req, res) => {
     const { userId, phoneNumberId } = req.params;
@@ -1239,13 +1310,18 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // 2. Upsert Conversation
                 let conversationId = null;
-                const { data: convData } = await supabaseAdmin.from('conversations').select('id, unread_count').eq('user_id', userId).eq('contact_phone', contactPhone).maybeSingle();
+                const { data: convData } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).maybeSingle();
                 if (convData) {
                     conversationId = convData.id;
                     await supabaseAdmin.from('conversations').update({ last_message: lastMessagePreview, unread_count: (convData.unread_count || 0) + 1, updated_at: new Date(extracted.timestamp * 1000).toISOString(), contact_name: contactName !== '~' ? contactName : undefined }).eq('id', conversationId);
                 } else {
                     const { data: newConv } = await supabaseAdmin.from('conversations').insert({ user_id: userId, contact_phone: contactPhone, contact_name: contactName, last_message: lastMessagePreview, unread_count: 1, updated_at: new Date(extracted.timestamp * 1000).toISOString() }).select().single();
                     conversationId = newConv?.id;
+                }
+
+                // Global Auto Assignment for new or unassigned conversations
+                if (!convData || !convData.assigned_to) {
+                    handleGlobalAutoAssign(userId, contactPhone, contactName, conversationId).catch(err => console.error('[AutoAssign]', err));
                 }
 
                 // 3. Insert Message IMMEDIATELY (with media_url = null for now if media)

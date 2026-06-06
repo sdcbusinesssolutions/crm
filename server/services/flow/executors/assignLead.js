@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../../../lib/supabaseClient');
+const logger = require('../../../utils/logger');
 
 class AssignLeadExecutor {
     async execute(session, node, context) {
@@ -31,13 +32,14 @@ class AssignLeadExecutor {
                     const existingStaffId = currentLead.assigned_staff_ids[0];
                     // If the lead's current agent is in our selected pool, KEEP THEM!
                     if (staffIds.includes(existingStaffId)) {
-                        console.log(`[AssignLead] Lead ${contactPhone} already assigned to ${existingStaffId}. Keeping assignment.`);
-                        
                         let existingStaffName = 'Agent';
                         const { data: staffData } = await supabaseAdmin.from('team_staff').select('name').eq('id', existingStaffId).single();
                         if (staffData) {
                             existingStaffName = staffData.name;
                         }
+
+                        console.log(`[AssignLead] Lead ${contactPhone} already assigned to ${existingStaffId} (${existingStaffName}). Keeping assignment.`);
+                        logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Kept existing assignment for phone ${contactPhone} to staff ${existingStaffId} (${existingStaffName})` });
 
                         // Ensure conversation routes to them, but don't touch lead updated_at so Round Robin isn't affected
                         await supabaseAdmin
@@ -116,53 +118,60 @@ class AssignLeadExecutor {
             let staffName = 'Agent';
 
             if (assignedStaffId) {
-                console.log(`[AssignLead] Assigning lead ${contactPhone} to staff ${assignedStaffId}`);
-                
                 // Get Staff Name
                 const { data: staffData } = await supabaseAdmin.from('team_staff').select('name').eq('id', assignedStaffId).single();
                 if (staffData) {
                     staffName = staffData.name;
                 }
 
-                // 1. Update the lead's assigned_staff_ids field (array format)
-                const { data: existingLeads } = await supabaseAdmin
+                console.log(`[AssignLead] Assigning lead ${contactPhone} to staff ${assignedStaffId} (${staffName})`);
+                logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Starting assignment process for phone ${contactPhone} to staff ${assignedStaffId} (${staffName})` });
+
+                // 1. Update or Create Lead
+                const { data: existingLeadData } = await supabaseAdmin
                     .from('leads')
-                    .select('id')
+                    .select('id, assigned_staff_ids')
                     .eq('user_id', userId)
                     .eq('phone', contactPhone)
-                    .limit(1);
+                    .limit(1)
+                    .maybeSingle();
 
-                if (existingLeads && existingLeads.length > 0) {
-                    const { error: leadError } = await supabaseAdmin
-                        .from('leads')
-                        .update({ 
-                            assigned_staff_ids: [assignedStaffId],
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId)
-                        .eq('phone', contactPhone);
-                    
-                    if (leadError) {
-                        console.error(`[AssignLead] Error updating lead assigned_staff_ids:`, leadError);
+                if (existingLeadData) {
+                    let currentIds = existingLeadData.assigned_staff_ids || [];
+                    if (!currentIds.includes(assignedStaffId)) {
+                        const { error: leadError } = await supabaseAdmin
+                            .from('leads')
+                            .update({ 
+                                assigned_staff_ids: [...currentIds, assignedStaffId],
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', existingLeadData.id);
+                        if (leadError) {
+                            console.error(`[AssignLead] Error updating lead assigned_staff_ids:`, leadError);
+                        } else {
+                            console.log(`[AssignLead] Appended staff ${assignedStaffId} (${staffName}) to existing lead ${existingLeadData.id}`);
+                            logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Appended staff ${assignedStaffId} (${staffName}) to existing lead ${existingLeadData.id} for phone ${contactPhone}` });
+                        }
+                    } else {
+                        console.log(`[AssignLead] Staff ${assignedStaffId} (${staffName}) is already assigned to lead ${existingLeadData.id}`);
+                        logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Staff ${assignedStaffId} (${staffName}) already assigned to lead ${existingLeadData.id} for phone ${contactPhone}` });
                     }
                 } else {
-                    const { error: leadError } = await supabaseAdmin
-                        .from('leads')
-                        .insert([{
-                            user_id: userId,
-                            phone: contactPhone,
-                            name: session.contact_name || contactPhone,
-                            assigned_staff_ids: [assignedStaffId],
-                            status: 'active',
-                            source: 'whatsapp_flow',
-                            type: 'Lead',
-                            custom_data: { assigned_staff_ids: [assignedStaffId] },
-                            created_at: new Date().toISOString(),
-                            updated_at: new Date().toISOString()
-                        }]);
-
+                    const { data: newLead, error: leadError } = await supabaseAdmin.from('leads').insert({
+                        user_id: userId,
+                        phone: contactPhone,
+                        name: 'Unknown Contact',
+                        assigned_staff_ids: [assignedStaffId],
+                        pipeline_id: null,
+                        stage_id: null,
+                        status: 'new'
+                    }).select('id').single();
+                    
                     if (leadError) {
-                        console.error(`[AssignLead] Error creating lead assigned_staff_ids:`, leadError);
+                        console.error(`[AssignLead] Error creating lead for assignment:`, leadError);
+                    } else {
+                        console.log(`[AssignLead] Created new lead ${newLead?.id} and assigned staff ${assignedStaffId} (${staffName})`);
+                        logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Created new lead ${newLead?.id} and assigned staff ${assignedStaffId} (${staffName}) for phone ${contactPhone}` });
                     }
                 }
                 
@@ -175,6 +184,8 @@ class AssignLeadExecutor {
                     
                 if (convError) {
                     console.error(`[AssignLead] Error updating conversation assigned_to:`, convError);
+                } else {
+                    console.log(`[AssignLead] Updated conversation assigned_to with ${assignedStaffId}`);
                 }
             }
 
@@ -182,7 +193,8 @@ class AssignLeadExecutor {
             return {
                 status: 'success',
                 assignedStaffId: assignedStaffId,
-                assignedStaffName: staffName
+                assignedStaffName: staffName,
+                message: `Assigned to ${staffName}`
             };
 
         } catch (err) {

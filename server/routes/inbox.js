@@ -55,9 +55,24 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
         if (quickFilter === 'Unassigned') {
             query = query.is('assigned_to', null);
         } else if (quickFilter === 'Mine') {
-            // Note: In your DB 'me' might be the literal string 'me' or the actual userId.
-            // Based on frontend logic (chat.assigned_to !== 'me'), it looks like 'me' is a literal.
-            query = query.eq('assigned_to', 'me');
+            const currentUserId = req.staff ? req.staff.staffId : userId;
+            
+            // First get all leads assigned to this user
+            const { data: myLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [currentUserId]);
+                
+            const myPhones = (myLeads || []).map(l => l.phone).filter(Boolean);
+            
+            if (myPhones.length > 0) {
+                // If they have assigned leads, show those OR conversations explicitly assigned to them
+                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${myPhones.join(',')})`);
+            } else {
+                // If no leads, just check conversation direct assignment
+                query = query.eq('assigned_to', currentUserId);
+            }
         }
 
         if (filterTag) {
@@ -119,6 +134,7 @@ router.get('/messages/:conversationId', requirePermission('Inbox', 'read'), asyn
                 .eq('user_id', userId)
                 .eq('phone', ownedConv.contact_phone)
                 .contains('assigned_staff_ids', [req.staff.staffId])
+                .limit(1)
                 .maybeSingle();
 
             if (!assignedLead) {

@@ -202,6 +202,16 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                 : (data.custom_data && data.custom_data.assigned_staff_ids) || [];
         }
 
+        if (staffIds.length > 0 && data.phone) {
+            try {
+                const { supabaseAdmin } = require('../lib/supabaseClient');
+                await supabaseAdmin.from('conversations')
+                    .update({ assigned_to: staffIds[0] })
+                    .eq('user_id', user.id)
+                    .eq('contact_phone', data.phone);
+            } catch(e) { console.error('Error updating conversation assignment', e); }
+        }
+
         try {
             logCRMEvent('CREATE_LEAD', {
                 leadId: data.id,
@@ -251,7 +261,7 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         // 1. Verify lead exists and belongs to this tenant/user
         let checkQuery = supabase
             .from('leads')
-            .select('user_id, custom_data')
+            .select('user_id, custom_data, phone')
             .eq('id', req.params.id);
 
         if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -277,6 +287,21 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
                 ...(updates.custom_data || {}),
                 assigned_staff_ids: updates.assigned_staff_ids
             };
+            
+            if (leadCheck.phone) {
+                try {
+                    const firstStaffId = (Array.isArray(updates.assigned_staff_ids) && updates.assigned_staff_ids.length > 0) ? updates.assigned_staff_ids[0] : null;
+                    const normalizedPhone = leadCheck.phone.replace('+', '');
+                    const { supabaseAdmin } = require('../lib/supabaseClient');
+                    const { error } = await supabaseAdmin.from('conversations')
+                        .update({ assigned_to: firstStaffId })
+                        .eq('user_id', leadCheck.user_id)
+                        .eq('contact_phone', normalizedPhone);
+                    if (error) {
+                        console.error('Supabase update error for conversation assignment:', error.message);
+                    }
+                } catch(e) { console.error('Error updating conversation assignment', e); }
+            }
         }
 
         const { data, error } = await supabase
