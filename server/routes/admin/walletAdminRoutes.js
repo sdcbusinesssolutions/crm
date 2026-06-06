@@ -7,6 +7,20 @@ const { supabaseAdmin } = require('../../lib/supabaseClient');
 router.get('/balance/:userId', async (req, res) => {
     try {
         const wallet = await WalletService.getWallet(req.params.userId);
+
+        // Fetch user's domain and settings to inform the frontend
+        const { data: profile } = await supabaseAdmin.from('profiles').select('signup_domain').eq('id', req.params.userId).single();
+        if (profile && profile.signup_domain) {
+            const { data: domainSettings } = await supabaseAdmin.from('domain_wallet_settings').select('allow_tenant_billing_control, default_billing_mode').eq('domain', profile.signup_domain).single();
+            if (domainSettings) {
+                wallet.allow_tenant_billing_control = domainSettings.allow_tenant_billing_control;
+                wallet.default_billing_mode = domainSettings.default_billing_mode;
+            } else {
+                wallet.allow_tenant_billing_control = true;
+                wallet.default_billing_mode = 'CREDIT_LINE_SUPER';
+            }
+        }
+
         res.json(wallet);
     } catch (error) {
         console.error('Error fetching admin user balance:', error);
@@ -372,19 +386,36 @@ router.post('/topup-master', async (req, res) => {
             return res.status(403).json({ error: 'Forbidden: Only Super Admins can recharge a Master Wallet.' });
         }
 
-        const { tenantAdminUserId, amount, description } = req.body;
-        if (!tenantAdminUserId || !amount) {
-            return res.status(400).json({ error: 'tenantAdminUserId and amount required' });
+        const { tenantAdminUserId, domain, amount, description } = req.body;
+        if ((!tenantAdminUserId && !domain) || !amount) {
+            return res.status(400).json({ error: 'tenantAdminUserId or domain, and amount required' });
+        }
+
+        let targetUserId = tenantAdminUserId;
+
+        // If domain is provided, find the tenant admin user ID
+        if (!targetUserId && domain) {
+            const { data: adminProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('signup_domain', domain)
+                .eq('role', 'admin')
+                .maybeSingle();
+                
+            if (!adminProfile) {
+                return res.status(404).json({ error: 'Tenant Admin has not signed up yet for this domain. Please ask them to register first before recharging their Agency Wallet.' });
+            }
+            targetUserId = adminProfile.id;
         }
 
         // Ensure the Tenant Admin Master Wallet row exists
         const { error: initError } = await supabaseAdmin
-            .rpc('ensure_tenant_master_wallet', { p_tenant_admin_user_id: tenantAdminUserId });
+            .rpc('ensure_tenant_master_wallet', { p_tenant_admin_user_id: targetUserId });
         if (initError) throw initError;
 
         // Credit the Master Wallet directly (Super Admin creates money from thin air here)
         const result = await WalletService.addCredit(
-            tenantAdminUserId, Number(amount), 'ADMIN_TOPUP',
+            targetUserId, Number(amount), 'ADMIN_TOPUP',
             description || 'Super Admin wholesale credit to Agency Master Wallet',
             true // is_tenant_master flag
         );

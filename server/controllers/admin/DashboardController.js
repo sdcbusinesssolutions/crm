@@ -328,12 +328,13 @@ exports.getTenantsList = async (req, res) => {
         if (!supabaseAdmin) return res.status(500).json({ message: 'DB Connection Error' });
 
         // Fetch all necessary data via supabaseAdmin to bypass RLS issues
-        const [domainsRes, limitsRes, plansRes, profilesRes, walletsRes] = await Promise.all([
+        const [domainsRes, limitsRes, plansRes, profilesRes, walletsRes, walletSettingsRes] = await Promise.all([
             supabaseAdmin.from('domain_settings').select('domain, brand_name'),
             supabaseAdmin.from('tenant_limits').select('domain, user_limit'),
             supabaseAdmin.from('tenant_plans').select('domain, plan_name, status, expires_at'),
             supabaseAdmin.from('profiles').select('id, signup_domain'),
-            supabaseAdmin.from('user_wallets').select('user_id, balance, wallet_enforced')
+            supabaseAdmin.from('user_wallets').select('user_id, balance, wallet_enforced'),
+            supabaseAdmin.from('domain_wallet_settings').select('domain, default_billing_mode, allow_tenant_billing_control')
         ]);
 
         if (domainsRes.error) throw domainsRes.error;
@@ -341,6 +342,7 @@ exports.getTenantsList = async (req, res) => {
         const limitMap = new Map((limitsRes.data || []).map(l => [l.domain, l.user_limit]));
         const planMap = new Map((plansRes.data || []).map(p => [p.domain, p]));
         const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w]));
+        const walletSettingsMap = new Map((walletSettingsRes?.data || []).map(s => [s.domain, s]));
         
         const countMap = new Map();
         const tenantWalletStats = new Map();
@@ -364,6 +366,7 @@ exports.getTenantsList = async (req, res) => {
 
         const tenants = (domainsRes.data || []).map(ds => {
             const plan = planMap.get(ds.domain) || {};
+            const ws = walletSettingsMap.get(ds.domain) || { default_billing_mode: 'CREDIT_LINE_SUPER', allow_tenant_billing_control: true };
             return {
                 domain: ds.domain,
                 brand_name: ds.brand_name || 'Unknown',
@@ -374,7 +377,9 @@ exports.getTenantsList = async (req, res) => {
                 plan_expires_at: plan.expires_at || null,
                 wallet_balance: tenantWalletStats.get(ds.domain)?.balance || 0,
                 wallet_enforced: tenantWalletStats.get(ds.domain)?.enforced || false,
-                admin_email: `Admin@${ds.domain}`
+                admin_email: `Admin@${ds.domain}`,
+                default_billing_mode: ws.default_billing_mode,
+                allow_tenant_billing_control: ws.allow_tenant_billing_control
             };
         });
 

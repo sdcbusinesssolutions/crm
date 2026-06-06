@@ -42,6 +42,8 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
     const [masterBalance, setMasterBalance] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [allowTenantControl, setAllowTenantControl] = useState(true);
+    const [domainDefaultBillingMode, setDomainDefaultBillingMode] = useState('CREDIT_LINE_SUPER');
 
     useEffect(() => {
         if (isOpen && user) {
@@ -60,7 +62,9 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 const data = await res.json();
                 setCurrentBalance(data.balance);
                 setWalletEnforced(data.wallet_enforced);
-                setBillingMode(data.billing_mode || 'CREDIT_LINE_SUPER');
+                setBillingMode(data.billing_mode || data.default_billing_mode || 'CREDIT_LINE_SUPER');
+                setAllowTenantControl(data.allow_tenant_billing_control ?? true);
+                setDomainDefaultBillingMode(data.default_billing_mode || 'CREDIT_LINE_SUPER');
             } else {
                 setCurrentBalance('Error');
             }
@@ -201,7 +205,12 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Credit Line / Billing Mode</label>
                     <div className="space-y-2">
-                        {BILLING_MODE_OPTIONS.map(mode => (
+                        {BILLING_MODE_OPTIONS.filter(mode => {
+                            if (isSuperAdmin) return true;
+                            // Tenant Admins cannot select Tenant Agency Credit Line if SuperAdmin disabled it
+                            if (mode.value === 'CREDIT_LINE_TENANT' && !allowTenantControl) return false;
+                            return true;
+                        }).map(mode => (
                             <label
                                 key={mode.value}
                                 className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
