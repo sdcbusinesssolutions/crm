@@ -7,10 +7,13 @@ const AuthPage: React.FC = () => {
     const { settings } = useTheme();
 
     // Automatic Domain-Based Brand Name
-    const hostname = typeof window !== 'undefined' ? window.location.hostname.replace(/^app\./i, '') : '';
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    let cleanHost = hostname.replace(/^(app|api|wapi|crm|www)\./i, '');
+    cleanHost = cleanHost.split('.')[0] || 'MarketingPlatform';
+
     const displayBrandName = (settings?.brand_name && settings.brand_name.toLowerCase() !== 'app') 
         ? settings.brand_name 
-        : (hostname ? hostname.charAt(0).toUpperCase() + hostname.slice(1) : 'MarketingPlatform');
+        : (cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1));
 
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
@@ -314,7 +317,7 @@ const AuthPage: React.FC = () => {
                             </svg>
                         </div>
                     )}
-                    <span className="text-xl font-bold tracking-tight animate-brand-light drop-shadow-sm">{displayBrandName}</span>
+                    <span className="text-xl font-bold tracking-tight animate-brand-light drop-shadow-sm truncate max-w-[180px] sm:max-w-[250px] lg:max-w-[300px]">{displayBrandName}</span>
                 </div>
 
                 {/* Massive Animated WhatsApp Icon Setup */}
@@ -405,7 +408,7 @@ const AuthPage: React.FC = () => {
                         {isSignUp ? (
                             <>Scale your <span className="text-[#25D366]">sales</span><br/>with automated chats.</>
                         ) : (
-                            <>Welcome to<br/><span className="animate-brand-light drop-shadow-sm">{displayBrandName}</span></>
+                            <>Welcome to<br/><span className="animate-brand-light drop-shadow-sm break-all whitespace-normal block leading-tight">{displayBrandName}</span></>
                         )}
                     </h1>
                     
@@ -455,7 +458,10 @@ const AuthPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Welcome to <span className="animate-brand-dark">{displayBrandName}</span></h2>
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 flex flex-col items-center text-center leading-tight">
+                                <span>Welcome to</span>
+                                <span className="animate-brand-dark break-all whitespace-normal w-full">{displayBrandName}</span>
+                            </h2>
                             <p className="text-slate-500 font-medium">Sign in to your workspace to continue.</p>
                         </div>
 
