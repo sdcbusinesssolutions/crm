@@ -5,6 +5,13 @@ import { useTheme } from '../contexts/ThemeContext';
 
 const AuthPage: React.FC = () => {
     const { settings } = useTheme();
+
+    // Automatic Domain-Based Brand Name
+    const hostname = typeof window !== 'undefined' ? window.location.hostname.replace(/^app\./i, '') : '';
+    const displayBrandName = (settings?.brand_name && settings.brand_name.toLowerCase() !== 'app') 
+        ? settings.brand_name 
+        : (hostname ? hostname.charAt(0).toUpperCase() + hostname.slice(1) : 'MarketingPlatform');
+
     const [isSignUp, setIsSignUp] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -200,95 +207,359 @@ const AuthPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden"
-            style={{ '--brand-color': settings.primary_color } as React.CSSProperties} >
+        <div className="min-h-screen flex w-full font-sans bg-white relative overflow-hidden" style={{ '--brand-color': settings.primary_color } as React.CSSProperties}>
+            <style>{`
+                @keyframes float {
+                    0% { transform: translateY(0px) scale(1) rotate(0deg); }
+                    33% { transform: translateY(-30px) scale(1.1) rotate(5deg); }
+                    66% { transform: translateY(20px) scale(0.9) rotate(-5deg); }
+                    100% { transform: translateY(0px) scale(1) rotate(0deg); }
+                }
+                @keyframes float-reverse {
+                    0% { transform: translateY(0px) scale(1) rotate(0deg); }
+                    33% { transform: translateY(30px) scale(0.9) rotate(-5deg); }
+                    66% { transform: translateY(-20px) scale(1.1) rotate(5deg); }
+                    100% { transform: translateY(0px) scale(1) rotate(0deg); }
+                }
+                @keyframes slide-dots {
+                    0% { background-position: 0px 0px; }
+                    100% { background-position: 32px 32px; }
+                }
+                .animate-float {
+                    animation: float 20s ease-in-out infinite;
+                }
+                .animate-float-delayed {
+                    animation: float-reverse 25s ease-in-out infinite;
+                }
+                .animate-dots {
+                    animation: slide-dots 4s linear infinite;
+                }
+                @keyframes icon-float {
+                    0%, 100% { transform: translateY(0); }
+                    50% { transform: translateY(-6px); }
+                }
+                .animate-icon-float {
+                    animation: icon-float 3s ease-in-out infinite;
+                }
+                @keyframes pulse-ring {
+                    0% { transform: scale(0.9); opacity: 0.8; }
+                    100% { transform: scale(1.3); opacity: 0; }
+                }
+                .animate-pulse-ring {
+                    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+                /* 3D Flip Utilities */
+                .perspective-1000 { perspective: 1000px; }
+                .preserve-3d { transform-style: preserve-3d; }
+                .backface-hidden { backface-visibility: hidden; }
+                .rotate-y-180 { transform: rotateY(180deg); }
 
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-brand-500/5 rounded-full blur-3xl" />
-                <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-blue-500/5 rounded-full blur-3xl" />
-            </div>
+                /* Automatic Popup Animation */
+                @keyframes auto-popup {
+                    0%, 100% { opacity: 0; transform: scale(0.9) translateX(-10px); }
+                    15%, 85% { opacity: 1; transform: scale(1) translateX(0); }
+                }
+                .animate-popup-0 { animation: auto-popup 15s cubic-bezier(0.4, 0, 0.2, 1) infinite 0s; }
+                .animate-popup-1 { animation: auto-popup 15s cubic-bezier(0.4, 0, 0.2, 1) infinite 3s; }
+                .animate-popup-2 { animation: auto-popup 15s cubic-bezier(0.4, 0, 0.2, 1) infinite 6s; }
+                .animate-popup-3 { animation: auto-popup 15s cubic-bezier(0.4, 0, 0.2, 1) infinite 9s; }
+                .animate-popup-4 { animation: auto-popup 15s cubic-bezier(0.4, 0, 0.2, 1) infinite 12s; }
 
-            <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 w-full max-w-md relative z-10 animate-slide-up">
-                <div className="text-center mb-8">
-                    {/* DYNAMIC LOGO */}
-                    {settings.logo_url && (
-                        <img src={settings.logo_url} alt={settings.brand_name} className="h-12 mx-auto mb-4" />
-                    )}
-
-                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                        {isSignUp ? `Join ${settings.brand_name}` : `Login to ${settings.brand_name}`}
-                    </h1>
-                    <p className="text-slate-500 text-sm mt-2">
-                        {isSignUp ? 'Start building automated flows today.' : 'Sign in to continue to your workspace.'}
-                    </p>
+                /* Brand Name Shimmer Animations */
+                @keyframes text-shimmer {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .animate-brand-light {
+                    background: linear-gradient(90deg, #ffffff, #25D366, #ffffff);
+                    background-size: 200% auto;
+                    color: transparent;
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    animation: text-shimmer 4s ease infinite;
+                }
+                .animate-brand-dark {
+                    background: linear-gradient(90deg, #0f172a, #25D366, #0f172a);
+                    background-size: 200% auto;
+                    color: transparent;
+                    -webkit-background-clip: text;
+                    background-clip: text;
+                    animation: text-shimmer 4s ease infinite;
+                }
+            `}</style>
+            
+            {/* Left Side - Brand Visuals (Always Left) */}
+            {/* Left Side - Brand Visuals (Always Left) */}
+            <div className="hidden lg:flex lg:w-[55%] relative bg-gradient-to-br from-[#0a1e16] via-[#153e28] to-[#21b859] overflow-hidden flex-col justify-between p-12">
+                {/* Dynamic Background Effects */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full blur-[120px] bg-[#128C7E]/50 animate-float"></div>
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[800px] h-[800px] rounded-full blur-[140px] bg-[#25D366]/70 animate-float-delayed"></div>
+                    
+                    {/* Simulated Chat Pattern Overlay */}
+                    <div className="absolute inset-0 opacity-[0.3]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.15) 1.5px, transparent 0)', backgroundSize: '32px 32px' }}></div>
                 </div>
 
-                {error && (
-                    <div className="mb-6 p-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-lg font-medium">
-                        {error}
-                    </div>
-                )}
 
-                {message && (
-                    <div className="mb-6 p-3 bg-green-50 border border-green-100 text-green-600 text-sm rounded-lg font-medium flex items-center gap-2">
-                        <CheckIcon className="w-4 h-4" /> {message}
-                    </div>
-                )}
 
-                <form onSubmit={handleAuth} className="space-y-5">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Email Address</label>
-                        <input
-                            type="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-medium text-slate-900"
-                            placeholder="name@company.com"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Password</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all font-medium text-slate-900 pr-12"
-                                placeholder="••••••••"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-brand-600 focus:outline-none"
-                            >
-                                {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                            </button>
+                {/* Top Brand Logo */}
+                <div className="relative z-10 flex items-center gap-3">
+                    {settings.logo_url ? (
+                        <img src={settings.logo_url} alt={settings.brand_name} className="h-10 object-contain drop-shadow-sm" />
+                    ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-[#25D366] to-[#128C7E] rounded-xl flex items-center justify-center shadow-lg shadow-[#25D366]/20">
+                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                            </svg>
+                        </div>
+                    )}
+                    <span className="text-xl font-bold tracking-tight animate-brand-light drop-shadow-sm">{displayBrandName}</span>
+                </div>
+
+                {/* Massive Animated WhatsApp Icon Setup */}
+                <div className="relative z-10 w-full flex-1 flex items-center justify-center min-h-[400px] perspective-1000 mt-8 mb-4">
+                    {/* Glowing Backdrop */}
+                    <div className={`absolute w-[450px] h-[450px] rounded-full blur-[100px] transition-all duration-1000 ${isSignUp ? 'bg-[#128C7E]/30 scale-110' : 'bg-[#25D366]/20'} animate-pulse`}></div>
+
+                    {/* Animated Circles & Orbiting Use Cases */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        
+                        {/* Track 1 - Inner (Inbox) */}
+                        <div className="w-[240px] h-[240px] absolute animate-[spin_12s_linear_infinite]">
+                            <div className="w-full h-full rounded-full border border-dashed border-white/20 absolute"></div>
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2" style={{ animation: 'spin 12s linear infinite reverse' }}>
+                                <div className="w-12 h-12 bg-[#0B141A] rounded-full shadow-[0_0_15px_rgba(59,130,246,0.3)] border border-blue-500/40 flex items-center justify-center relative">
+                                    <svg className="w-6 h-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Track 2 - Middle (CRM & Flows) */}
+                        <div className="w-[340px] h-[340px] absolute animate-[spin_20s_linear_infinite_reverse]">
+                            <div className="w-full h-full rounded-full border border-dashed border-[#128C7E]/30 absolute"></div>
+                            {/* CRM */}
+                            <div className="absolute top-1/2 -left-6 -translate-y-1/2" style={{ animation: 'spin 20s linear infinite' }}>
+                                <div className="w-12 h-12 bg-[#0B141A] rounded-full shadow-[0_0_15px_rgba(168,85,247,0.3)] border border-purple-500/40 flex items-center justify-center relative">
+                                    <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                                </div>
+                            </div>
+                            {/* Flows */}
+                            <div className="absolute top-1/2 -right-6 -translate-y-1/2" style={{ animation: 'spin 20s linear infinite' }}>
+                                <div className="w-12 h-12 bg-[#0B141A] rounded-full shadow-[0_0_15px_rgba(245,158,11,0.3)] border border-amber-500/40 flex items-center justify-center relative">
+                                    <svg className="w-6 h-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Track 3 - Outer (Campaigns & AI Buddy) */}
+                        <div className="w-[440px] h-[440px] absolute animate-[spin_30s_linear_infinite]">
+                            <div className="w-full h-full rounded-full border border-dashed border-white/10 absolute"></div>
+                            {/* Campaigns */}
+                            <div className="absolute -top-7 left-1/2 -translate-x-1/2" style={{ animation: 'spin 30s linear infinite reverse' }}>
+                                <div className="w-14 h-14 bg-[#0B141A] rounded-full shadow-[0_0_15px_rgba(244,63,94,0.3)] border border-rose-500/40 flex items-center justify-center relative">
+                                    <svg className="w-7 h-7 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
+                                </div>
+                            </div>
+                            {/* AI Buddy */}
+                            <div className="absolute -bottom-7 left-1/2 -translate-x-1/2" style={{ animation: 'spin 30s linear infinite reverse' }}>
+                                <div className="w-14 h-14 bg-gradient-to-tr from-[#25D366] to-[#128C7E] rounded-full shadow-[0_0_20px_rgba(37,211,102,0.6)] border border-white/40 flex items-center justify-center relative">
+                                    <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold shadow-lg shadow-brand-200/50 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                        style={{ backgroundColor: settings.primary_color }}
-                    >
-                        {loading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-                    </button>
-                </form>
+                    {/* Random Place Background Popups */}
+                    <div className="absolute inset-0 pointer-events-none z-0">
+                        <div className="absolute top-[15%] left-[10%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-0">
+                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">Inbox</span>
+                        </div>
+                        <div className="absolute bottom-[25%] left-[15%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-1">
+                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">Lead CRM</span>
+                        </div>
+                        <div className="absolute top-[20%] right-[15%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-2">
+                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">Flows</span>
+                        </div>
+                        <div className="absolute bottom-[20%] right-[10%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-3">
+                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">Campaigns</span>
+                        </div>
+                        <div className="absolute top-[5%] right-[40%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-4">
+                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">AI Buddy</span>
+                        </div>
+                    </div>
 
-                <div className="mt-8 text-center pt-6 border-t border-slate-100">
-                    <p className="text-sm text-slate-500">
-                        {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-                        <button
-                            onClick={() => { setIsSignUp(!isSignUp); setError(null); setMessage(null); }}
-                            className="font-bold text-brand-600 hover:text-brand-700 transition-colors"
-                            style={{ color: settings.primary_color }}
-                        >
-                            {isSignUp ? 'Sign In' : 'Sign Up'}
-                        </button>
-                    </p>
+                    {/* Center Icon */}
+                    <div className={`relative z-20 w-32 h-32 bg-gradient-to-br from-[#25D366] to-[#128C7E] rounded-3xl flex items-center justify-center shadow-[0_0_60px_rgba(37,211,102,0.4)] transition-all duration-1000 border border-white/20 ${isSignUp ? 'rotate-y-180 scale-110' : 'animate-icon-float'}`}>
+                        <div className={`transition-all duration-1000 ${isSignUp ? 'rotate-y-180' : ''}`}>
+                            <svg className="w-16 h-16 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom Content */}
+                <div className="relative z-10 w-full transition-all duration-500 transform translate-y-0">
+                    <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-3 tracking-tight leading-[1.1]">
+                        {isSignUp ? (
+                            <>Scale your <span className="text-[#25D366]">sales</span><br/>with automated chats.</>
+                        ) : (
+                            <>Welcome to<br/><span className="animate-brand-light drop-shadow-sm">{displayBrandName}</span></>
+                        )}
+                    </h1>
+                    
+                    <div className="flex items-center justify-between mt-8 border-t border-white/10 pt-6">
+                        {/* Features/Social Proof */}
+                        <div className="flex gap-4 items-center">
+                            <div className="flex -space-x-3">
+                                <div className="w-10 h-10 rounded-full border-2 border-[#0B141A] bg-slate-200"></div>
+                                <div className="w-10 h-10 rounded-full border-2 border-[#0B141A] bg-slate-300"></div>
+                                <div className="w-10 h-10 rounded-full border-2 border-[#0B141A] bg-slate-400"></div>
+                                <div className="w-10 h-10 rounded-full border-2 border-[#0B141A] bg-[#25D366] flex items-center justify-center text-white">
+                                    <CheckIcon className="w-5 h-5" />
+                                </div>
+                            </div>
+                            <div className="text-sm font-medium text-slate-400">
+                                Trusted by <span className="text-white">growing</span><br/>businesses
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Footer on left */}
+                <div className="relative z-10 text-sm text-slate-500 font-medium">
+                    © {new Date().getFullYear()} {settings.brand_name || 'MarketingPlatform'}. All rights reserved.
+                </div>
+            </div>
+
+            {/* Right Side - Form Container (3D Flip Card) */}
+            <div className="w-full lg:w-[45%] flex items-center justify-center bg-slate-50 relative z-20 perspective-1000 p-6 sm:p-12 overflow-hidden lg:overflow-visible">
+                <div className={`relative w-full max-w-[420px] h-[640px] sm:h-[600px] transition-transform duration-[800ms] preserve-3d ${isSignUp ? 'rotate-y-180' : ''}`}>
+                    
+                    {/* ================= FRONT FACE: LOGIN ================= */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl shadow-2xl shadow-[#25D366]/5 border border-[#25D366]/40 p-8 sm:p-10 flex flex-col justify-center">
+                        <div className="mb-10 text-center">
+                            <div className="flex justify-center mb-6">
+                                {settings.logo_url ? (
+                                    <img src={settings.logo_url} alt={settings.brand_name} className="h-16 object-contain drop-shadow-sm" />
+                                ) : (
+                                    <div className="relative animate-icon-float">
+                                        {/* Pulsing Glow Ring */}
+                                        <div className="absolute inset-[-4px] rounded-full bg-[#25D366] animate-pulse-ring"></div>
+                                        <div className="relative w-20 h-20 bg-gradient-to-tr from-[#25D366] to-[#128C7E] rounded-[1.25rem] flex items-center justify-center shadow-[0_8px_24px_rgba(37,211,102,0.4)] border-4 border-white ring-4 ring-[#25D366]/20">
+                                            <svg className="w-10 h-10 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">Welcome to <span className="animate-brand-dark">{displayBrandName}</span></h2>
+                            <p className="text-slate-500 font-medium">Sign in to your workspace to continue.</p>
+                        </div>
+
+                        {error && !isSignUp && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl font-medium flex items-start gap-3">
+                                <div className="mt-0.5">⚠️</div>
+                                <div>{error}</div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAuth} className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400" placeholder="name@company.com" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-700">Password</label>
+                                <div className="relative">
+                                    <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400 pr-12" placeholder="••••••••" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors">
+                                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                                {loading ? <span className="animate-spin text-xl">↻</span> : 'Sign in'}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <p className="text-slate-500 font-medium text-sm">
+                                Don't have an account?{' '}
+                                <button onClick={() => { setIsSignUp(true); setError(null); setMessage(null); }} className="font-bold text-[#128C7E] hover:text-[#075E54] hover:underline transition-all ml-1">
+                                    Sign up
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* ================= BACK FACE: SIGN UP ================= */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 bg-slate-900 rounded-3xl shadow-2xl shadow-[#25D366]/10 border border-[#25D366]/40 p-8 sm:p-10 flex flex-col justify-center text-white">
+                        <div className="mb-10 text-center">
+                            <div className="flex justify-center mb-6">
+                                {settings.logo_url ? (
+                                    <img src={settings.logo_url} alt={settings.brand_name} className="h-16 object-contain drop-shadow-sm brightness-0 invert" />
+                                ) : (
+                                    <div className="relative animate-icon-float">
+                                        {/* Pulsing Glow Ring */}
+                                        <div className="absolute inset-[-4px] rounded-full bg-[#25D366] animate-pulse-ring"></div>
+                                        <div className="relative w-20 h-20 bg-gradient-to-tr from-[#25D366] to-[#128C7E] rounded-[1.25rem] flex items-center justify-center shadow-[0_8px_24px_rgba(37,211,102,0.4)] border-4 border-slate-800 ring-4 ring-[#25D366]/20">
+                                            <svg className="w-10 h-10 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <h2 className="text-3xl font-extrabold text-white tracking-tight mb-2">Create an account</h2>
+                            <p className="text-slate-400 font-medium">Start building automated flows today.</p>
+                        </div>
+
+                        {error && isSignUp && (
+                            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl font-medium flex items-start gap-3">
+                                <div className="mt-0.5">⚠️</div>
+                                <div>{error}</div>
+                            </div>
+                        )}
+
+                        {message && isSignUp && (
+                            <div className="mb-6 p-4 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] text-sm rounded-xl font-medium flex items-start gap-3">
+                                <CheckIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <div>{message}</div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAuth} className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-300">Email Address</label>
+                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="name@company.com" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-300">Password</label>
+                                <div className="relative">
+                                    <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-12" placeholder="••••••••" />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">
+                                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                                {loading ? <span className="animate-spin text-xl">↻</span> : 'Create account'}
+                            </button>
+                        </form>
+
+                        <div className="mt-8 text-center">
+                            <p className="text-slate-400 font-medium text-sm">
+                                Already have an account?{' '}
+                                <button onClick={() => { setIsSignUp(false); setError(null); setMessage(null); }} className="font-bold text-[#25D366] hover:text-white hover:underline transition-all ml-1">
+                                    Log in
+                                </button>
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
