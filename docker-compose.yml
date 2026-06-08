@@ -96,6 +96,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
+      
+      # Define the HTTP to HTTPS redirect middleware
+      - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
+
       # Sticker / Session Stickiness (Optional)
       # Keeps a user connected to the same container if needed
       # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
