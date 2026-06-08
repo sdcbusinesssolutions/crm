@@ -261,6 +261,13 @@ services:
     labels:
 EOF
     for d in "${domainArr[@]}"; do
+        # Trim spaces/carriage returns
+        d=$(echo "$d" | tr -d '\r' | xargs)
+        # Skip empty strings (e.g. trailing commas or empty lines in CSV)
+        if [ -z "$d" ]; then
+            continue
+        fi
+        
         # Create safe router name from domain
         d_safe=${d//./_}
         cat >> docker-compose.override.yml <<EOF
