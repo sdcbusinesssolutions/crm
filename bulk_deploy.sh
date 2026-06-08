@@ -271,14 +271,14 @@ EOF
         # Create safe router name from domain
         d_safe=${d//./_}
         cat >> docker-compose.override.yml <<EOF
-      - "traefik.http.routers.\${d_safe}.rule=Host(\`\$d\`)"
-      - "traefik.http.routers.\${d_safe}.entrypoints=websecure"
-      - "traefik.http.routers.\${d_safe}.tls.certresolver=\$certResolver"
-      - "traefik.http.routers.\${d_safe}-http.rule=Host(\`\$d\`)"
-      - "traefik.http.routers.\${d_safe}-http.entrypoints=web"
-      - "traefik.http.routers.\${d_safe}-http.middlewares=redirect-https@file"
-      - "traefik.http.routers.\${d_safe}.service=\$projectParam"
-      - "traefik.http.routers.\${d_safe}-http.service=\$projectParam"
+      - "traefik.http.routers.${d_safe}.rule=Host(\`${d}\`)"
+      - "traefik.http.routers.${d_safe}.entrypoints=websecure"
+      - "traefik.http.routers.${d_safe}.tls.certresolver=${certResolver}"
+      - "traefik.http.routers.${d_safe}-http.rule=Host(\`${d}\`)"
+      - "traefik.http.routers.${d_safe}-http.entrypoints=web"
+      - "traefik.http.routers.${d_safe}-http.middlewares=redirect-https@file"
+      - "traefik.http.routers.${d_safe}.service=${projectParam}"
+      - "traefik.http.routers.${d_safe}-http.service=${projectParam}"
 EOF
     done
 

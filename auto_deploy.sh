@@ -133,14 +133,14 @@ cat > docker-compose.override.yml <<EOF
 services:
   whatsapp-app:
     labels:
-      - "traefik.http.routers.\${d_safe}.rule=Host(\`\$DOMAIN\`)"
-      - "traefik.http.routers.\${d_safe}.entrypoints=websecure"
-      - "traefik.http.routers.\${d_safe}.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.\${d_safe}-http.rule=Host(\`\$DOMAIN\`)"
-      - "traefik.http.routers.\${d_safe}-http.entrypoints=web"
-      - "traefik.http.routers.\${d_safe}-http.middlewares=redirect-https@file"
-      - "traefik.http.routers.\${d_safe}.service=\${d_safe}"
-      - "traefik.http.routers.\${d_safe}-http.service=\${d_safe}"
+      - "traefik.http.routers.${d_safe}.rule=Host(\`${DOMAIN}\`)"
+      - "traefik.http.routers.${d_safe}.entrypoints=websecure"
+      - "traefik.http.routers.${d_safe}.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.${d_safe}-http.rule=Host(\`${DOMAIN}\`)"
+      - "traefik.http.routers.${d_safe}-http.entrypoints=web"
+      - "traefik.http.routers.${d_safe}-http.middlewares=redirect-https@file"
+      - "traefik.http.routers.${d_safe}.service=whatsapp-app"
+      - "traefik.http.routers.${d_safe}-http.service=whatsapp-app"
 EOF
 
 # 6. Build and Run (FORCE REBUILD)
