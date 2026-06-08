@@ -117,10 +117,31 @@ echo "🌐 Extracted Domain: $DOMAIN"
 sed -i '/DOMAIN=/d' .env
 echo "DOMAIN=$DOMAIN" | tr -d '\r' >> .env
 
+sed -i '/ROUTER_NAME=/d' .env
+d_safe=${DOMAIN//./_}
+echo "ROUTER_NAME=$d_safe" | tr -d '\r' >> .env
+
 # 5. Fix Permissions (Crucial for Non-Root Docker User)
 echo "🔒 Fixing permissions for '${TRAEFIK_NETWORK}'..."
 mkdir -p server_logs server_uploads
 chown -R 1000:1000 server_logs server_uploads
+
+# 5.5 Generate Traefik Override
+echo "📝 Generating Traefik labels..."
+d_safe=${DOMAIN//./_}
+cat > docker-compose.override.yml <<EOF
+services:
+  whatsapp-app:
+    labels:
+      - "traefik.http.routers.\${d_safe}.rule=Host(\`\$DOMAIN\`)"
+      - "traefik.http.routers.\${d_safe}.entrypoints=websecure"
+      - "traefik.http.routers.\${d_safe}.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.\${d_safe}-http.rule=Host(\`\$DOMAIN\`)"
+      - "traefik.http.routers.\${d_safe}-http.entrypoints=web"
+      - "traefik.http.routers.\${d_safe}-http.middlewares=redirect-https@file"
+      - "traefik.http.routers.\${d_safe}.service=\${d_safe}"
+      - "traefik.http.routers.\${d_safe}-http.service=\${d_safe}"
+EOF
 
 # 6. Build and Run (FORCE REBUILD)
 echo "🚀 Building and Starting Containers (Fresh Build)..."
