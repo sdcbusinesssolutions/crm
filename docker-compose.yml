@@ -18,7 +18,7 @@ services:
     # 🔄 SCALABILITY CONFIGURATION (Dynamic for Bulk Deployment)
     deploy:
       mode: replicated
-      replicas: 4 # High Performance: 4 Replicas for 8 Core Server
+      replicas: 6 # High Performance: 6 Replicas for scalable capacity
       endpoint_mode: vip
       resources:
         limits:
