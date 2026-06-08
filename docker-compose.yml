@@ -18,14 +18,14 @@ services:
     # 🔄 SCALABILITY CONFIGURATION (Dynamic for Bulk Deployment)
     deploy:
       mode: replicated
-      replicas: 8 # High Performance: 8 Replicas for 8 Core Server
+      replicas: 4 # High Performance: 4 Replicas for 8 Core Server
       endpoint_mode: vip
       resources:
         limits:
-          cpus: '1.0'    # 1 Full Core per container
-          memory: 3500M  # ~3.5GB RAM limit per container
+          cpus: '0.8'    # Leave 20% of core for OS/Traefik
+          memory: 2500M  # ~2.5GB RAM limit per container
         reservations:
-          cpus: '0.5'    # Minimum half core reserved
+          cpus: '0.2'    # Minimum core reserved
           memory: 1G     # 1GB RAM reserved
       restart_policy:
         condition: on-failure
@@ -61,12 +61,14 @@ services:
       - VITE_MASTER_URL=${VITE_MASTER_URL}
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
-      # MEMORY OPTIMIZATION: Maximize usage of 3.5GB container limit
-      - NODE_OPTIONS=--max-old-space-size=3072 --max-semi-space-size=128 --expose-gc
+      # MEMORY OPTIMIZATION: Maximize usage of 2.5GB container limit
+      - NODE_OPTIONS=--max-old-space-size=2048 --max-semi-space-size=64 --expose-gc
       # CRITICAL NETWORK FIX: Force IPv4 DNS resolution inside Docker.
       # Meta's CDN (lookaside.fbsbx.com) causes ECONNRESET when Docker uses IPv6.
       # This is the OS-level fix; code-level fix is family:4 in https.Agent.
       - NODE_DNS_ORDER=ipv4first
+      # TUNE GC & FILE I/O: Prevent blocking the event loop on multi-tenant traffic
+      - UV_THREADPOOL_SIZE=16
     
     volumes:
       - ./server_logs/${DOMAIN}:/app/logs
@@ -82,19 +84,18 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+
+    # HEALTHCHECK: Traefik will skip any frozen container automatically
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
       
     labels:
       - "traefik.enable=true"
-      # Load Balancer Rule (Round Robin by default)
-      - "traefik.http.routers.${ROUTER_NAME}.rule=${ROUTER_RULE}"
-      - "traefik.http.routers.${ROUTER_NAME}.entrypoints=websecure"
-      - "traefik.http.routers.${ROUTER_NAME}.tls.certresolver=${CERT_RESOLVER}"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
-      # SAN Certificate: explicitly tell Traefik to issue ONE cert covering ALL domains
-      # Without this, Traefik may only cert the first domain in the || rule
-      - "traefik.http.routers.${ROUTER_NAME}.tls.domains[0].main=${TLS_MAIN}"
-      - "traefik.http.routers.${ROUTER_NAME}.tls.domains[0].sans=${TLS_SANS}"
-      
       # Sticker / Session Stickiness (Optional)
       # Keeps a user connected to the same container if needed
       # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
