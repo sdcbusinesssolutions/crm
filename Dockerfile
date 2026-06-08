@@ -16,7 +16,7 @@ FROM node:20-slim
 # Set Timezone and Install ffmpeg (for video transcoding)
 ENV TZ="Asia/Kolkata"
 RUN apt-get update && \
-    apt-get install -y tzdata curl ffmpeg python3 make g++ && \
+    apt-get install -y tzdata curl ffmpeg && \
     ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && \
     echo "Asia/Kolkata" > /etc/timezone && \
     rm -rf /var/lib/apt/lists/*
@@ -25,9 +25,12 @@ WORKDIR /app
 
 # 1. Copy Server package files and install production dependencies
 COPY server/package*.json ./
-# We install with --omit=dev to keep the image small
-# We use --build-from-source for sharp to ensure linux-x64 compatibility
-RUN npm install --omit=dev
+# We install build tools, run npm install, then instantly purge build tools to save 500MB+
+RUN apt-get update && apt-get install -y python3 make g++ \
+    && npm install --omit=dev \
+    && apt-get purge -y python3 make g++ \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
 
 # 2. Copy Server source code
 COPY server/ ./
@@ -55,6 +58,5 @@ EXPOSE 5000
 ENTRYPOINT ["./entrypoint.sh"]
 
 # RUN THE SERVER
-# We use --max-old-space-size to allow Node to use more of your 32GB RAM
-# We use node_dns_order to fix Meta CDN IPv6 issues
-CMD ["node", "--max-old-space-size=3072", "server.js"]
+# NOTE: Memory limits are now managed safely by docker-compose.yml NODE_OPTIONS
+CMD ["node", "server.js"]
