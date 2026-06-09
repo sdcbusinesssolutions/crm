@@ -69,7 +69,8 @@ const AuthBridge: React.FC = () => {
     };
 
     const sessionDataRef = React.useRef<any>(null);
-
+    const codeRef = React.useRef<string | null>(null);
+    const sendBackCalled = React.useRef<boolean>(false);
     useEffect(() => {
         const messageListener = (event: MessageEvent) => {
             if (!event.origin.endsWith('facebook.com')) return;
@@ -87,6 +88,10 @@ const AuthBridge: React.FC = () => {
                     ];
                     if (successEvents.includes(data.event)) {
                         sessionDataRef.current = data.data;
+                        if (codeRef.current && !sendBackCalled.current) {
+                            sendBackCalled.current = true;
+                            sendBack(codeRef.current);
+                        }
                     } else if (data.event === 'ERROR') {
                         setError(`Meta Error: ${data.data?.error_message || 'Unknown error'}`);
                         logToServer('ERROR', 'Meta Flow Error', data.data);
@@ -117,7 +122,22 @@ const AuthBridge: React.FC = () => {
                     codePrefix: code?.substring(0, 5),
                     hasSessionData: !!sessionDataRef.current 
                 });
-                sendBack(code);
+                
+                codeRef.current = code;
+                
+                if (sessionDataRef.current && !sendBackCalled.current) {
+                    sendBackCalled.current = true;
+                    sendBack(code);
+                } else if (!sendBackCalled.current) {
+                    // Give the message event 2 seconds to arrive if it hasn't already
+                    setTimeout(() => {
+                        if (!sendBackCalled.current) {
+                            console.warn('Timeout waiting for session data message event. Sending code without WABA ID.');
+                            sendBackCalled.current = true;
+                            sendBack(code);
+                        }
+                    }, 2000);
+                }
             } else {
                 setStatus('User cancelled login.');
                 logToServer('WARN', 'User Cancelled Login', { response });
