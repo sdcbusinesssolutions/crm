@@ -61,7 +61,7 @@ const AuthBridge: React.FC = () => {
             appId: appId,
             cookie: true,
             xfbml: true,
-            version: 'v22.0'
+            version: 'v25.0'
         });
         setStatus('Ready to connect.');
         // NOTICE: We do NOT call handleLogin() automatically anymore here.
@@ -73,6 +73,11 @@ const AuthBridge: React.FC = () => {
     const sendBackCalled = React.useRef<boolean>(false);
     useEffect(() => {
         const messageListener = (event: MessageEvent) => {
+            // Ignore React devtools and local webpack messages
+            if (event.data?.source?.includes('react-devtools') || event.data?.type === 'webpackOk') return;
+            
+            console.log(`[AuthBridge] Received message from ${event.origin}:`, event.data);
+            
             if (!event.origin.endsWith('facebook.com')) return;
             try {
                 const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
