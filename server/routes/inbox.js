@@ -301,6 +301,19 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
             } else {
                 // It's a remote URL (or already an ID? assuming URL for now)
                 content = { link: media_url };
+                
+                // --- AUDIO FORMAT CHECK FOR REMOTE URLS ---
+                // WhatsApp ONLY supports: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg
+                // WebM from browser MediaRecorder will be rejected. Fallback to document.
+                if (type === 'audio') {
+                    const cleanUrl = media_url.split('?')[0];
+                    const ext = path.extname(cleanUrl).toLowerCase();
+                    const supportedExts = ['.aac', '.mp4', '.mpeg', '.amr', '.ogg', '.mp3'];
+                    if (!supportedExts.includes(ext)) {
+                        console.warn(`Unsupported remote audio extension: ${ext}. Switching to 'document' mode to ensure delivery.`);
+                        type = 'document';
+                    }
+                }
             }
 
             if (text && type !== 'audio' && type !== 'sticker') {
@@ -371,11 +384,14 @@ router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('
         const moduleName = req.body.module || 'outbound';
         const filename = `${moduleName}/${userId}/${dateStr}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
+        // Spoof mime type for webm because Supabase Storage bucket might restrict it
+        const contentType = file.mimetype === 'audio/webm' ? 'audio/mpeg' : file.mimetype;
+
         // Upload to Supabase
         const { error: uploadError } = await supabaseAdmin.storage
             .from(bucketName)
             .upload(filename, file.buffer, {
-                contentType: file.mimetype,
+                contentType: contentType,
                 upsert: false,
                 cacheControl: '31536000'
             });
