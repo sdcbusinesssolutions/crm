@@ -78,6 +78,14 @@ const AuthBridge: React.FC = () => {
             
             console.log(`[AuthBridge] Received message from ${event.origin}:`, event.data);
             
+            // Temporarily log ALL messages to see what is arriving
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                logToServer('INFO', 'DEBUG_ALL_MESSAGES', { origin: event.origin, data });
+            } catch (e) {
+                logToServer('INFO', 'DEBUG_ALL_MESSAGES_RAW', { origin: event.origin, data: event.data });
+            }
+
             if (!event.origin.endsWith('facebook.com')) return;
             try {
                 const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -159,7 +167,8 @@ const AuthBridge: React.FC = () => {
                 featureType: 'whatsapp_business_app_onboarding',
                 sessionInfoVersion: '3'
             } : {
-                setup: {}
+                setup: {},
+                sessionInfoVersion: '3'
             }
         });
     };
