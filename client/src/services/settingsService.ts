@@ -236,11 +236,18 @@ export const settingsService = {
                 phone_number_id: phoneId
             })
         });
-        const data = await res.json();
+        
         if (!res.ok) {
-            throw new Error(data.error || 'Failed to connect embedded account');
+            const text = await res.text();
+            try {
+                const err = JSON.parse(text);
+                throw new Error(err.error || err.message || 'Failed to connect embedded account');
+            } catch (e) {
+                // Not JSON, probably an HTML proxy error
+                throw new Error(`Failed to connect embedded account: ${res.status} - Server returned an invalid response. Please try again.`);
+            }
         }
-        return data;
+        return res.json();
     },
     updateWebhook: async () => {
         const headers = await getHeaders();

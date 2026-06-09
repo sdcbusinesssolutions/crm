@@ -225,7 +225,12 @@ function overrideConsole() {
         originalError.apply(console, args);
         try {
             const timestamp = getKolkataTimestamp();
-            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+            const message = args.map(arg => {
+                if (arg instanceof Error) {
+                    return arg.stack || arg.message || String(arg);
+                }
+                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+            }).join(' ');
             const file = getCurrentLogFile('error_log', 5 * 1024 * 1024); // 5MB for errors
             if (file) fs.appendFileSync(file, `[${timestamp}] [ERROR] ${message}\n`);
         } catch (e) { /* ignore */ }

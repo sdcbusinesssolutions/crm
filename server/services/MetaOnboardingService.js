@@ -89,7 +89,10 @@ class MetaOnboardingService {
                 }
             });
 
-            const data = debugRes.data.data;
+            const data = debugRes?.data?.data;
+            if (!data) {
+                 return { data: [] };
+            }
             const granularScopes = data.granular_scopes || [];
 
             // Find scope for whatsapp_business_management
@@ -111,7 +114,7 @@ class MetaOnboardingService {
 
         } catch (error) {
             console.error('WABA Detection Error:', error.response?.data || error.message);
-            throw new Error('Failed to detect WABA accounts via token inspection.');
+            throw new Error(`Failed to detect WABA accounts via token inspection. ${error.message}`);
         }
     }
 
