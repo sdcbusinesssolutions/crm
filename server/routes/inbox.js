@@ -67,8 +67,9 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             const myPhones = (myLeads || []).map(l => l.phone).filter(Boolean);
             
             if (myPhones.length > 0) {
-                // If they have assigned leads, show those OR conversations explicitly assigned to them
-                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${myPhones.join(',')})`);
+                // Prevent URI Too Long error and safely double-quote strings to protect '+' signs
+                const safeMyPhones = myPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${safeMyPhones})`);
             } else {
                 // If no leads, just check conversation direct assignment
                 query = query.eq('assigned_to', currentUserId);
@@ -86,14 +87,21 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             const staffPhones = (staffLeads || []).map(l => l.phone).filter(Boolean);
             
             if (staffPhones.length > 0) {
-                query = query.or(`assigned_to.eq.${staffId},contact_phone.in.(${staffPhones.join(',')})`);
+                // Prevent URI Too Long error by limiting the array size in the query
+                // and correctly double-quote strings to protect '+' signs in PostgREST
+                const safePhones = staffPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                query = query.or(`assigned_to.eq.${staffId},contact_phone.in.(${safePhones})`);
             } else {
                 query = query.eq('assigned_to', staffId);
             }
         }
 
-        if (filterTag) {
-            query = query.contains('tags', [filterTag]);
+        if (filterTag && filterTag !== 'All') {
+            const lower = filterTag.toLowerCase();
+            const upper = filterTag.toUpperCase();
+            const title = lower.charAt(0).toUpperCase() + lower.slice(1);
+            // Overlaps matches ANY of the provided items. This makes the text array search effectively case-insensitive.
+            query = query.overlaps('tags', [filterTag, lower, upper, title]);
         }
 
         const { data, count, error } = await query
