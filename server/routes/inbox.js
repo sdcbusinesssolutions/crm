@@ -73,6 +73,23 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
                 // If no leads, just check conversation direct assignment
                 query = query.eq('assigned_to', currentUserId);
             }
+        } else if (quickFilter && quickFilter.startsWith('staff:')) {
+            const staffId = quickFilter.split(':')[1];
+            
+            // First get all leads assigned to this staff member
+            const { data: staffLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [staffId]);
+                
+            const staffPhones = (staffLeads || []).map(l => l.phone).filter(Boolean);
+            
+            if (staffPhones.length > 0) {
+                query = query.or(`assigned_to.eq.${staffId},contact_phone.in.(${staffPhones.join(',')})`);
+            } else {
+                query = query.eq('assigned_to', staffId);
+            }
         }
 
         if (filterTag) {
