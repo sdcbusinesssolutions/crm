@@ -94,6 +94,7 @@ class MetaOnboardingService {
                  return { data: [] };
             }
             const granularScopes = data.granular_scopes || [];
+            console.log('Granular Scopes from debug_token:', JSON.stringify(granularScopes, null, 2));
 
             // Find scope for whatsapp_business_management
             const wabaScope = granularScopes.find(s => s.scope === 'whatsapp_business_management');

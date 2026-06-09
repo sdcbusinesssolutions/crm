@@ -129,14 +129,16 @@ const AuthBridge: React.FC = () => {
                     sendBackCalled.current = true;
                     sendBack(code);
                 } else if (!sendBackCalled.current) {
-                    // Give the message event 2 seconds to arrive if it hasn't already
+                    // Give the message event up to 10 seconds to arrive if it hasn't already.
+                    // This won't delay fast connections (they fire instantly via the messageListener),
+                    // but it guarantees extremely slow devices/networks won't miss the WABA ID.
                     setTimeout(() => {
                         if (!sendBackCalled.current) {
                             console.warn('Timeout waiting for session data message event. Sending code without WABA ID.');
                             sendBackCalled.current = true;
                             sendBack(code);
                         }
-                    }, 2000);
+                    }, 10000);
                 }
             } else {
                 setStatus('User cancelled login.');
