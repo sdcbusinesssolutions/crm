@@ -503,6 +503,24 @@ const processWebhookLogic = async (req, res, userId, phoneNumberId) => {
 // Global Auto Assignment Logic
 async function handleGlobalAutoAssign(userId, contactPhone, contactName, conversationId) {
     try {
+        // 1. Check if Lead exists and is already assigned
+        const { data: leadData } = await supabaseAdmin.from('leads')
+            .select('id, assigned_staff_ids')
+            .eq('user_id', userId)
+            .eq('phone', contactPhone)
+            .limit(1)
+            .maybeSingle();
+
+        if (leadData && leadData.assigned_staff_ids && leadData.assigned_staff_ids.length > 0) {
+            // Lead is already assigned, sync conversation to the first assignee
+            const existingAssignee = leadData.assigned_staff_ids[0];
+            await supabaseAdmin.from('conversations')
+                .update({ assigned_to: existingAssignee })
+                .eq('id', conversationId);
+            console.log(`[Global Auto-Assign] Lead already assigned. Synced conversation to ${existingAssignee}`);
+            return;
+        }
+
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
         if (authError || !authData || !authData.user) return;
         
@@ -540,20 +558,10 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
             .eq('id', conversationId);
 
         // Update or Create Lead
-        const { data: leadData } = await supabaseAdmin.from('leads')
-            .select('id, assigned_staff_ids')
-            .eq('user_id', userId)
-            .eq('phone', contactPhone)
-            .limit(1)
-            .maybeSingle();
-
         if (leadData) {
-            let currentIds = leadData.assigned_staff_ids || [];
-            if (!currentIds.includes(assignedStaffId)) {
-                await supabaseAdmin.from('leads')
-                    .update({ assigned_staff_ids: [...currentIds, assignedStaffId] })
-                    .eq('id', leadData.id);
-            }
+            await supabaseAdmin.from('leads')
+                .update({ assigned_staff_ids: [assignedStaffId] })
+                .eq('id', leadData.id);
         } else {
             await supabaseAdmin.from('leads').insert({
                 user_id: userId,
