@@ -100,8 +100,25 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             const lower = filterTag.toLowerCase();
             const upper = filterTag.toUpperCase();
             const title = lower.charAt(0).toUpperCase() + lower.slice(1);
-            // Overlaps matches ANY of the provided items. This makes the text array search effectively case-insensitive.
-            query = query.overlaps('tags', [filterTag, lower, upper, title]);
+            
+            // 1. Fetch contacts from CRM that have this tag (e.g. added via Flow Builder)
+            const { data: taggedContacts } = await supabase
+                .from('contacts')
+                .select('phone')
+                .eq('user_id', userId)
+                .overlaps('tags', [filterTag, lower, upper, title]);
+                
+            const taggedPhones = (taggedContacts || []).map(c => c.phone).filter(Boolean);
+            
+            if (taggedPhones.length > 0) {
+                // 2. If CRM contacts have this tag, filter conversations that EITHER have the tag natively OR belong to these contacts
+                const safePhones = taggedPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                const ovArray = `{"${filterTag}","${lower}","${upper}","${title}"}`;
+                query = query.or(`tags.ov.${ovArray},contact_phone.in.(${safePhones})`);
+            } else {
+                // 3. Otherwise, just filter by conversation-level tags
+                query = query.overlaps('tags', [filterTag, lower, upper, title]);
+            }
         }
 
         const { data, count, error } = await query
@@ -113,8 +130,47 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             throw error;
         }
 
+        // 1. Manually fetch the contact tags from CRM for these specific conversations
+        // (Since there is no direct foreign key between conversations and contacts)
+        const activePhones = (data || []).map(c => c.contact_phone).filter(Boolean);
+        let contactTagsMap = {};
+        
+        if (activePhones.length > 0) {
+            const { data: crmContacts } = await supabase
+                .from('contacts')
+                .select('phone, tags')
+                .eq('user_id', userId)
+                .in('phone', activePhones);
+                
+            if (crmContacts) {
+                crmContacts.forEach(c => {
+                    contactTagsMap[c.phone] = Array.isArray(c.tags) ? c.tags : [];
+                });
+            }
+        }
+
+        // 2. Merge tags from the contact level (CRM/Flow Builder) into the conversation tags
+        // so the frontend visibly displays them on the chat snippet.
+        const mergedData = (data || []).map(chat => {
+            const chatTags = Array.isArray(chat.tags) ? chat.tags : [];
+            const cTags = contactTagsMap[chat.contact_phone] || [];
+            
+            // Merge and deduplicate (case-insensitive deduplication)
+            const combined = [...chatTags];
+            for (const tag of cTags) {
+                if (!combined.some(t => t.toLowerCase() === tag.toLowerCase())) {
+                    combined.push(tag);
+                }
+            }
+            
+            return {
+                ...chat,
+                tags: combined
+            };
+        });
+
         res.json({
-            data,
+            data: mergedData,
             total: count || 0,
             page,
             limit
