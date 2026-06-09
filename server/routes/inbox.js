@@ -371,9 +371,24 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('file'), async (req, res) => {
     try {
-        const file = req.file;
+        let file = req.file;
         if (!file) {
             return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // --- CONVERT WebM to OGG for Native WhatsApp Voice Notes ---
+        if (file.mimetype === 'audio/webm') {
+            try {
+                const { convertWebmToOgg } = require('../utils/audioConverter');
+                console.log(`[Inbox] Converting ${file.originalname} from WebM to OGG...`);
+                const oggBuffer = await convertWebmToOgg(file.buffer);
+                file.buffer = oggBuffer;
+                file.mimetype = 'audio/ogg';
+                file.originalname = file.originalname.replace(/\.webm$/i, '.ogg');
+            } catch (convErr) {
+                console.error('[Inbox] WebM to OGG conversion failed, falling back to original file:', convErr);
+                // Keep original file and it will be sent as Document due to fallback
+            }
         }
 
         // Use Admin client for Storage operations to ensure permissions
@@ -384,8 +399,11 @@ router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('
         const moduleName = req.body.module || 'outbound';
         const filename = `${moduleName}/${userId}/${dateStr}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
-        // Spoof mime type for webm because Supabase Storage bucket might restrict it
-        const contentType = file.mimetype === 'audio/webm' ? 'audio/mpeg' : file.mimetype;
+        // Spoof mime type for unsupported formats because Supabase Storage bucket might restrict it
+        let contentType = file.mimetype;
+        if (contentType === 'audio/webm') {
+            contentType = 'audio/mpeg'; // Spoof ONLY webm to ensure Supabase accepts the upload (will be sent as Document)
+        }
 
         // Upload to Supabase
         const { error: uploadError } = await supabaseAdmin.storage
