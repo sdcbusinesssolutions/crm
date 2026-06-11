@@ -16,8 +16,11 @@ const AuthPage: React.FC = () => {
         : (cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1));
 
     const [isSignUp, setIsSignUp] = useState(false);
+    const [name, setName] = useState('');
+    const [contactNumber, setContactNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -88,7 +91,12 @@ const AuthPage: React.FC = () => {
 
         try {
             if (isSignUp) {
-                const { error } = await supabase.auth.signUp({
+                if (password !== confirmPassword) {
+                    setError('Passwords do not match');
+                    setLoading(false);
+                    return;
+                }
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
@@ -99,11 +107,36 @@ const AuthPage: React.FC = () => {
                             ? `${(import.meta as any).env.VITE_MASTER_URL}/auth_callback?next=${window.location.origin}`
                             : window.location.origin,
                         data: {
-                            signup_domain: window.location.hostname
+                            signup_domain: window.location.hostname,
+                            name: name,
+                            contact_number: contactNumber
                         }
                     }
                 });
                 if (error) throw error;
+                
+                // Trigger backend WhatsApp notifications
+                try {
+                    const apiUrl = (import.meta as any).env.VITE_API_URL || '/api';
+                    const token = data?.session?.access_token || ''; // might not have session if email confirmation required
+                    
+                    await fetch(`${apiUrl}/auth-notifications/trigger-signup-notifications`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                        },
+                        body: JSON.stringify({
+                            email,
+                            name,
+                            contact_number: contactNumber,
+                            domain: window.location.hostname
+                        })
+                    });
+                } catch (notificationError) {
+                    console.error('Failed to trigger signup notifications:', notificationError);
+                }
+
                 setMessage('Registration successful! Please check your email to confirm your account.');
             } else {
                 try {
@@ -537,18 +570,34 @@ const AuthPage: React.FC = () => {
                             </div>
                         )}
 
-                        <form onSubmit={handleAuth} className="space-y-5">
+                        <form onSubmit={handleAuth} className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-300">Full Name</label>
+                                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="John Doe" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-slate-300">Contact Number</label>
+                                <input type="tel" required value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="+1234567890" />
+                            </div>
                             <div className="space-y-2">
                                 <label className="block text-sm font-semibold text-slate-300">Email Address</label>
                                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="name@company.com" />
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-300">Password</label>
-                                <div className="relative">
-                                    <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-12" placeholder="••••••••" />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">
-                                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                                    </button>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-300">Password</label>
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-10" placeholder="••••••••" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">
+                                            {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-300">Confirm Password</label>
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-10" placeholder="••••••••" />
+                                    </div>
                                 </div>
                             </div>
                             <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">

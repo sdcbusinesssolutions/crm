@@ -43,5 +43,32 @@ export const adminSettingsService = {
             throw new Error(err.message || 'Failed to save onboarding settings');
         }
         return res.json();
+    },
+
+    getSignupNotifications: async () => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/notifications`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                window.location.href = '/admin/auth/login';
+            }
+            throw new Error(err.message || 'Failed to fetch signup notification settings');
+        }
+        return res.json();
+    },
+
+    saveSignupNotifications: async (data: any) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/notifications`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to save signup notification settings');
+        }
+        return res.json();
     }
 };

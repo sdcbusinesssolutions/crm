@@ -248,6 +248,7 @@ const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
+const authNotificationsRoutes = require('./routes/auth_notifications');
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
@@ -320,6 +321,7 @@ app.use('/api/ai-agents', requireAuth, require('./routes/ai_agents'));
 app.use('/api/quick-replies', requireAuth, require('./routes/quick_replies'));
 app.use('/api', router);
 
+app.use('/api/auth-notifications', authNotificationsRoutes); // Triggered post-signup for whatsapp config
 app.use('/api/external', require('./routes/external_api')); // Dedicated External API Endpoint
 app.use('/.netlify/functions/server', router);
 // app.use('/', router); // DISABLED: This causes conflict with SPA routing (e.g. /admin/users hits API instead of React)

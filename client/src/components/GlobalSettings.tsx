@@ -4,6 +4,7 @@ import { themeService, PRESETS } from '../services/themeService';
 import { ThemeConfig } from '../types';
 
 import { UploadIcon, BadgeIcon, SparklesIcon, CheckSquareIcon } from './icons';
+import { authNotificationsService } from '../services/authNotificationsService';
 
 interface GlobalSettingsProps {
     onToggleSidebar?: () => void;
@@ -24,8 +25,92 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ onToggleSidebar }) => {
             const loadedTheme = await themeService.getTheme();
             setTheme(loadedTheme);
         };
+        const loadNotificationSettings = async () => {
+            try {
+                const domain = window.location.hostname;
+                const data = await authNotificationsService.getSettings(domain);
+                setNotificationSettings({
+                    integration_user_email: data.integration_user_email || '',
+                    whatsapp_waba_id: data.whatsapp_waba_id || '',
+                    whatsapp_api_number_id: data.whatsapp_api_number_id || '',
+                    admin_whatsapp_number: data.admin_whatsapp_number || '',
+                    admin_whatsapp_template_name: data.admin_whatsapp_template_name || '',
+                    notify_admin_on_signup: data.notify_admin_on_signup || false,
+                    send_welcome_whatsapp: data.send_welcome_whatsapp || false,
+                    welcome_template_name: data.welcome_template_name || '',
+                    welcome_template_params: data.welcome_template_params || [],
+                    welcome_template_media_url: data.welcome_template_media_url || '',
+                    notify_admin_via_email: data.notify_admin_via_email || false,
+                    admin_email_address: data.admin_email_address || '',
+                    send_welcome_email: data.send_welcome_email || false,
+                    welcome_email_subject: data.welcome_email_subject || '',
+                    welcome_email_body: data.welcome_email_body || '',
+                    admin_whatsapp_template_params: data.admin_whatsapp_template_params || [],
+                    admin_whatsapp_media_url: data.admin_whatsapp_media_url || ''
+                });
+            } catch (err) {
+                console.error('Failed to load notification settings:', err);
+            }
+        };
         loadTheme();
+        loadNotificationSettings();
     }, []);
+
+    const [notificationSettings, setNotificationSettings] = useState({
+        integration_user_email: '',
+        whatsapp_waba_id: '',
+        whatsapp_api_number_id: '',
+        admin_whatsapp_number: '',
+        admin_whatsapp_template_name: '',
+        notify_admin_on_signup: false,
+        send_welcome_whatsapp: false,
+        welcome_template_name: '',
+        welcome_template_params: [] as any[],
+        welcome_template_media_url: '',
+        notify_admin_via_email: false,
+        admin_email_address: '',
+        send_welcome_email: false,
+        welcome_email_subject: '',
+        welcome_email_body: '',
+        admin_whatsapp_template_params: [] as any[],
+        admin_whatsapp_media_url: ''
+    });
+    const [isSavingNotifications, setIsSavingNotifications] = useState(false);
+
+    const handleAddParam = (type: 'welcome' | 'admin') => {
+        const key = type === 'welcome' ? 'welcome_template_params' : 'admin_whatsapp_template_params';
+        const currentParams = notificationSettings[key] || [];
+        setNotificationSettings({ ...notificationSettings, [key]: [...currentParams, { type: 'field', value: 'name' }] });
+    };
+
+    const handleRemoveParam = (type: 'welcome' | 'admin', index: number) => {
+        const key = type === 'welcome' ? 'welcome_template_params' : 'admin_whatsapp_template_params';
+        const currentParams = [...(notificationSettings[key] || [])];
+        currentParams.splice(index, 1);
+        setNotificationSettings({ ...notificationSettings, [key]: currentParams });
+    };
+
+    const handleUpdateParam = (type: 'welcome' | 'admin', index: number, field: string, value: string) => {
+        const key = type === 'welcome' ? 'welcome_template_params' : 'admin_whatsapp_template_params';
+        const currentParams = [...(notificationSettings[key] || [])];
+        currentParams[index] = { ...currentParams[index], [field]: value };
+        setNotificationSettings({ ...notificationSettings, [key]: currentParams });
+    };
+
+    const handleSaveNotificationSettings = async () => {
+        setIsSavingNotifications(true);
+        try {
+            await authNotificationsService.saveSettings({
+                ...notificationSettings,
+                domain: window.location.hostname
+            });
+            alert('Notification settings saved successfully!');
+        } catch (error: any) {
+            alert(error.message || 'Failed to save notification settings');
+        } finally {
+            setIsSavingNotifications(false);
+        }
+    };
 
     const updateTheme = async (updates: Partial<ThemeConfig>) => {
         const newTheme = { ...theme, ...updates };
@@ -389,6 +474,8 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ onToggleSidebar }) => {
                                     </div>
                                 </div>
                             </div>
+
+
                         </div>
 
                         {/* Right Column: Theme Presets */}

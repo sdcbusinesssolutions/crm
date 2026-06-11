@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AdminThemeSettings from '../../../components/admin/AdminThemeSettings';
 import AdminOnboardingSettings from '../../../components/admin/AdminOnboardingSettings';
+import AdminSignupNotifications from '../../../components/admin/AdminSignupNotifications';
 import { adminSettingsService } from '../../../services/adminSettingsService';
 
 const Settings = () => {
@@ -11,6 +12,7 @@ const Settings = () => {
         { id: 'appearance', label: 'Appearance', icon: '🎨' },
         { id: 'onboarding', label: 'Onboarding', icon: '🚀' },
         { id: 'payments', label: 'Payments', icon: '💳' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' },
         { id: 'email', label: 'Email', icon: '✉️' },
         { id: 'logins', label: 'Logins/Auth', icon: '🔒' },
     ];
@@ -78,6 +80,10 @@ const Settings = () => {
                                 </div>
                             </div>
                         </div>
+                    )}
+
+                    {activeSection === 'notifications' && (
+                        <AdminSignupNotifications />
                     )}
 
                     {/* Fallback for other sections */}

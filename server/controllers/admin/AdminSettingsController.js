@@ -103,3 +103,76 @@ exports.updateOnboardingSettings = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getSignupNotifications = async (req, res) => {
+    try {
+        const origin = req.headers.origin || req.headers.host || '';
+        let requestDomain = 'clickube.com';
+        try {
+            if (origin.startsWith('http')) {
+                requestDomain = new URL(origin).hostname;
+            } else {
+                requestDomain = origin.split(':')[0];
+            }
+        } catch (e) { }
+
+        requestDomain = requestDomain.replace(/^www\./, '').toLowerCase();
+        if (requestDomain.includes('localhost') || requestDomain.includes('127.0.0.1')) {
+            requestDomain = 'clickube.com';
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('tenant_notification_settings')
+            .select('*')
+            .eq('domain', requestDomain)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        res.json(data || {});
+    } catch (error) {
+        console.error('Error fetching admin signup notifications:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.updateSignupNotifications = async (req, res) => {
+    try {
+        const origin = req.headers.origin || req.headers.host || '';
+        let requestDomain = 'clickube.com';
+        try {
+            if (origin.startsWith('http')) {
+                requestDomain = new URL(origin).hostname;
+            } else {
+                requestDomain = origin.split(':')[0];
+            }
+        } catch (e) { }
+
+        requestDomain = requestDomain.replace(/^www\./, '').toLowerCase();
+        if (requestDomain.includes('localhost') || requestDomain.includes('127.0.0.1')) {
+            requestDomain = 'clickube.com';
+        }
+
+        const payload = req.body;
+        
+        // Remove id and timestamps from payload if present so we don't try to update serials or read-only fields manually
+        delete payload.id;
+        delete payload.created_at;
+        delete payload.updated_at;
+
+        const { data, error } = await supabaseAdmin
+            .from('tenant_notification_settings')
+            .upsert({
+                domain: requestDomain,
+                ...payload,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'domain' })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ message: 'Signup notifications updated successfully', data });
+    } catch (error) {
+        console.error('Error updating admin signup notifications:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
