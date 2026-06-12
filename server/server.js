@@ -262,6 +262,8 @@ const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 
 // Public Routes
+const authRoutes = require('./routes/auth');
+router.use('/auth', authRoutes);
 
 router.use('/forms', formRoutes);
 router.use('/team-staff', staffRoutes);

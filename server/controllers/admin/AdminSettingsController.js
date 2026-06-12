@@ -1,4 +1,5 @@
 const { supabaseAdmin } = require('../../lib/supabaseClient');
+const SmtpService = require('../../services/SmtpService');
 
 exports.getOnboardingSettings = async (req, res) => {
     try {
@@ -173,6 +174,106 @@ exports.updateSignupNotifications = async (req, res) => {
         res.json({ message: 'Signup notifications updated successfully', data });
     } catch (error) {
         console.error('Error updating admin signup notifications:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getSmtpSettings = async (req, res) => {
+    try {
+        const userId = req.admin.id;
+
+        const { data, error } = await supabaseAdmin
+            .from('user_integrations')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('provider', 'smtp')
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        
+        if (data && data.credentials) {
+            res.json(data.credentials);
+        } else {
+            res.json({});
+        }
+    } catch (error) {
+        console.error('Error fetching SMTP settings:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.updateSmtpSettings = async (req, res) => {
+    try {
+        const userId = req.admin.id;
+        const payload = req.body; // should contain host, port, user, pass, encryption, fromEmail
+
+        const { data: existingIntegration, error: fetchError } = await supabaseAdmin
+            .from('user_integrations')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('provider', 'smtp')
+            .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+        let result;
+        if (existingIntegration) {
+            const { data, error } = await supabaseAdmin
+                .from('user_integrations')
+                .update({ credentials: payload, updated_at: new Date().toISOString() })
+                .eq('id', existingIntegration.id)
+                .select()
+                .single();
+            if (error) throw error;
+            result = data;
+        } else {
+            const { data, error } = await supabaseAdmin
+                .from('user_integrations')
+                .insert({
+                    user_id: userId,
+                    provider: 'smtp',
+                    credentials: payload,
+                    is_active: true
+                })
+                .select()
+                .single();
+            if (error) throw error;
+            result = data;
+        }
+
+        res.json({ message: 'SMTP settings updated successfully', credentials: result.credentials });
+    } catch (error) {
+        console.error('Error updating SMTP settings:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.testSmtpSettings = async (req, res) => {
+    try {
+        const { config, testEmail } = req.body;
+        
+        if (!config || !testEmail) {
+            return res.status(400).json({ error: 'Config and test email are required' });
+        }
+
+        // Test connection
+        const connectionResult = await SmtpService.testConnection(config);
+        if (!connectionResult.success) {
+            return res.status(400).json({ error: 'Connection failed: ' + connectionResult.error });
+        }
+
+        // Send test email
+        const sendResult = await SmtpService.sendEmail(
+            config,
+            config.fromEmail || config.user,
+            testEmail,
+            'SMTP Configuration Test',
+            '<p>Your SMTP configuration is working correctly!</p>'
+        );
+
+        res.json({ message: 'Test email sent successfully', success: true });
+    } catch (error) {
+        console.error('Error testing SMTP settings:', error);
         res.status(500).json({ error: error.message });
     }
 };

@@ -15,12 +15,15 @@ const AuthPage: React.FC = () => {
         ? settings.brand_name 
         : (cleanHost.charAt(0).toUpperCase() + cleanHost.slice(1));
 
-    const [isSignUp, setIsSignUp] = useState(false);
+    const [view, setView] = useState<'login' | 'signup' | 'forgot-password' | 'verify-reset'>('login');
+    const isSignUp = view === 'signup';
+    
     const [name, setName] = useState('');
     const [contactNumber, setContactNumber] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [otp, setOtp] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -82,6 +85,58 @@ const AuthPage: React.FC = () => {
         };
         autoLogin();
     }, []);
+
+    const handleForgotPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setMessage(null);
+        try {
+            const apiUrl = (import.meta as any).env.VITE_API_URL || '/api';
+            const res = await fetch(`${apiUrl}/auth/forgot-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, domain: window.location.hostname })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
+            setMessage(data.message || 'If an account exists, a reset code was sent.');
+            setView('verify-reset');
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setMessage(null);
+        try {
+            if (password !== confirmPassword) {
+                throw new Error('Passwords do not match');
+            }
+            const apiUrl = (import.meta as any).env.VITE_API_URL || '/api';
+            const res = await fetch(`${apiUrl}/auth/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, domain: window.location.hostname, otp, newPassword: password })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to reset password');
+            setMessage('Password successfully reset! You can now log in.');
+            setView('login');
+            setPassword('');
+            setConfirmPassword('');
+            setOtp('');
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -473,7 +528,7 @@ const AuthPage: React.FC = () => {
             <div className="w-full lg:w-[45%] flex items-center justify-center bg-slate-50 relative z-20 perspective-1000 p-6 sm:p-12 overflow-hidden lg:overflow-visible">
                 <div className={`relative w-full max-w-[420px] h-[640px] sm:h-[600px] transition-transform duration-[800ms] preserve-3d ${isSignUp ? 'rotate-y-180' : ''}`}>
                     
-                    {/* ================= FRONT FACE: LOGIN ================= */}
+                    {/* ================= FRONT FACE ================= */}
                     <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl shadow-2xl shadow-[#25D366]/5 border border-[#25D366]/40 p-8 sm:p-10 flex flex-col justify-center">
                         <div className="mb-10 text-center">
                             <div className="flex justify-center mb-6">
@@ -481,7 +536,6 @@ const AuthPage: React.FC = () => {
                                     <img src={settings.logo_url} alt={settings.brand_name} className="h-16 object-contain drop-shadow-sm" />
                                 ) : (
                                     <div className="relative animate-icon-float">
-                                        {/* Pulsing Glow Ring */}
                                         <div className="absolute inset-[-4px] rounded-full bg-[#25D366] animate-pulse-ring"></div>
                                         <div className="relative w-20 h-20 bg-gradient-to-tr from-[#25D366] to-[#128C7E] rounded-[1.25rem] flex items-center justify-center shadow-[0_8px_24px_rgba(37,211,102,0.4)] border-4 border-white ring-4 ring-[#25D366]/20">
                                             <svg className="w-10 h-10 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -491,11 +545,32 @@ const AuthPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 flex flex-col items-center text-center leading-tight">
-                                <span>Welcome to</span>
-                                <span className="animate-brand-dark break-all whitespace-normal w-full">{displayBrandName}</span>
-                            </h2>
-                            <p className="text-slate-500 font-medium">Sign in to your workspace to continue.</p>
+                            
+                            {view === 'login' && (
+                                <>
+                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 flex flex-col items-center text-center leading-tight">
+                                        <span>Welcome to</span>
+                                        <span className="animate-brand-dark break-all whitespace-normal w-full">{displayBrandName}</span>
+                                    </h2>
+                                    <p className="text-slate-500 font-medium">Sign in to your workspace to continue.</p>
+                                </>
+                            )}
+                            {view === 'forgot-password' && (
+                                <>
+                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 flex flex-col items-center text-center leading-tight">
+                                        <span>Reset Password</span>
+                                    </h2>
+                                    <p className="text-slate-500 font-medium text-sm mt-2">Enter your email and we'll send you a 6-digit verification code.</p>
+                                </>
+                            )}
+                            {view === 'verify-reset' && (
+                                <>
+                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-2 flex flex-col items-center text-center leading-tight">
+                                        <span>Enter Code</span>
+                                    </h2>
+                                    <p className="text-slate-500 font-medium text-sm mt-2">Please enter the 6-digit code sent to your email and your new password.</p>
+                                </>
+                            )}
                         </div>
 
                         {error && !isSignUp && (
@@ -504,34 +579,93 @@ const AuthPage: React.FC = () => {
                                 <div>{error}</div>
                             </div>
                         )}
-
-                        <form onSubmit={handleAuth} className="space-y-5">
-                            <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-700">Email Address</label>
-                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400" placeholder="name@company.com" />
+                        
+                        {message && !isSignUp && (
+                            <div className="mb-6 p-4 bg-[#25D366]/10 border border-[#25D366]/20 text-[#25D366] text-sm rounded-xl font-medium flex items-start gap-3">
+                                <CheckIcon className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                                <div>{message}</div>
                             </div>
-                            <div className="space-y-2">
-                                <label className="block text-sm font-semibold text-slate-700">Password</label>
-                                <div className="relative">
-                                    <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400 pr-12" placeholder="••••••••" />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors">
-                                        {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                                    </button>
+                        )}
+
+                        {view === 'login' && (
+                            <form onSubmit={handleAuth} className="space-y-5 animate-[fadeIn_0.5s_ease-out]">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+                                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400" placeholder="name@company.com" />
                                 </div>
-                            </div>
-                            <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
-                                {loading ? <span className="animate-spin text-xl">↻</span> : 'Sign in'}
-                            </button>
-                        </form>
-
-                        <div className="mt-8 text-center">
-                            <p className="text-slate-500 font-medium text-sm">
-                                Don't have an account?{' '}
-                                <button onClick={() => { setIsSignUp(true); setError(null); setMessage(null); }} className="font-bold text-[#128C7E] hover:text-[#075E54] hover:underline transition-all ml-1">
-                                    Sign up
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <label className="block text-sm font-semibold text-slate-700">Password</label>
+                                        <button type="button" onClick={() => { setView('forgot-password'); setError(null); setMessage(null); }} className="text-sm font-bold text-[#128C7E] hover:text-[#075E54] hover:underline transition-all">Forgot?</button>
+                                    </div>
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400 pr-12" placeholder="••••••••" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors">
+                                            {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                                    {loading ? <span className="animate-spin text-xl">↻</span> : 'Sign in'}
                                 </button>
-                            </p>
-                        </div>
+                            </form>
+                        )}
+
+                        {view === 'forgot-password' && (
+                            <form onSubmit={handleForgotPassword} className="space-y-5 animate-[fadeIn_0.5s_ease-out]">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+                                    <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 placeholder-slate-400" placeholder="name@company.com" />
+                                </div>
+                                <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                                    {loading ? <span className="animate-spin text-xl">↻</span> : 'Send Code'}
+                                </button>
+                                <button type="button" onClick={() => { setView('login'); setError(null); setMessage(null); }} className="w-full py-3 mt-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-[15px] shadow-sm transition-all">
+                                    Back to Login
+                                </button>
+                            </form>
+                        )}
+
+                        {view === 'verify-reset' && (
+                            <form onSubmit={handleVerifyReset} className="space-y-4 animate-[fadeIn_0.5s_ease-out]">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">6-Digit Code</label>
+                                    <input type="text" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 tracking-widest text-center text-lg" placeholder="123456" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">New Password</label>
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 pr-12" placeholder="••••••••" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors">
+                                            {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-slate-700">Confirm New Password</label>
+                                    <div className="relative">
+                                        <input type={showPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] focus:bg-white outline-none transition-all font-medium text-slate-900 pr-12" placeholder="••••••••" />
+                                    </div>
+                                </div>
+                                <button type="submit" disabled={loading} className="w-full py-3.5 mt-2 bg-[#25D366] hover:bg-[#1DA851] text-white rounded-xl font-bold text-[15px] shadow-sm transition-all flex justify-center items-center gap-2 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed">
+                                    {loading ? <span className="animate-spin text-xl">↻</span> : 'Reset Password'}
+                                </button>
+                                <button type="button" onClick={() => { setView('login'); setError(null); setMessage(null); }} className="w-full py-3 mt-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-[15px] shadow-sm transition-all">
+                                    Cancel
+                                </button>
+                            </form>
+                        )}
+
+                        {view === 'login' && (
+                            <div className="mt-8 text-center">
+                                <p className="text-slate-500 font-medium text-sm">
+                                    Don't have an account?{' '}
+                                    <button onClick={() => { setView('signup'); setError(null); setMessage(null); }} className="font-bold text-[#128C7E] hover:text-[#075E54] hover:underline transition-all ml-1">
+                                        Sign up
+                                    </button>
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     {/* ================= BACK FACE: SIGN UP ================= */}

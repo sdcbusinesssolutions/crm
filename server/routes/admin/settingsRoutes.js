@@ -16,4 +16,9 @@ router.put('/onboarding', verifyAdminToken, AdminSettingsController.updateOnboar
 router.get('/notifications', verifyAdminToken, AdminSettingsController.getSignupNotifications);
 router.put('/notifications', verifyAdminToken, AdminSettingsController.updateSignupNotifications);
 
+// Email/SMTP Settings (Platform Admin)
+router.get('/email', verifyAdminToken, AdminSettingsController.getSmtpSettings);
+router.put('/email', verifyAdminToken, AdminSettingsController.updateSmtpSettings);
+router.post('/email/test', verifyAdminToken, AdminSettingsController.testSmtpSettings);
+
 module.exports = router;

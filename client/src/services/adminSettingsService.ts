@@ -70,5 +70,46 @@ export const adminSettingsService = {
             throw new Error(err.message || 'Failed to save signup notification settings');
         }
         return res.json();
+    },
+
+    getSmtpSettings: async () => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                window.location.href = '/admin/auth/login';
+            }
+            throw new Error(err.message || 'Failed to fetch SMTP settings');
+        }
+        return res.json();
+    },
+
+    saveSmtpSettings: async (data: any) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to save SMTP settings');
+        }
+        return res.json();
+    },
+
+    testSmtpSettings: async (config: any, testEmail: string) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email/test`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ config, testEmail })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to test SMTP settings');
+        }
+        return res.json();
     }
 };
