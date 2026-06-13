@@ -526,7 +526,7 @@ const AuthPage: React.FC = () => {
 
             {/* Right Side - Form Container (3D Flip Card) */}
             <div className="w-full lg:w-[45%] flex items-center justify-center bg-slate-50 relative z-20 perspective-1000 p-6 sm:p-12 overflow-hidden lg:overflow-visible">
-                <div className={`relative w-full max-w-[420px] h-[640px] sm:h-[600px] transition-transform duration-[800ms] preserve-3d ${isSignUp ? 'rotate-y-180' : ''}`}>
+                <div className={`relative w-full max-w-[420px] transition-all duration-[800ms] preserve-3d ${isSignUp ? 'rotate-y-180 h-[820px] sm:h-[780px]' : 'h-[640px] sm:h-[540px]'}`}>
                     
                     {/* ================= FRONT FACE ================= */}
                     <div className="absolute inset-0 w-full h-full backface-hidden bg-white rounded-3xl shadow-2xl shadow-[#25D366]/5 border border-[#25D366]/40 p-8 sm:p-10 flex flex-col justify-center">
@@ -742,7 +742,7 @@ const AuthPage: React.FC = () => {
                         <div className="mt-8 text-center">
                             <p className="text-slate-400 font-medium text-sm">
                                 Already have an account?{' '}
-                                <button onClick={() => { setIsSignUp(false); setError(null); setMessage(null); }} className="font-bold text-[#25D366] hover:text-white hover:underline transition-all ml-1">
+                                <button onClick={() => { setView('login'); setError(null); setMessage(null); }} className="font-bold text-[#25D366] hover:text-white hover:underline transition-all ml-1">
                                     Log in
                                 </button>
                             </p>

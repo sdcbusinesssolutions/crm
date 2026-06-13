@@ -102,6 +102,7 @@ class NotificationEngine {
                 const payload = {
                     event: 'new_user_signup',
                     domain: requestDomain,
+                    contact_phone: contact_number || '', // Added to match the active session requirement
                     admin: {
                         email: settings.admin_email_address || null,
                         whatsapp_number: settings.admin_whatsapp_number || null
@@ -126,6 +127,8 @@ class NotificationEngine {
             }
         }
 
+        console.log(`NotificationEngine DEBUG: requestDomain='${requestDomain}', integrationUserId='${integrationUserId}'`);
+        
         if (!integrationUserId) {
             console.warn(`NotificationEngine: No valid integration user or admins found for domain ${requestDomain}. Cannot send messages.`);
             return { success: true, message: 'Webhook triggered. No valid admins found for other messages.' };

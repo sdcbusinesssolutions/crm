@@ -178,6 +178,7 @@ const AdminSignupNotifications: React.FC = () => {
                                         className="w-full px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-color)] font-bold focus:ring-2 focus:ring-[#25D366]/50 focus:border-[#25D366] outline-none transition-all shadow-inner"
                                         placeholder="1234567890"
                                     />
+                                    <p className="text-xs text-slate-400 mt-2">The WhatsApp Business Account (WABA) ID found in your Meta Developer Dashboard.</p>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">WhatsApp API Number ID</label>
@@ -188,6 +189,9 @@ const AdminSignupNotifications: React.FC = () => {
                                         className="w-full px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-color)] font-bold focus:ring-2 focus:ring-[#25D366]/50 focus:border-[#25D366] outline-none transition-all shadow-inner"
                                         placeholder="10987654321"
                                     />
+                                    <p className="text-xs text-slate-500 mt-2 font-medium bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                                        <strong className="text-orange-700">⚠️ Important:</strong> This is the Phone Number ID from Meta. This specific number <strong>must already be connected</strong> and approved for the Integration User Email provided above.
+                                    </p>
                                 </div>
                             </div>
                         
@@ -503,6 +507,7 @@ const AdminSignupNotifications: React.FC = () => {
 {`{
   "event": "new_user_signup",
   "domain": "yourtenantdomain.com",
+  "contact_phone": "1234567890",
   "admin": {
     "email": "admin@example.com",
     "whatsapp_number": "+1234567890"
