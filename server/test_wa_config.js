@@ -1,14 +1,21 @@
 require('dotenv').config({ path: '/home/devendra/proj/wpcode/server/.env' });
-const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const { supabaseAdmin } = require('./lib/supabaseClient');
 
-async function check() {
-    const { data, error } = await supabase.auth.signUp({
-        email: 'devendrakumar1007@gmail.com',
-        password: 'Password123!',
-    });
-    console.log("Signup Result:", data);
-    console.log("Signup Error:", error);
-    process.exit(0);
+async function main() {
+    try {
+        const { data: match, error } = await supabaseAdmin
+            .from('user_integrations')
+            .select('*')
+            .eq('provider', 'whatsapp')
+            .contains('credentials', { phone_number_id: '712851515243145' })
+            .limit(1);
+            
+        console.log('Match:', match);
+        console.log('Error:', error);
+    } catch(err) {
+        console.log('Error:', err);
+    } finally {
+        process.exit(0);
+    }
 }
-check();
+main();

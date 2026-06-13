@@ -151,7 +151,7 @@ class NotificationEngine {
                     };
 
                     await whatsappService.sendMessage(
-                        integrationUserId, 
+                        null, 
                         contact_number, 
                         'template', 
                         templateContent,
@@ -184,7 +184,7 @@ class NotificationEngine {
                     }
                     
                     await whatsappService.sendMessage(
-                        integrationUserId,
+                        null,
                         settings.admin_whatsapp_number,
                         msgType,
                         msgContent,

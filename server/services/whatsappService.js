@@ -27,25 +27,49 @@ class WhatsAppService {
      * Uses the RPC function to bypass RLS.
      */
     async getConfig(userId, phoneNumberId = null) {
-        // Use RPC to bypass RLS and get config
+        // First try the standard RPC to bypass RLS
         const { data, error } = await supabase.rpc('get_whatsapp_config', {
             p_user_id: userId,
             p_phone_number_id: phoneNumberId
         });
 
-        if (error || !data || (Array.isArray(data) && data.length === 0)) {
-            console.error('Error fetching WhatsApp config:', error);
-            throw new Error('WhatsApp configuration not found for this user.');
+        if (!error && data && (!Array.isArray(data) || data.length > 0)) {
+            return Array.isArray(data) ? data[0] : data;
         }
 
-        // Handle potential array return from RPC
-        const config = Array.isArray(data) ? data[0] : data;
-        return config;
+        console.error('Error fetching WhatsApp config:', error);
+        throw new Error('WhatsApp configuration not found for this user.');
+    }
+
+    /**
+     * Get WhatsApp Config globally by phone_number_id.
+     * Use this ONLY for system/admin level messages where the specific user doesn't matter.
+     */
+    async getGlobalConfig(phoneNumberId) {
+        try {
+            const { data, error } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('meta_access_token, phone_number_id, whatsapp_business_account_id')
+                .eq('phone_number_id', phoneNumberId)
+                .limit(1)
+                .single();
+                
+            if (data && data.meta_access_token) {
+                return {
+                    meta_access_token: data.meta_access_token,
+                    phone_number_id: data.phone_number_id,
+                    waba_id: data.whatsapp_business_account_id
+                };
+            }
+        } catch (err) {
+            console.error('Error fetching global WhatsApp config:', err.message);
+        }
+        throw new Error(`Global WhatsApp configuration not found for phone_number_id: ${phoneNumberId}`);
     }
 
     /**
      * Send a Message
-     * @param {string} userId - The system user ID
+     * @param {string|null} userId - The system user ID (pass null for system-wide messages using global config)
      * @param {string} to - Recipient phone number
      * @param {string} type - Message type (text, image, video, document, template, etc.)
      * @param {object} content - Content object (text body, media url/id, template details)
@@ -53,7 +77,10 @@ class WhatsAppService {
      */
     async sendMessage(userId, to, type, content, phoneNumberId = null, skipDBLog = false) {
         try {
-            const config = await this.getConfig(userId, phoneNumberId);
+            // If userId is missing but we have phoneNumberId, perform a global search
+            const config = userId 
+                ? await this.getConfig(userId, phoneNumberId) 
+                : await this.getGlobalConfig(phoneNumberId);
             const fromPhoneId = config.phone_number_id;
             const accessToken = config.meta_access_token;
 

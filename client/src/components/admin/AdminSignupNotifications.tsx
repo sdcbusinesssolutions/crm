@@ -401,12 +401,13 @@ const AdminSignupNotifications: React.FC = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Admin Email Address</label>
                                     <input
-                                        type="email"
+                                        type="text"
                                         value={notificationSettings.admin_email_address}
                                         onChange={(e) => setNotificationSettings({ ...notificationSettings, admin_email_address: e.target.value })}
                                         className="w-full px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-color)] font-bold focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all shadow-inner"
-                                        placeholder="admin@example.com"
+                                        placeholder="admin1@example.com, admin2@example.com"
                                     />
+                                    <p className="text-xs text-slate-400 mt-2">Use commas to notify multiple email addresses.</p>
                                 </div>
                             </div>
                         )}
