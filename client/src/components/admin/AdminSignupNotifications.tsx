@@ -431,13 +431,35 @@ const AdminSignupNotifications: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Welcome Email HTML Body</label>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Welcome Email HTML Body</label>
+                                        <button 
+                                            onClick={() => setNotificationSettings({ 
+                                                ...notificationSettings, 
+                                                welcome_email_body: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">\n    <div style="background-color: #3b82f6; padding: 24px; text-align: center; color: #ffffff;">\n        <h1 style="margin: 0; font-size: 24px;">Welcome to {{domain}}!</h1>\n    </div>\n    <div style="padding: 32px; background-color: #ffffff; color: #334155;">\n        <h2 style="margin-top: 0; font-size: 20px;">Hi {{name}},</h2>\n        <p style="font-size: 16px; line-height: 1.5;">Thank you for signing up. We are absolutely thrilled to have you join our platform!</p>\n        <p style="font-size: 16px; line-height: 1.5;">Here are the details we have on file for you:</p>\n        <ul style="background-color: #f8fafc; padding: 16px 16px 16px 40px; border-radius: 6px; font-size: 15px;">\n            <li style="margin-bottom: 8px;"><strong>Email:</strong> {{email}}</li>\n            <li><strong>Contact:</strong> {{contact_number}}</li>\n        </ul>\n        <p style="font-size: 16px; line-height: 1.5; margin-top: 24px;">If you have any questions, simply reply to this email.</p>\n        <a href="https://{{domain}}" style="display: inline-block; margin-top: 24px; padding: 12px 24px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;">Go to Dashboard</a>\n    </div>\n    <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;">\n        &copy; ${new Date().getFullYear()} {{domain}}. All rights reserved.\n    </div>\n</div>`
+                                            })}
+                                            className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded transition-colors"
+                                        >
+                                            Load Default Template
+                                        </button>
+                                    </div>
                                     <textarea
                                         value={notificationSettings.welcome_email_body}
                                         onChange={(e) => setNotificationSettings({ ...notificationSettings, welcome_email_body: e.target.value })}
-                                        className="w-full px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-color)] font-mono text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all h-32 shadow-inner"
-                                        placeholder="<h1>Welcome!</h1><p>We are glad to have you here.</p>"
+                                        className="w-full px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-xl text-[var(--text-color)] font-mono text-sm focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all h-64 shadow-inner"
+                                        placeholder="Write your HTML here or click 'Load Default Template'..."
                                     />
+                                    <p className="text-xs text-slate-500 mt-3 font-medium bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                        <strong className="text-blue-700 block mb-1">💡 Dynamic Tags Supported:</strong>
+                                        You can use the following placeholders in both Subject and Body to personalize the email:
+                                        <br />
+                                        <span className="inline-flex flex-wrap gap-2 mt-2">
+                                            <span className="bg-white px-2 py-1 rounded shadow-sm text-blue-600 border border-blue-100"><code className="font-bold">{`{{name}}`}</code> - User's Name</span>
+                                            <span className="bg-white px-2 py-1 rounded shadow-sm text-blue-600 border border-blue-100"><code className="font-bold">{`{{email}}`}</code> - User's Email</span>
+                                            <span className="bg-white px-2 py-1 rounded shadow-sm text-blue-600 border border-blue-100"><code className="font-bold">{`{{contact_number}}`}</code> - User's Phone</span>
+                                            <span className="bg-white px-2 py-1 rounded shadow-sm text-blue-600 border border-blue-100"><code className="font-bold">{`{{domain}}`}</code> - Your Domain</span>
+                                        </span>
+                                    </p>
                                 </div>
                             </div>
                         )}

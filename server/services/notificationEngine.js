@@ -215,12 +215,29 @@ class NotificationEngine {
                     // Send Welcome Email
                     if (settings.send_welcome_email && email) {
                         try {
+                            let subject = settings.welcome_email_subject || 'Welcome!';
+                            let body = settings.welcome_email_body || 'Thanks for signing up!';
+
+                            // Replace dynamic variables
+                            const replacements = {
+                                '{{name}}': name || 'User',
+                                '{{email}}': email,
+                                '{{domain}}': requestDomain,
+                                '{{contact_number}}': contact_number || ''
+                            };
+
+                            for (const [key, value] of Object.entries(replacements)) {
+                                const regex = new RegExp(key, 'gi');
+                                subject = subject.replace(regex, value);
+                                body = body.replace(regex, value);
+                            }
+
                             await SmtpService.sendEmail(
                                 smtpConfig,
                                 smtpConfig.fromEmail,
                                 email,
-                                settings.welcome_email_subject || 'Welcome!',
-                                settings.welcome_email_body || 'Thanks for signing up!'
+                                subject,
+                                body
                             );
                             notificationsSent++;
                         } catch (err) {

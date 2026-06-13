@@ -180,7 +180,30 @@ exports.updateSignupNotifications = async (req, res) => {
 
 exports.getSmtpSettings = async (req, res) => {
     try {
-        const userId = req.admin.id;
+        const adminEmail = req.admin.email;
+        const requestDomain = req.admin.managed_domain;
+
+        let userId = null;
+        let { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', adminEmail)
+            .single();
+        if (profile) userId = profile.id;
+
+        if (!userId) {
+            const { data: domainUsers } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('signup_domain', requestDomain)
+                .in('role', ['owner', 'admin'])
+                .limit(1);
+            if (domainUsers && domainUsers.length > 0) userId = domainUsers[0].id;
+        }
+
+        if (!userId) {
+            return res.json({});
+        }
 
         const { data, error } = await supabaseAdmin
             .from('user_integrations')
@@ -204,8 +227,31 @@ exports.getSmtpSettings = async (req, res) => {
 
 exports.updateSmtpSettings = async (req, res) => {
     try {
-        const userId = req.admin.id;
-        const payload = req.body; // should contain host, port, user, pass, encryption, fromEmail
+        const adminEmail = req.admin.email;
+        const requestDomain = req.admin.managed_domain;
+        const payload = req.body;
+
+        let userId = null;
+        let { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('id')
+            .eq('email', adminEmail)
+            .single();
+        if (profile) userId = profile.id;
+
+        if (!userId) {
+            const { data: domainUsers } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('signup_domain', requestDomain)
+                .in('role', ['owner', 'admin'])
+                .limit(1);
+            if (domainUsers && domainUsers.length > 0) userId = domainUsers[0].id;
+        }
+
+        if (!userId) {
+            return res.status(400).json({ error: 'Cannot save SMTP settings. No valid user account found for this domain. Please ensure at least one real user/admin account exists.' });
+        }
 
         const { data: existingIntegration, error: fetchError } = await supabaseAdmin
             .from('user_integrations')
@@ -232,8 +278,7 @@ exports.updateSmtpSettings = async (req, res) => {
                 .insert({
                     user_id: userId,
                     provider: 'smtp',
-                    credentials: payload,
-                    is_active: true
+                    credentials: payload
                 })
                 .select()
                 .single();
@@ -244,7 +289,7 @@ exports.updateSmtpSettings = async (req, res) => {
         res.json({ message: 'SMTP settings updated successfully', credentials: result.credentials });
     } catch (error) {
         console.error('Error updating SMTP settings:', error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: error.message, details: error.details });
     }
 };
 
