@@ -2,6 +2,7 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const whatsappService = require('./whatsappService');
 const SmtpService = require('./SmtpService');
 const axios = require('axios');
+const { notificationLogger: logger } = require('../utils/logger');
 
 // Helper to parse template parameters
 const parseTemplateComponents = (paramsJson, mediaUrl, userData, headerFormat, templateInfo) => {
@@ -93,12 +94,13 @@ const parseTemplateComponents = (paramsJson, mediaUrl, userData, headerFormat, t
 class NotificationEngine {
     
     async processSignupNotifications(domain, userData) {
-        const { name, email, contact_number } = userData;
+        try {
+            const { name, email, contact_number } = userData;
 
-        if (!domain || !email) {
-            console.error('NotificationEngine: Domain and email are required');
-            return { error: 'Domain and email are required' };
-        }
+            if (!domain || !email) {
+                logger.error('NotificationEngine: Domain and email are required');
+                return { error: 'Domain and email are required' };
+            }
 
         let requestDomain = domain.replace(/^www\./, '').toLowerCase();
         if (requestDomain.includes('localhost') || requestDomain.includes('127.0.0.1')) {
@@ -132,7 +134,7 @@ class NotificationEngine {
             if (configData) {
                 integrationUserId = configData.user_id;
             } else {
-                console.warn(`NotificationEngine: WhatsApp Config not found for WABA ${settings.whatsapp_waba_id}.`);
+                logger.warn(`NotificationEngine: WhatsApp Config not found for WABA ${settings.whatsapp_waba_id}.`);
             }
         }
 
@@ -178,15 +180,15 @@ class NotificationEngine {
                 
                 notificationsSent++;
             } catch (err) {
-                console.error(`NotificationEngine: Failed to trigger webhook at ${settings.admin_webhook_url}:`, err.message);
+                logger.error(`NotificationEngine: Failed to trigger webhook at ${settings.admin_webhook_url}:`, { error: err.message });
                 // We do NOT throw here so other processes aren't blocked
             }
         }
 
-        console.log(`NotificationEngine DEBUG: requestDomain='${requestDomain}', integrationUserId='${integrationUserId}'`);
+        logger.info(`NotificationEngine DEBUG: requestDomain='${requestDomain}', integrationUserId='${integrationUserId}'`);
         
         if (!integrationUserId) {
-            console.warn(`NotificationEngine: No valid integration user or admins found for domain ${requestDomain}. Cannot send messages.`);
+            logger.warn(`NotificationEngine: No valid integration user or admins found for domain ${requestDomain}. Cannot send messages.`);
             return { success: true, message: 'Webhook triggered. No valid admins found for other messages.' };
         }
 
@@ -237,9 +239,10 @@ class NotificationEngine {
                         waNumberId,
                         true 
                     );
+                    logger.info('NotificationEngine: Successfully sent welcome WhatsApp', { target: contact_number, domain: requestDomain });
                     notificationsSent++;
                 } catch (err) {
-                    console.error('NotificationEngine: Failed to send welcome WhatsApp:', err.message);
+                    logger.error('NotificationEngine: Failed to send welcome WhatsApp:', { target: contact_number, domain: requestDomain, error: err.message });
                 }
             }
 
@@ -272,9 +275,10 @@ class NotificationEngine {
                         waNumberId,
                         true
                     );
+                    logger.info('NotificationEngine: Successfully sent admin WhatsApp notification', { target: settings.admin_whatsapp_number, domain: requestDomain });
                     notificationsSent++;
                 } catch (err) {
-                    console.error('NotificationEngine: Failed to send admin WhatsApp notification:', err.message);
+                    logger.error('NotificationEngine: Failed to send admin WhatsApp notification:', { target: settings.admin_whatsapp_number, domain: requestDomain, error: err.message });
                 }
             }
         }
@@ -323,9 +327,10 @@ class NotificationEngine {
                                 subject,
                                 body
                             );
+                            logger.info('NotificationEngine: Successfully sent welcome email', { target: email, domain: requestDomain });
                             notificationsSent++;
                         } catch (err) {
-                            console.error('NotificationEngine: Failed to send welcome email:', err.message);
+                            logger.error('NotificationEngine: Failed to send welcome email:', { target: email, domain: requestDomain, error: err.message });
                         }
                     }
 
@@ -340,20 +345,25 @@ class NotificationEngine {
                                 `New Signup on ${requestDomain}`,
                                 adminHtml
                             );
+                            logger.info('NotificationEngine: Successfully sent admin email', { target: settings.admin_email_address, domain: requestDomain });
                             notificationsSent++;
                         } catch (err) {
-                            console.error('NotificationEngine: Failed to send admin email:', err.message);
+                            logger.error('NotificationEngine: Failed to send admin email:', { target: settings.admin_email_address, domain: requestDomain, error: err.message });
                         }
                     }
                 } else {
-                    console.warn(`NotificationEngine: No SMTP integration found for integration user ${integrationUserId}. Skipping emails.`);
+                    logger.warn(`NotificationEngine: No SMTP integration found for integration user ${integrationUserId}. Skipping emails.`);
                 }
             } catch (err) {
-                console.error('NotificationEngine: Error processing email notifications:', err.message);
+                logger.error('NotificationEngine: Error processing email notifications:', { error: err.message });
             }
         }
 
-        return { success: true, notificationsSent };
+            return { success: true, notificationsSent };
+        } catch (err) {
+            logger.error('NotificationEngine: Critical error in processSignupNotifications:', { domain, email: userData?.email, error: err.message, stack: err.stack });
+            return { error: 'Internal Notification Error' };
+        }
     }
 }
 
