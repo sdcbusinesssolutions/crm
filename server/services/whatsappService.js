@@ -49,7 +49,7 @@ class WhatsAppService {
         try {
             const { data, error } = await supabaseAdmin
                 .from('whatsapp_config')
-                .select('meta_access_token, phone_number_id, whatsapp_business_account_id')
+                .select('meta_access_token, phone_number_id, whatsapp_business_account_id, user_id')
                 .eq('phone_number_id', phoneNumberId)
                 .limit(1)
                 .single();
@@ -58,7 +58,8 @@ class WhatsAppService {
                 return {
                     meta_access_token: data.meta_access_token,
                     phone_number_id: data.phone_number_id,
-                    waba_id: data.whatsapp_business_account_id
+                    waba_id: data.whatsapp_business_account_id,
+                    user_id: data.user_id
                 };
             }
         } catch (err) {
@@ -77,14 +78,15 @@ class WhatsAppService {
      */
     async sendMessage(userId, to, type, content, phoneNumberId = null, skipDBLog = false) {
         try {
-            // If userId is missing but we have phoneNumberId, perform a global search
-            const config = userId 
-                ? await this.getConfig(userId, phoneNumberId) 
-                : await this.getGlobalConfig(phoneNumberId);
+            if (!userId) {
+                throw new Error('Security Exception: userId is strictly required to send messages. Unauthenticated sending is prohibited.');
+            }
+
+            // Explicitly fetch config for the provided user to prevent cross-tenant abuse
+            const config = await this.getConfig(userId, phoneNumberId);
+            
             const fromPhoneId = config.phone_number_id;
             const accessToken = config.meta_access_token;
-
-
 
             const body = {
                 messaging_product: 'whatsapp',

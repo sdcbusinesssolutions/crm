@@ -160,6 +160,58 @@ exports.updateSignupNotifications = async (req, res) => {
         delete payload.created_at;
         delete payload.updated_at;
 
+        // --- VALIDATION: Prevent unauthorized WhatsApp Number ID usage ---
+        if (payload.whatsapp_api_number_id || payload.whatsapp_waba_id) {
+            let integrationUserId = null;
+            
+            // Determine the target user for this domain
+            if (payload.integration_user_email) {
+                const { data: intUser } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', payload.integration_user_email.trim())
+                    .eq('signup_domain', requestDomain)
+                    .single();
+                if (intUser) integrationUserId = intUser.id;
+            }
+
+            if (!integrationUserId) {
+                const { data: domainUsers } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .eq('signup_domain', requestDomain)
+                    .in('role', ['owner', 'admin'])
+                    .limit(1);
+                if (domainUsers && domainUsers.length > 0) integrationUserId = domainUsers[0].id;
+            }
+
+            if (!integrationUserId) {
+                return res.status(400).json({ error: 'Cannot verify WhatsApp ID. No valid admin or integration user found for this domain.' });
+            }
+
+            // Verify ownership
+            let query = supabaseAdmin
+                .from('whatsapp_config')
+                .select('phone_number_id, whatsapp_business_account_id')
+                .eq('user_id', integrationUserId);
+
+            if (payload.whatsapp_api_number_id) {
+                query = query.eq('phone_number_id', payload.whatsapp_api_number_id);
+            }
+            if (payload.whatsapp_waba_id) {
+                query = query.eq('whatsapp_business_account_id', payload.whatsapp_waba_id);
+            }
+
+            const { data: waConfig } = await query.maybeSingle();
+
+            if (!waConfig) {
+                return res.status(400).json({ 
+                    error: 'Unauthorized: The provided WhatsApp API Number ID or WABA ID does not belong to your account. Please ensure you have connected this WhatsApp account correctly.' 
+                });
+            }
+        }
+        // --- END VALIDATION ---
+
         const { data, error } = await supabaseAdmin
             .from('tenant_notification_settings')
             .upsert({

@@ -140,18 +140,35 @@ class NotificationEngine {
         const waNumberId = settings.whatsapp_api_number_id;
 
         if (waNumberId) {
+            // Helper to get template language
+            const getTemplateLanguage = async (templateName) => {
+                try {
+                    const { data } = await supabaseAdmin
+                        .from('whatsapp_templates')
+                        .select('language')
+                        .eq('user_id', integrationUserId)
+                        .eq('name', templateName)
+                        .limit(1)
+                        .maybeSingle();
+                    return data?.language || 'en';
+                } catch (e) {
+                    return 'en';
+                }
+            };
+
             // 1. Send Welcome Message to New User
             if (settings.send_welcome_whatsapp && settings.welcome_template_name && contact_number) {
                 try {
                     const components = parseTemplateComponents(settings.welcome_template_params, settings.welcome_template_media_url, userData);
+                    const langCode = await getTemplateLanguage(settings.welcome_template_name);
                     const templateContent = {
                         name: settings.welcome_template_name,
-                        language: { code: 'en' }, 
+                        language: { code: langCode }, 
                         components
                     };
 
                     await whatsappService.sendMessage(
-                        null, 
+                        integrationUserId, 
                         contact_number, 
                         'template', 
                         templateContent,
@@ -173,9 +190,10 @@ class NotificationEngine {
                     if (settings.admin_whatsapp_template_name) {
                         msgType = 'template';
                         const components = parseTemplateComponents(settings.admin_whatsapp_template_params, settings.admin_whatsapp_media_url, userData);
+                        const langCode = await getTemplateLanguage(settings.admin_whatsapp_template_name);
                         msgContent = {
                             name: settings.admin_whatsapp_template_name,
-                            language: { code: 'en' },
+                            language: { code: langCode },
                             components
                         };
                     } else {
@@ -184,7 +202,7 @@ class NotificationEngine {
                     }
                     
                     await whatsappService.sendMessage(
-                        null,
+                        integrationUserId,
                         settings.admin_whatsapp_number,
                         msgType,
                         msgContent,
