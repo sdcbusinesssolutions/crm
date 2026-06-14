@@ -707,21 +707,21 @@ const AuthPage: React.FC = () => {
                         <form onSubmit={handleAuth} className="space-y-4">
                             <div className="space-y-2">
                                 <label className="block text-sm font-semibold text-slate-300">Full Name</label>
-                                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="John Doe" />
+                                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-300" placeholder="John Doe" />
                             </div>
                             <div className="space-y-2">
                                 <label className="block text-sm font-semibold text-slate-300">Contact Number</label>
-                                <input type="tel" required value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="+1234567890" />
+                                <input type="tel" required value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-300" placeholder="+1234567890" />
                             </div>
                             <div className="space-y-2">
                                 <label className="block text-sm font-semibold text-slate-300">Email Address</label>
-                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500" placeholder="name@company.com" />
+                                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-300" placeholder="name@company.com" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-300">Password</label>
                                     <div className="relative">
-                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-10" placeholder="••••••••" />
+                                        <input type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-300 pr-10" placeholder="••••••••" />
                                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-1 text-slate-400 hover:text-slate-200 focus:outline-none transition-colors">
                                             {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                         </button>
@@ -730,7 +730,7 @@ const AuthPage: React.FC = () => {
                                 <div className="space-y-2">
                                     <label className="block text-sm font-semibold text-slate-300">Confirm Password</label>
                                     <div className="relative">
-                                        <input type={showPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-500 pr-10" placeholder="••••••••" />
+                                        <input type={showPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-xl focus:ring-2 focus:ring-[#25D366] focus:border-[#25D366] outline-none transition-all font-medium text-white placeholder-slate-300 pr-10" placeholder="••••••••" />
                                     </div>
                                 </div>
                             </div>

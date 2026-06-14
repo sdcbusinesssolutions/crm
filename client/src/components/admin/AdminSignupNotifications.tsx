@@ -647,7 +647,7 @@ const AdminSignupNotifications: React.FC = () => {
                                 </div>
                                 <p className="text-xs text-black mt-3">
                                     The webhook will receive a POST request with the following JSON format:
-                                    <pre className="mt-2 p-3 bg-slate-800 text-black rounded-lg text-[10px] overflow-x-auto">
+                                    <pre className="mt-2 p-3 bg-slate-900 text-emerald-400 rounded-lg text-[10px] overflow-x-auto">
 {`{
   "event": "new_user_signup",
   "domain": "yourtenantdomain.com",
