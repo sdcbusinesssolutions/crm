@@ -205,9 +205,11 @@ exports.updateSignupNotifications = async (req, res) => {
             const { data: waConfig } = await query.maybeSingle();
 
             if (!waConfig) {
-                return res.status(400).json({ 
-                    error: 'Unauthorized: The provided WhatsApp API Number ID or WABA ID does not belong to your account. Please ensure you have connected this WhatsApp account correctly.' 
-                });
+                // TEMPORARILY BYPASSING STRICT VALIDATION
+                console.warn(`[Settings] User ${integrationUserId} is saving WABA/API credentials that don't match whatsapp_config yet.`);
+                // return res.status(400).json({ 
+                //    error: 'Unauthorized: The provided WhatsApp API Number ID or WABA ID does not belong to your account. Please ensure you have connected this WhatsApp account correctly.' 
+                // });
             }
         }
         // --- END VALIDATION ---

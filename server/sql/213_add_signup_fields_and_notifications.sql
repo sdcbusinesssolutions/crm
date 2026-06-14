@@ -133,3 +133,6 @@ BEGIN
         CREATE POLICY "Service role full access tenant_notification_settings" ON public.tenant_notification_settings FOR ALL USING (true) WITH CHECK (true);
     END IF;
 END $$;
+
+-- 5. IMPORTANT: Reload Supabase Schema Cache
+NOTIFY pgrst, 'reload schema';

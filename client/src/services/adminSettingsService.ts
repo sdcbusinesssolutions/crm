@@ -26,7 +26,7 @@ export const adminSettingsService = {
                 // Optional: Handle token expiration
                 window.location.href = '/admin/auth/login';
             }
-            throw new Error(err.message || 'Failed to fetch onboarding settings');
+            throw new Error(err.error || err.message || 'Failed to fetch onboarding settings');
         }
         return res.json();
     },
@@ -40,7 +40,7 @@ export const adminSettingsService = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to save onboarding settings');
+            throw new Error(err.error || err.message || 'Failed to save onboarding settings');
         }
         return res.json();
     },
@@ -53,7 +53,7 @@ export const adminSettingsService = {
             if (res.status === 401) {
                 window.location.href = '/admin/auth/login';
             }
-            throw new Error(err.message || 'Failed to fetch signup notification settings');
+            throw new Error(err.error || err.message || 'Failed to fetch signup notification settings');
         }
         return res.json();
     },
@@ -67,7 +67,7 @@ export const adminSettingsService = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to save signup notification settings');
+            throw new Error(err.error || err.message || 'Failed to save signup notification settings');
         }
         return res.json();
     },
@@ -81,7 +81,7 @@ export const adminSettingsService = {
         const res = await fetch(`${API_URL}/admin/settings/whatsapp-templates${query}`, { headers });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to fetch templates');
+            throw new Error(err.error || err.message || 'Failed to fetch templates');
         }
         return res.json();
     },
@@ -94,7 +94,7 @@ export const adminSettingsService = {
             if (res.status === 401) {
                 window.location.href = '/admin/auth/login';
             }
-            throw new Error(err.message || 'Failed to fetch SMTP settings');
+            throw new Error(err.error || err.message || 'Failed to fetch SMTP settings');
         }
         return res.json();
     },
@@ -108,7 +108,7 @@ export const adminSettingsService = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to save SMTP settings');
+            throw new Error(err.error || err.message || 'Failed to save SMTP settings');
         }
         return res.json();
     },
@@ -122,7 +122,7 @@ export const adminSettingsService = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to test SMTP settings');
+            throw new Error(err.error || err.message || 'Failed to test SMTP settings');
         }
         return res.json();
     }
