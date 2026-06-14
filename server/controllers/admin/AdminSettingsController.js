@@ -374,3 +374,67 @@ exports.testSmtpSettings = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getIntegrationTemplates = async (req, res) => {
+    try {
+        const origin = req.headers.origin || req.headers.host || '';
+        let requestDomain = 'clickube.com';
+        try {
+            if (origin.startsWith('http')) {
+                requestDomain = new URL(origin).hostname;
+            } else {
+                requestDomain = origin.split(':')[0];
+            }
+        } catch (e) { }
+
+        requestDomain = requestDomain.replace(/^www\./, '').toLowerCase();
+        if (requestDomain.includes('localhost') || requestDomain.includes('127.0.0.1')) {
+            requestDomain = 'clickube.com';
+        }
+
+        const wabaId = req.query.wabaId;
+        const phoneId = req.query.phoneId;
+
+        let integrationUserId = null;
+        
+        // Find user by WABA ID + Phone ID
+        if (wabaId && phoneId) {
+            const { data: configData } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('user_id')
+                .eq('whatsapp_business_account_id', wabaId.trim())
+                .eq('phone_number_id', phoneId.trim())
+                .limit(1)
+                .maybeSingle();
+            if (configData) integrationUserId = configData.user_id;
+        }
+
+        // Fallback to any admin in domain if WABA ID fails or is missing
+        if (!integrationUserId) {
+            const { data: domainUsers } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('signup_domain', requestDomain)
+                .in('role', ['owner', 'admin'])
+                .limit(1);
+            if (domainUsers && domainUsers.length > 0) integrationUserId = domainUsers[0].id;
+        }
+
+        if (!integrationUserId) {
+            return res.json([]); // Return empty if no valid user found
+        }
+
+        const { data, error } = await supabaseAdmin
+            .from('whatsapp_templates')
+            .select('*')
+            .eq('user_id', integrationUserId)
+            .eq('status', 'APPROVED');
+
+        if (error) throw error;
+
+        res.json(data || []);
+    } catch (error) {
+        console.error('Error fetching admin whatsapp templates:', error);
+        res.status(500).json({ error: error.message });
+    }
+};

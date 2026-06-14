@@ -15,6 +15,7 @@ router.put('/onboarding', verifyAdminToken, AdminSettingsController.updateOnboar
 // Signup Notifications (Platform Admin)
 router.get('/notifications', verifyAdminToken, AdminSettingsController.getSignupNotifications);
 router.put('/notifications', verifyAdminToken, AdminSettingsController.updateSignupNotifications);
+router.get('/whatsapp-templates', verifyAdminToken, AdminSettingsController.getIntegrationTemplates);
 
 // Email/SMTP Settings (Platform Admin)
 router.get('/email', verifyAdminToken, AdminSettingsController.getSmtpSettings);

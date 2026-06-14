@@ -4,13 +4,68 @@ const SmtpService = require('./SmtpService');
 const axios = require('axios');
 
 // Helper to parse template parameters
-const parseTemplateComponents = (paramsJson, mediaUrl, userData) => {
+const parseTemplateComponents = (paramsJson, mediaUrl, userData, headerFormat, templateInfo) => {
     const components = [];
+
+    if (headerFormat === 'CAROUSEL' || (templateInfo && templateInfo.template_type === 'CAROUSEL')) {
+        const cards = (templateInfo?.buttons?.cards || []).map((card, idx) => {
+            const cardComponents = [];
+            if (mediaUrl) {
+                let mediaType = 'image';
+                if (card && card.header && card.header.format) {
+                    const format = card.header.format.toUpperCase();
+                    if (format === 'VIDEO') mediaType = 'video';
+                    else if (format === 'DOCUMENT') mediaType = 'document';
+                }
+                cardComponents.push({
+                    type: 'header',
+                    parameters: [{ type: mediaType, [mediaType]: { link: mediaUrl } }]
+                });
+            }
+            
+            if (paramsJson && Array.isArray(paramsJson) && paramsJson.length > 0) {
+                const bodyParams = paramsJson.map(param => {
+                    let textValue = '';
+                    if (param.type === 'field') {
+                        if (param.value === 'name') textValue = userData.name || '';
+                        else if (param.value === 'email') textValue = userData.email || '';
+                        else if (param.value === 'contact') textValue = userData.contact_number || '';
+                    } else if (param.type === 'custom') {
+                        textValue = param.value || '';
+                    }
+                    return { type: 'text', text: textValue };
+                });
+                cardComponents.push({ type: 'body', parameters: bodyParams });
+            }
+            
+            return {
+                card_index: idx,
+                components: cardComponents
+            };
+        });
+
+        components.push({
+            type: 'carousel',
+            cards: cards
+        });
+        
+        return components;
+    }
     
-    if (mediaUrl) {
+    if (mediaUrl && headerFormat) {
+        const typeMap = {
+            'IMAGE': 'image',
+            'VIDEO': 'video',
+            'DOCUMENT': 'document'
+        };
+        const mediaType = typeMap[headerFormat] || 'image';
+
         components.push({
             type: 'header',
-            parameters: [{ type: 'image', image: { link: mediaUrl } }]
+            parameters: [{ 
+                type: mediaType, 
+                [mediaType]: { link: mediaUrl } 
+            }]
         });
     }
 
@@ -65,18 +120,19 @@ class NotificationEngine {
         let integrationUserId = null;
 
         // Find the specific integration user if provided
-        if (settings.integration_user_email) {
-            const { data: intUser } = await supabaseAdmin
-                .from('profiles')
-                .select('id')
-                .eq('email', settings.integration_user_email.trim())
-                .eq('signup_domain', requestDomain)
-                .single();
+        if (settings.whatsapp_waba_id && settings.whatsapp_api_number_id) {
+            const { data: configData } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('user_id')
+                .eq('whatsapp_business_account_id', settings.whatsapp_waba_id.trim())
+                .eq('phone_number_id', settings.whatsapp_api_number_id.trim())
+                .limit(1)
+                .maybeSingle();
             
-            if (intUser) {
-                integrationUserId = intUser.id;
+            if (configData) {
+                integrationUserId = configData.user_id;
             } else {
-                console.warn(`NotificationEngine: Integration User Email ${settings.integration_user_email} not found in domain ${requestDomain}.`);
+                console.warn(`NotificationEngine: WhatsApp Config not found for WABA ${settings.whatsapp_waba_id}.`);
             }
         }
 
@@ -140,30 +196,36 @@ class NotificationEngine {
         const waNumberId = settings.whatsapp_api_number_id;
 
         if (waNumberId) {
-            // Helper to get template language
-            const getTemplateLanguage = async (templateName) => {
+            // Helper to get template info
+            const getTemplateInfo = async (templateName) => {
                 try {
                     const { data } = await supabaseAdmin
                         .from('whatsapp_templates')
-                        .select('language')
+                        .select('language, header_format, template_type, buttons')
                         .eq('user_id', integrationUserId)
                         .eq('name', templateName)
                         .limit(1)
                         .maybeSingle();
-                    return data?.language || 'en';
+                    return {
+                        langCode: data?.language || 'en',
+                        headerFormat: data?.header_format || data?.template_type || null,
+                        template_type: data?.template_type,
+                        buttons: data?.buttons
+                    };
                 } catch (e) {
-                    return 'en';
+                    return { langCode: 'en', headerFormat: null };
                 }
             };
 
             // 1. Send Welcome Message to New User
             if (settings.send_welcome_whatsapp && settings.welcome_template_name && contact_number) {
                 try {
-                    const components = parseTemplateComponents(settings.welcome_template_params, settings.welcome_template_media_url, userData);
-                    const langCode = await getTemplateLanguage(settings.welcome_template_name);
+                    const tInfo = await getTemplateInfo(settings.welcome_template_name);
+                    const components = parseTemplateComponents(settings.welcome_template_params, settings.welcome_template_media_url, userData, tInfo.headerFormat, tInfo);
+                    
                     const templateContent = {
                         name: settings.welcome_template_name,
-                        language: { code: langCode }, 
+                        language: { code: tInfo.langCode }, 
                         components
                     };
 
@@ -189,11 +251,12 @@ class NotificationEngine {
 
                     if (settings.admin_whatsapp_template_name) {
                         msgType = 'template';
-                        const components = parseTemplateComponents(settings.admin_whatsapp_template_params, settings.admin_whatsapp_media_url, userData);
-                        const langCode = await getTemplateLanguage(settings.admin_whatsapp_template_name);
+                        const tInfo = await getTemplateInfo(settings.admin_whatsapp_template_name);
+                        const components = parseTemplateComponents(settings.admin_whatsapp_template_params, settings.admin_whatsapp_media_url, userData, tInfo.headerFormat, tInfo);
+                        
                         msgContent = {
                             name: settings.admin_whatsapp_template_name,
-                            language: { code: langCode },
+                            language: { code: tInfo.langCode },
                             components
                         };
                     } else {

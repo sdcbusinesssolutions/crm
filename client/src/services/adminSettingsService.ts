@@ -72,6 +72,20 @@ export const adminSettingsService = {
         return res.json();
     },
 
+    getWhatsappTemplates: async (wabaId?: string, phoneId?: string) => {
+        const headers = getHeaders();
+        const queryParams = new URLSearchParams();
+        if (wabaId) queryParams.append('wabaId', wabaId);
+        if (phoneId) queryParams.append('phoneId', phoneId);
+        const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+        const res = await fetch(`${API_URL}/admin/settings/whatsapp-templates${query}`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Failed to fetch templates');
+        }
+        return res.json();
+    },
+
     getSmtpSettings: async () => {
         const headers = getHeaders();
         const res = await fetch(`${API_URL}/admin/settings/email`, { headers });
