@@ -53,9 +53,22 @@ const ClickToWhatsAppDashboard = () => {
              { id: '4', account_id: '913506310415028', name: 'Biproraj Personal Ad Ac', currency: 'INR', balance: 0 },
            ]);
         }
+      } else {
+        // For development/UI testing: Show mock data if token is missing
+        setAdAccounts([
+          { id: '1', account_id: '853910235680563', name: 'HD Techs Admin', currency: 'USD', balance: 0 },
+          { id: '2', account_id: '1634398143758884', name: 'Epiphany Publication', currency: 'INR', balance: 0 },
+          { id: '3', account_id: '897350962172923', name: 'Cybersync Technologies Ad Account', currency: 'INR', balance: 24540 },
+          { id: '4', account_id: '913506310415028', name: 'Biproraj Personal Ad Ac', currency: 'INR', balance: 0 },
+        ]);
       }
     } catch (err) {
       console.error("Failed to fetch pages:", err);
+      // Fallback on catch block as well
+      setAdAccounts([
+        { id: '1', account_id: '853910235680563', name: 'HD Techs Admin (Mock)', currency: 'USD', balance: 0 },
+        { id: '2', account_id: '1634398143758884', name: 'Epiphany Publication (Mock)', currency: 'INR', balance: 0 },
+      ]);
     } finally {
       setLoading(false);
     }
