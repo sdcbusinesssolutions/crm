@@ -115,6 +115,7 @@ try {
 }
 
 // --- Middleware ---
+app.set('trust proxy', 1); // Essential for Cloudflare/Nginx: Trust the proxy to get the real client IP
 app.use(cors());
 app.use(compression());
 
