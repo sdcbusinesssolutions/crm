@@ -103,7 +103,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             maxAge,
             gender,
             startDate,
-            endDate
+            endDate,
+            welcomeMessageText,
+            iceBreakerText
         } = req.body;
 
         // Validation
@@ -142,7 +144,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             maxAge,
             gender,
             startDate,
-            endDate
+            endDate,
+            welcomeMessageText,
+            iceBreakerText
         });
 
         res.status(200).json(result);

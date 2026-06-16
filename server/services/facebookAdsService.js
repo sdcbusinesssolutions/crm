@@ -80,7 +80,9 @@ class FacebookAdsService {
         maxAge,
         gender,
         startDate,
-        endDate
+        endDate,
+        welcomeMessageText,
+        iceBreakerText
     }) {
         try {
             const apiVersion = 'v20.0';
@@ -158,22 +160,44 @@ class FacebookAdsService {
             const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, null, { params: adSetParams });
             const adSetId = adSetRes.data.id;
 
+            // Define the WhatsApp Welcome Experience (Visual Editor format)
+            const visualEditorSpec = {
+                type: "VISUAL_EDITOR",
+                version: 2,
+                landing_screen_type: "welcome_message",
+                media_type: "text",
+                text_format: {
+                    customer_action_type: "prefilled_message",
+                    message: {
+                        text: welcomeMessageText || "Hi! I'm interested in this.",
+                        ice_breakers: [{
+                            title: iceBreakerText || "I'm interested!",
+                            response: "AD_CLICK_TRIGGER"
+                        }]
+                    }
+                }
+            };
+            const welcomeMessageStr = JSON.stringify(visualEditorSpec);
+
             // Step 3: Create Ad Creative
+            const objectStorySpec = {
+                page_id: pageId,
+                page_welcome_message: welcomeMessageStr,
+                link_data: {
+                    image_hash: imageHash,
+                    link: 'https://api.whatsapp.com/send', // Standard for CTWA
+                    name: headline,
+                    message: primaryText,
+                    call_to_action: {
+                        type: 'WHATSAPP_MESSAGE',
+                        value: { app_destination: 'WHATSAPP' }
+                    }
+                }
+            };
+
             const creativeParams = {
                 name: `${campaignName} - Creative`,
-                object_story_spec: JSON.stringify({
-                    page_id: pageId,
-                    link_data: {
-                        image_hash: imageHash,
-                        link: 'https://api.whatsapp.com/send', // Standard for CTWA
-                        name: headline,
-                        message: primaryText,
-                        call_to_action: {
-                            type: 'WHATSAPP_MESSAGE',
-                            value: { app_destination: 'WHATSAPP' }
-                        }
-                    }
-                }),
+                object_story_spec: JSON.stringify(objectStorySpec),
                 access_token: accessToken
             };
 

@@ -13,6 +13,8 @@ const ClickToWhatsAppLauncher = () => {
     headline: 'Chat with us on WhatsApp!',
     primaryText: 'Click below to instantly connect with our team via WhatsApp.',
     imageUrl: '',
+    welcomeMessageText: "Hi! I'm interested in this.",
+    iceBreakerText: "I'm interested!",
     targetCountries: '',
     minAge: 18,
     maxAge: 65,
@@ -236,6 +238,29 @@ const ClickToWhatsAppLauncher = () => {
                       name="imageUrl" 
                       placeholder="e.g. https://yourwebsite.com/image.jpg" 
                       value={formData.imageUrl}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label>WhatsApp Welcome Message</label>
+                    <input 
+                      type="text" 
+                      name="welcomeMessageText" 
+                      value={formData.welcomeMessageText}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label>Ice Breaker Button Text</label>
+                    <input 
+                      type="text" 
+                      name="iceBreakerText" 
+                      value={formData.iceBreakerText}
                       onChange={handleChange}
                       required 
                     />
