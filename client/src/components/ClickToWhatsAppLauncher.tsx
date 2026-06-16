@@ -453,13 +453,8 @@ const ClickToWhatsAppLauncher = () => {
                         src={formData.imageUrl} 
                         alt="Ad Creative Preview" 
                         onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.insertAdjacentHTML('afterend', `
-                            <div class="premium-placeholder" style="padding: 2rem;">
-                              <div class="premium-pulse-ring"></div>
-                              <span>Invalid Image URL</span>
-                            </div>
-                          `);
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="%23f1f5f9"/><text x="200" y="100" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle" fill="%2394a3b8">Invalid Image URL</text></svg>';
                         }}
                       />
                       <div className="premium-image-overlay"></div>
@@ -491,24 +486,7 @@ const ClickToWhatsAppLauncher = () => {
             </div>
           </div>
           
-          <div className="ctwa-premium-stats">
-            <div className="premium-stat-header">
-              <div className="stat-icon-bg">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
-              </div>
-              <h4>Audience Projection</h4>
-            </div>
-            <div className="premium-stat-body">
-              <div className="premium-number">
-                ~{((formData.dailyBudget || 10) * 12500).toLocaleString('en-US', { maximumFractionDigits: 0 })} - {((formData.dailyBudget || 10) * 28000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-              </div>
-              <div className="premium-metric">Estimated Monthly Reach</div>
-              <p>Based on your budget of <strong>${formData.dailyBudget || 10}/day</strong> and selected targeting.</p>
-            </div>
-            <div className="premium-stat-progress">
-              <div className="progress-bar-fill" style={{ width: `${Math.min(100, Math.max(15, ((formData.dailyBudget || 10) / 50) * 100))}%` }}></div>
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
