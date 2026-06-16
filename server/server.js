@@ -321,6 +321,7 @@ app.use('/api/integrations', requireAuth, integrationsRoutes);
 app.use('/api/sheet-automations', requireAuth, require('./routes/sheet_automations'));
 app.use('/api/ai-agents', requireAuth, require('./routes/ai_agents'));
 app.use('/api/quick-replies', requireAuth, require('./routes/quick_replies'));
+app.use('/api/click-to-whatsapp', requireAuth, require('./routes/clickToWhatsApp'));
 app.use('/api', router);
 
 app.use('/api/auth-notifications', authNotificationsRoutes); // Triggered post-signup for whatsapp config

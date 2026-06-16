@@ -1,0 +1,441 @@
+.ctwa-dash-container {
+  padding: 2rem;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.ctwa-dash-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.ctwa-dash-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.ctwa-dash-subtitle {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.ctwa-dash-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ctwa-dash-tabs {
+  display: flex;
+  background: white;
+  padding: 0.25rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.ctwa-tab-btn {
+  padding: 0.5rem 1.25rem;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.ctwa-tab-btn.active {
+  background: #f1f5f9;
+  color: #1e293b;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.ctwa-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ctwa-btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.ctwa-btn-secondary {
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #1e293b;
+}
+
+.ctwa-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.ctwa-btn-primary {
+  background: #2563eb;
+  border: 1px solid #2563eb;
+  color: white;
+}
+
+.ctwa-btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.ctwa-dash-content {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  overflow: hidden;
+}
+
+.ctwa-dash-toolbar {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ctwa-search-box {
+  position: relative;
+  width: 300px;
+}
+
+.ctwa-search-box .search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+}
+
+.ctwa-search-box input {
+  width: 100%;
+  padding: 0.6rem 1rem 0.6rem 2.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  outline: none;
+}
+
+.ctwa-search-box input:focus {
+  border-color: #cbd5e1;
+  background: white;
+}
+
+.ctwa-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ctwa-toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.ctwa-toolbar-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ctwa-toolbar-btn.text-green-600 {
+  color: #16a34a;
+}
+
+.ctwa-toolbar-icon-btn {
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.ctwa-toolbar-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ctwa-table-container {
+  overflow-x: auto;
+}
+
+.ctwa-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ctwa-table th {
+  background: #f8fafc;
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.ctwa-table th span {
+  color: #cbd5e1;
+  margin-left: 0.25rem;
+}
+
+.ctwa-table td {
+  padding: 1rem 1.5rem;
+  font-size: 0.875rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.ctwa-page-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ctwa-page-icon {
+  width: 40px;
+  height: 40px;
+  background: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+.ctwa-page-category {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 0.1rem;
+}
+
+.ctwa-badge-gray {
+  background: #f1f5f9;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.ctwa-badge-warning {
+  background: #fffbeb;
+  color: #d97706;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.ctwa-badge-success {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.ctwa-badge-connected {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Toggle Switch */
+.ctwa-toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+}
+
+.ctwa-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.ctwa-toggle-switch label {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #cbd5e1;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.ctwa-toggle-switch label:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+.ctwa-toggle-switch input:checked + label {
+  background-color: #10b981;
+}
+
+.ctwa-toggle-switch input:checked + label:before {
+  transform: translateX(20px);
+}
+
+/* Pagination */
+.ctwa-pagination {
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fcfcfc;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.ctwa-rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.ctwa-rows-per-page select {
+  padding: 0.25rem 2rem 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  outline: none;
+  background: white;
+}
+
+.ctwa-page-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ctwa-page-controls button {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #64748b;
+}
+
+.ctwa-page-controls button.active {
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #a7f3d0;
+  font-weight: 600;
+}
+
+.ctwa-page-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Ad Accounts List Styles */
+.ctwa-fb-icon {
+  width: 40px;
+  height: 40px;
+  background: #eef2ff;
+  color: #4f46e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-family: serif;
+  font-size: 1.2rem;
+}
+
+.ctwa-badge-active {
+  background: #ecfdf5;
+  color: #059669;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  display: inline-block;
+}
+
+.ctwa-manage-campaigns-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.ctwa-manage-campaigns-btn:hover {
+  background: #eff6ff;
+}
+
+.ctwa-manage-campaigns-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ctwa-back-link {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+}
+
+.ctwa-back-link:hover {
+  color: #1e293b;
+}

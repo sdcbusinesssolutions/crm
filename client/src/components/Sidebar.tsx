@@ -47,6 +47,8 @@ export type MenuItem =
     | 'Team Staff'
     | 'My Plan'
     | 'G Automation'
+    | 'Click to WhatsApp Ads'
+    | 'Campaign Analytics'
     | 'Quick Reply';
 
 interface SidebarProps {
@@ -467,6 +469,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && isContactsOpen && <div className="space-y-1 mt-2 mb-2.5">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
 
                         {renderItem('Campaigns', <MegaphoneIcon className="w-5 h-5" />)}
+                        {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}

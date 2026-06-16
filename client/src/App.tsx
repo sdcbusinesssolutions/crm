@@ -51,6 +51,9 @@ import AuthCentralCallback from './components/AuthCentralCallback';
 import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
 import StaffManagement from './modules/teamStaff/pages/StaffManagement';
 import StaffLogin from './modules/teamStaff/pages/StaffLogin';
+import ContactGroups from './components/ContactGroups';
+import ClickToWhatsAppDashboard from './components/ClickToWhatsAppDashboard';
+import CampaignAnalytics from './components/CampaignAnalytics';
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
     // Handles cross-domain impersonation redirects from Supabase Magic Links
@@ -581,6 +584,14 @@ const MainApp: React.FC = () => {
                     onToggleSidebar={() => setSidebarOpen(true)}
                 />
             );
+        }
+
+        if (activeMenuItem === 'Click to WhatsApp Ads') {
+            return <ClickToWhatsAppDashboard />;
+        }
+
+        if (activeMenuItem === 'Campaign Analytics') {
+            return <CampaignAnalytics />;
         }
 
         if (activeMenuItem === 'Dashboard') {
