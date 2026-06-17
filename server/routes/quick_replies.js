@@ -216,7 +216,7 @@ function buildWhatsAppPayload(node) {
                 name: 'flow',
                 parameters: {
                     flow_message_version: '3',
-                    flow_token: `test_token_${Date.now()}`,
+                    flow_token: `test_token_${Date.now()}__${d.flowId}`,
                     flow_id: d.flowId,
                     flow_cta: d.ctaText || 'Open Form'
                 }

@@ -669,7 +669,7 @@ router.post('/:id/send', requirePermission('Whatsapp Forms', 'read_write'), asyn
                             name: "flow",
                             parameters: {
                                 flow_message_version: "3",
-                                flow_token: "unused",
+                                flow_token: `${Date.now()}__${id}`,
                                 flow_id: id,
                                 flow_cta: "Open Flow",
                                 flow_action: "navigate",
