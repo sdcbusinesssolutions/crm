@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import './ClickToWhatsAppLauncher.css';
 
 const ClickToWhatsAppLauncher = () => {
@@ -24,6 +25,8 @@ const ClickToWhatsAppLauncher = () => {
   });
   
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [successData, setSuccessData] = useState<any>(null);
   const [error, setError] = useState('');
   
@@ -73,6 +76,40 @@ const ClickToWhatsAppLauncher = () => {
   const prevStep = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError('');
+    const uploadData = new FormData();
+    uploadData.append('file', file);
+    uploadData.append('module', 'ctwa');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+            
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+        },
+        body: uploadData
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setFormData(prev => ({ ...prev, imageUrl: data.url }));
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    } catch (err: any) {
+      setUploadError('Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -232,11 +269,27 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
 
                   <div className="ctwa-form-group">
-                    <label>Image URL</label>
+                    <label>Ad Image</label>
+                    <div className="flex gap-2 mb-2 mt-1">
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleFileUpload}
+                        className="block w-full text-sm text-[var(--color-text)]
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-xs file:font-semibold
+                        file:bg-[#25D366] file:text-white
+                        hover:file:bg-[#128C7E]
+                        cursor-pointer"
+                      />
+                    </div>
+                    {uploading && <p className="text-xs text-[#25D366] animate-pulse mb-2">Uploading...</p>}
+                    {uploadError && <p className="text-xs text-red-500 mb-2">{uploadError}</p>}
                     <input 
                       type="url" 
                       name="imageUrl" 
-                      placeholder="e.g. https://yourwebsite.com/image.jpg" 
+                      placeholder="Or enter direct image URL e.g. https://yourwebsite.com/image.jpg" 
                       value={formData.imageUrl}
                       onChange={handleChange}
                       required 
@@ -474,14 +527,22 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="premium-media-container">
                   {formData.imageUrl && formData.imageUrl.startsWith('http') ? (
                     <div className="premium-image-wrapper">
-                      <img 
-                        src={formData.imageUrl} 
-                        alt="Ad Creative Preview" 
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="%23f1f5f9"/><text x="200" y="100" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle" fill="%2394a3b8">Invalid Image URL</text></svg>';
-                        }}
-                      />
+                      {formData.imageUrl.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
+                        <video 
+                          src={formData.imageUrl} 
+                          controls
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img 
+                          src={formData.imageUrl} 
+                          alt="Ad Creative Preview" 
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="%23f1f5f9"/><text x="200" y="100" font-family="sans-serif" font-size="14" text-anchor="middle" dominant-baseline="middle" fill="%2394a3b8">Invalid Image URL</text></svg>';
+                          }}
+                        />
+                      )}
                       <div className="premium-image-overlay"></div>
                     </div>
                   ) : (
