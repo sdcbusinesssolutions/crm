@@ -307,7 +307,7 @@ const Users = () => {
 
     // Filter Logic
     const domainFilteredUsers = users.filter(user => {
-        if (domainFilter !== 'all' && user.domain !== domainFilter) return false;
+        if (domainFilter !== 'all' && user.signupDomain !== domainFilter) return false;
         return true;
     });
 
