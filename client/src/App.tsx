@@ -83,6 +83,7 @@ const MainApp: React.FC = () => {
     const [session, setSession] = useState<Session | null>(null);
     const [staffSession, setStaffSession] = useState<any>(null);
     const [isAuthLoading, setIsAuthLoading] = useState(true);
+    const [lockoutError, setLockoutError] = useState<string | null>(null);
 
     // PERSISTENT HASH TRACKING (FIX for Impersonation Redirect Loop)
     // We use a Ref to track if we started this session cycle with a hash.
@@ -239,7 +240,7 @@ const MainApp: React.FC = () => {
             if (error) {
                 // strict lock: block access if the check fails (e.g., due to permission error)
                 console.warn("Plan check failed (RPC error):", error.message);
-                alert("Your 7-Day Free Trial has expired or your account is suspended. Please contact support or upgrade your plan to continue using the platform.");
+                setLockoutError("Your 7-Day Free Trial has expired or your account is suspended. Please contact support or upgrade your plan to continue using the platform.");
                 await supabase.auth.signOut();
                 tokenService.clearAccessToken();
                 return false;
@@ -249,8 +250,7 @@ const MainApp: React.FC = () => {
                 const status = data[0];
                 if (status.is_allowed === false) {
                     console.warn("Blocking login due to expired plan:", status.message);
-                    // Show user feedback (alert is crude but effective for locking out)
-                    alert(status.message);
+                    setLockoutError(status.message);
                     await supabase.auth.signOut();
                     tokenService.clearAccessToken();
                     return false;
@@ -778,6 +778,28 @@ const MainApp: React.FC = () => {
     if (isAuthLoading) {
         // Render nothing while verifying — no spinner, no flash, just wait silently
         return null;
+    }
+
+    if (lockoutError) {
+        return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+                <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-8 max-w-md w-full mx-4 text-center transform transition-all scale-100">
+                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+                        <span className="text-4xl">🔒</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Access Denied</h2>
+                    <p className="text-slate-600 mb-8 leading-relaxed font-medium">
+                        {lockoutError}
+                    </p>
+                    <button 
+                        onClick={() => setLockoutError(null)} 
+                        className="w-full py-3.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-brand-200 active:scale-[0.98]"
+                    >
+                        Back to Login
+                    </button>
+                </div>
+            </div>
+        );
     }
 
     if (!session && !staffSession) {
