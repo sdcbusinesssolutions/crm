@@ -590,6 +590,40 @@ exports.assignPlan = async (req, res) => {
             return res.status(403).json({ message: 'Access Denied: You cannot assign plans from other domains.' });
         }
 
+        // NEW: LIMIT ENFORCEMENT
+        const { data: targetUser } = await supabaseAdmin
+            .from('profiles')
+            .select('plan_assigned_by_admin, plan_status')
+            .eq('id', userId)
+            .single();
+
+        const alreadyAssigned = targetUser?.plan_assigned_by_admin && targetUser?.plan_status === 'active';
+
+        if (!isSuperAdmin && !alreadyAssigned) {
+            const { data: limitData } = await supabaseAdmin
+                .from('tenant_limits')
+                .select('user_limit')
+                .eq('domain', adminDomain)
+                .single();
+            
+            const userLimit = limitData ? limitData.user_limit : 0;
+
+            const { count, error: countError } = await supabaseAdmin
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('signup_domain', adminDomain)
+                .eq('plan_assigned_by_admin', true)
+                .eq('plan_status', 'active');
+            
+            if (countError) {
+                return res.status(500).json({ message: 'Error checking tenant limits.' });
+            }
+
+            if (count >= userLimit) {
+                return res.status(403).json({ message: `Your user limit of ${userLimit} has been reached. Please contact Super Admin to increase your limit.` });
+            }
+        }
+
         // 3. Calculate Expiry
         let finalDuration = durationDays ? parseInt(durationDays) : 30;
         const expiryDate = new Date();
