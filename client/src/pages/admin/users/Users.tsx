@@ -538,8 +538,10 @@ const Users = () => {
                                                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border cursor-pointer select-none hover:opacity-80 transition-opacity ${user.status === 'Active'
                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                                         : user.status === 'Inactive'
-                                                            ? 'bg-red-50 text-red-700 border-red-100'
-                                                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                            ? 'bg-slate-100 text-slate-600 border-slate-200'
+                                                            : user.status === 'Expired'
+                                                                ? 'bg-red-50 text-red-700 border-red-200 animate-pulse-subtle'
+                                                                : 'bg-slate-100 text-slate-600 border-slate-200'
                                                         }`}>
                                                     {user.status || 'Unknown'}
                                                 </span>

@@ -237,9 +237,12 @@ const MainApp: React.FC = () => {
             const { data, error } = await (supabase.rpc as any)('check_user_plan_status', { target_user_id: currentSession.user.id });
 
             if (error) {
-                // warning only, don't block if RPC is missing
-                console.warn("Plan check skipped (RPC error):", error.message);
-                return true;
+                // strict lock: block access if the check fails (e.g., due to permission error)
+                console.warn("Plan check failed (RPC error):", error.message);
+                alert("Your 7-Day Free Trial has expired or your account is suspended. Please contact support or upgrade your plan to continue using the platform.");
+                await supabase.auth.signOut();
+                tokenService.clearAccessToken();
+                return false;
             }
 
             if (data && data.length > 0) {

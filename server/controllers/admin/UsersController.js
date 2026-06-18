@@ -65,7 +65,11 @@ exports.getUsers = async (req, res) => {
 
             // Map plan_status to UI status
             let uiStatus = 'Active';
-            if (u.plan_status === 'suspended' || u.plan_status === 'banned') uiStatus = 'Inactive';
+            if (u.plan_status === 'suspended' || u.plan_status === 'banned') {
+                uiStatus = 'Inactive';
+            } else if (u.plan_expires_at && new Date(u.plan_expires_at) < now) {
+                uiStatus = 'Expired';
+            }
 
             // Determination of Trial and Delete Eligibility
             const isTrialUser = (u.plan_name === 'Free Trial' || u.plan_name === 'Free') && daysSinceCreation <= TRIAL_DAYS;
