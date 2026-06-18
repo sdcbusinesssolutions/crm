@@ -201,7 +201,7 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Active Users (7 days) */}
+                    {/* Active Users */}
                     <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slide-up animation-delay-200">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/10 to-transparent rounded-bl-full"></div>
                         <div className="relative p-6">
@@ -212,7 +212,7 @@ const Dashboard = () => {
                                     </svg>
                                 </div>
                                 <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                                    7 Days
+                                    Currently
                                 </span>
                             </div>
                             <h3 className="text-4xl font-black text-gray-800 mb-2 group-hover:text-green-600 transition-colors">
@@ -227,27 +227,27 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Today's Active Users */}
+                    {/* Expired Users */}
                     <div className="group relative overflow-hidden bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-slide-up animation-delay-300">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-transparent rounded-bl-full"></div>
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/10 to-transparent rounded-bl-full"></div>
                         <div className="relative p-6">
                             <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <div className="p-3 bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                                     <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                     </svg>
                                 </div>
-                                <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">
-                                    Today
+                                <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full">
+                                    Locked
                                 </span>
                             </div>
-                            <h3 className="text-4xl font-black text-gray-800 mb-2 group-hover:text-purple-600 transition-colors">
-                                {stats.todayActiveUsers.toLocaleString()}
+                            <h3 className="text-4xl font-black text-gray-800 mb-2 group-hover:text-red-600 transition-colors">
+                                {stats.planExpiryStats?.expired || 0}
                             </h3>
-                            <p className="text-gray-600 font-medium">Active Today</p>
+                            <p className="text-gray-600 font-medium">Expired Users</p>
                             <div className="mt-4 pt-4 border-t border-gray-100">
                                 <p className="text-sm text-gray-500">
-                                    Users logged in today
+                                    Users locked out of platform
                                 </p>
                             </div>
                         </div>
