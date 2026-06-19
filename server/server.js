@@ -39,7 +39,7 @@ try {
   const fs = require('fs');
   const clientBuildPath = process.env.CLIENT_BUILD_PATH || path.join(__dirname, '../client/dist');
   const publicConfigPath = path.join(__dirname, '../client/public');
-  
+
   const configContent = `window.env = {
   VITE_SUPABASE_URL: ${JSON.stringify(process.env.SUPABASE_URL || '')},
   VITE_SUPABASE_ANON_KEY: ${JSON.stringify(process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '')},
@@ -249,11 +249,8 @@ const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
-<<<<<<< HEAD
 const walletRoutes = require('./routes/walletRoutes'); // New: Wallet System
-=======
 const authNotificationsRoutes = require('./routes/auth_notifications');
->>>>>>> 58dc5f3075291b8be0bd4cb22d16034ef972d88c
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
