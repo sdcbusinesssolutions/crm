@@ -89,13 +89,18 @@ class MetaOnboardingService {
                 }
             });
 
-            const data = debugRes.data.data;
+            const data = debugRes?.data?.data;
+            if (!data) {
+                 return { data: [] };
+            }
             const granularScopes = data.granular_scopes || [];
+            console.log('Granular Scopes from debug_token:', JSON.stringify(granularScopes, null, 2));
 
-            // Find scope for whatsapp_business_management
-            const wabaScope = granularScopes.find(s => s.scope === 'whatsapp_business_management');
+            // Find scope for whatsapp_business_management or whatsapp_business_messaging
+            const wabaScope = granularScopes.find(s => s.scope === 'whatsapp_business_management') || 
+                              granularScopes.find(s => s.scope === 'whatsapp_business_messaging');
 
-            if (wabaScope && wabaScope.target_ids) {
+            if (wabaScope && wabaScope.target_ids && wabaScope.target_ids.length > 0) {
                 // We have IDs, but no names. Return meaningful objects.
                 return {
                     data: wabaScope.target_ids.map(id => ({
@@ -111,7 +116,7 @@ class MetaOnboardingService {
 
         } catch (error) {
             console.error('WABA Detection Error:', error.response?.data || error.message);
-            throw new Error('Failed to detect WABA accounts via token inspection.');
+            throw new Error(`Failed to detect WABA accounts via token inspection. ${error.message}`);
         }
     }
 

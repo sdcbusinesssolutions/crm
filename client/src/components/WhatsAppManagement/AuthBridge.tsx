@@ -61,7 +61,7 @@ const AuthBridge: React.FC = () => {
             appId: appId,
             cookie: true,
             xfbml: true,
-            version: 'v22.0'
+            version: 'v25.0'
         });
         setStatus('Ready to connect.');
         // NOTICE: We do NOT call handleLogin() automatically anymore here.
@@ -69,9 +69,23 @@ const AuthBridge: React.FC = () => {
     };
 
     const sessionDataRef = React.useRef<any>(null);
-
+    const codeRef = React.useRef<string | null>(null);
+    const sendBackCalled = React.useRef<boolean>(false);
     useEffect(() => {
         const messageListener = (event: MessageEvent) => {
+            // Ignore React devtools and local webpack messages
+            if (event.data?.source?.includes('react-devtools') || event.data?.type === 'webpackOk') return;
+            
+            console.log(`[AuthBridge] Received message from ${event.origin}:`, event.data);
+            
+            // Temporarily log ALL messages to see what is arriving
+            try {
+                const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                logToServer('INFO', 'DEBUG_ALL_MESSAGES', { origin: event.origin, data });
+            } catch (e) {
+                logToServer('INFO', 'DEBUG_ALL_MESSAGES_RAW', { origin: event.origin, data: event.data });
+            }
+
             if (!event.origin.endsWith('facebook.com')) return;
             try {
                 const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
@@ -87,6 +101,10 @@ const AuthBridge: React.FC = () => {
                     ];
                     if (successEvents.includes(data.event)) {
                         sessionDataRef.current = data.data;
+                        if (codeRef.current && !sendBackCalled.current) {
+                            sendBackCalled.current = true;
+                            sendBack(codeRef.current);
+                        }
                     } else if (data.event === 'ERROR') {
                         setError(`Meta Error: ${data.data?.error_message || 'Unknown error'}`);
                         logToServer('ERROR', 'Meta Flow Error', data.data);
@@ -117,7 +135,24 @@ const AuthBridge: React.FC = () => {
                     codePrefix: code?.substring(0, 5),
                     hasSessionData: !!sessionDataRef.current 
                 });
-                sendBack(code);
+                
+                codeRef.current = code;
+                
+                if (sessionDataRef.current && !sendBackCalled.current) {
+                    sendBackCalled.current = true;
+                    sendBack(code);
+                } else if (!sendBackCalled.current) {
+                    // Give the message event up to 10 seconds to arrive if it hasn't already.
+                    // This won't delay fast connections (they fire instantly via the messageListener),
+                    // but it guarantees extremely slow devices/networks won't miss the WABA ID.
+                    setTimeout(() => {
+                        if (!sendBackCalled.current) {
+                            console.warn('Timeout waiting for session data message event. Sending code without WABA ID.');
+                            sendBackCalled.current = true;
+                            sendBack(code);
+                        }
+                    }, 10000);
+                }
             } else {
                 setStatus('User cancelled login.');
                 logToServer('WARN', 'User Cancelled Login', { response });
@@ -132,7 +167,8 @@ const AuthBridge: React.FC = () => {
                 featureType: 'whatsapp_business_app_onboarding',
                 sessionInfoVersion: '3'
             } : {
-                setup: {}
+                setup: {},
+                sessionInfoVersion: '3'
             }
         });
     };

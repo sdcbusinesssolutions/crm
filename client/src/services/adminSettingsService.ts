@@ -26,7 +26,7 @@ export const adminSettingsService = {
                 // Optional: Handle token expiration
                 window.location.href = '/admin/auth/login';
             }
-            throw new Error(err.message || 'Failed to fetch onboarding settings');
+            throw new Error(err.error || err.message || 'Failed to fetch onboarding settings');
         }
         return res.json();
     },
@@ -40,7 +40,89 @@ export const adminSettingsService = {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.message || 'Failed to save onboarding settings');
+            throw new Error(err.error || err.message || 'Failed to save onboarding settings');
+        }
+        return res.json();
+    },
+
+    getSignupNotifications: async () => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/notifications`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                window.location.href = '/admin/auth/login';
+            }
+            throw new Error(err.error || err.message || 'Failed to fetch signup notification settings');
+        }
+        return res.json();
+    },
+
+    saveSignupNotifications: async (data: any) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/notifications`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to save signup notification settings');
+        }
+        return res.json();
+    },
+
+    getWhatsappTemplates: async (wabaId?: string, phoneId?: string) => {
+        const headers = getHeaders();
+        const queryParams = new URLSearchParams();
+        if (wabaId) queryParams.append('wabaId', wabaId);
+        if (phoneId) queryParams.append('phoneId', phoneId);
+        const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+        const res = await fetch(`${API_URL}/admin/settings/whatsapp-templates${query}`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to fetch templates');
+        }
+        return res.json();
+    },
+
+    getSmtpSettings: async () => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email`, { headers });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                window.location.href = '/admin/auth/login';
+            }
+            throw new Error(err.error || err.message || 'Failed to fetch SMTP settings');
+        }
+        return res.json();
+    },
+
+    saveSmtpSettings: async (data: any) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to save SMTP settings');
+        }
+        return res.json();
+    },
+
+    testSmtpSettings: async (config: any, testEmail: string) => {
+        const headers = getHeaders();
+        const res = await fetch(`${API_URL}/admin/settings/email/test`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ config, testEmail })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || err.message || 'Failed to test SMTP settings');
         }
         return res.json();
     }

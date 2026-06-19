@@ -4,8 +4,8 @@ const path = require('path');
 // Safe logger that falls back to console if file system is read-only (Netlify)
 const LOG_DIR = path.join(process.cwd(), 'logs');
 // Limits
-const MAX_CAMPAIGN_LOG_SIZE = 500 * 1024; // 500KB
-const MAX_INBOX_LOG_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_CAMPAIGN_LOG_SIZE = 2.5 * 1024 * 1024; // 2.5MB
+const MAX_INBOX_LOG_SIZE = 2.5 * 1024 * 1024; // 2.5MB
 
 let canWriteToFile = false;
 
@@ -65,42 +65,27 @@ function getCurrentLogFile(prefix, maxSize) {
 
     const baseName = prefix;
 
-    let maxPart = 1;
-    let currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
-
     try {
-        const files = fs.readdirSync(dateFolder);
-        // regex to match: {prefix}_part(\d+).log
-        const safePrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`^${safePrefix}_part(\\d+)\\.log$`);
+        const files = fs.readdirSync(dateFolder)
+            .filter(f => f.startsWith(`${baseName}_`) && f.endsWith('.log'))
+            .sort()
+            .reverse();
 
-        const parts = [];
-        files.forEach(file => {
-            const match = file.match(regex);
-            if (match) {
-                parts.push(parseInt(match[1], 10));
-            }
-        });
-
-        if (parts.length > 0) {
-            maxPart = Math.max(...parts);
-            currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
-
-            // Check size
-            if (fs.existsSync(currentFile)) {
-                const stats = fs.statSync(currentFile);
-                if (stats.size >= maxSize) {
-                    maxPart++;
-                    currentFile = path.join(dateFolder, `${baseName}_part${maxPart}.log`);
-                }
+        if (files.length > 0) {
+            const latestFile = path.join(dateFolder, files[0]);
+            const stats = fs.statSync(latestFile);
+            if (stats.size < maxSize) {
+                return latestFile;
             }
         }
+
+        const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+        return path.join(dateFolder, `${baseName}_${timestampStr}.log`);
     } catch (e) {
         console.error(`Logger Error finding log file for ${prefix}:`, e);
-        // Fallback to part 1
+        const fallbackStamp = new Date().toISOString().replace(/[:.]/g, '-');
+        return path.join(dateFolder, `${baseName}_${fallbackStamp}.log`);
     }
-
-    return currentFile;
 }
 
 function getKolkataTimestamp() {
@@ -215,7 +200,7 @@ function overrideConsole() {
         try {
             const timestamp = getKolkataTimestamp();
             const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
-            const file = getCurrentLogFile('app_info', 5 * 1024 * 1024); // 5MB for app info
+            const file = getCurrentLogFile('app_info', 2.5 * 1024 * 1024); // 2.5MB for app info
             if (file) fs.appendFileSync(file, `[${timestamp}] [INFO] ${message}\n`);
         } catch (e) { /* ignore log errors to avoid infinite loop */ }
     };
@@ -225,8 +210,13 @@ function overrideConsole() {
         originalError.apply(console, args);
         try {
             const timestamp = getKolkataTimestamp();
-            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
-            const file = getCurrentLogFile('error_log', 5 * 1024 * 1024); // 5MB for errors
+            const message = args.map(arg => {
+                if (arg instanceof Error) {
+                    return arg.stack || arg.message || String(arg);
+                }
+                return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+            }).join(' ');
+            const file = getCurrentLogFile('error_log', 2.5 * 1024 * 1024); // 2.5MB for errors
             if (file) fs.appendFileSync(file, `[${timestamp}] [ERROR] ${message}\n`);
         } catch (e) { /* ignore */ }
     };
@@ -237,7 +227,7 @@ function overrideConsole() {
         try {
             const timestamp = getKolkataTimestamp();
             const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
-            const file = getCurrentLogFile('app_info', 5 * 1024 * 1024);
+            const file = getCurrentLogFile('app_info', 2.5 * 1024 * 1024);
             if (file) fs.appendFileSync(file, `[${timestamp}] [WARN] ${message}\n`);
         } catch (e) { /* ignore */ }
     };
@@ -364,8 +354,13 @@ module.exports = {
     logAuthBridgeEvent,
     logGoogleEvent,
     logGoogleSheetEvent,
-    logStaffAssignment: (type, data) => _logToFile('staff_assignments', type, data, 2 * 1024 * 1024),
-    logWebhookEvent: (type, data) => _logToFile('webhook_logs', type, data, 5 * 1024 * 1024),
-    logContactImportEvent: (type, data) => _logToFile('contact_imports', type, data, 2 * 1024 * 1024),
+    logStaffAssignment: (type, data) => _logToFile('staff_assignments', type, data, 2.5 * 1024 * 1024),
+    logWebhookEvent: (type, data) => _logToFile('webhook_logs', type, data, 2.5 * 1024 * 1024),
+    logContactImportEvent: (type, data) => _logToFile('contact_imports', type, data, 2.5 * 1024 * 1024),
+    notificationLogger: {
+        info: (message, data) => _logToFile('notifications', 'INFO', { message, ...data }, 2.5 * 1024 * 1024),
+        warn: (message, data) => _logToFile('notifications', 'WARN', { message, ...data }, 2.5 * 1024 * 1024),
+        error: (message, data) => _logToFile('notifications', 'ERROR', { message, ...data }, 2.5 * 1024 * 1024)
+    },
     overrideConsole
 };

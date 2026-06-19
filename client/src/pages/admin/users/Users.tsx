@@ -20,6 +20,8 @@ const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [domainFilter, setDomainFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [entriesPerPage] = useState(10);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -371,9 +373,26 @@ const Users = () => {
     };
 
     // Filter Logic
-    const filteredUsers = users.filter(user => {
+    const domainFilteredUsers = users.filter(user => {
+        if (domainFilter !== 'all' && user.signupDomain !== domainFilter) return false;
+        return true;
+    });
+
+    const activeCount = domainFilteredUsers.filter(u => u.status === 'Active').length;
+    const expiredCount = domainFilteredUsers.filter(u => u.status === 'Expired').length;
+    const inactiveCount = domainFilteredUsers.filter(u => u.status === 'Inactive').length;
+
+    const filteredUsers = domainFilteredUsers.filter(user => {
         // Tab Filter
         if (activeTab === 'trial' && !user.canTenantDelete) return false;
+
+        // Status Filter
+        if (statusFilter !== 'all') {
+            const userStatus = user.status?.toLowerCase() || 'unknown';
+            if (statusFilter === 'active' && userStatus !== 'active') return false;
+            if (statusFilter === 'inactive' && userStatus !== 'inactive') return false;
+            if (statusFilter === 'expired' && userStatus !== 'expired') return false;
+        }
 
         if (!searchTerm) return true;
         const search = searchTerm.toLowerCase();
@@ -549,6 +568,40 @@ const Users = () => {
                             className="pl-10 pr-4 py-2.5 w-full bg-white border border-slate-200 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm shadow-sm outline-none transition-all"
                         />
                     </div>
+
+                    {isSuperAdmin && domains.length > 0 && (
+                        <div className="relative group w-full sm:w-48">
+                            <select
+                                value={domainFilter}
+                                onChange={(e) => { setDomainFilter(e.target.value); setCurrentPage(1); }}
+                                className="w-full appearance-none bg-white border border-slate-200 rounded-btn px-4 py-2.5 pr-10 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm shadow-sm outline-none transition-all text-slate-700 font-medium cursor-pointer"
+                            >
+                                <option value="all">All Domains</option>
+                                {domains.map(d => (
+                                    <option key={d.domain} value={d.domain}>{d.domain}</option>
+                                ))}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+                                <ChevronDownIcon />
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="relative group w-full sm:w-56">
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); }}
+                            className="w-full appearance-none bg-white border border-slate-200 rounded-btn px-4 py-2.5 pr-10 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm shadow-sm outline-none transition-all text-slate-700 font-medium cursor-pointer"
+                        >
+                            <option value="all">All Statuses ({domainFilteredUsers.length})</option>
+                            <option value="active">Active ({activeCount})</option>
+                            <option value="expired">Expired ({expiredCount})</option>
+                            <option value="inactive">Inactive ({inactiveCount})</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+                            <ChevronDownIcon />
+                        </div>
+                    </div>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
                     <button
@@ -631,8 +684,10 @@ const Users = () => {
                                                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border cursor-pointer select-none hover:opacity-80 transition-opacity ${user.status === 'Active'
                                                         ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
                                                         : user.status === 'Inactive'
-                                                            ? 'bg-red-50 text-red-700 border-red-100'
-                                                            : 'bg-slate-100 text-slate-600 border-slate-200'
+                                                            ? 'bg-slate-100 text-slate-600 border-slate-200'
+                                                            : user.status === 'Expired'
+                                                                ? 'bg-red-50 text-red-700 border-red-200 animate-pulse-subtle'
+                                                                : 'bg-slate-100 text-slate-600 border-slate-200'
                                                         }`}>
                                                     {user.status || 'Unknown'}
                                                 </span>

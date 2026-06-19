@@ -253,6 +253,35 @@ EOF
     fi
     cp "$envFileName" .env
 
+    # Generate dynamic override file for per-domain routing
+    echo "   📝 Generating docker-compose.override.yml for Traefik routers..."
+    cat > docker-compose.override.yml <<EOF
+services:
+  whatsapp-app:
+    labels:
+EOF
+    for d in "${domainArr[@]}"; do
+        # Trim spaces/carriage returns
+        d=$(echo "$d" | tr -d '\r' | xargs)
+        # Skip empty strings (e.g. trailing commas or empty lines in CSV)
+        if [ -z "$d" ]; then
+            continue
+        fi
+        
+        # Create safe router name from domain
+        d_safe=${d//./_}
+        cat >> docker-compose.override.yml <<EOF
+      - "traefik.http.routers.${d_safe}.rule=Host(\`${d}\`)"
+      - "traefik.http.routers.${d_safe}.entrypoints=websecure"
+      - "traefik.http.routers.${d_safe}.tls.certresolver=${certResolver}"
+      - "traefik.http.routers.${d_safe}-http.rule=Host(\`${d}\`)"
+      - "traefik.http.routers.${d_safe}-http.entrypoints=web"
+      - "traefik.http.routers.${d_safe}-http.middlewares=redirect-https"
+      - "traefik.http.routers.${d_safe}.service=${projectParam}"
+      - "traefik.http.routers.${d_safe}-http.service=${projectParam}"
+EOF
+    done
+
     # Development: 1 replica only. Production: use docker-compose.yml default (8 replicas)
     if [[ "$isDev" == "true" ]]; then
         echo "   🧪 DEV MODE: Starting with 1 replica only..."

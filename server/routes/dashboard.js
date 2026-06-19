@@ -49,6 +49,7 @@ router.get('/stats', requireAuth, async (req, res) => {
         // Fetch parallel lightweight queries
         const [
             allTasksData,
+            allFollowUpsData,
             templatesStatusData,
             integrations,
             lastCampaigns,
@@ -62,6 +63,9 @@ router.get('/stats', requireAuth, async (req, res) => {
         ] = await Promise.all([
             // Tasks (count + due logic from data)
             supabase.from('tasks').select('is_completed, due_date').eq('user_id', userId).limit(5000),
+            
+            // FollowUps
+            supabase.from('follow_ups').select('status, scheduled_at').eq('user_id', userId).limit(5000),
 
             // Templates: fetch status rows + exact count in one request
             supabase.from('whatsapp_templates')
@@ -110,9 +114,8 @@ router.get('/stats', requireAuth, async (req, res) => {
         const totalTemplates = templatesStatusData?.count || (templatesStatusData?.data || []).length;
         const totalCampaigns = lastCampaigns?.count || (lastCampaigns?.data || []).length;
 
-
-
         const allTasks        = allTasksData?.data        || [];
+        const allFollowUps    = allFollowUpsData?.data    || [];
         const templatesStatus = templatesStatusData?.data || [];
         const integrList      = integrations?.data        || [];
         const campaignRows    = lastCampaigns?.data       || [];
@@ -213,11 +216,29 @@ router.get('/stats', requireAuth, async (req, res) => {
         });
 
         // Task stats — CPU aggregation
-        let completedTasks = 0, dueTasks = 0, todayTasks = 0;
+        let completedTasks = 0, dueTasks = 0, todayTasks = 0, overdueTasks = 0;
         allTasks.forEach(t => {
             if (t.is_completed) { completedTasks++; return; }
             dueTasks++;
-            if (t.due_date && t.due_date >= todayISO && t.due_date < tomorrowISO) todayTasks++;
+            if (t.due_date) {
+                if (t.due_date < todayISO) {
+                    overdueTasks++;
+                } else if (t.due_date >= todayISO && t.due_date < tomorrowISO) {
+                    todayTasks++;
+                }
+            }
+        });
+
+        allFollowUps.forEach(f => {
+            if (f.status === 'COMPLETED') { completedTasks++; return; }
+            dueTasks++;
+            if (f.scheduled_at) {
+                if (f.scheduled_at < todayISO) {
+                    overdueTasks++;
+                } else if (f.scheduled_at >= todayISO && f.scheduled_at < tomorrowISO) {
+                    todayTasks++;
+                }
+            }
         });
 
         // Campaign stats — use first 5 from the campaignRows (already ordered by created_at desc)
@@ -251,7 +272,16 @@ router.get('/stats', requireAuth, async (req, res) => {
                 total: completedTasks + dueTasks,
                 completed: completedTasks,
                 due: dueTasks,
-                breakdown: {}
+                overdue: overdueTasks,
+                breakdown: {
+                    default: {
+                        today: todayTasks,
+                        overdue: overdueTasks
+                    },
+                    overdue: {
+                        total: overdueTasks
+                    }
+                }
             },
             integrationStats,
             campaignStats,

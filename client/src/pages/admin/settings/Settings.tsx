@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import AdminThemeSettings from '../../../components/admin/AdminThemeSettings';
 import AdminOnboardingSettings from '../../../components/admin/AdminOnboardingSettings';
+import AdminSignupNotifications from '../../../components/admin/AdminSignupNotifications';
+import AdminEmailSettings from '../../../components/admin/AdminEmailSettings';
 import { adminSettingsService } from '../../../services/adminSettingsService';
 
 const Settings = () => {
@@ -11,6 +13,7 @@ const Settings = () => {
         { id: 'appearance', label: 'Appearance', icon: '🎨' },
         { id: 'onboarding', label: 'Onboarding', icon: '🚀' },
         { id: 'payments', label: 'Payments', icon: '💳' },
+        { id: 'notifications', label: 'Notifications', icon: '🔔' },
         { id: 'email', label: 'Email', icon: '✉️' },
         { id: 'logins', label: 'Logins/Auth', icon: '🔒' },
     ];
@@ -80,8 +83,16 @@ const Settings = () => {
                         </div>
                     )}
 
+                    {activeSection === 'notifications' && (
+                        <AdminSignupNotifications />
+                    )}
+
+                    {activeSection === 'email' && (
+                        <AdminEmailSettings />
+                    )}
+
                     {/* Fallback for other sections */}
-                    {['email', 'logins'].includes(activeSection) && (
+                    {['logins'].includes(activeSection) && (
                         <div className="bg-[var(--sidebar-bg)] rounded-2xl border border-[var(--border-color)] shadow-sm p-8 flex flex-col items-center justify-center text-center py-20">
                             <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center text-3xl mb-4">Construction</div>
                             <h3 className="text-lg font-bold text-slate-900">Coming Soon</h3>

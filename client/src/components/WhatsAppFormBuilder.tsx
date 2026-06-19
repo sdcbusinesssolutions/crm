@@ -482,8 +482,8 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
     return (
         <div className="flex flex-col h-full bg-slate-50">
             {/* Top Bar */}
-            <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-10 shrink-0">
-                <div className="flex items-center gap-4">
+            <div className="min-h-[4rem] bg-white border-b border-slate-200 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shadow-sm z-10 shrink-0 gap-3 sm:gap-0">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
                     <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
                         <ArrowLeftIcon className="w-5 h-5" />
                     </button>
@@ -492,7 +492,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                         <p className="text-xs text-slate-500">Designing Form: {flowId || 'New Form'}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
                     {flowId && canDelete && (
                         <button onClick={handleDelete} disabled={isSaving} className="px-3 py-2 text-sm font-bold text-red-500 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 mr-2">
                             <TrashIcon className="w-4 h-4" />
@@ -519,13 +519,13 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                 </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                 {/* Left Panel: Screens */}
-                <div className="w-64 bg-white border-r border-slate-200 flex flex-col">
+                <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0">
                     <div className="p-4 border-b border-slate-100">
                         <h2 className="font-bold text-slate-800">Screens</h2>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    <div className="flex-none lg:flex-1 overflow-y-auto p-2 space-y-1 max-h-48 lg:max-h-none">
                         {screens.map(screen => (
                             <button
                                 key={screen.id}
@@ -557,12 +557,12 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                 </div>
 
                 {/* Middle Panel: Edit Contents */}
-                <div className="w-96 bg-white border-r border-slate-200 flex flex-col">
+                <div className="w-full lg:w-96 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0">
                     <div className="p-4 border-b border-slate-100">
                         <h2 className="font-bold text-slate-800">Edit Contents</h2>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                    <div className="flex-none lg:flex-1 overflow-y-auto p-4 space-y-6">
                         <fieldset disabled={!canWrite} className="space-y-6 contents">
                             {/* Screen Title */}
                             <div>
@@ -587,7 +587,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                             </div>
                         </fieldset>
 
-                         {canWrite && (
+                        {canWrite && (
                             <div className="relative" ref={addMenuRef}>
                                 <button
                                     onClick={() => setShowAddMenu(!showAddMenu)}
@@ -595,32 +595,31 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                 >
                                     + Add Content <ChevronDownIcon className="w-4 h-4" />
                                 </button>
-                                {/* ... existing addMenu content ... */}
+
+                                {showAddMenu && (
+                                    <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden animate-fade-in">
+                                        <div className="py-1">
+                                            <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Aa Text</div>
+                                            <button onClick={() => addComponent('TextHeading')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Large Heading</button>
+                                            <button onClick={() => addComponent('TextSubheading')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Small Heading</button>
+                                            <button onClick={() => addComponent('TextBody')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Body</button>
+                                            <button onClick={() => addComponent('TextCaption')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Caption</button>
+
+                                            <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider mt-2">Text Answer</div>
+                                            <button onClick={() => addComponent('ShortAnswer')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Short Answer</button>
+                                            <button onClick={() => addComponent('Paragraph')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Paragraph</button>
+                                            <button onClick={() => addComponent('DatePicker')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Date Picker</button>
+
+                                            <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider mt-2">Selection</div>
+                                            <button onClick={() => addComponent('SingleChoice')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Single Choice</button>
+                                            <button onClick={() => addComponent('MultipleChoice')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Multiple Choice</button>
+                                            <button onClick={() => addComponent('Dropdown')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Dropdown</button>
+                                            <button onClick={() => addComponent('OptIn')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Opt-in</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                            {showAddMenu && (
-                                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 z-20 overflow-hidden animate-fade-in">
-                                    <div className="py-1">
-                                        <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider">Aa Text</div>
-                                        <button onClick={() => addComponent('TextHeading')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Large Heading</button>
-                                        <button onClick={() => addComponent('TextSubheading')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Small Heading</button>
-                                        <button onClick={() => addComponent('TextBody')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Body</button>
-                                        <button onClick={() => addComponent('TextCaption')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Caption</button>
-
-                                        <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider mt-2">Text Answer</div>
-                                        <button onClick={() => addComponent('ShortAnswer')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Short Answer</button>
-                                        <button onClick={() => addComponent('Paragraph')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Paragraph</button>
-                                        <button onClick={() => addComponent('DatePicker')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Date Picker</button>
-
-                                        <div className="px-3 py-1 text-xs font-bold text-slate-400 uppercase tracking-wider mt-2">Selection</div>
-                                        <button onClick={() => addComponent('SingleChoice')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Single Choice</button>
-                                        <button onClick={() => addComponent('MultipleChoice')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Multiple Choice</button>
-                                        <button onClick={() => addComponent('Dropdown')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Dropdown</button>
-                                        <button onClick={() => addComponent('OptIn')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-600">Opt-in</button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         {/* Components List */}
@@ -812,8 +811,8 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                 </div>
 
                 {/* Right Panel: Preview */}
-                <div className="flex-1 bg-slate-100 flex items-center justify-center p-8 overflow-y-auto">
-                    <div className="w-[375px] h-[667px] bg-white rounded-[3rem] shadow-2xl border-8 border-slate-800 relative overflow-hidden flex flex-col">
+                <div className="w-full lg:flex-1 bg-slate-100 flex items-center justify-center p-4 lg:p-8 overflow-hidden lg:overflow-y-auto min-h-[750px] lg:min-h-0">
+                    <div className="w-full max-w-[375px] h-[667px] shrink-0 bg-white rounded-[3rem] shadow-2xl border-8 border-slate-800 relative overflow-hidden flex flex-col mx-auto">
                         {/* Phone Notch */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-800 rounded-b-xl z-20"></div>
 

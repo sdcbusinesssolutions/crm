@@ -5,7 +5,7 @@ export interface DripCampaign {
     id: string;
     name: string;
     description?: string;
-    trigger_type: 'TAG_ADDED' | 'pipeline_STAGE_CHANGED' | 'MANUAL';
+    trigger_type: 'TAG_ADDED' | 'PIPELINE_STAGE_CHANGED' | 'MANUAL';
     trigger_value?: string;
     status: 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
     schedule_config?: any;

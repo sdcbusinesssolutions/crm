@@ -22,6 +22,15 @@ const Subscriptions = () => {
     const [entriesPerPage] = useState(10);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+    // Filters
+    const [domainFilter, setDomainFilter] = useState('all');
+    const [planFilter, setPlanFilter] = useState('all');
+    const [monthFilter, setMonthFilter] = useState('all');
+    
+    // Auth / Domain State
+    const [domains, setDomains] = useState<any[]>([]);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+
     // Assignment Modal State
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [assignmentData, setAssignmentData] = useState({ userId: '', planId: '', pricingOptionIndex: -1 });
@@ -203,7 +212,54 @@ const Subscriptions = () => {
     }, [isAssignModalOpen]);
 
     useEffect(() => {
+        const checkSuperAdmin = async () => {
+            let isMaster = false;
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (token) {
+                    const res = await fetch('/api/admin/auth/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const adminData = await res.json();
+                        isMaster = adminData.role === 'super_admin';
+                    }
+                }
+            } catch (e) { console.error(e); }
+
+            if (!isMaster) {
+                // @ts-ignore
+                const MASTER_URL = (import.meta as any).env.VITE_MASTER_URL || '';
+                const hostname = window.location.hostname;
+                isMaster = MASTER_URL.includes(hostname) || hostname.includes('localhost');
+            }
+
+            setIsSuperAdmin(isMaster);
+            
+            if (isMaster) {
+                try {
+                    const token = localStorage.getItem('adminToken');
+                    const res = await fetch('/api/admin/domains', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        setDomains(await res.json());
+                    }
+                } catch (e) { console.error(e); }
+            }
+        };
+
+        checkSuperAdmin();
         fetchSubscriptions();
+        
+        // Always fetch plans on mount so plan filter can be populated
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+            fetch('/api/admin/plans', { headers: { 'Authorization': `Bearer ${token}` } })
+                .then(res => res.ok ? res.json() : [])
+                .then(data => setAvailablePlans(data))
+                .catch(e => console.error(e));
+        }
     }, []);
 
     const handleAssignSubscription = async (e: React.FormEvent) => {
@@ -284,14 +340,50 @@ const Subscriptions = () => {
         return opts;
     };
 
-    // Filter Logic
-    const filteredSubs = subs.filter(sub => {
+    // Filter Logic - Pre-month to calculate counts
+    const preMonthFilteredSubs = subs.filter(sub => {
+        if (domainFilter !== 'all' && sub.signupDomain !== domainFilter) return false;
+        if (planFilter !== 'all' && sub.plan !== planFilter) return false;
+        return true;
+    });
+
+    const monthCounts: Record<string, number> = {
+        '01': 0, '02': 0, '03': 0, '04': 0, '05': 0, '06': 0,
+        '07': 0, '08': 0, '09': 0, '10': 0, '11': 0, '12': 0
+    };
+
+    preMonthFilteredSubs.forEach(sub => {
+        const d = new Date(sub.expiry);
+        if (!isNaN(d.getTime())) {
+            const m = (d.getMonth() + 1).toString().padStart(2, '0');
+            if (monthCounts[m] !== undefined) {
+                monthCounts[m]++;
+            }
+        }
+    });
+
+    const domainFilteredSubs = preMonthFilteredSubs.filter(sub => {
+        if (monthFilter !== 'all') {
+            const d = new Date(sub.expiry);
+            if (!isNaN(d.getTime())) {
+                const subMonth = (d.getMonth() + 1).toString().padStart(2, '0');
+                if (subMonth !== monthFilter) return false;
+            } else {
+                return false; // Can't parse date
+            }
+        }
+        
+        return true;
+    });
+
+    const filteredSubs = domainFilteredSubs.filter(sub => {
         if (!searchTerm) return true;
         const search = searchTerm.toLowerCase();
         return (
             (sub.user?.toLowerCase() || '').includes(search) ||
             (sub.plan?.toLowerCase() || '').includes(search) ||
-            (sub.status?.toLowerCase() || '').includes(search)
+            (sub.status?.toLowerCase() || '').includes(search) ||
+            (sub.email?.toLowerCase() || '').includes(search)
         );
     });
 
@@ -322,7 +414,7 @@ const Subscriptions = () => {
         <div className="space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto flex-1 lg:max-w-2xl">
-                    <div className="relative group flex-1">
+                    <div className="relative group flex-1 min-w-[200px]">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-brand-500 transition-colors">
                             <SearchIcon />
                         </div>
@@ -334,6 +426,50 @@ const Subscriptions = () => {
                             className="pl-10 pr-4 py-2.5 w-full bg-white border border-slate-200 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-sm shadow-sm outline-none transition-all"
                         />
                     </div>
+                    
+                    {isSuperAdmin && domains.length > 0 && (
+                        <select
+                            className="px-3 py-2.5 bg-white border border-slate-200 rounded-btn text-sm font-medium text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none shadow-sm cursor-pointer"
+                            value={domainFilter}
+                            onChange={(e) => { setDomainFilter(e.target.value); setCurrentPage(1); }}
+                        >
+                            <option value="all">All Domains</option>
+                            {domains.map(d => (
+                                <option key={d.domain} value={d.domain}>{d.domain}</option>
+                            ))}
+                        </select>
+                    )}
+
+                    <select
+                        className="px-3 py-2.5 bg-white border border-slate-200 rounded-btn text-sm font-medium text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none shadow-sm cursor-pointer"
+                        value={planFilter}
+                        onChange={(e) => { setPlanFilter(e.target.value); setCurrentPage(1); }}
+                    >
+                        <option value="all">All Plans</option>
+                        {availablePlans.map(p => (
+                            <option key={p.id} value={p.name}>{p.name}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        className="px-3 py-2.5 bg-white border border-slate-200 rounded-btn text-sm font-medium text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none shadow-sm cursor-pointer"
+                        value={monthFilter}
+                        onChange={(e) => { setMonthFilter(e.target.value); setCurrentPage(1); }}
+                    >
+                        <option value="all">All Expiry Months</option>
+                        <option value="01">January ({monthCounts['01']})</option>
+                        <option value="02">February ({monthCounts['02']})</option>
+                        <option value="03">March ({monthCounts['03']})</option>
+                        <option value="04">April ({monthCounts['04']})</option>
+                        <option value="05">May ({monthCounts['05']})</option>
+                        <option value="06">June ({monthCounts['06']})</option>
+                        <option value="07">July ({monthCounts['07']})</option>
+                        <option value="08">August ({monthCounts['08']})</option>
+                        <option value="09">September ({monthCounts['09']})</option>
+                        <option value="10">October ({monthCounts['10']})</option>
+                        <option value="11">November ({monthCounts['11']})</option>
+                        <option value="12">December ({monthCounts['12']})</option>
+                    </select>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
                     <button

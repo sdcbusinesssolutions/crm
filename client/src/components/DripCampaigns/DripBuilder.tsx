@@ -1213,7 +1213,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:border-brand-500 outline-none shadow-sm"
                                             >
                                                 <option value="TAG_ADDED">Tag Added</option>
-                                                <option value="pipeline_STAGE_CHANGED">Stage Changed</option>
+                                                <option value="PIPELINE_STAGE_CHANGED">Stage Changed</option>
                                                 <option value="MANUAL">Follow-up / Manual</option>
                                             </select>
                                         </div>
@@ -1229,7 +1229,7 @@ const DripBuilder: React.FC<DripBuilderProps> = ({ campaignId, initialCampaignNa
                                                         <option value="">Select Tag...</option>
                                                         {availableTags.map((t, i) => <option key={i} value={t}>{t}</option>)}
                                                     </select>
-                                                ) : campaign.trigger_type === 'pipeline_STAGE_CHANGED' ? (
+                                                ) : campaign.trigger_type === 'PIPELINE_STAGE_CHANGED' ? (
                                                     <select
                                                         value={campaign.trigger_value || ''}
                                                         onChange={(e) => setCampaign({ ...campaign, trigger_value: e.target.value })}

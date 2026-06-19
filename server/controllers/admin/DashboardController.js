@@ -31,7 +31,7 @@ exports.getDashboardStats = async (req, res) => {
 
         const { data: tenantProfiles, error: tenantError } = await supabaseAdmin
             .from('profiles')
-            .select('id, created_at, signup_domain, plan_expires_at, plan_name, email')
+            .select('id, created_at, signup_domain, plan_expires_at, plan_name, email, plan_status')
             .ilike('signup_domain', safeDomain);
 
         if (tenantError) {
@@ -52,7 +52,7 @@ exports.getDashboardStats = async (req, res) => {
         if (isSuperAdmin) {
             const { data: allProfiles, error: allError } = await supabaseAdmin
                 .from('profiles')
-                .select('id, created_at, signup_domain, plan_expires_at, plan_name, email');
+                .select('id, created_at, signup_domain, plan_expires_at, plan_name, email, plan_status');
 
             if (allProfiles) {
                 profiles = allProfiles;
@@ -60,7 +60,7 @@ exports.getDashboardStats = async (req, res) => {
             }
         }
 
-        // --- PLAN EXPIRY STATS LOGIC ---
+        // --- PLAN EXPIRY & ACTIVE USERS STATS LOGIC ---
         const nowMs = new Date().getTime();
         const weekMs = 7 * 24 * 60 * 60 * 1000;
         const monthMs = 30 * 24 * 60 * 60 * 1000;
@@ -69,72 +69,47 @@ exports.getDashboardStats = async (req, res) => {
         let expiringWeekCount = 0;
         let expiringMonthCount = 0;
         let expiringUsersList = [];
+        let activeUsers = 0;
 
-        // Filter valid profiles for expiry stats
-        const profileMap = new Map(profiles.map(p => [p.id, p]));
-        const userIds = profiles.map(p => p.id);
-
-        // Fetch subscriptions dynamically to ensure accuracy
-        // We fetch all subscriptions for the domain's users (filtered in memory if needed or via query if possible)
-        let subsData = [];
-        if (userIds.length > 0) {
-            let query = supabaseAdmin
-                .from('user_subscriptions')
-                .select('user_id, plan_id, end_date, status')
-                .order('end_date', { ascending: false }); // Latest first
-
-            // Optimize query if possible
-            if (userIds.length <= 100) {
-                query = query.in('user_id', userIds);
-            }
-
-            const { data, error } = await query;
-            if (!error && data) {
-                subsData = data.filter(s => profileMap.has(s.user_id));
-            } else if (error) {
-                console.error('Error fetching subscriptions for stats:', error);
-            }
-        }
-
-        // Determine latest effective subscription per user
-        const userLatestSub = new Map();
-        subsData.forEach(sub => {
-            if (!userLatestSub.has(sub.user_id)) {
-                userLatestSub.set(sub.user_id, sub);
-            }
-        });
-
-        // Calculate stats
-        userLatestSub.forEach((sub, userId) => {
-            const p = profileMap.get(userId);
-            if (!sub.end_date) return;
-
-            const expMs = new Date(sub.end_date).getTime();
-            const diff = expMs - nowMs;
+        profiles.forEach(p => {
             let status = null;
             let daysLeft = 0;
+            
+            if (p.plan_status === 'suspended') {
+                status = 'Inactive';
+            } else if (p.plan_expires_at) {
+                const expMs = new Date(p.plan_expires_at).getTime();
+                const diff = expMs - nowMs;
 
-            if (diff < 0) {
-                expiredCount++;
-                status = 'Expired';
-                daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
-            } else {
-                daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                if (diff <= weekMs) {
-                    expiringWeekCount++;
-                    status = 'Expiring (Week)';
-                } else if (diff <= monthMs) {
-                    expiringMonthCount++;
-                    status = 'Expiring (Month)';
+                if (diff < 0) {
+                    expiredCount++;
+                    status = 'Expired';
+                    daysLeft = Math.floor(diff / (1000 * 60 * 60 * 24));
+                } else {
+                    activeUsers++;
+                    daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                    if (diff <= weekMs) {
+                        expiringWeekCount++;
+                        status = 'Expiring (Week)';
+                    } else if (diff <= monthMs) {
+                        expiringMonthCount++;
+                        status = 'Expiring (Month)';
+                    } else {
+                        status = 'Active';
+                    }
                 }
+            } else {
+                // If no expiry date, assume active (lifetime or newly created)
+                activeUsers++;
+                status = 'Active';
             }
 
-            if (status) {
+            if (status && status !== 'Active' && status !== 'Inactive') {
                 expiringUsersList.push({
                     name: p.email ? p.email.split('@')[0] : 'User',
                     email: p.email,
                     plan: p.plan_name || 'Plan',
-                    expiry: sub.end_date,
+                    expiry: p.plan_expires_at,
                     status,
                     daysLeft
                 });
@@ -163,9 +138,6 @@ exports.getDashboardStats = async (req, res) => {
         // Active users today (signed in today)
         // Note: profiles table doesn't have last_sign_in_at yet. Use auth data or skip.
         const todayActiveUsers = 0;
-
-        // Active users (signed in within last 7 days)
-        const activeUsers = 0;
 
         // Get contacts count
         let contactsQuery = supabaseAdmin

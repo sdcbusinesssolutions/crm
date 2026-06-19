@@ -8,10 +8,13 @@ interface Plan {
     name: string;
     limits: Record<string, any>;
     pricing: Array<{
+        id?: string;
         name: string;
         amount: number;
         interval: string;
         interval_count: number;
+        enabled?: boolean;
+        currency?: string;
     }>;
     features?: string[];
 }
@@ -33,6 +36,7 @@ const MyPlan: React.FC = () => {
     const [availablePlans, setAvailablePlans] = useState<Plan[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [billingCycle, setBillingCycle] = useState('monthly');
 
     useEffect(() => {
         fetchData();
@@ -210,15 +214,38 @@ const MyPlan: React.FC = () => {
 
                     {/* Available Plans Section */}
                     <div id="available-plans">
-                        <div className="flex items-center justify-between mb-8">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                             <h3 className="text-2xl font-bold text-slate-800">Available Upgrades</h3>
-                            {/* Toggle for Monthly/Yearly could go here */}
+                            <div className="flex bg-slate-200 p-1 rounded-xl w-fit">
+                                {['monthly', 'quarterly', 'half_yearly', 'yearly'].map(cycle => (
+                                    <button
+                                        key={cycle}
+                                        onClick={() => setBillingCycle(cycle)}
+                                        className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${billingCycle === cycle ? 'bg-white shadow text-brand-600' : 'text-slate-500 hover:text-slate-700'}`}
+                                    >
+                                        {cycle === 'monthly' ? 'Monthly' : cycle === 'quarterly' ? 'Quarterly' : cycle === 'half_yearly' ? 'Half-Yearly' : 'Yearly'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {availablePlans.map((plan) => {
                                 const isCurrent = currentSubscription?.plan_id === plan.id;
-                                const price = plan.pricing?.[0]; // Assuming first price option is default for display
+                                
+                                let price = null;
+                                if (Array.isArray(plan.pricing)) {
+                                    price = plan.pricing.find(p => (p.id === billingCycle || p.name?.toLowerCase().replace('-', '_') === billingCycle) && p.enabled !== false);
+                                    if (!price && plan.pricing.length > 0) price = plan.pricing[0];
+                                } else if (plan.pricing) {
+                                    // Handle legacy object format if still in DB
+                                    const legacyOptions: any[] = [];
+                                    // @ts-ignore
+                                    if (plan.pricing.monthly?.enabled) legacyOptions.push({ ...plan.pricing.monthly, id: 'monthly', interval: 'month', interval_count: 1 });
+                                    // @ts-ignore
+                                    if (plan.pricing.yearly?.enabled) legacyOptions.push({ ...plan.pricing.yearly, id: 'yearly', interval: 'year', interval_count: 1 });
+                                    price = legacyOptions.find(p => p.id === billingCycle) || legacyOptions[0];
+                                }
 
                                 return (
                                     <div

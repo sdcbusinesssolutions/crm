@@ -109,7 +109,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         }
 
         if (matchedTemplate) {
-            extractTemplateParams(matchedTemplate);
+            setTemplateParams(extractTemplateParams(matchedTemplate));
         }
     };
 
@@ -132,10 +132,29 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
     };
 
     const extractTemplateParams = (tpl: any) => {
-        if (!tpl || !tpl.components) return [];
+        if (!tpl) return [];
+        
+        const components = tpl.components && tpl.components.length > 0 
+            ? tpl.components 
+            : [
+                ...(tpl.body_text ? [{ type: 'BODY', text: tpl.body_text }] : []),
+                ...(tpl.header_text || (tpl.template_type && tpl.template_type !== 'TEXT') 
+                    ? [{ 
+                        type: 'HEADER', 
+                        format: tpl.template_type === 'TEXT' || !tpl.template_type ? 'TEXT' : tpl.template_type, 
+                        text: tpl.header_text 
+                    }] : []),
+                ...(tpl.footer_text ? [{ type: 'FOOTER', text: tpl.footer_text }] : []),
+                ...(tpl.buttons ? [
+                    tpl.buttons.type === 'MEDIA_CARD_CAROUSEL' 
+                        ? { type: 'CAROUSEL', cards: tpl.buttons.cards }
+                        : { type: 'BUTTONS', buttons: tpl.buttons.buttons || [] }
+                ] : [])
+            ];
+
         const params: string[] = [];
 
-        tpl.components.forEach((c: any) => {
+        components.forEach((c: any) => {
             if (c.type === 'HEADER') {
                 if (c.format === 'IMAGE') params.push('HEADER_IMAGE');
                 else if (c.format === 'VIDEO') params.push('HEADER_VIDEO');
@@ -654,7 +673,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             </ul>
                         </div>
 
-                        {formData.triggers.map((trigger, index) => (
+                        {formData.triggers?.map((trigger, index) => (
                             <div key={index} className="flex items-start gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
                                 {isLoading ? (
                                     <div className="text-sm text-slate-500 animate-pulse py-2 px-3">Loading columns...</div>
@@ -846,14 +865,35 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         {formData.template_id && (
                             <div className="bg-slate-50 p-4 rounded border border-slate-200 text-sm space-y-2">
                                 <h5 className="font-bold text-slate-700">Preview</h5>
-                                {templates.find(t => t.id === formData.template_id)?.components.map((c: any, i: number) => (
-                                    <div key={i}>
-                                        <span className="text-xs font-semibold text-slate-500 block uppercase">{c.type}</span>
-                                        <p className="whitespace-pre-wrap text-slate-700">
-                                            {c.text ? c.text : (c.type === 'CAROUSEL' ? '[Carousel - Multiple Cards]' : `[${c.format || 'Media'} Content]`)}
-                                        </p>
-                                    </div>
-                                ))}
+                                {(() => {
+                                    const tpl = templates.find(t => t.id === formData.template_id);
+                                    if (!tpl) return null;
+                                    const components = tpl.components && tpl.components.length > 0 
+                                        ? tpl.components 
+                                        : [
+                                            ...(tpl.body_text ? [{ type: 'BODY', text: tpl.body_text }] : []),
+                                            ...(tpl.header_text || (tpl.template_type && tpl.template_type !== 'TEXT') 
+                                                ? [{ 
+                                                    type: 'HEADER', 
+                                                    format: tpl.template_type === 'TEXT' || !tpl.template_type ? 'TEXT' : tpl.template_type, 
+                                                    text: tpl.header_text 
+                                                }] : []),
+                                            ...(tpl.footer_text ? [{ type: 'FOOTER', text: tpl.footer_text }] : []),
+                                            ...(tpl.buttons ? [
+                                                tpl.buttons.type === 'MEDIA_CARD_CAROUSEL' 
+                                                    ? { type: 'CAROUSEL', cards: tpl.buttons.cards }
+                                                    : { type: 'BUTTONS', buttons: tpl.buttons.buttons || [] }
+                                            ] : [])
+                                        ];
+                                    return components.map((c: any, i: number) => (
+                                        <div key={i}>
+                                            <span className="text-xs font-semibold text-slate-500 block uppercase">{c.type}</span>
+                                            <p className="whitespace-pre-wrap text-slate-700">
+                                                {c.text ? c.text : (c.type === 'CAROUSEL' ? '[Carousel - Multiple Cards]' : `[${c.format || 'Media'} Content]`)}
+                                            </p>
+                                        </div>
+                                    ));
+                                })()}
                             </div>
                         )}
                     </div>

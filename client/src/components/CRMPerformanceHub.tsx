@@ -150,10 +150,12 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     }, []);
 
     // Followup Data for Right Panel
+    const overdueTotal = stats?.taskStats?.overdue || stats?.taskStats?.breakdown?.overdue?.total || 0;
+    const upcomingTotal = Math.max(0, (stats?.taskStats?.due || 0) - (stats?.taskStats?.today || 0) - overdueTotal);
     const followupData = [
         { label: 'TODAY', val: stats?.taskStats?.today || 0, color: '#facc15' }, // Yellow
-        { label: 'NEXT', val: stats?.taskStats?.due || 0, color: '#3b82f6' }, // Blue
-        { label: 'LATE', val: stats?.taskStats?.breakdown?.overdue?.total || 0, color: '#ef4444' }, // Red
+        { label: 'NEXT', val: upcomingTotal, color: '#3b82f6' }, // Blue
+        { label: 'LATE', val: overdueTotal, color: '#ef4444' }, // Red
         { label: 'DONE', val: stats?.taskStats?.completed || 1, color: '#22c55e' }  // Green
     ];
 

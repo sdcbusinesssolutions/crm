@@ -67,16 +67,58 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             const myPhones = (myLeads || []).map(l => l.phone).filter(Boolean);
             
             if (myPhones.length > 0) {
-                // If they have assigned leads, show those OR conversations explicitly assigned to them
-                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${myPhones.join(',')})`);
+                // Prevent URI Too Long error and safely double-quote strings to protect '+' signs
+                const safeMyPhones = myPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${safeMyPhones})`);
             } else {
                 // If no leads, just check conversation direct assignment
                 query = query.eq('assigned_to', currentUserId);
             }
+        } else if (quickFilter && quickFilter.startsWith('staff:')) {
+            const staffId = quickFilter.split(':')[1];
+            
+            // First get all leads assigned to this staff member
+            const { data: staffLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [staffId]);
+                
+            const staffPhones = (staffLeads || []).map(l => l.phone).filter(Boolean);
+            
+            if (staffPhones.length > 0) {
+                // Prevent URI Too Long error by limiting the array size in the query
+                // and correctly double-quote strings to protect '+' signs in PostgREST
+                const safePhones = staffPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                query = query.or(`assigned_to.eq.${staffId},contact_phone.in.(${safePhones})`);
+            } else {
+                query = query.eq('assigned_to', staffId);
+            }
         }
 
-        if (filterTag) {
-            query = query.contains('tags', [filterTag]);
+        if (filterTag && filterTag !== 'All') {
+            const lower = filterTag.toLowerCase();
+            const upper = filterTag.toUpperCase();
+            const title = lower.charAt(0).toUpperCase() + lower.slice(1);
+            
+            // 1. Fetch contacts from CRM that have this tag (e.g. added via Flow Builder)
+            const { data: taggedContacts } = await supabase
+                .from('contacts')
+                .select('phone')
+                .eq('user_id', userId)
+                .overlaps('tags', [filterTag, lower, upper, title]);
+                
+            const taggedPhones = (taggedContacts || []).map(c => c.phone).filter(Boolean);
+            
+            if (taggedPhones.length > 0) {
+                // 2. If CRM contacts have this tag, filter conversations that EITHER have the tag natively OR belong to these contacts
+                const safePhones = taggedPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
+                const ovArray = `{"${filterTag}","${lower}","${upper}","${title}"}`;
+                query = query.or(`tags.ov.${ovArray},contact_phone.in.(${safePhones})`);
+            } else {
+                // 3. Otherwise, just filter by conversation-level tags
+                query = query.overlaps('tags', [filterTag, lower, upper, title]);
+            }
         }
 
         const { data, count, error } = await query
@@ -88,8 +130,47 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             throw error;
         }
 
+        // 1. Manually fetch the contact tags from CRM for these specific conversations
+        // (Since there is no direct foreign key between conversations and contacts)
+        const activePhones = (data || []).map(c => c.contact_phone).filter(Boolean);
+        let contactTagsMap = {};
+        
+        if (activePhones.length > 0) {
+            const { data: crmContacts } = await supabase
+                .from('contacts')
+                .select('phone, tags')
+                .eq('user_id', userId)
+                .in('phone', activePhones);
+                
+            if (crmContacts) {
+                crmContacts.forEach(c => {
+                    contactTagsMap[c.phone] = Array.isArray(c.tags) ? c.tags : [];
+                });
+            }
+        }
+
+        // 2. Merge tags from the contact level (CRM/Flow Builder) into the conversation tags
+        // so the frontend visibly displays them on the chat snippet.
+        const mergedData = (data || []).map(chat => {
+            const chatTags = Array.isArray(chat.tags) ? chat.tags : [];
+            const cTags = contactTagsMap[chat.contact_phone] || [];
+            
+            // Merge and deduplicate (case-insensitive deduplication)
+            const combined = [...chatTags];
+            for (const tag of cTags) {
+                if (!combined.some(t => t.toLowerCase() === tag.toLowerCase())) {
+                    combined.push(tag);
+                }
+            }
+            
+            return {
+                ...chat,
+                tags: combined
+            };
+        });
+
         res.json({
-            data,
+            data: mergedData,
             total: count || 0,
             page,
             limit
@@ -284,6 +365,19 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
             } else {
                 // It's a remote URL (or already an ID? assuming URL for now)
                 content = { link: media_url };
+                
+                // --- AUDIO FORMAT CHECK FOR REMOTE URLS ---
+                // WhatsApp ONLY supports: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg
+                // WebM from browser MediaRecorder will be rejected. Fallback to document.
+                if (type === 'audio') {
+                    const cleanUrl = media_url.split('?')[0];
+                    const ext = path.extname(cleanUrl).toLowerCase();
+                    const supportedExts = ['.aac', '.mp4', '.mpeg', '.amr', '.ogg', '.mp3'];
+                    if (!supportedExts.includes(ext)) {
+                        console.warn(`Unsupported remote audio extension: ${ext}. Switching to 'document' mode to ensure delivery.`);
+                        type = 'document';
+                    }
+                }
             }
 
             if (text && type !== 'audio' && type !== 'sticker') {
@@ -346,9 +440,24 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('file'), async (req, res) => {
     try {
-        const file = req.file;
+        let file = req.file;
         if (!file) {
             return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        // --- CONVERT WebM to OGG for Native WhatsApp Voice Notes ---
+        if (file.mimetype === 'audio/webm') {
+            try {
+                const { convertWebmToOgg } = require('../utils/audioConverter');
+                console.log(`[Inbox] Converting ${file.originalname} from WebM to OGG...`);
+                const oggBuffer = await convertWebmToOgg(file.buffer);
+                file.buffer = oggBuffer;
+                file.mimetype = 'audio/ogg';
+                file.originalname = file.originalname.replace(/\.webm$/i, '.ogg');
+            } catch (convErr) {
+                console.error('[Inbox] WebM to OGG conversion failed, falling back to original file:', convErr);
+                // Keep original file and it will be sent as Document due to fallback
+            }
         }
 
         // Use Admin client for Storage operations to ensure permissions
@@ -359,11 +468,17 @@ router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('
         const moduleName = req.body.module || 'outbound';
         const filename = `${moduleName}/${userId}/${dateStr}/${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
 
+        // Spoof mime type for unsupported formats because Supabase Storage bucket might restrict it
+        let contentType = file.mimetype;
+        if (contentType === 'audio/webm') {
+            contentType = 'audio/mpeg'; // Spoof ONLY webm to ensure Supabase accepts the upload (will be sent as Document)
+        }
+
         // Upload to Supabase
         const { error: uploadError } = await supabaseAdmin.storage
             .from(bucketName)
             .upload(filename, file.buffer, {
-                contentType: file.mimetype,
+                contentType: contentType,
                 upsert: false,
                 cacheControl: '31536000'
             });

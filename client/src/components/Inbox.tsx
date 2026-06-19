@@ -21,6 +21,7 @@ import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePerm
 import { getStaffList, getLeads, createLead, getLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PermissionGate from '../modules/teamStaff/components/PermissionGate';
+import { contactService } from '../services/contactService';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -106,6 +107,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
     const [assignedStaffNames, setAssignedStaffNames] = useState<string[]>([]);
+    const [contactNotes, setContactNotes] = useState('');
+    const [isSavingNotes, setIsSavingNotes] = useState(false);
     const activeChat = useMemo(() =>
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
@@ -218,6 +221,45 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             setAssignedStaffNames([]);
         }
     }, [activeChat?.contact_phone, staffMembers]);
+
+    useEffect(() => {
+        if (activeChat) {
+            const loadNotes = async () => {
+                try {
+                    const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
+                    if (res?.data && res.data.length > 0) {
+                        setContactNotes(res.data[0].customData?.notes || '');
+                    } else {
+                        setContactNotes('');
+                    }
+                } catch (e) {
+                    console.error("Failed to load notes", e);
+                    setContactNotes('');
+                }
+            };
+            loadNotes();
+        } else {
+            setContactNotes('');
+        }
+    }, [activeChat?.contact_phone]);
+
+    const handleSaveNotes = async () => {
+        if (!activeChat) return;
+        setIsSavingNotes(true);
+        try {
+            await contactService.saveContact({
+                phone: activeChat.contact_phone,
+                name: activeChat.contact_name || 'Unknown',
+                status: 'Contacted',
+                tags: activeChat.tags || [],
+                customData: { notes: contactNotes }
+            } as any);
+        } catch (err) {
+            console.error("Failed to save notes", err);
+        } finally {
+            setIsSavingNotes(false);
+        }
+    };
 
     useEffect(() => {
         setConvPage(1);
@@ -2809,7 +2851,19 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm text-slate-700 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
                                         rows={4}
                                         placeholder="Add a note about this contact..."
+                                        value={contactNotes}
+                                        onChange={(e) => setContactNotes(e.target.value)}
+                                        disabled={isSavingNotes}
                                     ></textarea>
+                                    <div className="flex justify-end">
+                                        <button 
+                                            onClick={handleSaveNotes} 
+                                            disabled={isSavingNotes}
+                                            className="px-4 py-2 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                                        >
+                                            {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3">
@@ -2854,7 +2908,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={handleClearChat}
+                                    onClick={confirmClearChat}
                                     className="flex-1 px-4 py-2 bg-red-600 rounded-lg text-sm font-bold text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-100"
                                 >
                                     Clear History

@@ -12,4 +12,14 @@ router.post('/update', verifyAdminToken, SettingsController.updateSettings);
 router.get('/onboarding', verifyAdminToken, AdminSettingsController.getOnboardingSettings);
 router.put('/onboarding', verifyAdminToken, AdminSettingsController.updateOnboardingSettings);
 
+// Signup Notifications (Platform Admin)
+router.get('/notifications', verifyAdminToken, AdminSettingsController.getSignupNotifications);
+router.put('/notifications', verifyAdminToken, AdminSettingsController.updateSignupNotifications);
+router.get('/whatsapp-templates', verifyAdminToken, AdminSettingsController.getIntegrationTemplates);
+
+// Email/SMTP Settings (Platform Admin)
+router.get('/email', verifyAdminToken, AdminSettingsController.getSmtpSettings);
+router.put('/email', verifyAdminToken, AdminSettingsController.updateSmtpSettings);
+router.post('/email/test', verifyAdminToken, AdminSettingsController.testSmtpSettings);
+
 module.exports = router;

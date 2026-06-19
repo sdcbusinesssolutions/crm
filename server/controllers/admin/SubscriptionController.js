@@ -93,6 +93,7 @@ exports.getAllSubscriptions = async (req, res) => {
                 user_id: sub.user_id,
                 user: userName,
                 email: userEmail,
+                signupDomain: profile?.signup_domain || 'Unknown',
                 plan: planName,
                 created: new Date(sub.start_date).toLocaleDateString(),
                 expiry: new Date(sub.end_date).toLocaleDateString(),
@@ -199,6 +200,34 @@ exports.assignSubscription = async (req, res) => {
             return res.status(403).json({ message: 'Cannot assign subscriptions to users from other domains' });
         }
 
+        // NEW: LIMIT ENFORCEMENT
+        const alreadyAssigned = userProfile?.plan_assigned_by_admin && userProfile?.plan_status === 'active';
+
+        if (!isSuperAdmin && !alreadyAssigned) {
+            const { data: limitData } = await supabaseAdmin
+                .from('tenant_limits')
+                .select('user_limit')
+                .eq('domain', adminDomain)
+                .single();
+            
+            const userLimit = limitData ? limitData.user_limit : 0;
+
+            const { count, error: countError } = await supabaseAdmin
+                .from('profiles')
+                .select('*', { count: 'exact', head: true })
+                .eq('signup_domain', adminDomain)
+                .eq('plan_assigned_by_admin', true)
+                .eq('plan_status', 'active');
+            
+            if (countError) {
+                return res.status(500).json({ message: 'Error checking tenant limits.' });
+            }
+
+            if (count >= userLimit) {
+                return res.status(403).json({ message: `Your user limit of ${userLimit} has been reached. Please contact Super Admin to increase your limit.` });
+            }
+        }
+
         const startDate = new Date();
         const endDate = new Date(startDate);
         const { interval, interval_count } = pricingOption;
@@ -244,7 +273,8 @@ exports.assignSubscription = async (req, res) => {
             .update({
                 plan_name: plan.name,
                 plan_status: 'active',
-                plan_expires_at: endDate.toISOString()
+                plan_expires_at: endDate.toISOString(),
+                plan_assigned_by_admin: true
             })
             .eq('id', userId);
 

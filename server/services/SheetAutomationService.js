@@ -475,86 +475,118 @@ class SheetAutomationService {
             const authClient = await this.getAuthClient(auto.user_id, auto.connection_id);
             const creds = authClient.credentials;
 
-            // 3. Fetch Data (Using a helper to handle Refresh on 401)
+            // 3. Fetch Data (Optimized)
             const spreadsheetId = auto.spreadsheet_id;
-            const range = encodeURIComponent(auto.sheet_name);
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`;
+            const encodedSheet = encodeURIComponent(auto.sheet_name);
+            const isScheduleLogic = auto.automation_type === 'schedule' || isManual;
 
-            console.log(`[SheetAutomation] Fetching sheet data: ${url}`);
+            // Helper to make API requests with automatic token refresh
+            const fetchSheetAPI = async (targetUrl) => {
+                try {
+                    return await axios.get(targetUrl, {
+                        headers: {
+                            'Authorization': `Bearer ${creds.access_token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        proxy: false
+                    });
+                } catch (firstErr) {
+                    if (firstErr.response && firstErr.response.status === 401) {
+                        if (creds.refresh_token) {
+                            console.log('[SheetAuto] Access Token expired (401). Refreshing...');
+                            try {
+                                const { credentials } = await authClient.refreshAccessToken();
+                                console.log('[SheetAuto] Token refreshed. Retrying request...');
+                                
+                                // Update DB with new tokens
+                                await supabaseAdmin
+                                    .from('user_integrations')
+                                    .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
+                                    .eq('id', auto.connection_id);
+                                
+                                // Mutate local creds object so subsequent calls use new token
+                                Object.assign(creds, credentials);
 
-            let response;
-            try {
-                response = await axios.get(url, {
-                    headers: {
-                        'Authorization': `Bearer ${creds.access_token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    proxy: false
-                });
-            } catch (firstErr) {
-                if (firstErr.response && firstErr.response.status === 401) {
-                    if (creds.refresh_token) {
-                        console.log('[SheetAuto] Access Token expired (401). Refreshing...');
-                        try {
-                            const { credentials } = await authClient.refreshAccessToken();
-                            console.log('[SheetAuto] Token refreshed. Retrying request...');
-
-                            // Update DB with new tokens
-                            await supabaseAdmin
-                                .from('user_integrations')
-                                .update({ credentials: { ...creds, ...credentials }, updated_at: new Date() })
-                                .eq('id', auto.connection_id);
-
-                            response = await axios.get(url, {
-                                headers: {
-                                    'Authorization': `Bearer ${credentials.access_token}`,
-                                    'Content-Type': 'application/json'
-                                },
-                                proxy: false
-                            });
-                        } catch (refreshErr) {
-                            console.error('[SheetAuto] Token refresh FAILED — pausing automation to stop infinite retry loop:', refreshErr.message);
-                            // ⚠️ CIRCUIT BREAKER: Mark automation as paused so it stops retrying with a dead token.
-                            // The user must reconnect their Google account in Integrations to reactivate.
+                                return await axios.get(targetUrl, {
+                                    headers: {
+                                        'Authorization': `Bearer ${creds.access_token}`,
+                                        'Content-Type': 'application/json'
+                                    },
+                                    proxy: false
+                                });
+                            } catch (refreshErr) {
+                                console.error('[SheetAuto] Token refresh FAILED:', refreshErr.message);
+                                await supabaseAdmin.from('sheet_automations').update({
+                                    status: 'paused',
+                                    error_log: JSON.stringify({
+                                        error: 'Google authentication expired. Please reconnect your Google account in Integrations.',
+                                        failed_at: new Date().toISOString(),
+                                        original_error: refreshErr.message
+                                    })
+                                }).eq('id', auto.id);
+                                const authErr = new Error('Google OAuth token expired and refresh failed. Automation paused.');
+                                authErr.code = 'AUTH_EXPIRED';
+                                throw authErr;
+                            }
+                        } else {
+                            console.error('[SheetAuto] 401 with NO refresh_token. Pausing automation.');
                             await supabaseAdmin.from('sheet_automations').update({
                                 status: 'paused',
                                 error_log: JSON.stringify({
-                                    error: 'Google authentication expired. Please reconnect your Google account in Integrations.',
-                                    failed_at: new Date().toISOString(),
-                                    original_error: refreshErr.message
+                                    error: 'Google authentication missing. Please reconnect your Google account in Integrations.',
+                                    failed_at: new Date().toISOString()
                                 })
                             }).eq('id', auto.id);
-                            const authErr = new Error('Google OAuth token expired and refresh failed. Automation paused.');
+                            const authErr = new Error('No Google refresh token available. Automation paused.');
                             authErr.code = 'AUTH_EXPIRED';
                             throw authErr;
                         }
                     } else {
-                        // No refresh token at all — can't recover automatically
-                        console.error('[SheetAuto] 401 with NO refresh_token. Pausing automation — user must reconnect.');
-                        await supabaseAdmin.from('sheet_automations').update({
-                            status: 'paused',
-                            error_log: JSON.stringify({
-                                error: 'Google authentication missing. Please reconnect your Google account in Integrations.',
-                                failed_at: new Date().toISOString()
-                            })
-                        }).eq('id', auto.id);
-                        const authErr = new Error('No Google refresh token available. Automation paused.');
-                        authErr.code = 'AUTH_EXPIRED';
-                        throw authErr;
+                        throw firstErr;
                     }
-                } else {
-                    throw firstErr;
                 }
+            };
+
+            let headers = [];
+            let dataRows = [];
+            const lastIndex = auto.last_processed_row_index || 0;
+
+            if (!isScheduleLogic && auto.automation_type === 'new_row') {
+                // OPTIMIZATION: Fetch ONLY headers and new rows
+                console.log(`[SheetAutomation] [Optimized] Fetching new_row data for ${auto.name}`);
+                
+                // 1. Fetch Headers
+                const headerUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!1:1`;
+                const headerRes = await fetchSheetAPI(headerUrl);
+                headers = headerRes.data.values ? headerRes.data.values[0] : [];
+                
+                if (!headers || headers.length === 0) {
+                    console.log('[SheetAutomation] No headers found in sheet.');
+                    return;
+                }
+
+                // 2. Fetch only new rows
+                const startRow = lastIndex + 2; // +1 for header, +1 because 1-indexed
+                const newRowsUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}!A${startRow}:ZZ`;
+                const newRowsRes = await fetchSheetAPI(newRowsUrl);
+                
+                dataRows = newRowsRes.data.values || [];
+
+            } else {
+                // FULL SHEET FETCH for schedule/manual
+                console.log(`[SheetAutomation] Fetching full sheet data for ${auto.name}`);
+                const fullUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodedSheet}`;
+                const response = await fetchSheetAPI(fullUrl);
+                const rows = response.data.values;
+                
+                if (!rows || rows.length < 2) {
+                    console.log('[SheetAutomation] No data found in sheet.');
+                    return;
+                }
+                headers = rows[0];
+                dataRows = rows.slice(1);
             }
 
-            const rows = response.data.values;
-            if (!rows || rows.length < 2) {
-                console.log('[SheetAutomation] No data found in sheet.');
-                return;
-            }
-
-            const headers = rows[0];
-            const dataRows = rows.slice(1);
             logSummary.total_rows = dataRows.length;
 
             console.log(`[SheetAutomation] Found ${dataRows.length} rows for ${auto.name}.`);
@@ -625,7 +657,6 @@ class SheetAutomationService {
             const sentHashes = await this.getSentHashes(auto.id, timeWindow);
 
             // 5. Processing Loop
-            const isScheduleLogic = auto.automation_type === 'schedule' || isManual;
 
             // Pre-process logging context
             const baseLogContext = {
@@ -641,8 +672,8 @@ class SheetAutomationService {
             });
 
             if (!isScheduleLogic && auto.automation_type === 'new_row') {
-                const lastIndex = auto.last_processed_row_index || 0;
-                const newRows = dataRows.slice(lastIndex);
+                // newRows is simply dataRows because we ONLY fetched the new rows from Google API!
+                const newRows = dataRows;
 
                 const statusColName = auto.mapping_config?.status_column;
                 let statusColIndex = -1;
@@ -1240,7 +1271,12 @@ class SheetAutomationService {
             };
 
             // Normalize phone
-            let safePhone = phone.replace(/[^\d+]/g, '');
+            let safePhone = String(phone).replace(/[^\d+]/g, '');
+
+            if (!safePhone) {
+                console.error(`[SheetAuto] Skipped: Phone column contained invalid data ('${phone}') - No digits found.`);
+                throw new Error('Invalid phone number format');
+            }
 
             // Start Flow with Explicit Node ID
             await flowEngine.startFlow(auto.user_id, safePhone, flow, initialContext, startNode ? startNode.id : null);
