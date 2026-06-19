@@ -398,8 +398,11 @@ router.post('/topup-master', async (req, res) => {
 
         let targetUserId = tenantAdminUserId;
 
-        // If domain is provided, find the tenant admin user ID
-        if (!targetUserId && domain) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!targetUserId || !uuidRegex.test(targetUserId)) {
+            if (!domain) {
+                return res.status(400).json({ error: 'Invalid user ID and no domain provided.' });
+            }
             const { data: adminProfile } = await supabaseAdmin
                 .from('profiles')
                 .select('id')
@@ -621,13 +624,29 @@ router.post('/domain-settings', async (req, res) => {
         const { domain, default_billing_mode, tenant_admin_user_id, allow_tenant_billing_control } = req.body;
         if (!domain) return res.status(400).json({ error: 'domain is required' });
 
+        let actualTenantAdminUserId = tenant_admin_user_id;
+
+        // If the frontend passes an invalid UUID (like "admin-cloudospire.in") or omits it,
+        // we automatically look up the correct Tenant Admin UUID for this domain.
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!actualTenantAdminUserId || !uuidRegex.test(actualTenantAdminUserId)) {
+            const { data: adminProfile } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .eq('signup_domain', domain)
+                .eq('role', 'admin')
+                .maybeSingle();
+                
+            actualTenantAdminUserId = adminProfile ? adminProfile.id : null;
+        }
+
         const upsertData = {
             domain,
             default_billing_mode: default_billing_mode || 'CREDIT_LINE_SUPER',
             allow_tenant_billing_control: allow_tenant_billing_control !== undefined ? allow_tenant_billing_control : true,
             updated_at: new Date().toISOString()
         };
-        if (tenant_admin_user_id) upsertData.tenant_admin_user_id = tenant_admin_user_id;
+        if (actualTenantAdminUserId) upsertData.tenant_admin_user_id = actualTenantAdminUserId;
 
         const { error } = await supabaseAdmin
             .from('domain_wallet_settings')
@@ -635,9 +654,9 @@ router.post('/domain-settings', async (req, res) => {
         if (error) throw error;
 
         // If a tenant admin is set, ensure their Master Wallet exists
-        if (tenant_admin_user_id) {
+        if (actualTenantAdminUserId) {
             await supabaseAdmin.rpc('ensure_tenant_master_wallet', {
-                p_tenant_admin_user_id: tenant_admin_user_id
+                p_tenant_admin_user_id: actualTenantAdminUserId
             });
         }
 
