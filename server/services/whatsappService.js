@@ -147,16 +147,24 @@ class WhatsAppService {
 
             console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'}${body.solution_id ? ', Solution: ' + body.solution_id : ''})`);
 
-            // --- CONSERVATIVE WALLET BALANCE CHECK (always MARKETING rate = worst-case) ---
+            // --- CONSERVATIVE WALLET BALANCE CHECK ---
             // Always check against MARKETING rate regardless of template category.
             // Meta can reclassify any template to MARKETING at delivery time,
             // so we must ensure the user can cover the highest possible cost.
             if (type === 'template') {
-                const hasBalance = await WalletService.hasSufficientBalance(userId);
+                const hasBalance = await WalletService.hasSufficientBalance(userId, null, 'MARKETING');
                 
                 if (!hasBalance) {
                     console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — INSUFFICIENT WALLET BALANCE (checked at MARKETING rate).`);
                     throw new Error('Insufficient Wallet Balance. Top-up required.');
+                }
+            } else {
+                // Free-form messages (text, image, interactive) could open a SERVICE window.
+                // Check if they have at least enough for a SERVICE message, otherwise block.
+                const hasBalance = await WalletService.hasSufficientBalance(userId, null, 'SERVICE');
+                if (!hasBalance) {
+                    console.warn(`[WhatsAppService] 🚫 Blocked free-form send to ${to} — INSUFFICIENT WALLET BALANCE (checked at SERVICE rate).`);
+                    throw new Error('Insufficient Wallet Balance to send message. Top-up required.');
                 }
             }
 

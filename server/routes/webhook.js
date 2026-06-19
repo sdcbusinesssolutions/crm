@@ -872,6 +872,11 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             WalletService.handleWebhookPricing(
                                 userId, waMessageId, status.pricing, status.conversation || null
                             ).catch(err => console.error('[Wallet] Error handling webhook pricing:', err));
+                        } else if (newStatus === 'failed') {
+                            // FAILED MESSAGE: Full refund of pre-debit
+                            WalletService.handleWebhookFailure(
+                                userId, waMessageId
+                            ).catch(err => console.error('[Wallet] Error handling webhook failure:', err));
                         }
                     } else {
                         console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);

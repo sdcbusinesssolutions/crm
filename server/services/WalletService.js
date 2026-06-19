@@ -2,8 +2,13 @@ const { supabaseAdmin } = require('../lib/supabaseClient');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WHATSAPP BILLING MODEL (Meta Cloud API) - V2 Architecture
+// WHATSAPP BILLING MODEL (Meta Cloud API) - V2 Architecture (Optimized)
 // ─────────────────────────────────────────────────────────────────────────────
+
+const rateCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+const roundMoney = (val) => Math.round(Number(val) * 10000) / 10000;
 
 class WalletService {
 
@@ -46,48 +51,50 @@ class WalletService {
     }
 
     /**
-     * Get effective rate for a user + category.
+     * Get effective rate for a user + category (Optimized with Cache & Single Query).
      * Lookup Priority: USER override → TENANT/WORKSPACE override → GLOBAL default → fallback
      */
     static async getRate(userId, category, countryCode = 'IN', tenantId = null) {
         category = (category || 'MARKETING').toUpperCase();
-
-        // 1. User level override
-        const { data: userRate } = await supabaseAdmin
-            .from('wa_message_rates')
-            .select('platform_rate, meta_cost')
-            .eq('scope', 'USER').eq('user_id', userId)
-            .eq('category', category).eq('country_code', countryCode)
-            .eq('is_active', true).maybeSingle();
-        if (userRate) return userRate;
-
-        // 2. Tenant level override
         const targetTenantId = tenantId || userId;
-        const { data: tenantRate } = await supabaseAdmin
-            .from('wa_message_rates')
-            .select('platform_rate, meta_cost')
-            .in('scope', ['TENANT', 'WORKSPACE']).eq('user_id', targetTenantId)
-            .eq('category', category).eq('country_code', countryCode)
-            .eq('is_active', true).maybeSingle();
-        if (tenantRate) return tenantRate;
+        const cacheKey = `${userId}_${targetTenantId}_${category}_${countryCode}`;
 
-        // 3. Global default
-        const { data: globalRate } = await supabaseAdmin
-            .from('wa_message_rates')
-            .select('platform_rate, meta_cost')
-            .eq('scope', 'GLOBAL').is('user_id', null)
-            .eq('category', category).eq('country_code', countryCode)
-            .eq('is_active', true).maybeSingle();
-        if (globalRate) return globalRate;
+        const cached = rateCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+            return cached.rate;
+        }
 
-        // 4. Fallbacks
-        const fallbacks = {
-            MARKETING:      { platform_rate: 0.70, meta_cost: 0.0128 },
-            UTILITY:        { platform_rate: 0.22, meta_cost: 0.0040 },
-            AUTHENTICATION: { platform_rate: 0.22, meta_cost: 0.0040 },
-            SERVICE:        { platform_rate: 0.20, meta_cost: 0.0040 }
-        };
-        return fallbacks[category] || fallbacks.SERVICE;
+        // Single query fetching all possible hierarchies
+        const { data: rates } = await supabaseAdmin
+            .from('wa_message_rates')
+            .select('scope, user_id, platform_rate, meta_cost')
+            .eq('category', category)
+            .eq('country_code', countryCode)
+            .eq('is_active', true)
+            .or(`user_id.eq.${userId},user_id.eq.${targetTenantId},scope.eq.GLOBAL`);
+
+        let selectedRate = null;
+
+        if (rates && rates.length > 0) {
+            const userRate = rates.find(r => r.scope === 'USER' && r.user_id === userId);
+            const tenantRate = rates.find(r => ['TENANT', 'WORKSPACE'].includes(r.scope) && r.user_id === targetTenantId);
+            const globalRate = rates.find(r => r.scope === 'GLOBAL');
+
+            selectedRate = userRate || tenantRate || globalRate;
+        }
+
+        if (!selectedRate) {
+            const fallbacks = {
+                MARKETING:      { platform_rate: 0.70, meta_cost: 0.0128 },
+                UTILITY:        { platform_rate: 0.22, meta_cost: 0.0040 },
+                AUTHENTICATION: { platform_rate: 0.22, meta_cost: 0.0040 },
+                SERVICE:        { platform_rate: 0.20, meta_cost: 0.0040 }
+            };
+            selectedRate = fallbacks[category] || fallbacks.SERVICE;
+        }
+
+        rateCache.set(cacheKey, { rate: selectedRate, expiresAt: Date.now() + CACHE_TTL_MS });
+        return selectedRate;
     }
 
     /**
@@ -105,13 +112,13 @@ class WalletService {
                 checkAmount = overrideAmount;
             } else if (billingMode === 'DIRECT_META') {
                 const rate = await this.getRate(userId, expectedCategory);
-                checkAmount = Math.max(Number(rate.platform_rate) - Number(rate.meta_cost), 0.01);
+                checkAmount = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
             } else {
                 const rate = await this.getRate(userId, expectedCategory);
                 checkAmount = rate.platform_rate;
             }
 
-            return Number(wallet.balance) >= Number(checkAmount);
+            return roundMoney(wallet.balance) >= roundMoney(checkAmount);
         } catch (e) {
             console.error('[WalletService] Balance check error:', e);
             return true;
@@ -130,15 +137,15 @@ class WalletService {
             const rate = await this.getRate(userId, 'MARKETING', countryCode);
             const actualCategory = 'MARKETING';
 
-            let debitAmount = Number(rate.platform_rate);
-            let debitMetaCost = Number(rate.meta_cost);
+            let debitAmount = roundMoney(rate.platform_rate);
+            let debitMetaCost = roundMoney(rate.meta_cost);
             let debitDescription = `Pre-debit at MAX RISK (MARKETING) rate for requested ${requestedCategory}. Will refund at webhook if cheaper. Msg: ${waMessageId}`;
 
             const wallet = await this.getWallet(userId);
             const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
 
             if (billingMode === 'DIRECT_META') {
-                debitAmount = Math.max(Number(rate.platform_rate) - Number(rate.meta_cost), 0.01);
+                debitAmount = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
                 debitMetaCost = 0;
                 debitDescription = `Platform markup only (DIRECT_META mode). Msg: ${waMessageId}`;
             }
@@ -197,10 +204,27 @@ class WalletService {
                 return;
             }
 
+            // IDEMPOTENCY CHECK: Ensure we haven't already refunded or adjusted this exact message
+            const { data: existingAdjustments } = await supabaseAdmin
+                .from('wallet_transactions')
+                .select('id')
+                .eq('wa_message_id', waMessageId)
+                .in('source', ['REFUND', 'ADJUSTMENT'])
+                .limit(1);
+
+            if (existingAdjustments && existingAdjustments.length > 0) {
+                console.log(`[WalletService] Idempotency catch: Msg ${waMessageId} already reconciled.`);
+                return;
+            }
+
             if (pricing.billable === false) {
-                await this._issueRefund(userId, waMessageId, Number(originalTx.amount),
-                    'REFUND', null, waConversationId,
-                    `Full refund ₹${originalTx.amount} — message was not billed by Meta`);
+                // BUG FIX: Only refund meta_cost to retain platform markup
+                const refundAmount = roundMoney(originalTx.meta_cost || 0);
+                if (refundAmount > 0) {
+                    await this._issueRefund(userId, waMessageId, refundAmount,
+                        'REFUND', null, waConversationId,
+                        `Meta Cost Refund ₹${refundAmount} — message was not billed by Meta (Free Entry/Tier)`);
+                }
                 return;
             }
 
@@ -216,10 +240,13 @@ class WalletService {
                     .maybeSingle();
 
                 if (existingWindowCharge) {
-                    const refundAmount = Number(originalTx.amount);
-                    await this._issueRefund(userId, waMessageId, refundAmount,
-                        'ADJUSTMENT', pricing.category?.toUpperCase(), waConversationId,
-                        `24h window already billed. Full refund ₹${refundAmount}.`);
+                    // BUG FIX: Only refund meta_cost for subsequent messages in a 24h window
+                    const refundAmount = roundMoney(originalTx.meta_cost || 0);
+                    if (refundAmount > 0) {
+                        await this._issueRefund(userId, waMessageId, refundAmount,
+                            'ADJUSTMENT', pricing.category?.toUpperCase(), waConversationId,
+                            `24h window already billed. Meta Cost Refund ₹${refundAmount}.`);
+                    }
                     return;
                 }
 
@@ -236,7 +263,7 @@ class WalletService {
             if (pricing.category) {
                 const actualCategory = pricing.category.toUpperCase();
                 const preDebitCategory = (originalTx.wa_category || '').toUpperCase();
-                const preDebitAmount = Number(originalTx.amount);
+                const preDebitAmount = roundMoney(originalTx.amount);
 
                 if (actualCategory === preDebitCategory) {
                     return; // No change needed
@@ -244,9 +271,9 @@ class WalletService {
 
                 const countryCode = this.getCountryCode(originalTx.contact_phone || contactPhone);
                 const actualRate = await this.getRate(userId, actualCategory, countryCode);
-                const actualAmount = Number(actualRate.platform_rate);
+                const actualAmount = roundMoney(actualRate.platform_rate);
                 
-                const delta = actualAmount - preDebitAmount;
+                const delta = roundMoney(actualAmount - preDebitAmount);
 
                 if (delta < 0) {
                     // Cheaper Category -> Refund Difference
@@ -273,6 +300,45 @@ class WalletService {
 
         } catch (e) {
             console.error('[WalletService] handleWebhookPricing error:', e);
+        }
+    }
+
+    /**
+     * FAILED MESSAGE RECONCILIATION
+     * If a message fails to deliver, we must fully refund the pre-debit.
+     */
+    static async handleWebhookFailure(userId, waMessageId) {
+        try {
+            const { data: originalTx } = await supabaseAdmin
+                .from('wallet_transactions')
+                .select('*')
+                .eq('wa_message_id', waMessageId)
+                .eq('type', 'DEBIT')
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+
+            if (!originalTx) return; // No pre-debit found (e.g., text message)
+
+            // IDEMPOTENCY CHECK
+            const { data: existingAdjustments } = await supabaseAdmin
+                .from('wallet_transactions')
+                .select('id')
+                .eq('wa_message_id', waMessageId)
+                .in('source', ['REFUND', 'ADJUSTMENT'])
+                .limit(1);
+
+            if (existingAdjustments && existingAdjustments.length > 0) return;
+
+            // Full refund because the message bounced and we didn't provide the service
+            const refundAmount = roundMoney(originalTx.amount);
+            if (refundAmount > 0) {
+                await this._issueRefund(userId, waMessageId, refundAmount,
+                    'REFUND', null, null,
+                    `Full refund ₹${refundAmount} — message delivery failed`);
+            }
+        } catch (e) {
+            console.error('[WalletService] handleWebhookFailure error:', e);
         }
     }
 
