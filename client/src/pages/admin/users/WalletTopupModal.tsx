@@ -12,22 +12,22 @@ interface WalletTopupModalProps {
 const BILLING_MODE_OPTIONS = [
     {
         value: 'CREDIT_LINE_SUPER',
-        label: '🏛 Super Admin Credit Line',
-        description: 'User is billed via Super Admin\'s Meta account. Tenant Admin must use their Agency Master Wallet to top-up this user. Strict balance enforcement.',
+        label: '🏛 Super Admin Pays Meta (Wholesale)',
+        description: 'You (Tenant) buy wholesale credits from Super Admin. User buys retail credits from you.',
         color: 'border-blue-300 bg-blue-50',
         badge: 'bg-blue-100 text-blue-800'
     },
     {
         value: 'CREDIT_LINE_TENANT',
-        label: '🏢 Tenant Agency Credit Line',
-        description: 'User\'s costs are covered by the Tenant Admin\'s own Meta credit line. Tenant Admin can top-up unlimited. Tenant owns the billing liability.',
+        label: '🏢 You Pay Meta (Agency Model)',
+        description: 'You connect your own card to Meta. User buys retail credits from you to cover your Meta bill.',
         color: 'border-emerald-300 bg-emerald-50',
         badge: 'bg-emerald-100 text-emerald-800'
     },
     {
         value: 'DIRECT_META',
-        label: '💳 Direct Meta Billing',
-        description: 'User has their own Meta Business account and pays Meta directly with their own card. Your wallet only charges the platform markup (not Meta\'s cost).',
+        label: '💳 End-User Pays Meta (Retail Model)',
+        description: 'User connects their own card directly to Meta. You only charge them a software fee.',
         color: 'border-amber-300 bg-amber-50',
         badge: 'bg-amber-100 text-amber-800'
     }
@@ -38,6 +38,7 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
     const [description, setDescription] = useState('Admin Top-up');
     const [walletEnforced, setWalletEnforced] = useState(false);
     const [billingMode, setBillingMode] = useState('CREDIT_LINE_SUPER');
+    const [initialBillingMode, setInitialBillingMode] = useState('CREDIT_LINE_SUPER');
     const [currentBalance, setCurrentBalance] = useState<string | number>('Loading...');
     const [masterBalance, setMasterBalance] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,9 +63,20 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 const data = await res.json();
                 setCurrentBalance(data.balance);
                 setWalletEnforced(data.wallet_enforced);
-                setBillingMode(data.billing_mode || data.default_billing_mode || 'CREDIT_LINE_SUPER');
+                const fetchedBillingMode = data.billing_mode || data.default_billing_mode || 'CREDIT_LINE_SUPER';
+                const domainDefault = data.default_billing_mode || 'CREDIT_LINE_SUPER';
+                
+                // 🛠 SMART AUTO-CORRECTION: If Tenant Admin opens a legacy Wholesale user, but the domain default is now Agency,
+                // auto-select Agency mode so the UI doesn't glitch out with a ₹0.00 wholesale warning.
+                let activeBillingMode = fetchedBillingMode;
+                if (!isSuperAdmin && fetchedBillingMode === 'CREDIT_LINE_SUPER' && domainDefault === 'CREDIT_LINE_TENANT') {
+                    activeBillingMode = 'CREDIT_LINE_TENANT';
+                }
+
+                setBillingMode(activeBillingMode);
+                setInitialBillingMode(fetchedBillingMode);
                 setAllowTenantControl(data.allow_tenant_billing_control ?? true);
-                setDomainDefaultBillingMode(data.default_billing_mode || 'CREDIT_LINE_SUPER');
+                setDomainDefaultBillingMode(domainDefault);
             } else {
                 setCurrentBalance('Error');
             }
@@ -190,13 +202,14 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                         </span>
                     </div>
 
-                    {!isSuperAdmin && masterBalance !== null && (
-                        <div className="flex justify-between items-center pt-4 border-t border-slate-700/50 mt-2">
+                    {/* Only show Agency Wallet balance if they are actually using the Wholesale model */}
+                    {!isSuperAdmin && masterBalance !== null && billingMode === 'CREDIT_LINE_SUPER' && (
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-700/50 mt-2 transition-all duration-300 ease-in-out">
                             <div className="flex items-center gap-2">
                                 <div className="p-1.5 bg-slate-800 rounded-lg border border-slate-700 shadow-inner">
                                     <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                                 </div>
-                                <span className="text-sm font-medium text-slate-300">Your Agency Wallet</span>
+                                <span className="text-sm font-medium text-slate-300">Your Wholesale Credit Balance</span>
                             </div>
                             <span className={`text-lg font-bold drop-shadow-md ${masterBalance <= 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                                 ₹{masterBalance.toFixed(2)}
@@ -219,12 +232,12 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     <label className="block text-sm font-bold text-slate-700 mb-3">Credit Line / Billing Mode</label>
                     <div className="space-y-3">
                         {BILLING_MODE_OPTIONS.filter(mode => {
-                            if (isSuperAdmin) return true;
-                            
                             if (domainDefaultBillingMode === 'CREDIT_LINE_TENANT') {
                                 if (mode.value === 'CREDIT_LINE_SUPER') return false;
                             } else if (domainDefaultBillingMode === 'CREDIT_LINE_SUPER') {
                                 if (mode.value === 'CREDIT_LINE_TENANT') return false;
+                            } else if (domainDefaultBillingMode === 'DIRECT_META') {
+                                if (mode.value === 'CREDIT_LINE_SUPER' || mode.value === 'CREDIT_LINE_TENANT') return false;
                             }
                             return true;
                         }).map(mode => (
@@ -259,10 +272,10 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 {isResellerTransfer && (
                     <div className="bg-blue-50/80 backdrop-blur-sm border-l-4 border-blue-500 rounded-r-xl p-4 shadow-sm">
                         <p className="text-sm text-blue-800 font-medium">
-                            <span className="mr-2">🏦</span> <strong>Agency Transfer:</strong> This amount will be deducted from your Agency Master Wallet (Current: ₹{masterBalance?.toFixed(2) ?? '...'}).
+                            <span className="mr-2">🏦</span> <strong>Wholesale Deduction:</strong> This amount will be deducted from your Wholesale Credit Balance (Current: ₹{masterBalance?.toFixed(2) ?? '...'}).
                             {masterBalance !== null && Number(amount) > masterBalance && (
                                 <span className="block text-red-600 font-bold mt-2 bg-red-100/50 px-3 py-2 rounded-lg border border-red-100">
-                                    ❌ You don't have enough Agency balance to cover ₹{amount}.
+                                    ❌ You don't have enough Wholesale Credits to cover ₹{amount}.
                                 </span>
                             )}
                         </p>
@@ -271,50 +284,55 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 {billingMode === 'DIRECT_META' && (
                     <div className="bg-amber-50/80 backdrop-blur-sm border-l-4 border-amber-500 rounded-r-xl p-4 shadow-sm">
                         <p className="text-sm text-amber-800 font-medium leading-relaxed">
-                            <span className="mr-2">💳</span> <strong>Direct Meta Billing:</strong> Meta charges this user's card directly. Your wallet will only deduct the platform software markup fee (not Meta's message cost).
+                            <span className="mr-2">💳</span> <strong>User Pays Meta:</strong> Meta charges this user directly. Top-up amounts here are purely your software markup fee (SaaS fee), not message costs.
                         </p>
                     </div>
                 )}
                 {billingMode === 'CREDIT_LINE_TENANT' && (
-                    <div className="bg-emerald-50/80 backdrop-blur-sm border-l-4 border-emerald-500 rounded-r-xl p-4 shadow-sm">
+                    <div className="bg-emerald-50/80 backdrop-blur-sm border-l-4 border-emerald-500 rounded-r-xl p-4 shadow-sm space-y-2 mt-4">
                         <p className="text-sm text-emerald-800 font-medium leading-relaxed">
-                            <span className="mr-2">🏢</span> <strong>Agency Credit Line:</strong> You own this user's billing liability. Top-up amounts come from your own funds. Meta will bill your agency's credit line.
+                            <span className="mr-2">🏢</span> <strong>Your Meta Card:</strong> Meta will charge your own credit card for this user's messages. You can top-up this user freely here without needing Wholesale Credits.
+                        </p>
+                        <p className="text-xs text-emerald-700 font-medium leading-relaxed">
+                            <em>Note: Only the software markup fee (₹0.20) will be automatically deducted from your Agency Wallet when the user sends a message.</em>
                         </p>
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    {/* Amount */}
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1.5">Add Amount (₹)</label>
-                        <div className="relative shadow-sm rounded-xl">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-slate-400 sm:text-sm font-medium">₹</span>
+                {billingMode !== 'DIRECT_META' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                        {/* Amount */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1.5">Add Amount (₹)</label>
+                            <div className="relative shadow-sm rounded-xl">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span className="text-slate-400 sm:text-sm font-medium">₹</span>
+                                </div>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    className="block w-full pl-8 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    placeholder="0.00"
+                                />
                             </div>
+                        </div>
+
+                        {/* Description */}
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 mb-1.5">Description</label>
                             <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                className="block w-full pl-8 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                placeholder="0.00"
+                                type="text"
+                                className="block w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400 shadow-sm"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                placeholder="e.g. Monthly Top-up"
                             />
                         </div>
                     </div>
-
-                    {/* Description */}
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 mb-1.5">Description</label>
-                        <input
-                            type="text"
-                            className="block w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400 shadow-sm"
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            placeholder="e.g. Monthly Top-up"
-                        />
-                    </div>
-                </div>
+                )}
 
                 {/* Enforcement Toggle */}
                 <div className="pt-2">

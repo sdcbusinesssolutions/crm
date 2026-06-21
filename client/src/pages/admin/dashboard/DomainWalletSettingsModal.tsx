@@ -11,20 +11,20 @@ interface DomainWalletSettingsModalProps {
 const BILLING_MODE_OPTIONS = [
     {
         value: 'CREDIT_LINE_SUPER',
-        label: '🏛 Super Admin Credit Line (Default)',
-        description: 'New users use the Super Admin\'s Meta account. Deducts from Tenant\'s Master Wallet.',
+        label: '🏛 You Pay Meta (Wholesale Model)',
+        description: 'You pay Meta. Tenant buys wholesale credits from you. (Tenant is pre-paid).',
         color: 'border-blue-300 bg-blue-50',
     },
     {
         value: 'CREDIT_LINE_TENANT',
-        label: '🏢 Tenant Agency Credit Line',
-        description: 'New users use the Tenant Admin\'s own Meta credit line. Free/Unlimited top-ups for the Tenant.',
+        label: '🏢 Tenant Pays Meta (Agency Model)',
+        description: 'Tenant connects their own card to Meta. (No wholesale credits needed from you).',
         color: 'border-emerald-300 bg-emerald-50',
     },
     {
         value: 'DIRECT_META',
-        label: '💳 Direct Meta Billing',
-        description: 'New users pay Meta directly. Tenant Wallet only charges software markup.',
+        label: '💳 End-User Pays Meta (Retail Model)',
+        description: 'End-user connects their own card directly to Meta. (Tenant only collects software fees).',
         color: 'border-amber-300 bg-amber-50',
     }
 ];
@@ -38,6 +38,10 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
     const [defaultBillingMode, setDefaultBillingMode] = useState('CREDIT_LINE_SUPER');
     const [allowTenantControl, setAllowTenantControl] = useState(true);
     
+    // Domain Admins State
+    const [domainAdmins, setDomainAdmins] = useState<{id: string, name: string, email: string}[]>([]);
+    const [selectedAdminId, setSelectedAdminId] = useState<string>('');
+
     // Recharge State
     const [rechargeAmount, setRechargeAmount] = useState('');
     const [isRecharging, setIsRecharging] = useState(false);
@@ -54,18 +58,33 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
         setError('');
         try {
             const token = localStorage.getItem('adminToken');
-            const res = await fetch(`/api/wallet/admin/domain-settings/${domain}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
+            
+            const [settingsRes, adminsRes] = await Promise.all([
+                fetch(`/api/wallet/admin/domain-settings/${domain}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }),
+                fetch(`/api/wallet/admin/domain-admins/${domain}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+            ]);
+
+            if (settingsRes.ok) {
+                const data = await settingsRes.json();
                 if (data) {
                     setDefaultBillingMode(data.default_billing_mode || 'CREDIT_LINE_SUPER');
                     setAllowTenantControl(data.allow_tenant_billing_control ?? true);
                 }
             } else {
-                const err = await res.json();
+                const err = await settingsRes.json();
                 setError(err.error || 'Failed to fetch domain settings');
+            }
+
+            if (adminsRes.ok) {
+                const adminsData = await adminsRes.json();
+                setDomainAdmins(adminsData);
+                if (adminsData.length > 0) {
+                    setSelectedAdminId(adminsData[0].id);
+                }
             }
         } catch (err) {
             console.error(err);
@@ -91,7 +110,8 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                 body: JSON.stringify({
                     domain,
                     default_billing_mode: defaultBillingMode,
-                    allow_tenant_billing_control: allowTenantControl
+                    allow_tenant_billing_control: allowTenantControl,
+                    tenant_admin_user_id: selectedAdminId
                 })
             });
 
@@ -130,6 +150,7 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                 },
                 body: JSON.stringify({
                     domain,
+                    tenantAdminUserId: selectedAdminId,
                     amount: Number(rechargeAmount)
                 })
             });
@@ -172,60 +193,90 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                         <p className="text-xs text-slate-500 mb-3">
                             When a new user signs up under this domain, they will automatically be assigned this billing mode.
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                             {BILLING_MODE_OPTIONS.map(mode => (
-                                <label
-                                    key={mode.value}
-                                    className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                        defaultBillingMode === mode.value ? mode.color + ' border-opacity-100' : 'border-slate-200 bg-white hover:bg-slate-50'
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name="default_billing_mode"
-                                        value={mode.value}
-                                        checked={defaultBillingMode === mode.value}
-                                        onChange={() => setDefaultBillingMode(mode.value)}
-                                        className="mt-1"
-                                    />
-                                    <div>
-                                        <div className="text-sm font-bold text-slate-900">{mode.label}</div>
-                                        <div className="text-xs text-slate-500 mt-0.5">{mode.description}</div>
-                                    </div>
-                                </label>
+                                <div key={mode.value} className="flex flex-col gap-2">
+                                    <label
+                                        className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                            defaultBillingMode === mode.value ? mode.color + ' border-opacity-100' : 'border-slate-200 bg-white hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="default_billing_mode"
+                                            value={mode.value}
+                                            checked={defaultBillingMode === mode.value}
+                                            onChange={() => setDefaultBillingMode(mode.value)}
+                                            className="mt-1"
+                                        />
+                                        <div>
+                                            <div className="text-sm font-bold text-slate-900">{mode.label}</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">{mode.description}</div>
+                                        </div>
+                                    </label>
+                                    
+                                    {/* Nested Checkbox for specific modes */}
+                                    {defaultBillingMode === mode.value && mode.value !== 'CREDIT_LINE_TENANT' && (
+                                        <div className="ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <div className="flex items-center h-5">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allowTenantControl}
+                                                        onChange={(e) => setAllowTenantControl(e.target.checked)}
+                                                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-slate-900">Allow Tenant to Switch Users to Their Own Card</span>
+                                                    <span className="text-xs text-slate-500">
+                                                        If enabled, the Tenant Admin can manually migrate their users away from this default setting and put them on their own Tenant Meta account.
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Allow Tenant Control Toggle */}
-                    <div className="pt-2 border-t border-slate-200">
-                        <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg bg-white cursor-pointer hover:bg-slate-50 transition-colors">
-                            <div className="flex items-center h-5">
-                                <input
-                                    type="checkbox"
-                                    checked={allowTenantControl}
-                                    onChange={(e) => setAllowTenantControl(e.target.checked)}
-                                    className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
-                                />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-900">Allow Tenant Admin Control</span>
-                                <span className="text-xs text-slate-500">
-                                    If enabled, the Tenant Admin for this domain can manually change their users' billing modes to the Tenant Agency Credit Line via their Top-up Modal.
-                                </span>
-                            </div>
-                        </label>
-                    </div>
-
                     {/* Agency Wallet Recharge Section */}
                     {defaultBillingMode === 'CREDIT_LINE_SUPER' && (
-                        <div className="pt-4 border-t border-slate-200">
-                            <label className="block text-sm font-bold text-slate-700 mb-2">
-                                Recharge Agency Master Wallet
+                        <div className="pt-4 border-t border-slate-200 bg-blue-50/50 -mx-6 px-6 pb-6 -mb-6 rounded-b-xl">
+                            <label className="block text-sm font-bold text-blue-900 mb-2 mt-4">
+                                Add Wholesale Credits for this Tenant
                             </label>
-                            <p className="text-xs text-slate-500 mb-3">
-                                Add funds to the Tenant Admin's master wallet. They use these funds to top-up their users when on the Super Admin Credit Line.
+                            <p className="text-xs text-blue-700 mb-3">
+                                Since this Tenant's users will be messaging via YOUR Meta account, you must allocate wholesale credits to the Tenant Admin so they can fund their users.
                             </p>
+                            
+                            {domainAdmins.length > 1 ? (
+                                <div className="mb-3">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Select Admin to Receive Funds</label>
+                                    <select
+                                        value={selectedAdminId}
+                                        onChange={(e) => setSelectedAdminId(e.target.value)}
+                                        className="w-full p-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-brand-500 focus:border-brand-500"
+                                    >
+                                        {domainAdmins.map(admin => (
+                                            <option key={admin.id} value={admin.id}>
+                                                {admin.name || 'Unnamed Admin'} ({admin.email})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            ) : domainAdmins.length === 1 ? (
+                                <div className="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                                    <span className="font-bold text-slate-700">Funds will be added to: </span>
+                                    <span className="text-slate-600">{domainAdmins[0].name || 'Unnamed Admin'} ({domainAdmins[0].email})</span>
+                                </div>
+                            ) : (
+                                <div className="mb-3 p-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium">
+                                    Warning: No Admin accounts found for this domain. Please ask them to register first.
+                                </div>
+                            )}
+
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-medium">₹</span>

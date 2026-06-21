@@ -169,6 +169,58 @@ class WalletService {
             });
 
             if (error) throw error;
+
+            // V2: If Tenant Agency Credit Line, we must collect the software markup fee from the Tenant Admin's Master Wallet
+            if (billingMode === 'CREDIT_LINE_TENANT') {
+                try {
+                    const markupFee = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
+                    
+                    // Find the Tenant Admin Master Wallet for this user's domain
+                    const { data: userProfile } = await supabaseAdmin
+                        .from('profiles')
+                        .select('signup_domain')
+                        .eq('id', userId)
+                        .single();
+                        
+                    if (userProfile && userProfile.signup_domain) {
+                        const { data: domainAdmins } = await supabaseAdmin
+                            .from('profiles')
+                            .select('id')
+                            .eq('signup_domain', userProfile.signup_domain)
+                            .in('role', ['admin', 'super_admin']);
+                            
+                        if (domainAdmins && domainAdmins.length > 0) {
+                            const adminIds = domainAdmins.map(a => a.id);
+                            const { data: masterWallet } = await supabaseAdmin
+                                .from('user_wallets')
+                                .select('user_id')
+                                .in('user_id', adminIds)
+                                .eq('is_tenant_master', true)
+                                .limit(1)
+                                .maybeSingle();
+                                
+                            if (masterWallet) {
+                                const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0,8)}...). Msg: ${waMessageId}`;
+                                await supabaseAdmin.rpc('adjust_wallet_balance', {
+                                    p_user_id: masterWallet.user_id,
+                                    p_amount: markupFee,
+                                    p_type: 'DEBIT',
+                                    p_source: 'AGENCY_MARKUP_FEE',
+                                    p_wa_category: actualCategory,
+                                    p_wa_message_id: waMessageId + '_markup',
+                                    p_description: markupDescription,
+                                    p_contact_phone: contactPhone,
+                                    p_campaign_id: campaignId || null,
+                                    p_meta_cost: 0 // Meta is paid by Tenant directly
+                                });
+                            }
+                        }
+                    }
+                } catch (markupErr) {
+                    console.error('[WalletService] Failed to debit Tenant Master Wallet for markup:', markupErr);
+                    // We don't throw here to avoid blocking the user's message if the markup deduction fails
+                }
+            }
         } catch (e) {
             console.error('[WalletService] Pre-debit error:', e);
             throw e;

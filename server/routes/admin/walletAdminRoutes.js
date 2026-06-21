@@ -225,14 +225,16 @@ router.post('/topup', async (req, res) => {
             adminDomain === MASTER_DOMAIN ||
             adminDomain === 'localhost';
 
-        // ── Domain Authority Check ──────────────────────────────────────────
-        if (!isSuperAdmin) {
-            const { data: targetProfile } = await supabaseAdmin
-                .from('profiles')
-                .select('signup_domain')
-                .eq('id', uid)
-                .maybeSingle();
+        // ── Domain Authority Check & Target Domain Extraction ───────────────────
+        const { data: targetProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain')
+            .eq('id', uid)
+            .maybeSingle();
 
+        const targetDomain = targetProfile?.signup_domain || adminDomain;
+
+        if (!isSuperAdmin) {
             if (!targetProfile || targetProfile.signup_domain !== adminDomain) {
                 return res.status(403).json({
                     error: 'Forbidden: You can only manage wallets for users on your domain.'
@@ -243,6 +245,36 @@ router.post('/topup', async (req, res) => {
         // ── Fetch target user's current wallet ──────────────────────────────
         const targetWallet = await WalletService.getWallet(uid);
         let effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'CREDIT_LINE_SUPER';
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // 🔒 SECURITY: STRICT DOMAIN ISOLATION ENFORCEMENT
+        //
+        // Enforce the rule: "For each tenant domain, only one wallet credit source
+        // should be active at a time." This blocks API abuse where a user could
+        // be assigned a billing mode that contradicts their domain configuration.
+        // ═══════════════════════════════════════════════════════════════════════
+        
+        // Always fetch domain settings to enforce isolation rules
+        const { data: domainSettings } = await supabaseAdmin
+            .from('domain_wallet_settings')
+            .select('allow_tenant_billing_control, default_billing_mode')
+            .eq('domain', targetDomain)
+            .maybeSingle();
+            
+        const domainDefaultMode = domainSettings?.default_billing_mode || 'CREDIT_LINE_SUPER';
+
+        if (billing_mode && billing_mode !== targetWallet.billing_mode) {
+            // Strict Matrix Validation
+            if (domainDefaultMode === 'CREDIT_LINE_TENANT' && billing_mode === 'CREDIT_LINE_SUPER') {
+                return res.status(400).json({ error: 'Domain is configured for Tenant Credit Line. Super Admin Credit Line cannot be assigned to users in this domain.' });
+            }
+            if (domainDefaultMode === 'CREDIT_LINE_SUPER' && billing_mode === 'CREDIT_LINE_TENANT') {
+                return res.status(400).json({ error: 'Domain is configured for Super Admin Credit Line. Tenant Credit Line cannot be assigned to users in this domain.' });
+            }
+            if (domainDefaultMode === 'DIRECT_META' && (billing_mode === 'CREDIT_LINE_SUPER' || billing_mode === 'CREDIT_LINE_TENANT')) {
+                return res.status(400).json({ error: 'Domain is configured for Direct Meta Pay only. Credit Lines cannot be assigned to users in this domain.' });
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════════════════
         // 🔒 SECURITY: Billing Mode Change Authority Validation
@@ -261,12 +293,6 @@ router.post('/topup', async (req, res) => {
 
             if (isEscalating) {
                 // Layer 1: Check Super Admin permission flag ──────────────────
-                const { data: domainSettings } = await supabaseAdmin
-                    .from('domain_wallet_settings')
-                    .select('allow_tenant_billing_control')
-                    .eq('domain', adminDomain)
-                    .maybeSingle();
-
                 const isAllowed = domainSettings?.allow_tenant_billing_control === true;
                 if (!isAllowed) {
                     console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Tenant ${adminUserId} → ${billing_mode} on ${adminDomain} (not permitted by Super Admin)`);
@@ -615,6 +641,22 @@ router.post('/global-rates', async (req, res) => {
 });
 
 // ── Domain Wallet Settings (Super Admin only) ─────────────────────────────
+// GET /api/wallet/admin/domain-admins/:domain
+router.get('/domain-admins/:domain', async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, email')
+            .eq('signup_domain', req.params.domain)
+            .eq('role', 'admin');
+            
+        if (error) throw error;
+        res.json(data || []);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /api/wallet/admin/domain-settings/:domain
 router.get('/domain-settings/:domain', async (req, res) => {
     try {

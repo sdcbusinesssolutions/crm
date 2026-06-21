@@ -45,9 +45,25 @@ exports.loginAdmin = async (req, res) => {
 
             console.log(`[Admin] Impersonation Login Success: ${decoded.email} on ${decoded.target_domain}`);
 
+            let targetUserId = 'admin-' + decoded.target_domain;
+            
+            // Try to find the true UUID of the impersonated user to support wallet lookups
+            const { supabaseAdmin } = require('../../lib/supabaseClient');
+            if (supabaseAdmin) {
+                const { data: profile } = await supabaseAdmin
+                    .from('profiles')
+                    .select('id')
+                    .eq('email', decoded.email)
+                    .single();
+                if (profile && profile.id) {
+                    targetUserId = profile.id;
+                }
+            }
+
             // Issue a standard session token (Long Lived) for the target admin
             const token = jwt.sign({
-                id: 'admin-' + decoded.target_domain,
+                id: targetUserId,
+                user_id: targetUserId,
                 email: decoded.email,
                 managed_domain: decoded.target_domain
             }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
@@ -69,6 +85,7 @@ exports.loginAdmin = async (req, res) => {
 
         let role = 'admin'; // Default role
         let adminName = 'Administrator';
+        let fetchedAdminId = null;
 
         // SECURITY CHECK & ROLE ENRICHMENT
         const { supabaseAdmin } = require('../../lib/supabaseClient'); // Lazy load
@@ -78,6 +95,7 @@ exports.loginAdmin = async (req, res) => {
             if (users) {
                 const adminUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
                 if (adminUser) {
+                    fetchedAdminId = adminUser.id;
                     const isBanned = adminUser.banned_until && new Date(adminUser.banned_until) > new Date();
                     if (isBanned) {
                         console.warn(`[Blocked Login] Banned Admin tried to login: ${email}`);
@@ -99,12 +117,15 @@ exports.loginAdmin = async (req, res) => {
             }
         }
 
-        const token = jwt.sign({
-            id: 'admin-' + currentDomain,
+        const tokenPayload = {
+            id: fetchedAdminId || ('admin-' + currentDomain),
+            user_id: fetchedAdminId || ('admin-' + currentDomain),
             email,
             managed_domain: currentDomain,
             role: role // Embed dynamic role
-        }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
+        };
+
+        const token = jwt.sign(tokenPayload, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
 
         return res.json({ token, admin: { email, name: adminName, domain: currentDomain, role } });
     }
@@ -156,14 +177,15 @@ exports.loginAdmin = async (req, res) => {
 
         // E. Success - Generate the Custom JWT used by this Admin Backend
         const token = jwt.sign({
-            id: 'admin-' + currentDomain, // or profile.id
+            id: profile.id,
+            user_id: profile.id,
             email: profile.email,
             managed_domain: normAssigned,
             role: profile.role,
             is_supabase_user: true
         }, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' });
 
-        console.log(`[Admin Login Success] ${email} logged in to ${currentDomain}`);
+        console.log(`[Admin Login Success] ${email} logged in to ${currentDomain} (User ID: ${profile.id})`);
 
         return res.json({
             token,
