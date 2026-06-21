@@ -18,7 +18,7 @@ import {
     PauseIcon,
     PaymentIcon,
     ListIcon,
-    PuzzleIcon,
+    ArchiveIcon,
     CloseIcon,
     UserCircleIcon,
     LinkIcon
@@ -719,21 +719,31 @@ const Users = () => {
                                                 <div className="text-xs font-mono text-slate-600">{user.mobile || 'N/A'}</div>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold capitalize border ${
+                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold capitalize border whitespace-nowrap ${
                                                     user.adminStatus === 'super_admin' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                                     user.adminStatus === 'admin' ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                                     'bg-slate-50 text-slate-600 border-slate-200'
                                                 }`}>
-                                                    {user.adminStatus === 'super_admin' ? <BriefcaseIcon className="w-3.5 h-3.5" /> : 
-                                                     user.adminStatus === 'admin' ? <BadgeIcon className="w-3.5 h-3.5" /> :
-                                                     <UserCircleIcon className="w-3.5 h-3.5" />}
+                                                    {user.adminStatus === 'super_admin' ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                                                    ) : user.adminStatus === 'admin' ? (
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                                    ) : (
+                                                        <UserCircleIcon className="w-3.5 h-3.5" />
+                                                    )}
                                                     {user.adminStatus ? user.adminStatus.replace('_', ' ') : 'User'}
                                                 </span>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                                    {user.current_plan || 'Free'}
-                                                </span>
+                                                <div className="flex flex-col items-start gap-1">
+                                                    <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full border whitespace-nowrap ${
+                                                        user.current_plan?.toLowerCase().includes('premium') ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                                                        user.current_plan?.toLowerCase().includes('trial') ? 'bg-blue-50 text-blue-700 border-blue-200' : 
+                                                        'bg-slate-50 text-slate-700 border-slate-200'
+                                                    }`}>
+                                                        {user.current_plan || 'Free'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="px-3 py-3">
                                                 {user.is_tenant_admin ? (
@@ -823,7 +833,7 @@ const Users = () => {
                                                         setAssigningUser(user);
                                                         fetchPlans();
                                                         setIsPlanModalOpen(true);
-                                                    }} className="flex items-center gap-1 px-1.5 py-1 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><PuzzleIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Plan</span></button>
+                                                    }} className="flex items-center gap-1 px-1.5 py-1 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><ArchiveIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Plan</span></button>
                                                     {isSuperAdmin ? (
                                                         <>
                                                             <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Top-up</span></button>
