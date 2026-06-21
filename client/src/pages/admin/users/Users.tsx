@@ -630,25 +630,25 @@ const Users = () => {
                     <>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-slate-100">
-                                <thead className="bg-slate-50/80">
+                                <thead className="bg-brand-600 text-white shadow-md">
                                     <tr>
-                                        <th className="px-3 py-4 text-left w-10">
+                                        <th className="px-3 py-5 text-left w-10 !bg-brand-600">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer"
+                                                className="rounded border-white/30 text-brand-500 focus:ring-white h-4 w-4 cursor-pointer"
                                                 checked={currentEntries.length > 0 && currentEntries.every(u => selectedIds.has(u.id))}
                                                 onChange={handleSelectAll}
                                             />
                                         </th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">User Details</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Domain</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Role</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Wallet</th>
-                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
-                                        <th className="px-3 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Actions</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">User Details</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Status</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Domain</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Contact</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Role</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Plan</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Wallet</th>
+                                        <th className="px-3 py-5 text-left text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Created</th>
+                                        <th className="px-3 py-5 text-right text-[11px] sm:text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
