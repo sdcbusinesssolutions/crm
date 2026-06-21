@@ -171,63 +171,84 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Top-up Wallet: ${user?.name}`}>
-            {/* Current Balance Summary */}
-            <div className="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-slate-500">User Balance:</span>
-                    <span className="text-lg font-bold text-slate-900">₹{typeof currentBalance === 'number' ? currentBalance.toFixed(2) : currentBalance}</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-slate-500">Billing Mode:</span>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${selectedMode?.badge || 'bg-slate-100 text-slate-600'}`}>
-                        {selectedMode?.label || billingMode}
-                    </span>
-                </div>
-                {/* Show Master Wallet balance to Tenant Admins when in Reseller mode */}
-                {!isSuperAdmin && masterBalance !== null && (
-                    <div className="flex justify-between items-center pt-2 border-t border-slate-200 mt-2">
-                        <span className="text-sm font-medium text-slate-500">Your Agency Wallet:</span>
-                        <span className={`text-sm font-bold ${masterBalance <= 0 ? 'text-red-600' : 'text-emerald-700'}`}>
-                            ₹{masterBalance.toFixed(2)}
+            {/* Premium Balance Summary Card */}
+            <div className="mb-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl shadow-xl border border-slate-700 transition-all duration-300 hover:shadow-2xl">
+                {/* Decorative background glow */}
+                <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+                <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-emerald-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
+                
+                <div className="relative z-10">
+                    <div className="flex justify-between items-end mb-4">
+                        <div>
+                            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">User Balance</span>
+                            <div className="text-3xl font-black text-white mt-1 drop-shadow-md tracking-tight">
+                                ₹{typeof currentBalance === 'number' ? currentBalance.toFixed(2) : currentBalance}
+                            </div>
+                        </div>
+                        <span className={`text-xs font-bold px-3 py-1.5 rounded-full shadow-sm border border-white/10 ${selectedMode?.badge || 'bg-slate-800 text-slate-300'}`}>
+                            {selectedMode?.label || billingMode}
                         </span>
                     </div>
-                )}
+
+                    {!isSuperAdmin && masterBalance !== null && (
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-700/50 mt-2">
+                            <div className="flex items-center gap-2">
+                                <div className="p-1.5 bg-slate-800 rounded-lg border border-slate-700 shadow-inner">
+                                    <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                                </div>
+                                <span className="text-sm font-medium text-slate-300">Your Agency Wallet</span>
+                            </div>
+                            <span className={`text-lg font-bold drop-shadow-md ${masterBalance <= 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                ₹{masterBalance.toFixed(2)}
+                            </span>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                    <div className="bg-red-50 text-red-700 p-3 rounded-lg text-sm font-medium border border-red-100">
+                    <div className="bg-red-50/80 backdrop-blur-sm text-red-700 p-4 rounded-xl text-sm font-medium border border-red-100 shadow-sm flex items-start gap-3">
+                        <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         {error}
                     </div>
                 )}
 
                 {/* Billing Mode Selector */}
                 <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-2">Credit Line / Billing Mode</label>
-                    <div className="space-y-2">
+                    <label className="block text-sm font-bold text-slate-700 mb-3">Credit Line / Billing Mode</label>
+                    <div className="space-y-3">
                         {BILLING_MODE_OPTIONS.filter(mode => {
                             if (isSuperAdmin) return true;
-                            // Tenant Admins cannot select Tenant Agency Credit Line if SuperAdmin disabled it
-                            if (mode.value === 'CREDIT_LINE_TENANT' && !allowTenantControl) return false;
+                            
+                            if (domainDefaultBillingMode === 'CREDIT_LINE_TENANT') {
+                                if (mode.value === 'CREDIT_LINE_SUPER') return false;
+                            } else if (domainDefaultBillingMode === 'CREDIT_LINE_SUPER') {
+                                if (mode.value === 'CREDIT_LINE_TENANT') return false;
+                            }
                             return true;
                         }).map(mode => (
                             <label
                                 key={mode.value}
-                                className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                                    billingMode === mode.value ? mode.color + ' border-opacity-100' : 'border-slate-200 bg-white hover:bg-slate-50'
+                                className={`relative flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 ${
+                                    billingMode === mode.value 
+                                        ? `${mode.color} border-opacity-100 shadow-sm ring-4 ring-opacity-20 ${mode.color.split(' ')[0].replace('border', 'ring')}` 
+                                        : 'border-slate-200 bg-white hover:border-slate-300'
                                 }`}
                             >
-                                <input
-                                    type="radio"
-                                    name="billing_mode"
-                                    value={mode.value}
-                                    checked={billingMode === mode.value}
-                                    onChange={() => setBillingMode(mode.value)}
-                                    className="mt-1"
-                                />
-                                <div>
+                                <div className="flex items-center h-5 mt-0.5">
+                                    <input
+                                        type="radio"
+                                        name="billing_mode"
+                                        value={mode.value}
+                                        checked={billingMode === mode.value}
+                                        onChange={() => setBillingMode(mode.value)}
+                                        className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 transition-colors"
+                                    />
+                                </div>
+                                <div className="flex-1">
                                     <div className="text-sm font-bold text-slate-900">{mode.label}</div>
-                                    <div className="text-xs text-slate-500 mt-0.5">{mode.description}</div>
+                                    <div className="text-xs text-slate-500 mt-1 leading-relaxed">{mode.description}</div>
                                 </div>
                             </label>
                         ))}
@@ -236,11 +257,11 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
 
                 {/* Reseller Warning */}
                 {isResellerTransfer && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs text-blue-800 font-medium">
-                            ⚠️ <strong>Agency Transfer:</strong> This amount will be deducted from your Agency Master Wallet (Current: ₹{masterBalance?.toFixed(2) ?? '...'}).
+                    <div className="bg-blue-50/80 backdrop-blur-sm border-l-4 border-blue-500 rounded-r-xl p-4 shadow-sm">
+                        <p className="text-sm text-blue-800 font-medium">
+                            <span className="mr-2">🏦</span> <strong>Agency Transfer:</strong> This amount will be deducted from your Agency Master Wallet (Current: ₹{masterBalance?.toFixed(2) ?? '...'}).
                             {masterBalance !== null && Number(amount) > masterBalance && (
-                                <span className="block text-red-600 font-bold mt-1">
+                                <span className="block text-red-600 font-bold mt-2 bg-red-100/50 px-3 py-2 rounded-lg border border-red-100">
                                     ❌ You don't have enough Agency balance to cover ₹{amount}.
                                 </span>
                             )}
@@ -248,71 +269,77 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     </div>
                 )}
                 {billingMode === 'DIRECT_META' && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <p className="text-xs text-amber-800 font-medium">
-                            💳 <strong>Direct Meta Billing:</strong> Meta charges this user's card directly. Your wallet will only deduct the platform software markup fee (not Meta's message cost).
+                    <div className="bg-amber-50/80 backdrop-blur-sm border-l-4 border-amber-500 rounded-r-xl p-4 shadow-sm">
+                        <p className="text-sm text-amber-800 font-medium leading-relaxed">
+                            <span className="mr-2">💳</span> <strong>Direct Meta Billing:</strong> Meta charges this user's card directly. Your wallet will only deduct the platform software markup fee (not Meta's message cost).
                         </p>
                     </div>
                 )}
                 {billingMode === 'CREDIT_LINE_TENANT' && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                        <p className="text-xs text-emerald-800 font-medium">
-                            🏢 <strong>Agency Credit Line:</strong> You own this user's billing liability. Top-up amounts come from your own funds. Meta will bill your agency's credit line.
+                    <div className="bg-emerald-50/80 backdrop-blur-sm border-l-4 border-emerald-500 rounded-r-xl p-4 shadow-sm">
+                        <p className="text-sm text-emerald-800 font-medium leading-relaxed">
+                            <span className="mr-2">🏢</span> <strong>Agency Credit Line:</strong> You own this user's billing liability. Top-up amounts come from your own funds. Meta will bill your agency's credit line.
                         </p>
                     </div>
                 )}
 
-                {/* Amount */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Add Amount (₹)</label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800"
-                        value={amount}
-                        onChange={e => setAmount(e.target.value)}
-                        placeholder="e.g. 500.00 (Leave 0 to only change mode/enforcement)"
-                    />
-                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    {/* Amount */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1.5">Add Amount (₹)</label>
+                        <div className="relative shadow-sm rounded-xl">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <span className="text-slate-400 sm:text-sm font-medium">₹</span>
+                            </div>
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="block w-full pl-8 pr-3 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400"
+                                value={amount}
+                                onChange={e => setAmount(e.target.value)}
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
 
-                {/* Description */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Description (Optional)</label>
-                    <input
-                        type="text"
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800"
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        placeholder="e.g. Monthly Top-up"
-                    />
+                    {/* Description */}
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-1.5">Description</label>
+                        <input
+                            type="text"
+                            className="block w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none text-slate-800 font-medium transition-shadow hover:border-slate-400 shadow-sm"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="e.g. Monthly Top-up"
+                        />
+                    </div>
                 </div>
 
                 {/* Enforcement Toggle */}
                 <div className="pt-2">
-                    <label className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg bg-white cursor-pointer hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center h-5">
+                    <label className="relative flex items-start gap-4 p-4 border border-slate-200 rounded-xl bg-white cursor-pointer hover:bg-slate-50 hover:shadow-sm transition-all duration-200 hover:border-slate-300">
+                        <div className="flex items-center h-5 mt-0.5">
                             <input
                                 type="checkbox"
                                 checked={walletEnforced}
                                 onChange={(e) => setWalletEnforced(e.target.checked)}
-                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                className="w-5 h-5 text-brand-600 border-gray-300 rounded focus:ring-brand-500 focus:ring-2 transition-colors"
                             />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-900">Enforce Wallet Balance</span>
-                            <span className="text-xs text-slate-500">
-                                If enabled, the user cannot send messages when balance reaches zero. If disabled, messages always send and costs are only logged.
+                            <span className="text-sm font-bold text-slate-900">Enforce Wallet Balance Limit</span>
+                            <span className="text-xs text-slate-500 mt-1 leading-relaxed">
+                                If enabled, the user cannot send messages when balance reaches zero. If disabled, messages always send and costs are only logged (Unlimited).
                             </span>
                         </div>
                     </label>
                 </div>
 
                 {/* 🔒 UI Security: Prevent submission if Agency Balance is too low */}
-
                 {!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0) && (
-                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
-                        <span className="mt-0.5">🚨</span>
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3 shadow-sm animate-pulse">
+                        <svg className="w-5 h-5 shrink-0 text-red-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                         <div>
                             <strong>Insufficient Agency Balance.</strong> You only have ₹{(masterBalance || 0).toFixed(2)} available. 
                             You cannot give this user ₹{Number(amount).toFixed(2)}. Please contact the Super Admin to recharge your wallet.
@@ -320,27 +347,27 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     </div>
                 )}
 
-                <div className="flex justify-between items-center pt-4">
+                <div className="flex flex-col-reverse sm:flex-row justify-between items-center pt-6 border-t border-slate-100 gap-4">
                     <button
                         type="button"
                         onClick={handleReset}
                         disabled={isSubmitting}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium text-sm transition-colors border border-transparent hover:border-red-200"
+                        className="w-full sm:w-auto px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-bold text-sm transition-all border border-transparent hover:border-red-200 hover:shadow-sm"
                     >
                         Reset Balance to ₹0.00
                     </button>
-                    <div className="flex gap-3">
+                    <div className="flex w-full sm:w-auto gap-3">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                            className="flex-1 sm:flex-none px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-bold transition-all hover:shadow-sm"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting || (!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0))}
-                            className="px-4 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 sm:flex-none px-6 py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                         >
                             {isSubmitting ? 'Saving...' : 'Confirm'}
                         </button>

@@ -319,13 +319,17 @@ router.post('/topup', async (req, res) => {
                     return res.status(403).json({ error: 'Tenant Admin user ID not found in token.' });
                 }
 
+                const rawAdminId = req.admin?.user_id || req.admin?.id;
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+                const validAdminId = rawAdminId && uuidRegex.test(rawAdminId) ? rawAdminId : null;
+
                 const { data: transferResult, error: transferError } = await supabaseAdmin
                     .rpc('transfer_reseller_balance', {
                         p_tenant_admin_user_id: adminUserId,
                         p_target_user_id: uid,
                         p_amount: Number(amount),
                         p_description: description || 'Reseller top-up from Agency',
-                        p_created_by: req.admin?.user_id || req.admin?.id,
+                        p_created_by: validAdminId,
                         p_ip_address: req.ip
                     });
 
@@ -348,9 +352,13 @@ router.post('/topup', async (req, res) => {
 
             } else {
                 // ── Direct Credit (Super Admin or non-SUPER modes) ──────────
+                const rawAdminId = req.admin?.user_id || req.admin?.id;
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+                const validAdminId = rawAdminId && uuidRegex.test(rawAdminId) ? rawAdminId : null;
+
                 result = await WalletService.addCredit(
                     uid, Number(amount), 'ADMIN_TOPUP', description || 'Admin top-up',
-                    req.admin?.user_id || req.admin?.id, req.ip
+                    validAdminId, req.ip
                 );
                 console.log(`[WalletAdmin] Direct top-up: ₹${amount} → User ${uid} (mode: ${effectiveBillingMode})`);
             }
@@ -422,10 +430,14 @@ router.post('/topup-master', async (req, res) => {
         if (initError) throw initError;
 
         // Credit the Master Wallet directly (Super Admin creates money from thin air here)
+        // Validate that req.admin.user_id / req.admin.id is a valid UUID, otherwise pass null
+        const rawAdminId = req.admin?.user_id || req.admin?.id;
+        const validAdminId = rawAdminId && uuidRegex.test(rawAdminId) ? rawAdminId : null;
+
         const result = await WalletService.addCredit(
             targetUserId, Number(amount), 'ADMIN_TOPUP',
             description || 'Super Admin wholesale credit to Agency Master Wallet',
-            req.admin?.user_id || req.admin?.id,
+            validAdminId,
             req.ip
         );
         res.json({ success: true, transaction: result });

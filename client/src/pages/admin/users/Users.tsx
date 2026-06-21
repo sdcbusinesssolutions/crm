@@ -632,7 +632,7 @@ const Users = () => {
                             <table className="min-w-full divide-y divide-slate-100">
                                 <thead className="bg-slate-50/80">
                                     <tr>
-                                        <th className="px-6 py-4 text-left w-10">
+                                        <th className="px-3 py-4 text-left w-10">
                                             <input
                                                 type="checkbox"
                                                 className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer"
@@ -640,21 +640,21 @@ const Users = () => {
                                                 onChange={handleSelectAll}
                                             />
                                         </th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">User Details</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Domain</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Role</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Wallet</th>
-                                        <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
-                                        <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Actions</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">User Details</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Status</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Domain</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Contact</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Role</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Plan</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Wallet</th>
+                                        <th className="px-3 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Created</th>
+                                        <th className="px-3 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {currentEntries.map((user) => (
                                         <tr key={user.id} className={`hover:bg-slate-50 transition-colors group ${selectedIds.has(user.id) ? 'bg-brand-50/30' : ''}`}>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <input
                                                     type="checkbox"
                                                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-4 w-4 cursor-pointer"
@@ -662,7 +662,7 @@ const Users = () => {
                                                     onChange={() => handleSelectRow(user.id)}
                                                 />
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${user.canTenantDelete ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>
                                                         {user.name?.charAt(0) || 'U'}
@@ -678,7 +678,7 @@ const Users = () => {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <span
                                                     onClick={() => handleAction(user.status === 'Inactive' ? 'activate' : 'deactivate', user)}
                                                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border cursor-pointer select-none hover:opacity-80 transition-opacity ${user.status === 'Active'
@@ -692,26 +692,26 @@ const Users = () => {
                                                     {user.status || 'Unknown'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100 inline-block">
                                                     {user.signupDomain || 'N/A'}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="text-xs font-mono text-slate-600">{user.mobile || 'N/A'}</div>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-600">
                                                     <BadgeIcon className="w-3 h-3" />
                                                     {user.adminStatus || 'Standard'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                                     {user.current_plan || 'Free'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 {user.is_tenant_admin ? (
                                                     /* Tenant Admin: show Master Wallet status */
                                                     <div>
@@ -767,7 +767,7 @@ const Users = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4">
+                                            <td className="px-3 py-3">
                                                 <div className="text-xs text-slate-500">{user.createdOn}</div>
                                                 {user.canTenantDelete && (
                                                     <div className="text-[10px] font-bold text-amber-600 mt-0.5">
@@ -775,15 +775,15 @@ const Users = () => {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex flex-wrap items-center justify-end gap-2 transition-opacity">
+                                            <td className="px-3 py-3 text-right">
+                                                <div className="flex flex-nowrap items-center justify-end gap-1.5 transition-opacity whitespace-nowrap">
                                                     <button 
                                                         onClick={() => handleAction('Login', user)} 
                                                         disabled={user.status === 'Inactive'}
                                                         className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
                                                             user.status === 'Inactive' 
                                                             ? 'text-slate-400 bg-slate-100 cursor-not-allowed' 
-                                                            : 'text-brand-600 bg-brand-50 hover:bg-brand-100'
+                                                            : 'text-slate-800 bg-brand-50 hover:bg-brand-100'
                                                         }`}
                                                     >
                                                         Login
@@ -791,38 +791,38 @@ const Users = () => {
                                                     {user.status === 'Inactive' ? (
                                                         <button onClick={() => handleAction('activate', user)} className="px-2 py-1 text-xs font-bold text-white bg-emerald-600 rounded hover:bg-emerald-700 shadow-sm transition-colors animate-pulse-subtle">Unblock</button>
                                                     ) : (
-                                                        <button onClick={() => handleAction('deactivate', user)} className="px-2 py-1 text-xs font-bold text-amber-600 bg-amber-50 rounded hover:bg-amber-100 transition-colors">Block</button>
+                                                        <button onClick={() => handleAction('deactivate', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-amber-50 rounded hover:bg-amber-100 transition-colors">Block</button>
                                                     )}
                                                     <button onClick={() => {
                                                         setAssigningUser(user);
                                                         fetchPlans();
                                                         setIsPlanModalOpen(true);
-                                                    }} className="px-2 py-1 text-xs font-bold text-brand-600 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Plan</button>
+                                                    }} className="px-2 py-1 text-xs font-bold text-slate-800 bg-brand-50 rounded hover:bg-brand-100 transition-colors">Plan</button>
                                                     {isSuperAdmin ? (
                                                         <>
-                                                            <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
+                                                            <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
                                                             {user.is_tenant_admin && (
-                                                                <button onClick={() => handleAction('MasterTopup', user)} className="px-2 py-1 text-xs font-bold text-amber-700 bg-amber-100 rounded hover:bg-amber-200 transition-colors animate-pulse-subtle">🏛 Recharge Agency</button>
+                                                                <button onClick={() => handleAction('MasterTopup', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-amber-100 rounded hover:bg-amber-200 transition-colors animate-pulse-subtle">🏛 Recharge Agency</button>
                                                             )}
-                                                            <button onClick={() => handleAction('WalletRates', user)} className="px-2 py-1 text-xs font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">Rates</button>
-                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
+                                                            <button onClick={() => handleAction('WalletRates', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-purple-50 rounded hover:bg-purple-100 transition-colors">Rates</button>
+                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
                                                         </>
                                                     ) : (
                                                         <>
                                                             {loggedInMasterBalance !== null && loggedInMasterBalance <= 0 ? (
-                                                                <button disabled className="px-2 py-1 text-xs font-bold text-slate-400 bg-slate-100 cursor-not-allowed rounded" title="Agency Wallet Depleted. Contact Super Admin.">
+                                                                <button disabled className="px-2 py-1 text-xs font-bold text-slate-800 bg-slate-100 cursor-not-allowed rounded" title="Agency Wallet Depleted. Contact Super Admin.">
                                                                     ₹ Top-up (Locked)
                                                                 </button>
                                                             ) : (
-                                                                <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
+                                                                <button onClick={() => handleAction('WalletTopup', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-emerald-50 rounded hover:bg-emerald-100 transition-colors">₹ Top-up</button>
                                                             )}
-                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
+                                                            <button onClick={() => handleAction('WalletLedger', user)} className="px-2 py-1 text-xs font-bold text-slate-800 bg-indigo-50 rounded hover:bg-indigo-100 transition-colors">📒 Ledger</button>
                                                         </>
                                                     )}
 
 
-                                                    <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
-                                                    <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleAction('Edit', user)} className="p-1.5 text-slate-800 hover:text-brand-600 hover:bg-slate-100 rounded transition-colors"><EditIcon className="w-4 h-4" /></button>
+                                                    <button onClick={() => handleAction('Delete', user)} className="p-1.5 text-slate-800 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><TrashIcon className="w-4 h-4" /></button>
                                                 </div>
                                             </td>
                                         </tr>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AdminWalletLedger
@@ -132,7 +133,7 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
 
     const totalPages = Math.ceil(total / LIMIT);
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[100] flex bg-slate-50 overflow-hidden">
             <div className="relative bg-white w-full h-full flex flex-col overflow-hidden">
                 
@@ -260,13 +261,13 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                                             ) : <span className="text-slate-300 text-xs">—</span>}
                                         </td>
                                         <td className={`px-4 py-3 text-sm font-black tabular-nums whitespace-nowrap ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {tx.type === 'CREDIT' ? '+' : '−'}₹{Number(tx.amount).toFixed(4)}
+                                            {tx.type === 'CREDIT' ? '+' : '−'}₹{Number(tx.amount).toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3 text-sm font-bold tabular-nums text-slate-700 whitespace-nowrap">
-                                            ₹{Number(tx.balance_after).toFixed(4)}
+                                            ₹{Number(tx.balance_after).toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3 text-xs text-slate-500 font-mono tabular-nums">
-                                            {tx.meta_cost ? `₹${Number(tx.meta_cost).toFixed(6)}` : '—'}
+                                            {tx.meta_cost ? `₹${Number(tx.meta_cost).toFixed(2)}` : '—'}
                                         </td>
                                         <td className="px-4 py-3 text-xs font-mono text-slate-600">
                                             {tx.contact_phone || '—'}
@@ -308,7 +309,8 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

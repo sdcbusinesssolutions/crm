@@ -218,41 +218,43 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                     </div>
 
                     {/* Agency Wallet Recharge Section */}
-                    <div className="pt-4 border-t border-slate-200">
-                        <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Recharge Agency Master Wallet
-                        </label>
-                        <p className="text-xs text-slate-500 mb-3">
-                            Add funds to the Tenant Admin's master wallet. They use these funds to top-up their users when on the Super Admin Credit Line.
-                        </p>
-                        <div className="flex gap-2">
-                            <div className="relative flex-1">
-                                <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-medium">₹</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="0.01"
-                                    value={rechargeAmount}
-                                    onChange={(e) => setRechargeAmount(e.target.value)}
-                                    placeholder="Enter amount"
-                                    className="pl-7 w-full p-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 text-sm"
-                                />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleRecharge}
-                                disabled={isRecharging || !rechargeAmount}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
-                            >
-                                {isRecharging ? 'Adding...' : 'Add Funds'}
-                            </button>
-                        </div>
-                        {rechargeSuccess && (
-                            <p className="mt-2 text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100">
-                                ✅ {rechargeSuccess}
+                    {defaultBillingMode === 'CREDIT_LINE_SUPER' && (
+                        <div className="pt-4 border-t border-slate-200">
+                            <label className="block text-sm font-bold text-slate-700 mb-2">
+                                Recharge Agency Master Wallet
+                            </label>
+                            <p className="text-xs text-slate-500 mb-3">
+                                Add funds to the Tenant Admin's master wallet. They use these funds to top-up their users when on the Super Admin Credit Line.
                             </p>
-                        )}
-                    </div>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 font-medium">₹</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        step="0.01"
+                                        value={rechargeAmount}
+                                        onChange={(e) => setRechargeAmount(e.target.value)}
+                                        placeholder="Enter amount"
+                                        className="pl-7 w-full p-2 border border-slate-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 text-sm"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleRecharge}
+                                    disabled={isRecharging || !rechargeAmount}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
+                                >
+                                    {isRecharging ? 'Adding...' : 'Add Funds'}
+                                </button>
+                            </div>
+                            {rechargeSuccess && (
+                                <p className="mt-2 text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded border border-emerald-100">
+                                    ✅ {rechargeSuccess}
+                                </p>
+                            )}
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                         <button
