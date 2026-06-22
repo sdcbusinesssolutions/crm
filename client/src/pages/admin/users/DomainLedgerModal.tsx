@@ -15,6 +15,7 @@ interface Transaction {
     source: string;
     wa_category: string | null;
     wa_conversation_id: string | null;
+    whatsapp_account_id: string | null;
     wa_message_id: string | null;
     contact_phone: string | null;
     description: string | null;
@@ -68,22 +69,22 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
     const LIMIT = 50;
 
     // Filters
-    const [filterSource,   setFilterSource]   = useState('');
-    const [filterType,     setFilterType]     = useState('');
-    const [filterDateFrom, setFilterDateFrom] = useState('');
-    const [filterDateTo,   setFilterDateTo]   = useState('');
-    const [filterUserId,   setFilterUserId]   = useState('');
+    const [filterSource,     setFilterSource]     = useState('');
+    const [filterType,       setFilterType]       = useState('');
+    const [filterDateFrom,   setFilterDateFrom]   = useState('');
+    const [filterDateTo,     setFilterDateTo]     = useState('');
+    const [filterUserSearch, setFilterUserSearch] = useState('');
 
     const fetchLedger = useCallback(async (p = 1) => {
         setIsLoading(true);
         try {
             const token = localStorage.getItem('adminToken') || localStorage.getItem('supabase.auth.token');
             const params = new URLSearchParams({ page: String(p), limit: String(LIMIT) });
-            if (filterSource)   params.set('source',    filterSource);
-            if (filterType)     params.set('type',      filterType);
-            if (filterDateFrom) params.set('date_from', filterDateFrom);
-            if (filterDateTo)   params.set('date_to',   filterDateTo);
-            if (filterUserId)   params.set('user_id',   filterUserId);
+            if (filterSource)       params.set('source',      filterSource);
+            if (filterType)         params.set('type',        filterType);
+            if (filterDateFrom)     params.set('date_from',   filterDateFrom);
+            if (filterDateTo)       params.set('date_to',     filterDateTo);
+            if (filterUserSearch)   params.set('user_search', filterUserSearch);
             if (isSuperAdmin && domainFilter && domainFilter !== 'all') {
                 params.set('domain', domainFilter);
             }
@@ -106,13 +107,13 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
         } finally {
             setIsLoading(false);
         }
-    }, [filterSource, filterType, filterDateFrom, filterDateTo, filterUserId, isSuperAdmin, domainFilter]);
+    }, [filterSource, filterType, filterDateFrom, filterDateTo, filterUserSearch, isSuperAdmin, domainFilter]);
 
     useEffect(() => { fetchLedger(1); }, [fetchLedger]);
 
     const exportCSV = () => {
         if (!transactions.length) return;
-        const headers = ['Date', 'User Name', 'User Email', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance (₹)', 'Meta Cost (₹)', 'Platform Cost (₹)', 'Contact', 'WA Msg ID', 'Description'];
+        const headers = ['Date', 'User Name', 'User Email', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance (₹)', 'Meta Cost (₹)', 'Platform Cost (₹)', 'Contact', 'WABA ID', 'WA Msg ID', 'Description'];
         const rows = transactions.map(tx => [
             new Date(tx.created_at).toLocaleString('en-IN'),
             tx.profiles?.name || 'Unknown',
@@ -125,6 +126,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
             tx.meta_cost || '',
             tx.platform_cost || '',
             tx.contact_phone || '',
+            tx.whatsapp_account_id || '',
             tx.wa_message_id || '',
             (tx.description || '').replace(/,/g, ';')
         ]);
@@ -203,7 +205,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                         <option value="DEBIT">Usage (Debit)</option>
                         <option value="CREDIT">Top-up (Credit)</option>
                     </select>
-                    <input type="text" placeholder="Filter by User ID (UUID)" value={filterUserId} onChange={e => setFilterUserId(e.target.value)}
+                    <input type="text" placeholder="Filter by Name or Email" value={filterUserSearch} onChange={e => setFilterUserSearch(e.target.value)}
                         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 w-44" />
                     <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
                         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20" title="From Date" />
@@ -213,7 +215,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                         className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-xs font-bold hover:bg-brand-700 transition-colors">
                         Apply Filters
                     </button>
-                    <button onClick={() => { setFilterSource(''); setFilterType(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterUserId(''); }}
+                    <button onClick={() => { setFilterSource(''); setFilterType(''); setFilterDateFrom(''); setFilterDateTo(''); setFilterUserSearch(''); }}
                         className="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-colors">
                         Reset
                     </button>
@@ -242,7 +244,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                         <table className="min-w-full divide-y divide-slate-100 text-sm">
                             <thead className="bg-slate-50 sticky top-0">
                                 <tr>
-                                    {['Date','User','Type','Source','Category','Amount','Balance','Platform Cost','Meta Cost','Contact','WA Msg ID','Description'].map(h => (
+                                    {['Date','User','Type','Source','Category','Amount','Balance','Platform Cost','Meta Cost','Contact','WABA ID','WA Msg ID','Description'].map(h => (
                                         <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -303,6 +305,9 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                                         <td className="px-4 py-3 text-xs font-mono text-slate-600">
                                             {tx.contact_phone || '—'}
                                         </td>
+                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.whatsapp_account_id || ''}>
+                                            {tx.whatsapp_account_id ? tx.whatsapp_account_id.slice(-8) : '—'}
+                                        </td>
                                         <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.wa_message_id || ''}>
                                             {tx.wa_message_id ? tx.wa_message_id.slice(-10) : '—'}
                                         </td>
@@ -319,23 +324,45 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="flex-none flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-                        <span className="text-xs text-slate-500">
-                            Page <b>{page}</b> of <b>{totalPages}</b> · {total} total
-                        </span>
-                        <div className="flex gap-2">
-                            <button onClick={() => fetchLedger(Math.max(1, page - 1))} disabled={page <= 1}
-                                className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-                                ← Prev
-                            </button>
-                            <button onClick={() => fetchLedger(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
-                                className="px-4 py-2 text-xs font-bold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
-                                Next →
-                            </button>
+                <div className="flex-none flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
+                    <span className="text-xs text-slate-500">
+                        Page <b>{page}</b> of <b>{Math.max(1, totalPages)}</b> · {total} total transactions
+                    </span>
+                    <div className="flex gap-1.5 items-center">
+                        <button onClick={() => fetchLedger(Math.max(1, page - 1))} disabled={page <= 1}
+                            className="px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            ← Prev
+                        </button>
+                        
+                        <div className="hidden sm:flex gap-1.5 mx-2">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                let startPage = Math.max(1, page - 2);
+                                if (startPage + 4 > totalPages) startPage = Math.max(1, totalPages - 4);
+                                const p = startPage + i;
+                                if (p > totalPages) return null;
+                                
+                                return (
+                                    <button
+                                        key={p}
+                                        onClick={() => fetchLedger(p)}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
+                                            page === p 
+                                                ? 'bg-brand-600 text-white border border-brand-600' 
+                                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                );
+                            })}
                         </div>
+
+                        <button onClick={() => fetchLedger(Math.min(totalPages, page + 1))} disabled={page >= totalPages}
+                            className="px-3 py-1.5 text-xs font-bold border border-slate-200 rounded-lg bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Next →
+                        </button>
                     </div>
-                )}
+                </div>
             </div>
         </div>,
         document.body

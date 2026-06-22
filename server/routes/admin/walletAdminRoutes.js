@@ -189,6 +189,20 @@ router.get('/domain-ledger', async (req, res) => {
         if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
         if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
         if (req.query.user_id)   query = query.eq('user_id', req.query.user_id);
+        
+        if (req.query.user_search) {
+            const { data: searchProfiles } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .or(`email.ilike.%${req.query.user_search}%,name.ilike.%${req.query.user_search}%`);
+            
+            if (searchProfiles && searchProfiles.length > 0) {
+                const ids = searchProfiles.map(p => p.id);
+                query = query.in('user_id', ids);
+            } else {
+                return res.json({ data: [], total: 0, page, limit, summary: null });
+            }
+        }
 
         const { data: txData, count, error } = await query
             .order('created_at', { ascending: false })
@@ -231,6 +245,20 @@ router.get('/domain-ledger', async (req, res) => {
         if (req.query.user_id) summaryQuery = summaryQuery.eq('user_id', req.query.user_id);
         if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
         if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+        
+        if (req.query.user_search) {
+            const { data: searchProfiles } = await supabaseAdmin
+                .from('profiles')
+                .select('id')
+                .or(`email.ilike.%${req.query.user_search}%,name.ilike.%${req.query.user_search}%`);
+            
+            if (searchProfiles && searchProfiles.length > 0) {
+                const ids = searchProfiles.map(p => p.id);
+                summaryQuery = summaryQuery.in('user_id', ids);
+            } else {
+                summaryQuery = summaryQuery.eq('user_id', '00000000-0000-0000-0000-000000000000'); // Force 0 results
+            }
+        }
 
         const { data: allTx } = await summaryQuery;
 
