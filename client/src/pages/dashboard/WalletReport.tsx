@@ -7,7 +7,7 @@ const WalletReport = () => {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [totalTransactions, setTotalTransactions] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // Filters
     const [page, setPage] = useState(1);
     const [sourceFilter, setSourceFilter] = useState('');
@@ -71,7 +71,7 @@ const WalletReport = () => {
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight">Wallet & Billing</h1>
                     <p className="text-sm text-slate-500 mt-1">Track your message costs and wallet balance.</p>
                 </div>
-                <button 
+                <button
                     onClick={() => { fetchBalance(); fetchTransactions(); }}
                     className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium text-sm shadow-sm"
                 >
@@ -107,8 +107,8 @@ const WalletReport = () => {
                         )}
                     </div>
                     <p className="text-xs text-slate-500 mt-2">
-                        {balanceData.wallet_enforced 
-                            ? "Your messages will be blocked if balance reaches zero." 
+                        {balanceData.wallet_enforced
+                            ? "Your messages will be blocked if balance reaches zero."
                             : "Your balance is not currently enforced. You can send messages freely."}
                     </p>
                 </div>
@@ -116,7 +116,7 @@ const WalletReport = () => {
 
             {/* Filters */}
             <div className="flex gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <select 
+                <select
                     value={sourceFilter}
                     onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500 min-w-[150px]"
@@ -128,7 +128,7 @@ const WalletReport = () => {
                     <option value="FLOW_SEND">Flow Automation</option>
                 </select>
 
-                <select 
+                <select
                     value={categoryFilter}
                     onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
                     className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500 min-w-[150px]"
@@ -161,9 +161,9 @@ const WalletReport = () => {
                         <table className="min-w-full divide-y divide-slate-100">
                             <thead className="bg-slate-50/80">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Date & Tx ID</th>
                                     <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Type / Source</th>
-                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Details</th>
+                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Message Details</th>
                                     <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Amount</th>
                                     <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Balance After</th>
                                 </tr>
@@ -175,43 +175,75 @@ const WalletReport = () => {
                                             <div className="text-sm font-medium text-slate-900">
                                                 {new Date(tx.created_at).toLocaleDateString()}
                                             </div>
-                                            <div className="text-xs text-slate-500">
-                                                {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <div className="text-xs text-slate-500 mb-1">
+                                                {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                            </div>
+                                            <div className="text-[10px] font-mono text-slate-400 truncate max-w-[120px]" title={`Tx ID: ${tx.id}`}>
+                                                TX: {tx.id.split('-')[0]}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1">
-                                                <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                    tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                                }`}>
+                                            <div className="flex flex-col gap-1.5">
+                                                <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                                    }`}>
                                                     {tx.type}
                                                 </span>
-                                                <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded w-fit">
+                                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 w-fit">
                                                     {tx.source}
                                                 </span>
+                                                {tx.source === 'RESERVATION_HOLD' && (
+                                                    <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200">
+                                                        ⏳ PENDING REFUND
+                                                    </span>
+                                                )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            {tx.wa_category && (
-                                                <div className="text-xs font-bold text-slate-700 mb-0.5">{tx.wa_category}</div>
-                                            )}
-                                            {tx.contact_phone && (
-                                                <div className="text-xs text-slate-500 font-mono">To: {tx.contact_phone}</div>
-                                            )}
-                                            {tx.whatsapp_config?.phone_number && (
-                                                <div className="text-[10px] text-slate-400 mt-1">From: {tx.whatsapp_config.phone_number}</div>
-                                            )}
+                                        <td className="px-6 py-4 max-w-sm">
+                                            <div className="flex flex-wrap gap-2 mb-2">
+                                                {tx.wa_category && (
+                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                        {tx.wa_category}
+                                                    </div>
+                                                )}
+                                                {tx.description?.includes('MAX RISK') && (
+                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="System reserves the most expensive rate until Meta confirms the final category.">
+                                                        🛡️ MAX-RISK HOLD
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+                                                {tx.contact_phone && (
+                                                    <div className="text-[11px] text-slate-600"><span className="font-semibold text-slate-400">To:</span> {tx.contact_phone}</div>
+                                                )}
+                                                {tx.whatsapp_config?.phone_number && (
+                                                    <div className="text-[11px] text-slate-600"><span className="font-semibold text-slate-400">From:</span> {tx.whatsapp_config.phone_number}</div>
+                                                )}
+                                                {tx.whatsapp_account_id && (
+                                                    <div className="text-[10px] text-slate-500 font-mono truncate" title={`WABA ID: ${tx.whatsapp_account_id}`}>
+                                                        <span className="font-sans font-semibold text-slate-400">WABA:</span> {tx.whatsapp_account_id.slice(-8)}
+                                                    </div>
+                                                )}
+                                                {tx.wa_message_id && (
+                                                    <div className="text-[10px] text-slate-500 font-mono truncate" title={`Msg ID: ${tx.wa_message_id}`}>
+                                                        <span className="font-sans font-semibold text-slate-400">MSG:</span> {tx.wa_message_id.slice(-10)}
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             {tx.description && (
-                                                <div className="text-xs text-slate-600 mt-1">{tx.description}</div>
+                                                <div className="text-[11px] text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
+                                                    {tx.description}
+                                                </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className={`text-sm font-bold ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                            <span className={`text-sm font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
                                                 {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(4)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className="text-sm font-medium text-slate-500">
+                                            <span className="text-sm font-bold text-slate-600 tabular-nums bg-slate-50 px-2 py-1 rounded">
                                                 ₹{Number(tx.balance_after).toFixed(4)}
                                             </span>
                                         </td>
