@@ -111,8 +111,7 @@ class WalletService {
             if (overrideAmount !== null) {
                 checkAmount = overrideAmount;
             } else if (billingMode === 'DIRECT_META') {
-                const rate = await this.getRate(userId, expectedCategory);
-                checkAmount = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
+                return true; // No wallet balance required for DIRECT_META
             } else {
                 const rate = await this.getRate(userId, expectedCategory);
                 checkAmount = rate.platform_rate;
@@ -145,9 +144,7 @@ class WalletService {
             const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
 
             if (billingMode === 'DIRECT_META') {
-                debitAmount = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
-                debitMetaCost = 0;
-                debitDescription = `Platform markup only (DIRECT_META mode). Msg: ${waMessageId}`;
+                return; // NO WALLET DEDUCTION AT ALL for DIRECT_META
             }
 
             const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
@@ -420,6 +417,9 @@ class WalletService {
     }
 
     static async _handleUntrackedBillable(userId, waMessageId, pricing, waConversationId, conversationExpiry, contactPhone) {
+        const wallet = await this.getWallet(userId);
+        if (wallet.billing_mode === 'DIRECT_META') return; // No late debits for DIRECT_META
+
         if (waConversationId) {
             const { data: existingCharge } = await supabaseAdmin
                 .from('wallet_transactions')

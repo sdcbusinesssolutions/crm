@@ -66,12 +66,9 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 const fetchedBillingMode = data.billing_mode || data.default_billing_mode || 'CREDIT_LINE_SUPER';
                 const domainDefault = data.default_billing_mode || 'CREDIT_LINE_SUPER';
                 
-                // 🛠 SMART AUTO-CORRECTION: If Tenant Admin opens a legacy Wholesale user, but the domain default is now Agency,
-                // auto-select Agency mode so the UI doesn't glitch out with a ₹0.00 wholesale warning.
-                let activeBillingMode = fetchedBillingMode;
-                if (!isSuperAdmin && fetchedBillingMode === 'CREDIT_LINE_SUPER' && domainDefault === 'CREDIT_LINE_TENANT') {
-                    activeBillingMode = 'CREDIT_LINE_TENANT';
-                }
+                // 🛠 STRICT ENFORCEMENT: Force the active billing mode to match the domain's default,
+                // because we are now strictly isolating modes to ONLY show the one assigned to the domain.
+                let activeBillingMode = domainDefault;
 
                 setBillingMode(activeBillingMode);
                 setInitialBillingMode(fetchedBillingMode);
@@ -182,7 +179,13 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
     const isResellerTransfer = !isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER';
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Top-up Wallet: ${user?.name}`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={currentBalance === 'Loading...' ? 'Loading...' : (domainDefaultBillingMode === 'DIRECT_META' ? `Billing Settings: ${user?.name}` : `Top-up Wallet: ${user?.name}`)}>
+            {currentBalance === 'Loading...' ? (
+                <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-600"></div>
+                </div>
+            ) : (
+                <>
             {/* Premium Balance Summary Card */}
             <div className="mb-6 relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-5 rounded-2xl shadow-xl border border-slate-700 transition-all duration-300 hover:shadow-2xl">
                 {/* Decorative background glow */}
@@ -232,14 +235,8 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     <label className="block text-sm font-bold text-slate-700 mb-3">Credit Line / Billing Mode</label>
                     <div className="space-y-3">
                         {BILLING_MODE_OPTIONS.filter(mode => {
-                            if (domainDefaultBillingMode === 'CREDIT_LINE_TENANT') {
-                                if (mode.value === 'CREDIT_LINE_SUPER') return false;
-                            } else if (domainDefaultBillingMode === 'CREDIT_LINE_SUPER') {
-                                if (mode.value === 'CREDIT_LINE_TENANT') return false;
-                            } else if (domainDefaultBillingMode === 'DIRECT_META') {
-                                if (mode.value === 'CREDIT_LINE_SUPER' || mode.value === 'CREDIT_LINE_TENANT') return false;
-                            }
-                            return true;
+                            // STRICT ISOLATION: Only show the EXACT billing mode assigned to the domain
+                            return mode.value === domainDefaultBillingMode;
                         }).map(mode => (
                             <label
                                 key={mode.value}
@@ -284,7 +281,7 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 {billingMode === 'DIRECT_META' && (
                     <div className="bg-amber-50/80 backdrop-blur-sm border-l-4 border-amber-500 rounded-r-xl p-4 shadow-sm">
                         <p className="text-sm text-amber-800 font-medium leading-relaxed">
-                            <span className="mr-2">💳</span> <strong>User Pays Meta:</strong> Meta charges this user directly. Top-up amounts here are purely your software markup fee (SaaS fee), not message costs.
+                            <span className="mr-2">💳</span> <strong>User Pays Meta:</strong> Meta charges this user directly for messages. No wallet balance is required or deducted for this user.
                         </p>
                     </div>
                 )}
@@ -335,6 +332,7 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 )}
 
                 {/* Enforcement Toggle */}
+                {billingMode !== 'DIRECT_META' && (
                 <div className="pt-2">
                     <label className="relative flex items-start gap-4 p-4 border border-slate-200 rounded-xl bg-white cursor-pointer hover:bg-slate-50 hover:shadow-sm transition-all duration-200 hover:border-slate-300">
                         <div className="flex items-center h-5 mt-0.5">
@@ -353,6 +351,7 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                         </div>
                     </label>
                 </div>
+                )}
 
                 {/* 🔒 UI Security: Prevent submission if Agency Balance is too low */}
                 {!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0) && (
@@ -366,14 +365,16 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 )}
 
                 <div className="flex flex-col-reverse sm:flex-row justify-between items-center pt-6 border-t border-slate-100 gap-4">
-                    <button
-                        type="button"
-                        onClick={handleReset}
-                        disabled={isSubmitting}
-                        className="w-full sm:w-auto px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-bold text-sm transition-all border border-transparent hover:border-red-200 hover:shadow-sm"
-                    >
-                        Reset Balance to ₹0.00
-                    </button>
+                    {billingMode !== 'DIRECT_META' ? (
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            disabled={isSubmitting}
+                            className="w-full sm:w-auto px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-bold text-sm transition-all border border-transparent hover:border-red-200 hover:shadow-sm"
+                        >
+                            Reset Balance to ₹0.00
+                        </button>
+                    ) : <div />}
                     <div className="flex w-full sm:w-auto gap-3">
                         <button
                             type="button"
@@ -387,11 +388,13 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                             disabled={isSubmitting || (!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0))}
                             className="flex-1 sm:flex-none px-6 py-2.5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-xl font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                         >
-                            {isSubmitting ? 'Saving...' : 'Confirm'}
+                            {isSubmitting ? 'Saving...' : (domainDefaultBillingMode === 'DIRECT_META' ? 'Save Settings' : 'Confirm')}
                         </button>
                     </div>
                 </div>
             </form>
+                </>
+            )}
         </Modal>
     );
 };

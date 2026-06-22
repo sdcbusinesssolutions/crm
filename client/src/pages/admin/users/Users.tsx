@@ -789,15 +789,19 @@ const Users = () => {
                                                         <div className={`text-xs font-bold ${Number(user.wallet_balance || 0) < 0 ? 'text-red-600' : 'text-slate-900'}`}>
                                                             ₹{Number(user.wallet_balance || 0).toFixed(2)}
                                                         </div>
-                                                        {user.billing_mode && user.billing_mode !== 'CREDIT_LINE_SUPER' && (
-                                                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
-                                                                user.billing_mode === 'DIRECT_META'
-                                                                    ? 'bg-amber-100 text-amber-700'
-                                                                    : 'bg-emerald-100 text-emerald-700'
-                                                            }`}>
-                                                                {user.billing_mode === 'DIRECT_META' ? '💳 Direct' : '🏢 Agency'}
-                                                            </span>
-                                                        )}
+                                                        <span className={`inline-block w-max text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                                                            (!user.billing_mode || user.billing_mode === 'CREDIT_LINE_SUPER')
+                                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                                : user.billing_mode === 'CREDIT_LINE_TENANT'
+                                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                        }`}>
+                                                            {(!user.billing_mode || user.billing_mode === 'CREDIT_LINE_SUPER') 
+                                                                ? '🏛 Super Credit' 
+                                                                : user.billing_mode === 'CREDIT_LINE_TENANT' 
+                                                                    ? '🏢 Tenant Credit' 
+                                                                    : '💳 Direct Meta'}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </td>
@@ -836,7 +840,7 @@ const Users = () => {
                                                     }} className="flex items-center gap-1 px-1.5 py-1 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><ArchiveIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Plan</span></button>
                                                     {isSuperAdmin ? (
                                                         <>
-                                                            <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Top-up</span></button>
+                                                            <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">{user.billing_mode === 'DIRECT_META' ? 'Billing' : 'Top-up'}</span></button>
                                                             {user.is_tenant_admin && (
                                                                 <button onClick={() => handleAction('MasterTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-purple-700 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors animate-pulse-subtle"><BriefcaseIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Agency</span></button>
                                                             )}
@@ -850,7 +854,7 @@ const Users = () => {
                                                                     <PaymentIcon className="w-3.5 h-3.5 opacity-50" /><span className="text-[10px] font-bold leading-none">Top-up</span>
                                                                 </button>
                                                             ) : (
-                                                                <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Top-up</span></button>
+                                                                <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">{user.billing_mode === 'DIRECT_META' ? 'Billing' : 'Top-up'}</span></button>
                                                             )}
                                                             <button onClick={() => handleAction('WalletLedger', user)} className="flex items-center gap-1 px-1.5 py-1 text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><ListIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Ledger</span></button>
                                                         </>
