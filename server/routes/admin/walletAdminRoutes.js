@@ -221,9 +221,7 @@ router.post('/topup', async (req, res) => {
         const MASTER_DOMAIN = process.env.VITE_MASTER_URL
             ? new URL(process.env.VITE_MASTER_URL).hostname
             : 'clickube.com';
-        const isSuperAdmin = adminRole === 'super_admin' ||
-            adminDomain === MASTER_DOMAIN ||
-            adminDomain === 'localhost';
+        const isSuperAdmin = adminRole === 'super_admin';
 
         // ── Domain Authority Check & Target Domain Extraction ───────────────────
         const { data: targetProfile } = await supabaseAdmin
@@ -416,9 +414,7 @@ router.post('/topup-master', async (req, res) => {
         const MASTER_DOMAIN = process.env.VITE_MASTER_URL
             ? new URL(process.env.VITE_MASTER_URL).hostname
             : 'clickube.com';
-        const isSuperAdmin = adminRole === 'super_admin' ||
-            adminDomain === MASTER_DOMAIN ||
-            adminDomain === 'localhost';
+        const isSuperAdmin = adminRole === 'super_admin';
 
         if (!isSuperAdmin) {
             console.warn(`[WalletAdmin] 🚨 BLOCKED: Unauthorized attempt to top-up Master Wallet by ${req.admin?.id}`);
