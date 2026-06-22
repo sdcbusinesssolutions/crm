@@ -331,27 +331,7 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     </div>
                 )}
 
-                {/* Enforcement Toggle */}
-                {billingMode !== 'DIRECT_META' && (
-                <div className="pt-2">
-                    <label className="relative flex items-start gap-4 p-4 border border-slate-200 rounded-xl bg-white cursor-pointer hover:bg-slate-50 hover:shadow-sm transition-all duration-200 hover:border-slate-300">
-                        <div className="flex items-center h-5 mt-0.5">
-                            <input
-                                type="checkbox"
-                                checked={walletEnforced}
-                                onChange={(e) => setWalletEnforced(e.target.checked)}
-                                className="w-5 h-5 text-brand-600 border-gray-300 rounded focus:ring-brand-500 focus:ring-2 transition-colors"
-                            />
-                        </div>
-                        <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-900">Enforce Wallet Balance Limit</span>
-                            <span className="text-xs text-slate-500 mt-1 leading-relaxed">
-                                If enabled, the user cannot send messages when balance reaches zero. If disabled, messages always send and costs are only logged (Unlimited).
-                            </span>
-                        </div>
-                    </label>
-                </div>
-                )}
+                {/* Enforcement Toggle Removed - Always Enforced */}
 
                 {/* 🔒 UI Security: Prevent submission if Agency Balance is too low */}
                 {!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0) && (

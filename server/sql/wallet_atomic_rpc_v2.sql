@@ -34,6 +34,10 @@ BEGIN
         RAISE EXCEPTION 'Wallet not found for user_id: %', p_user_id;
     END IF;
 
+    IF p_amount <= 0 THEN
+        RAISE EXCEPTION 'Amount must be greater than zero. Got: %', p_amount;
+    END IF;
+
     v_balance_before := v_wallet.balance;
     SELECT signup_domain INTO v_tenant_domain FROM public.profiles WHERE id = p_user_id;
 
@@ -41,7 +45,7 @@ BEGIN
         RAISE EXCEPTION 'Wallet is frozen for user_id: %', p_user_id;
     END IF;
 
-    IF v_wallet.wallet_enforced = TRUE AND v_wallet.balance < p_amount THEN
+    IF v_wallet.balance < p_amount THEN
         IF p_allow_partial = TRUE THEN
             v_actual_hold := v_wallet.balance;
             v_is_partial := TRUE;
@@ -58,7 +62,7 @@ BEGIN
         RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Wallet balance is 0. Cannot hold reservation.';
     END IF;
 
-    v_new_balance := CASE WHEN v_wallet.wallet_enforced THEN v_wallet.balance - v_actual_hold ELSE v_wallet.balance END;
+    v_new_balance := v_wallet.balance - v_actual_hold;
     v_new_reserved := v_wallet.reserved_balance + v_actual_hold;
 
     IF v_new_balance != v_wallet.balance OR v_new_reserved != v_wallet.reserved_balance THEN
@@ -119,13 +123,21 @@ BEGIN
         RAISE EXCEPTION 'Wallet not found for user_id: %', p_user_id;
     END IF;
 
+    IF p_amount <= 0 THEN
+        RAISE EXCEPTION 'Amount must be greater than zero. Got: %', p_amount;
+    END IF;
+
     v_balance_before := v_wallet.balance;
     SELECT signup_domain INTO v_tenant_domain FROM public.profiles WHERE id = p_user_id;
 
     -- You can release even if frozen
 
     v_actual_release := LEAST(p_amount, v_wallet.reserved_balance);
-    v_new_balance := CASE WHEN v_wallet.wallet_enforced THEN v_wallet.balance + v_actual_release ELSE v_wallet.balance END;
+    IF v_actual_release < 0 THEN
+        v_actual_release := 0;
+    END IF;
+
+    v_new_balance := v_wallet.balance + v_actual_release;
     v_new_reserved := v_wallet.reserved_balance - v_actual_release;
 
     IF v_new_balance != v_wallet.balance OR v_new_reserved != v_wallet.reserved_balance THEN
@@ -192,6 +204,10 @@ BEGIN
         RAISE EXCEPTION 'Wallet not found for user_id: %', p_user_id;
     END IF;
 
+    IF p_amount <= 0 THEN
+        RAISE EXCEPTION 'Amount must be greater than zero. Got: %', p_amount;
+    END IF;
+
     v_balance_before := v_wallet.balance;
     SELECT signup_domain INTO v_tenant_domain FROM public.profiles WHERE id = p_user_id;
 
@@ -205,30 +221,28 @@ BEGIN
     v_new_balance := v_wallet.balance;
     v_new_reserved := v_wallet.reserved_balance;
 
-    IF v_wallet.wallet_enforced = TRUE OR p_source IN ('ADMIN_TOPUP', 'RECHARGE') THEN
-        IF p_type = 'DEBIT' THEN
-            IF p_source = 'CAMPAIGN_SEND' THEN
-                IF v_wallet.reserved_balance >= p_amount THEN
-                    v_new_reserved := v_wallet.reserved_balance - p_amount;
-                ELSE
-                    v_new_reserved := 0;
-                    v_new_balance := v_wallet.balance - (p_amount - v_wallet.reserved_balance);
-                END IF;
+    IF p_type = 'DEBIT' THEN
+        IF p_source = 'CAMPAIGN_SEND' THEN
+            IF v_wallet.reserved_balance >= p_amount THEN
+                v_new_reserved := v_wallet.reserved_balance - p_amount;
             ELSE
-                v_new_balance := v_wallet.balance - p_amount;
+                v_new_reserved := 0;
+                v_new_balance := v_wallet.balance - (p_amount - v_wallet.reserved_balance);
             END IF;
-        ELSIF p_type = 'CREDIT' THEN
-            v_new_balance := v_wallet.balance + p_amount;
         ELSE
-            RAISE EXCEPTION 'Invalid transaction type: %', p_type;
+            v_new_balance := v_wallet.balance - p_amount;
         END IF;
+    ELSIF p_type = 'CREDIT' THEN
+        v_new_balance := v_wallet.balance + p_amount;
+    ELSE
+        RAISE EXCEPTION 'Invalid transaction type: %', p_type;
     END IF;
 
     -- guards
-    IF p_type = 'DEBIT' AND v_wallet.wallet_enforced = TRUE THEN
+    IF p_type = 'DEBIT' THEN
         IF v_new_balance < 0 THEN
             IF NOT v_is_adjustment THEN
-                RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Enforced mode prevents negative balance. Current: %', v_wallet.balance;
+                RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Negative balances are strictly prevented. Current: %', v_wallet.balance;
             END IF;
 
             -- Clamping

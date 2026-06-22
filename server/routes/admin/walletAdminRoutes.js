@@ -36,19 +36,27 @@ router.get('/all-wallets', async (req, res) => {
         const from  = (page - 1) * limit;
         const to    = from + limit - 1;
 
+        const adminDomain   = req.admin?.managed_domain || req.admin?.domain;
+        const isSuperAdmin  = req.admin?.role === 'super_admin';
+
         let query = supabaseAdmin
             .from('user_wallets')
             .select(`
                 *,
-                profiles:user_id (
+                profiles!inner (
                     id,
                     name,
                     email,
                     signup_domain
                 )
             `, { count: 'exact' })
-            .order('updated_at', { ascending: false })
-            .range(from, to);
+            .order('updated_at', { ascending: false });
+
+        if (!isSuperAdmin) {
+            query = query.eq('profiles.signup_domain', adminDomain);
+        }
+
+        query = query.range(from, to);
 
         const { data, count, error } = await query;
         if (error) throw error;
@@ -84,6 +92,9 @@ router.get('/all-wallets', async (req, res) => {
 router.get('/ledger/:userId', async (req, res) => {
     try {
         const targetUserId = req.params.userId;
+        const adminDomain  = req.admin?.managed_domain || req.admin?.domain;
+        const isSuperAdmin = req.admin?.role === 'super_admin';
+
         const page  = parseInt(req.query.page)  || 1;
         const limit = parseInt(req.query.limit) || 50;
         const from  = (page - 1) * limit;
@@ -96,6 +107,10 @@ router.get('/ledger/:userId', async (req, res) => {
                 whatsapp_config:whatsapp_account_id ( phone_number )
             `, { count: 'exact' })
             .eq('user_id', targetUserId);
+
+        if (!isSuperAdmin) {
+            query = query.eq('tenant_domain', adminDomain);
+        }
 
         if (req.query.source)    query = query.eq('source', req.query.source);
         if (req.query.category)  query = query.eq('wa_category', req.query.category.toUpperCase());
@@ -143,6 +158,123 @@ router.get('/ledger/:userId', async (req, res) => {
     }
 });
 
+// GET /api/wallet/admin/domain-ledger — Domain-wide or Platform-wide financial reporting
+router.get('/domain-ledger', async (req, res) => {
+    try {
+        const page  = parseInt(req.query.page)  || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const from  = (page - 1) * limit;
+        const to    = from + limit - 1;
+
+        const adminDomain   = req.admin?.managed_domain || req.admin?.domain;
+        const adminRole     = req.admin?.role;
+        const isSuperAdmin  = adminRole === 'super_admin';
+
+        let query = supabaseAdmin
+            .from('wallet_transactions')
+            .select('*', { count: 'exact' });
+
+        // Domain isolation
+        if (!isSuperAdmin) {
+            // Tenant Admin: strict isolation
+            query = query.eq('tenant_domain', adminDomain);
+        } else if (req.query.domain) {
+            // Super Admin: optionally filter by tenant
+            query = query.eq('tenant_domain', req.query.domain);
+        }
+
+        // Filters
+        if (req.query.source)    query = query.eq('source', req.query.source);
+        if (req.query.type)      query = query.eq('type', req.query.type.toUpperCase());
+        if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
+        if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
+        if (req.query.user_id)   query = query.eq('user_id', req.query.user_id);
+
+        const { data: txData, count, error } = await query
+            .order('created_at', { ascending: false })
+            .range(from, to);
+
+        if (error) throw error;
+
+        let data = txData || [];
+        
+        // Fetch profiles separately to avoid PostgREST relationship errors
+        if (data.length > 0) {
+            const userIds = [...new Set(data.map(tx => tx.user_id))];
+            const { data: profiles } = await supabaseAdmin
+                .from('profiles')
+                .select('id, name, email, signup_domain')
+                .in('id', userIds);
+                
+            const profileMap = (profiles || []).reduce((acc, p) => {
+                acc[p.id] = p;
+                return acc;
+            }, {});
+            
+            data = data.map(tx => ({
+                ...tx,
+                profiles: profileMap[tx.user_id] || null
+            }));
+        }
+
+        // Fetch aggregation summary (without pagination limits)
+        let summaryQuery = supabaseAdmin
+            .from('wallet_transactions')
+            .select('type, amount, platform_cost, meta_cost, source');
+
+        if (!isSuperAdmin) {
+            summaryQuery = summaryQuery.eq('tenant_domain', adminDomain);
+        } else if (req.query.domain) {
+            summaryQuery = summaryQuery.eq('tenant_domain', req.query.domain);
+        }
+        
+        if (req.query.user_id) summaryQuery = summaryQuery.eq('user_id', req.query.user_id);
+        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
+        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+
+        const { data: allTx } = await summaryQuery;
+
+        const summary = (allTx || []).reduce((acc, tx) => {
+            if (tx.type === 'CREDIT' && tx.source === 'ADMIN_TOPUP') {
+                acc.total_distributed += Number(tx.amount || 0);
+            }
+            if (tx.type === 'DEBIT' && tx.source?.endsWith('SEND')) {
+                acc.total_consumed += Number(tx.amount || 0);
+            }
+            if (tx.type === 'CREDIT' && tx.source === 'RECHARGE') {
+                acc.total_agency_recharge += Number(tx.amount || 0);
+            }
+            
+            if (tx.type === 'DEBIT') {
+                acc.total_meta_cost += Number(tx.meta_cost || 0);
+                acc.total_platform_cost += Number(tx.platform_cost || 0);
+            }
+            return acc;
+        }, {
+            total_distributed: 0,
+            total_consumed: 0,
+            total_meta_cost: 0,
+            total_platform_cost: 0,
+            total_agency_recharge: 0
+        });
+
+        // Also fetch Master Wallet Balance if applicable
+        let masterWalletBalance = null;
+        if (!isSuperAdmin) {
+            const adminUserId = req.admin?.user_id || req.admin?.id;
+            if (adminUserId) {
+                const { data: mw } = await supabaseAdmin.from('user_wallets').select('balance').eq('user_id', adminUserId).eq('is_tenant_master', true).maybeSingle();
+                if (mw) masterWalletBalance = Number(mw.balance || 0);
+            }
+        }
+
+        res.json({ data, total: count || 0, page, limit, summary, masterWalletBalance });
+    } catch (error) {
+        console.error('Error fetching domain ledger:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /api/wallet/admin/summary — aggregate platform-wide wallet stats
 router.get('/summary', async (req, res) => {
     try {
@@ -182,10 +314,9 @@ router.get('/summary', async (req, res) => {
 
         const { data: wallets } = await supabaseAdmin
             .from('user_wallets')
-            .select('wallet_enforced, balance');
+            .select('balance');
 
         summary.total_wallets = wallets?.length || 0;
-        summary.enforced_wallets = wallets?.filter(w => w.wallet_enforced).length || 0;
         summary.total_balance_in_system = wallets?.reduce((s, w) => s + Number(w.balance || 0), 0) || 0;
 
         res.json(summary);
@@ -388,10 +519,10 @@ router.post('/topup', async (req, res) => {
             }
         }
 
-        // ── Update wallet settings (enforcement + billing mode) ─────────────
+        // ── Update wallet settings (billing mode only) ─────────────────────
         const walletUpdates = {};
-        if (wallet_enforced !== undefined) walletUpdates.wallet_enforced = wallet_enforced;
-        if (billing_mode    !== undefined) walletUpdates.billing_mode    = billing_mode;
+        // NOTE: wallet_enforced is intentionally NOT settable here — deductions are unconditional at DB level.
+        if (billing_mode !== undefined) walletUpdates.billing_mode = billing_mode;
         if (Object.keys(walletUpdates).length > 0) {
             await supabaseAdmin.from('user_wallets').update(walletUpdates).eq('user_id', uid);
         }

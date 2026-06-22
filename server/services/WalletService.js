@@ -103,7 +103,6 @@ class WalletService {
     static async hasSufficientBalance(userId, overrideAmount = null, expectedCategory = 'MARKETING') {
         try {
             const wallet = await this.getWallet(userId);
-            if (!wallet.wallet_enforced) return true;
 
             const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
 
@@ -120,7 +119,7 @@ class WalletService {
             return roundMoney(wallet.balance) >= roundMoney(checkAmount);
         } catch (e) {
             console.error('[WalletService] Balance check error:', e);
-            return true;
+            return false; // Security: Fail closed on errors to prevent free credit loop holes
         }
     }
 
@@ -202,7 +201,7 @@ class WalletService {
                                     p_user_id: masterWallet.user_id,
                                     p_amount: markupFee,
                                     p_type: 'DEBIT',
-                                    p_source: 'AGENCY_MARKUP_FEE',
+                                    p_source: 'AGENCY_MARKUP',
                                     p_wa_category: actualCategory,
                                     p_wa_message_id: waMessageId + '_markup',
                                     p_description: markupDescription,
@@ -214,8 +213,8 @@ class WalletService {
                         }
                     }
                 } catch (markupErr) {
-                    console.error('[WalletService] Failed to debit Tenant Master Wallet for markup:', markupErr);
-                    // We don't throw here to avoid blocking the user's message if the markup deduction fails
+                    console.error('[WalletService] Failed to debit Tenant Master Wallet for markup. Blocking message to prevent SaaS fee loss:', markupErr);
+                    throw markupErr; // Security: Do not allow the message to send if we cannot collect our fee!
                 }
             }
         } catch (e) {

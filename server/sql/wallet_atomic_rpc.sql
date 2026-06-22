@@ -1,3 +1,11 @@
+-- ⚠️ ⚠️ ⚠️  DEPRECATED — DO NOT RUN  ⚠️ ⚠️ ⚠️
+-- This file contains the OLD wallet_atomic_rpc function with the wallet_enforced bypass loophole.
+-- The PATCHED version is: server/sql/wallet_atomic_rpc_v2.sql
+-- Running this file will OVERWRITE the patched functions with vulnerable code.
+-- =============================================================================
+
+-- Original file contents preserved below for reference only:
+
 -- Migration: Create Atomic Wallet RPC Function to prevent race conditions
 -- Run this in the Supabase SQL Editor
 --

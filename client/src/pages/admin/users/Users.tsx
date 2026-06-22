@@ -28,6 +28,7 @@ import Modal from '../../../components/Modal';
 import WalletTopupModal from './WalletTopupModal';
 import WalletRatesModal from './WalletRatesModal';
 import AdminWalletLedger from './AdminWalletLedger';
+import DomainLedgerModal from './DomainLedgerModal';
 
 const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -73,6 +74,7 @@ const Users = () => {
     const [isWalletTopupOpen, setIsWalletTopupOpen] = useState(false);
     const [isWalletRatesOpen, setIsWalletRatesOpen] = useState(false);
     const [isWalletLedgerOpen, setIsWalletLedgerOpen] = useState(false);
+    const [isDomainLedgerOpen, setIsDomainLedgerOpen] = useState(false);
     const [selectedWalletUser, setSelectedWalletUser] = useState<any>(null);
 
     // Master Wallet State
@@ -617,6 +619,12 @@ const Users = () => {
                     </div>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-end">
+                    <button
+                        onClick={() => setIsDomainLedgerOpen(true)}
+                        className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-btn font-bold shadow-md shadow-slate-200 transition-all transform hover:-translate-y-0.5 text-sm"
+                    >
+                        <span>Master Ledger Report 📊</span>
+                    </button>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
                         className="flex items-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-btn font-bold shadow-md shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm"
@@ -1318,6 +1326,13 @@ const Users = () => {
                     </div>
                 </form>
             </Modal>
+            {isDomainLedgerOpen && (
+                <DomainLedgerModal 
+                    isSuperAdmin={isSuperAdmin}
+                    domainFilter={domainFilter !== 'all' ? domainFilter : undefined}
+                    onClose={() => setIsDomainLedgerOpen(false)} 
+                />
+            )}
         </div>
     );
 };

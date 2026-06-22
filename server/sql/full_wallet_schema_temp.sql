@@ -1,3 +1,10 @@
+-- ⚠️ ⚠️ ⚠️  DEPRECATED — DO NOT RUN  ⚠️ ⚠️ ⚠️
+-- This is a COMBINED snapshot file that contains OLD RPC versions with the wallet_enforced bypass loophole.
+-- Running any of the CREATE OR REPLACE FUNCTION blocks in this file will OVERWRITE the patched, secure RPCs.
+-- AUTHORITATIVE PATCHED VERSION: server/sql/wallet_atomic_rpc_v2.sql
+-- All table schema migrations are split into: 220_*.sql through 224_*.sql
+-- =============================================================================
+
 -- Migration: Wallet Architecture V2
 -- Adds reserved balances, wallet freezing, expanded scopes, and new transaction sources.
 

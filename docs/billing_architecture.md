@@ -91,3 +91,14 @@ The rules above are strictly enforced at the database and service layer:
 *   **Dynamic Rates:** When deductions occur (Modes A & B), the exact amount deducted is dynamic, based on custom pricing rates set by either the Tenant Admin or the Super Admin.
 *   **Bypass Engine:** If a user's wallet is flagged as `DIRECT_META`, `WalletService.hasSufficientBalance` automatically returns `true`, and `WalletService.preDebit` immediately exits without calling the `adjust_wallet_balance` RPC.
 *   **Domain Defaults:** The active billing mode is governed by `domain_wallet_settings.default_billing_mode`, ensuring a domain cannot accidentally mix wholesale and retail users.
+*   **Permanent Limit Enforcement:** Wallet limits are strictly enforced at the SQL database layer. A user's wallet balance can *never* fall below zero during message sends. The previous "unlimited bypass" toggle has been permanently removed to ensure zero unbacked liability.
+*   **Strict SaaS Fee Collection:** In `CREDIT_LINE_TENANT` mode, if the Tenant Admin's Master Wallet runs out of funds, the system will instantly throw an error and block the end-user's message. This guarantees the Super Admin never loses their SaaS markup fee.
+
+---
+
+## 6. Financial Reporting (Master Ledger)
+
+To maintain absolute transparency and prevent unbounded loss, the platform includes a **Master Ledger Reporting Engine**:
+*   **Domain Isolation:** Tenant Admins can only query ledger transactions for users within their own registered domain.
+*   **Distribution vs Consumption:** The ledger explicitly tracks money flows by separating "Distribution" (credits created by Admins via `ADMIN_TOPUP`) from "Consumption" (credits spent by users via `INBOX_SEND`, `CAMPAIGN_SEND`, etc).
+*   **SaaS Margin Tracking:** For the Super Admin, the ledger dynamically calculates the total Meta Cost versus total Platform Cost, instantly reporting the exact SaaS markup margin generated over any given period.
