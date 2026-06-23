@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../lib/supabaseClient');
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
+const { logWalletEvent } = require('../utils/logger');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WHATSAPP BILLING MODEL (Meta Cloud API) - V2 Architecture (Optimized)
@@ -153,6 +154,8 @@ class WalletService {
                 p_source: source || 'INBOX_SEND',
                 p_wa_category: actualCategory,
                 p_wa_message_id: waMessageId,
+                p_wa_conversation_id: null,
+                p_conversation_expiry: null,
                 p_description: debitDescription,
                 p_contact_phone: contactPhone,
                 p_campaign_id: campaignId || null,
@@ -164,7 +167,12 @@ class WalletService {
                 p_ip_address: ipAddress || null
             });
 
-            if (error) throw error;
+            if (error) {
+                logWalletEvent('PRE_DEBIT_ERROR', { userId, waMessageId, error: error.message });
+                throw error;
+            }
+
+            logWalletEvent('PRE_DEBIT_SUCCESS', { userId, waMessageId, amount: debitAmount, category: actualCategory });
 
             // V2: If Tenant Agency Credit Line, we must collect the software markup fee from the Tenant Admin's Master Wallet
             if (billingMode === 'CREDIT_LINE_TENANT') {
@@ -197,28 +205,43 @@ class WalletService {
                                 
                             if (masterWallet) {
                                 const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0,8)}...). Msg: ${waMessageId}`;
-                                await supabaseAdmin.rpc('adjust_wallet_balance', {
+                                const { error: markupErr } = await supabaseAdmin.rpc('adjust_wallet_balance', {
                                     p_user_id: masterWallet.user_id,
                                     p_amount: markupFee,
                                     p_type: 'DEBIT',
                                     p_source: 'AGENCY_MARKUP',
                                     p_wa_category: actualCategory,
                                     p_wa_message_id: waMessageId + '_markup',
+                                    p_wa_conversation_id: null,
+                                    p_conversation_expiry: null,
                                     p_description: markupDescription,
                                     p_contact_phone: contactPhone,
                                     p_campaign_id: campaignId || null,
-                                    p_meta_cost: 0 // Meta is paid by Tenant directly
+                                    p_drip_campaign_id: null,
+                                    p_flow_id: null,
+                                    p_whatsapp_account_id: null,
+                                    p_meta_cost: 0, // Meta is paid by Tenant directly
+                                    p_created_by: null,
+                                    p_ip_address: null
                                 });
+                                
+                                if (markupErr) {
+                                    logWalletEvent('AGENCY_MARKUP_ERROR', { masterUserId: masterWallet.user_id, waMessageId, error: markupErr.message });
+                                } else {
+                                    logWalletEvent('AGENCY_MARKUP_SUCCESS', { masterUserId: masterWallet.user_id, waMessageId, amount: markupFee });
+                                }
                             }
                         }
                     }
                 } catch (markupErr) {
                     console.error('[WalletService] Failed to debit Tenant Master Wallet for markup. Blocking message to prevent SaaS fee loss:', markupErr);
+                    logWalletEvent('AGENCY_MARKUP_EXCEPTION', { userId, waMessageId, error: markupErr.message });
                     throw markupErr; // Security: Do not allow the message to send if we cannot collect our fee!
                 }
             }
         } catch (e) {
             console.error('[WalletService] Pre-debit error:', e);
+            logWalletEvent('PRE_DEBIT_EXCEPTION', { userId, waMessageId, error: e.message });
             throw e;
         }
     }
@@ -338,7 +361,16 @@ class WalletService {
                     p_wa_category: actualCategory,
                     p_wa_message_id: waMessageId,
                     p_wa_conversation_id: waConversationId,
-                    p_description: `Reclassification charge: ${preDebitCategory} to ${actualCategory}. Delta: ₹${delta.toFixed(4)}`
+                    p_conversation_expiry: null,
+                    p_description: `Reclassification charge: ${preDebitCategory} to ${actualCategory}. Delta: ₹${delta.toFixed(4)}`,
+                    p_contact_phone: null,
+                    p_campaign_id: null,
+                    p_drip_campaign_id: null,
+                    p_flow_id: null,
+                    p_whatsapp_account_id: null,
+                    p_meta_cost: 0,
+                    p_created_by: null,
+                    p_ip_address: null
                 });
                 if (error) console.error('[WalletService] Delta charge error:', error);
             }
@@ -406,7 +438,16 @@ class WalletService {
             p_wa_category: waCategory,
             p_wa_message_id: waMessageId,
             p_wa_conversation_id: waConversationId,
-            p_description: description
+            p_conversation_expiry: null,
+            p_description: description,
+            p_contact_phone: null,
+            p_campaign_id: null,
+            p_drip_campaign_id: null,
+            p_flow_id: null,
+            p_whatsapp_account_id: null,
+            p_meta_cost: 0,
+            p_created_by: null,
+            p_ip_address: null
         });
         if (error) console.error('[WalletService] Refund/adjustment error:', error);
         return !error;
@@ -443,7 +484,15 @@ class WalletService {
                 p_wa_message_id: waMessageId,
                 p_wa_conversation_id: waConversationId,
                 p_conversation_expiry: conversationExpiry,
-                p_description: `Late debit: untracked ${category} conversation. ₹${amount}`
+                p_description: `Late debit: untracked ${category} conversation. ₹${amount}`,
+                p_contact_phone: null,
+                p_campaign_id: null,
+                p_drip_campaign_id: null,
+                p_flow_id: null,
+                p_whatsapp_account_id: null,
+                p_meta_cost: 0,
+                p_created_by: null,
+                p_ip_address: null
             });
             if (error) console.error('[WalletService] Untracked debit error:', error);
         }
@@ -457,7 +506,17 @@ class WalletService {
             p_source: source,
             p_description: description,
             p_created_by: createdBy,
-            p_ip_address: ipAddress
+            p_ip_address: ipAddress,
+            p_wa_category: null,
+            p_wa_message_id: null,
+            p_wa_conversation_id: null,
+            p_conversation_expiry: null,
+            p_contact_phone: null,
+            p_campaign_id: null,
+            p_drip_campaign_id: null,
+            p_flow_id: null,
+            p_whatsapp_account_id: null,
+            p_meta_cost: 0
         });
         if (error) throw error;
         return { success: true, ...data };

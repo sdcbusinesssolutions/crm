@@ -241,7 +241,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                             <p className="font-medium">No transactions found for these filters</p>
                         </div>
                     ) : (
-                        <table className="min-w-full divide-y divide-slate-100 text-sm">
+                        <table className="w-full divide-y divide-slate-100 text-sm">
                             <thead className="bg-slate-50 sticky top-0">
                                 <tr>
                                     {['Date','User','Type','Source','Category','Amount','Balance','Platform Cost','Meta Cost','Contact','WABA ID','WA Msg ID','Description'].map(h => (

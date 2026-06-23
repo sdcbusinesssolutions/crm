@@ -354,6 +354,7 @@ module.exports = {
     logAuthBridgeEvent,
     logGoogleEvent,
     logGoogleSheetEvent,
+    logWalletEvent: (type, data) => _logToFile('wallet_transactions', type, data, 2.5 * 1024 * 1024),
     logStaffAssignment: (type, data) => _logToFile('staff_assignments', type, data, 2.5 * 1024 * 1024),
     logWebhookEvent: (type, data) => _logToFile('webhook_logs', type, data, 2.5 * 1024 * 1024),
     logContactImportEvent: (type, data) => _logToFile('contact_imports', type, data, 2.5 * 1024 * 1024),

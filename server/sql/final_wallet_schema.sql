@@ -378,6 +378,12 @@ END;
 $$;
 
 -- 3. Modify adjust_wallet_balance to support CAMPAIGN_SEND deductions from reserved_balance
+-- Drop the old 15-parameter signature first to prevent PGRST203 overloaded function errors
+DROP FUNCTION IF EXISTS public.adjust_wallet_balance(
+    uuid, numeric, text, text, text, text, text, 
+    timestamp with time zone, text, text, uuid, uuid, uuid, uuid, numeric
+);
+
 CREATE OR REPLACE FUNCTION adjust_wallet_balance(
     p_user_id UUID,
     p_amount NUMERIC,

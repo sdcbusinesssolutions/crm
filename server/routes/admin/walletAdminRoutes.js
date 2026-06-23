@@ -188,7 +188,11 @@ router.get('/domain-ledger', async (req, res) => {
         if (req.query.type)      query = query.eq('type', req.query.type.toUpperCase());
         if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
         if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
-        if (req.query.user_id)   query = query.eq('user_id', req.query.user_id);
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+        if (req.query.user_id && uuidRegex.test(req.query.user_id)) {
+            query = query.eq('user_id', req.query.user_id);
+        }
         
         if (req.query.user_search) {
             const { data: searchProfiles } = await supabaseAdmin
@@ -242,7 +246,9 @@ router.get('/domain-ledger', async (req, res) => {
             summaryQuery = summaryQuery.eq('tenant_domain', req.query.domain);
         }
         
-        if (req.query.user_id) summaryQuery = summaryQuery.eq('user_id', req.query.user_id);
+        if (req.query.user_id && uuidRegex.test(req.query.user_id)) {
+            summaryQuery = summaryQuery.eq('user_id', req.query.user_id);
+        }
         if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
         if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
         

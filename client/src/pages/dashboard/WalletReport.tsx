@@ -93,34 +93,34 @@ const WalletReport = () => {
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-6 text-white shadow-lg shadow-brand-500/20 relative overflow-hidden">
+                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-center">
                     <div className="relative z-10">
-                        <h3 className="text-brand-100 font-medium mb-1">Current Balance</h3>
-                        <div className="text-4xl font-black mb-4">
+                        <h3 className="text-slate-500 font-medium text-sm tracking-wide uppercase mb-1">Current Balance</h3>
+                        <div className="text-5xl font-black text-slate-900 mb-4 tracking-tight">
                             ₹{typeof balanceData.balance === 'number' ? balanceData.balance.toFixed(2) : balanceData.balance}
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${balanceData.wallet_enforced ? 'bg-amber-500/20 text-amber-100 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-100 border border-emerald-500/30'}`}>
+                        <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${balanceData.wallet_enforced ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${balanceData.wallet_enforced ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                                 {balanceData.wallet_enforced ? 'MODE B: ENFORCED' : 'MODE A: REPORT ONLY'}
                             </span>
                         </div>
                     </div>
-                    <CreditCardIcon className="w-32 h-32 absolute -bottom-6 -right-6 text-white opacity-10" />
                 </div>
 
                 <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-                    <h3 className="text-slate-500 font-medium mb-1 text-sm">Status</h3>
-                    <div className="text-lg font-bold text-slate-800">
+                    <h3 className="text-slate-500 font-medium text-sm tracking-wide uppercase mb-1">Billing Status</h3>
+                    <div className="text-xl font-bold mb-1">
                         {balanceData.wallet_enforced ? (
                             <span className="text-amber-600">Pre-paid Billing Active</span>
                         ) : (
                             <span className="text-emerald-600">Unrestricted Sending</span>
                         )}
                     </div>
-                    <p className="text-xs text-slate-500 mt-2">
+                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
                         {balanceData.wallet_enforced
-                            ? "Your messages will be blocked if balance reaches zero."
-                            : "Your balance is not currently enforced. You can send messages freely."}
+                            ? "Your messages will be blocked if your balance reaches zero. Top-up to avoid service disruption."
+                            : "Your balance is not currently enforced. You can send messages freely for now."}
                     </p>
                 </div>
             </div>
@@ -193,8 +193,8 @@ const WalletReport = () => {
                         <p className="text-sm text-slate-500 mt-1">When you send messages or receive top-ups, they will appear here.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-slate-100">
+                    <div className="w-full">
+                        <table className="w-full divide-y divide-slate-100">
                             <thead className="bg-slate-50/80">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Date & Tx ID</th>

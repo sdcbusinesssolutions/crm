@@ -458,7 +458,7 @@ class CampaignWorker {
         // Get Config (WABA, Token)
         const { data: config } = await this.supabase
             .from('whatsapp_config')
-            .select('phone_number_id, meta_access_token, whatsapp_business_account_id, phone_number, meta_app_id')
+            .select('id, phone_number_id, meta_access_token, whatsapp_business_account_id, phone_number, meta_app_id')
             .eq('user_id', campaign.user_id)
             .single();
 
@@ -1318,7 +1318,7 @@ class CampaignWorker {
                      source: 'CAMPAIGN_SEND',
                      contactPhone: item.phone_number,
                      campaignId: campaign.id,
-                     whatsappAccountId: config.phone_number_id
+                     whatsappAccountId: config.id
                 });
             } catch (walletErr) {
                 // Log but don't block — message already sent successfully

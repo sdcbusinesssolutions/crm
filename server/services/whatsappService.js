@@ -208,17 +208,21 @@ class WhatsAppService {
             // Fetch actual phone number for logging
             let fromPhone = fromPhoneId; // Default
             let logWhatsappNumber = 'Unknown';
+            let waConfigId = null;
 
             try {
                 const { data: phoneData } = await supabaseAdmin
                     .from('whatsapp_config')
-                    .select('phone_number')
+                    .select('id, phone_number')
                     .eq('phone_number_id', fromPhoneId)
                     .maybeSingle();
 
-                if (phoneData?.phone_number) {
-                    fromPhone = phoneData.phone_number;
-                    logWhatsappNumber = phoneData.phone_number;
+                if (phoneData) {
+                    waConfigId = phoneData.id;
+                    if (phoneData.phone_number) {
+                        fromPhone = phoneData.phone_number;
+                        logWhatsappNumber = phoneData.phone_number;
+                    }
                 }
             } catch (e) { }
 
@@ -262,7 +266,7 @@ class WhatsAppService {
                      contactPhone: to,
                      flowId: options.flowId || null,
                      dripCampaignId: options.dripCampaignId || null,
-                     whatsappAccountId: fromPhoneId,
+                     whatsappAccountId: waConfigId || null,
                      createdBy: options.createdBy,
                      ipAddress: options.ipAddress
                  }).catch(err => console.error('[Wallet] Pre-debit failed:', err));
