@@ -193,8 +193,8 @@ const WalletReport = () => {
                         <p className="text-sm text-slate-500 mt-1">When you send messages or receive top-ups, they will appear here.</p>
                     </div>
                 ) : (
-                    <div className="w-full">
-                        <table className="w-full divide-y divide-slate-100">
+                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[400px]">
+                        <table className="w-full divide-y divide-slate-100 min-w-[900px]">
                             <thead className="bg-slate-50/80">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Date & Tx ID</th>

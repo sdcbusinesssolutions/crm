@@ -332,9 +332,8 @@ class WalletService {
             }
 
             if (isFreeFromMeta) {
-                // Meta is not charging us. We only charge the platform markup for the ACTUAL category.
-                const platformMarkup = Math.max(roundMoney(actualRate.platform_rate - actualRate.meta_cost), 0);
-                finalUserCost = platformMarkup;
+                // Meta is not charging us, and user requested NO markup charge for free messages.
+                finalUserCost = 0;
             }
 
             const delta = roundMoney(finalUserCost - preDebitAmount);
