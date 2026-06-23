@@ -227,11 +227,6 @@ const WalletReport = () => {
                                                 <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 w-fit">
                                                     {tx.source}
                                                 </span>
-                                                {(tx.source === 'RESERVATION_HOLD' || (tx.source === 'INBOX_SEND' && tx.description?.includes('refund'))) && tx.type === 'DEBIT' && (
-                                                    <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200">
-                                                        ⏳ PENDING REFUND
-                                                    </span>
-                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 max-w-sm">
