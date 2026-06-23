@@ -85,10 +85,10 @@ class WalletService {
 
         if (!selectedRate) {
             const fallbacks = {
-                MARKETING:      { platform_rate: 0.70, meta_cost: 0.0128 },
-                UTILITY:        { platform_rate: 0.22, meta_cost: 0.0040 },
-                AUTHENTICATION: { platform_rate: 0.22, meta_cost: 0.0040 },
-                SERVICE:        { platform_rate: 0.20, meta_cost: 0.0040 }
+                MARKETING:      { platform_rate: 0.70, meta_cost: 0.0000 },
+                UTILITY:        { platform_rate: 0.22, meta_cost: 0.0000 },
+                AUTHENTICATION: { platform_rate: 0.22, meta_cost: 0.0000 },
+                SERVICE:        { platform_rate: 0.20, meta_cost: 0.0000 }
             };
             selectedRate = fallbacks[category] || fallbacks.SERVICE;
         }
@@ -265,39 +265,39 @@ class WalletService {
                 return;
             }
 
-            if (pricing.billable === false) {
-                // BUG FIX: Only refund meta_cost to retain platform markup
-                const refundAmount = roundMoney(originalTx.meta_cost || 0);
-                if (refundAmount > 0) {
-                    await this._issueRefund(userId, waMessageId, refundAmount,
-                        'REFUND', null, waConversationId,
-                        `Meta Cost Refund ₹${refundAmount} — message was not billed by Meta (Free Entry/Tier)`);
-                }
-                return;
-            }
+            const preDebitAmount = roundMoney(originalTx.amount);
+            const preDebitCategory = (originalTx.wa_category || '').toUpperCase();
+            
+            // Determine actual category from webhook, default to original if missing
+            const actualCategory = (pricing?.category || preDebitCategory).toUpperCase();
+            const countryCode = this.getCountryCode(originalTx.contact_phone || contactPhone);
+            const actualRate = await this.getRate(userId, actualCategory, countryCode);
+            
+            // Calculate what the user SHOULD pay
+            let finalUserCost = roundMoney(actualRate.platform_rate);
 
-            if (waConversationId) {
+            // Is this a free message or inside an existing 24h window?
+            let isFreeFromMeta = (pricing?.billable === false);
+
+            if (!isFreeFromMeta && waConversationId) {
+                // Check if there is already a charge for this conversation window
                 const { data: existingWindowCharge } = await supabaseAdmin
                     .from('wallet_transactions')
-                    .select('id, amount, wa_category')
+                    .select('id')
                     .eq('user_id', userId)
                     .eq('wa_conversation_id', waConversationId)
                     .eq('type', 'DEBIT')
                     .not('source', 'in', '("ADJUSTMENT","REFUND","ADMIN_TOPUP","RECHARGE","WEBHOOK_SYNC")')
                     .neq('wa_message_id', waMessageId)
                     .maybeSingle();
-
+                
                 if (existingWindowCharge) {
-                    // BUG FIX: Only refund meta_cost for subsequent messages in a 24h window
-                    const refundAmount = roundMoney(originalTx.meta_cost || 0);
-                    if (refundAmount > 0) {
-                        await this._issueRefund(userId, waMessageId, refundAmount,
-                            'ADJUSTMENT', pricing.category?.toUpperCase(), waConversationId,
-                            `24h window already billed. Meta Cost Refund ₹${refundAmount}.`);
-                    }
-                    return;
+                    isFreeFromMeta = true;
                 }
+            }
 
+            if (waConversationId) {
+                // Update conversation ID for tracking
                 await supabaseAdmin
                     .from('wallet_transactions')
                     .update({
@@ -308,42 +308,39 @@ class WalletService {
                     .eq('type', 'DEBIT');
             }
 
-            if (pricing.category) {
-                const actualCategory = pricing.category.toUpperCase();
-                const preDebitCategory = (originalTx.wa_category || '').toUpperCase();
-                const preDebitAmount = roundMoney(originalTx.amount);
+            if (isFreeFromMeta) {
+                // Meta is not charging us. We only charge the platform markup for the ACTUAL category.
+                const platformMarkup = Math.max(roundMoney(actualRate.platform_rate - actualRate.meta_cost), 0);
+                finalUserCost = platformMarkup;
+            }
 
-                if (actualCategory === preDebitCategory) {
-                    return; // No change needed
-                }
+            const delta = roundMoney(finalUserCost - preDebitAmount);
 
-                const countryCode = this.getCountryCode(originalTx.contact_phone || contactPhone);
-                const actualRate = await this.getRate(userId, actualCategory, countryCode);
-                const actualAmount = roundMoney(actualRate.platform_rate);
+            if (delta < 0) {
+                // We pre-debited too much, issue refund
+                const refundDiff = Math.abs(delta);
+                let description = `Category refund: Pre-debit ${preDebitCategory} ₹${preDebitAmount}, actual=${actualCategory} ₹${finalUserCost}. Refund: ₹${refundDiff.toFixed(4)}`;
                 
-                const delta = roundMoney(actualAmount - preDebitAmount);
-
-                if (delta < 0) {
-                    // Cheaper Category -> Refund Difference
-                    const refundDiff = Math.abs(delta);
-                    await this._issueRefund(userId, waMessageId, refundDiff,
-                        'ADJUSTMENT', actualCategory, waConversationId,
-                        `Category refund: Pre-debit ${preDebitCategory} ₹${preDebitAmount}, actual=${actualCategory} ₹${actualAmount}. Refund: ₹${refundDiff.toFixed(4)}`);
-                } else if (delta > 0) {
-                    // More Expensive Category -> Debit Difference (e.g. Utility -> Marketing)
-                    console.warn(`[WalletService] Reclassification Delta: ${preDebitCategory} -> ${actualCategory}. Charging delta ₹${delta}`);
-                    const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
-                        p_user_id: userId,
-                        p_amount: delta,
-                        p_type: 'DEBIT',
-                        p_source: 'ADJUSTMENT',
-                        p_wa_category: actualCategory,
-                        p_wa_message_id: waMessageId,
-                        p_wa_conversation_id: waConversationId,
-                        p_description: `Reclassification charge: ${preDebitCategory} to ${actualCategory}. Delta: ₹${delta.toFixed(4)}`
-                    });
-                    if (error) console.error('[WalletService] Delta charge error:', error);
+                if (isFreeFromMeta) {
+                    description = `Markup only charge: Message was free from Meta. Pre-debit ₹${preDebitAmount}, markup ₹${finalUserCost}. Refund: ₹${refundDiff.toFixed(4)}`;
                 }
+
+                await this._issueRefund(userId, waMessageId, refundDiff,
+                    'ADJUSTMENT', actualCategory, waConversationId, description);
+            } else if (delta > 0) {
+                // We pre-debited too little (e.g. Utility -> Marketing)
+                console.warn(`[WalletService] Reclassification Delta: ${preDebitCategory} -> ${actualCategory}. Charging delta ₹${delta}`);
+                const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
+                    p_user_id: userId,
+                    p_amount: delta,
+                    p_type: 'DEBIT',
+                    p_source: 'ADJUSTMENT',
+                    p_wa_category: actualCategory,
+                    p_wa_message_id: waMessageId,
+                    p_wa_conversation_id: waConversationId,
+                    p_description: `Reclassification charge: ${preDebitCategory} to ${actualCategory}. Delta: ₹${delta.toFixed(4)}`
+                });
+                if (error) console.error('[WalletService] Delta charge error:', error);
             }
 
         } catch (e) {

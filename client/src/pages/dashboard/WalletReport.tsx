@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { CreditCardIcon } from '../../components/icons';
 import { supabase } from '../../lib/supabase';
 
+const CATEGORY_COLORS: Record<string, string> = {
+    MARKETING:      'bg-rose-100 text-rose-700 border-rose-200',
+    UTILITY:        'bg-blue-100 text-blue-700 border-blue-200',
+    AUTHENTICATION: 'bg-purple-100 text-purple-700 border-purple-200',
+    SERVICE:        'bg-slate-100 text-slate-700 border-slate-200',
+};
+
 const WalletReport = () => {
     const [balanceData, setBalanceData] = useState({ balance: 0, wallet_enforced: false });
     const [transactions, setTransactions] = useState<any[]>([]);
@@ -12,12 +19,14 @@ const WalletReport = () => {
     const [page, setPage] = useState(1);
     const [sourceFilter, setSourceFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const limit = 20;
 
     useEffect(() => {
         fetchBalance();
         fetchTransactions();
-    }, [page, sourceFilter, categoryFilter]);
+    }, [page, sourceFilter, categoryFilter, dateFrom, dateTo]);
 
     const fetchBalance = async () => {
         try {
@@ -44,7 +53,9 @@ const WalletReport = () => {
                 page: page.toString(),
                 limit: limit.toString(),
                 ...(sourceFilter && { source: sourceFilter }),
-                ...(categoryFilter && { category: categoryFilter })
+                ...(categoryFilter && { category: categoryFilter }),
+                ...(dateFrom && { date_from: dateFrom }),
+                ...(dateTo && { date_to: dateTo })
             });
 
             const res = await fetch(`/api/wallet/transactions?${params.toString()}`, {
@@ -81,7 +92,7 @@ const WalletReport = () => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-gradient-to-br from-brand-600 to-brand-800 rounded-2xl p-6 text-white shadow-lg shadow-brand-500/20 relative overflow-hidden">
                     <div className="relative z-10">
                         <h3 className="text-brand-100 font-medium mb-1">Current Balance</h3>
@@ -115,7 +126,7 @@ const WalletReport = () => {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="flex flex-wrap gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <select
                     value={sourceFilter}
                     onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
@@ -139,6 +150,31 @@ const WalletReport = () => {
                     <option value="AUTHENTICATION">Authentication</option>
                     <option value="SERVICE">Service</option>
                 </select>
+
+                <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500"
+                    title="From Date"
+                />
+                
+                <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500"
+                    title="To Date"
+                />
+
+                {(sourceFilter || categoryFilter || dateFrom || dateTo) && (
+                    <button
+                        onClick={() => { setSourceFilter(''); setCategoryFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
+                        className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors ml-auto"
+                    >
+                        Reset Filters
+                    </button>
+                )}
             </div>
 
             {/* Transactions Table */}
@@ -191,7 +227,7 @@ const WalletReport = () => {
                                                 <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 w-fit">
                                                     {tx.source}
                                                 </span>
-                                                {tx.source === 'RESERVATION_HOLD' && (
+                                                {(tx.source === 'RESERVATION_HOLD' || (tx.source === 'INBOX_SEND' && tx.description?.includes('refund'))) && tx.type === 'DEBIT' && (
                                                     <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded mt-1 border border-amber-200">
                                                         ⏳ PENDING REFUND
                                                     </span>
@@ -201,7 +237,7 @@ const WalletReport = () => {
                                         <td className="px-6 py-4 max-w-sm">
                                             <div className="flex flex-wrap gap-2 mb-2">
                                                 {tx.wa_category && (
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                    <div className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${CATEGORY_COLORS[tx.wa_category] || 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
                                                         {tx.wa_category}
                                                     </div>
                                                 )}
@@ -225,8 +261,8 @@ const WalletReport = () => {
                                                     </div>
                                                 )}
                                                 {tx.wa_message_id && (
-                                                    <div className="text-[10px] text-slate-500 font-mono truncate" title={`Msg ID: ${tx.wa_message_id}`}>
-                                                        <span className="font-sans font-semibold text-slate-400">MSG:</span> {tx.wa_message_id.slice(-10)}
+                                                    <div className="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title={`Msg ID: ${tx.wa_message_id}`}>
+                                                        <span className="font-sans font-semibold text-slate-400">MSG:</span> {tx.wa_message_id}
                                                     </div>
                                                 )}
                                             </div>
@@ -255,29 +291,51 @@ const WalletReport = () => {
                 )}
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-                        <div className="text-xs font-medium text-slate-500">
-                            Showing page <span className="font-bold text-slate-700">{page}</span> of <span className="font-bold text-slate-700">{totalPages}</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="px-3 py-1.5 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs font-bold bg-white"
-                            >
-                                Prev
-                            </button>
-                            <button
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={page === totalPages}
-                                className="px-3 py-1.5 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs font-bold bg-white"
-                            >
-                                Next
-                            </button>
-                        </div>
+                <div className="px-6 py-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-4 justify-between items-center rounded-b-2xl">
+                    <div className="text-xs font-medium text-slate-500">
+                        Showing page <span className="font-bold text-slate-700">{page}</span> of <span className="font-bold text-slate-700">{Math.max(1, totalPages)}</span> · {totalTransactions} total
                     </div>
-                )}
+                    <div className="flex gap-1.5 items-center">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 text-xs font-bold bg-white transition-colors"
+                        >
+                            ← Prev
+                        </button>
+                        
+                        <div className="hidden sm:flex gap-1.5 mx-2">
+                            {Array.from({ length: Math.min(5, Math.max(1, totalPages)) }, (_, i) => {
+                                let startPage = Math.max(1, page - 2);
+                                if (startPage + 4 > Math.max(1, totalPages)) startPage = Math.max(1, Math.max(1, totalPages) - 4);
+                                const p = startPage + i;
+                                if (p > Math.max(1, totalPages)) return null;
+                                
+                                return (
+                                    <button
+                                        key={p}
+                                        onClick={() => setPage(p)}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
+                                            page === p 
+                                                ? 'bg-brand-600 text-white border border-brand-600' 
+                                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {p}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <button
+                            onClick={() => setPage(p => Math.min(Math.max(1, totalPages), p + 1))}
+                            disabled={page >= Math.max(1, totalPages)}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 text-xs font-bold bg-white transition-colors"
+                        >
+                            Next →
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );

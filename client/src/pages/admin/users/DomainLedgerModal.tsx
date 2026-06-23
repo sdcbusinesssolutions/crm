@@ -308,8 +308,8 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                                         <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.whatsapp_account_id || ''}>
                                             {tx.whatsapp_account_id ? tx.whatsapp_account_id.slice(-8) : '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.wa_message_id || ''}>
-                                            {tx.wa_message_id ? tx.wa_message_id.slice(-10) : '—'}
+                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_message_id || ''}>
+                                            {tx.wa_message_id ? tx.wa_message_id : '—'}
                                         </td>
                                         <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">
                                             <span className="line-clamp-2" title={tx.description || ''}>
