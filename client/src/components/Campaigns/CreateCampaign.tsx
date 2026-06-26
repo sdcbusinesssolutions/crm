@@ -108,6 +108,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     const [sendNow, setSendNow] = useState(true);
     const [scheduledAt, setScheduledAt] = useState('');
     const [selectedPhoneNumber, setSelectedPhoneNumber] = useState('');
+    const [messageDelayUnit, setMessageDelayUnit] = useState<'seconds' | 'minutes'>('seconds');
+    const [messageDelayValue, setMessageDelayValue] = useState(0);
     const [mediaUrl, setMediaUrl] = useState('');
     const [headerType, setHeaderType] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -483,7 +485,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 mediaUrl: headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) ? mediaUrl : null,
                 carouselMediaUrls: carouselCards.length > 0 ? carouselMediaUrls : null,
                 mediaType: headerType,
-                locationHeader: headerType === 'LOCATION' ? locationHeader : null
+                locationHeader: headerType === 'LOCATION' ? locationHeader : null,
+                messageDelay: messageDelayUnit === 'minutes' ? messageDelayValue * 60 : messageDelayValue
             };
 
             const response = await fetch('/api/campaigns/create', {
@@ -716,6 +719,39 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm mt-2 text-[var(--color-text)] focus:border-[var(--color-brand)] outline-none"
                                     />
                                 )}
+                            </div>
+
+                            {/* Message Delay */}
+                            <div className="space-y-3 p-4 bg-[var(--color-bg)] rounded-[var(--radius-btn)] border border-[var(--color-border)]">
+                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Message Delay (Anti-Ban)</label>
+                                <p className="text-xs text-[var(--color-text)] opacity-60">
+                                    Set a delay between each message to prevent WhatsApp from blocking your number.
+                                </p>
+                                <div className="flex items-center gap-4 mt-2">
+                                    <select
+                                        value={messageDelayUnit}
+                                        onChange={(e) => {
+                                            setMessageDelayUnit(e.target.value as 'seconds' | 'minutes');
+                                            setMessageDelayValue(0);
+                                        }}
+                                        className="px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm text-[var(--color-text)] focus:border-[var(--color-brand)] outline-none"
+                                    >
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes">Minutes</option>
+                                    </select>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={messageDelayUnit === 'seconds' ? '60' : '15'}
+                                        step="1"
+                                        value={messageDelayValue}
+                                        onChange={(e) => setMessageDelayValue(parseInt(e.target.value))}
+                                        className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
+                                    />
+                                    <span className="text-sm font-bold text-[var(--color-text)] min-w-[3ch] text-right">
+                                        {messageDelayValue} {messageDelayUnit === 'seconds' ? 's' : 'm'}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="space-y-1">

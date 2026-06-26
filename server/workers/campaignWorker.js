@@ -700,6 +700,7 @@ class CampaignWorker {
             .select('id, status, next_retry_at, phone_number')
             .eq('campaign_id', campaign.id)
             .in('status', ['PENDING', 'RETRYING'])
+            .order('next_retry_at', { ascending: true, nullsFirst: true })
             .limit(BATCH_SIZE * 2); // Fetch more to allow for filtering
 
         if (fetchErr) {
@@ -707,10 +708,13 @@ class CampaignWorker {
             return;
         }
 
-        // Filter RETRYING items that are not yet due
+        // Filter out items that are scheduled in the future (either PENDING or RETRYING)
         const now = new Date();
         const validCandidates = candidates ? candidates.filter(c => {
-            if (c.status === 'PENDING') return true;
+            if (c.status === 'PENDING') {
+                if (c.next_retry_at && new Date(c.next_retry_at) > now) return false;
+                return true;
+            }
             if (c.status === 'RETRYING' && c.next_retry_at && new Date(c.next_retry_at) <= now) return true;
             return false;
         }).slice(0, BATCH_SIZE) : [];

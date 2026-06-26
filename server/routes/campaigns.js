@@ -258,11 +258,15 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
         // Add to Queue (With Fallback for Chunking & Performance)
         const QUEUE_BATCH_SIZE = 2000;
-        let queue = uniqueContacts.map(c => ({
+        const baseTime = sendNow ? Date.now() : new Date(scheduledAt).getTime();
+        const delayMs = parseInt(req.body.messageDelay) * 1000 || 0;
+
+        let queue = uniqueContacts.map((c, idx) => ({
             campaign_id: campaign.id,
             contact_id: c.id,
             phone_number: c.phone,
-            status: 'PENDING'
+            status: 'PENDING',
+            next_retry_at: delayMs > 0 ? new Date(baseTime + (idx * delayMs)).toISOString() : null
         }));
 
         let insertError = null;
