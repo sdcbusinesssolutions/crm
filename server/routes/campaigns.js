@@ -156,7 +156,7 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
                 // Optimization: Only select columns needed for the campaign queue
                 let query = supabase.from('contacts')
-                    .select('id, phone, name, is_blocked, tags, group_ids, custom_data')
+                    .select('id, phone, is_blocked, custom_data')
                     .eq('user_id', user.id)
                     .range(from, to);
                 
@@ -188,7 +188,8 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                         });
                     }
 
-                    allContacts = allContacts.concat(finalChunk);
+                    // Memory optimization: Use push instead of concat
+                    allContacts.push(...finalChunk);
                     if (chunk.length < chunkSize) hasMore = false;
                     else pageIndex++;
                 } else {
@@ -200,22 +201,36 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             // (Remaining filters were pushed to DB or handled in the chunk loop above)
         }
 
-        // Final normalization and deduplication
-        let validContacts = allContacts.map(c => ({
-            ...c,
-            phone: c.phone.toString().trim().replace(/\D/g, '')
-        })).map(c => ({
-            ...c,
-            phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}`
-        })).filter(c => isValidE164(c.phone));
-
-        // Deduplicate Contacts (Keep unique phones)
+        // Optimization: Single-pass normalization and deduplication
         const uniqueContactsMap = new Map();
-        validContacts.forEach(c => {
-            if (!uniqueContactsMap.has(c.phone)) {
-                uniqueContactsMap.set(c.phone, c);
+        
+        for (const c of allContacts) {
+            let phoneStr = c.phone ? c.phone.toString().trim() : '';
+            
+            // Handle Excel scientific notation corruption (best effort recovery)
+            if (phoneStr.toUpperCase().includes('E+')) {
+                const num = Number(phoneStr);
+                if (!isNaN(num)) {
+                    phoneStr = num.toLocaleString('fullwide', { useGrouping: false });
+                }
             }
-        });
+
+            let cleanPhone = phoneStr.replace(/\D/g, '');
+            
+            // Auto-fix missing country code for 10-digit Indian numbers
+            if (cleanPhone.length === 10) {
+                cleanPhone = '91' + cleanPhone;
+            }
+
+            const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+            
+            if (isValidE164(formattedPhone) && !uniqueContactsMap.has(formattedPhone)) {
+                uniqueContactsMap.set(formattedPhone, {
+                    ...c,
+                    phone: formattedPhone
+                });
+            }
+        }
         const uniqueContacts = Array.from(uniqueContactsMap.values());
 
         if (!uniqueContacts.length) return res.status(400).json({ error: 'No valid phone numbers.' });
