@@ -21,12 +21,12 @@ const WalletReport = () => {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
-    const limit = 20;
+    const [limit, setLimit] = useState(20);
 
     useEffect(() => {
         fetchBalance();
         fetchTransactions();
-    }, [page, sourceFilter, categoryFilter, dateFrom, dateTo]);
+    }, [page, limit, sourceFilter, categoryFilter, dateFrom, dateTo]);
 
     const fetchBalance = async () => {
         try {
@@ -167,10 +167,21 @@ const WalletReport = () => {
                     title="To Date"
                 />
 
-                {(sourceFilter || categoryFilter || dateFrom || dateTo) && (
+                <select
+                    value={limit}
+                    onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500 ml-auto"
+                >
+                    <option value={10}>10 / page</option>
+                    <option value={20}>20 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                </select>
+
+                {(sourceFilter || categoryFilter || dateFrom || dateTo || limit !== 20) && (
                     <button
-                        onClick={() => { setSourceFilter(''); setCategoryFilter(''); setDateFrom(''); setDateTo(''); setPage(1); }}
-                        className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors ml-auto"
+                        onClick={() => { setSourceFilter(''); setCategoryFilter(''); setDateFrom(''); setDateTo(''); setLimit(20); setPage(1); }}
+                        className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors"
                     >
                         Reset Filters
                     </button>
