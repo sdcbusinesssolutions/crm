@@ -123,14 +123,21 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             // 2. Deduplicate
             const uniquePhones = [...new Set(normalized)];
 
-            // 3. Find Existing in DB
-            const { data: existingContacts, error: fetchErr } = await supabase
-                .from('contacts')
-                .select('id, phone, name, email')
-                .eq('user_id', user.id)
-                .in('phone', uniquePhones);
+            // 3. Find Existing in DB (Safely chunked to avoid URL Too Long errors for 500+ contacts)
+            const existingContacts = [];
+            const SEARCH_CHUNK_SIZE = 200; // Safe limit for URL parameters in PostgREST
 
-            if (fetchErr) throw fetchErr;
+            for (let i = 0; i < uniquePhones.length; i += SEARCH_CHUNK_SIZE) {
+                const phoneChunk = uniquePhones.slice(i, i + SEARCH_CHUNK_SIZE);
+                const { data: chunkData, error: fetchErr } = await supabase
+                    .from('contacts')
+                    .select('id, phone, name, email')
+                    .eq('user_id', user.id)
+                    .in('phone', phoneChunk);
+
+                if (fetchErr) throw fetchErr;
+                if (chunkData) existingContacts.push(...chunkData);
+            }
 
             const existingMap = new Map(existingContacts.map(c => [c.phone, c]));
             allContacts = uniquePhones.map(phone => {
