@@ -134,16 +134,17 @@ const ClickToWhatsAppDashboard = () => {
   };
 
   const handleConnectFacebook = async () => {
-    // Hardcoding App ID as requested by user
-    const hardcodedAppId = '1046904630557061';
+    const finalAppId = appId || '1046904630557061';
+    const finalConfigId = configId || '976277771227161';
     
-    await loadFacebookSDK(hardcodedAppId);
+    await loadFacebookSDK(finalAppId);
     
     window.FB.login((response: any) => {
       if (response.authResponse) {
+        const code = response.authResponse.code;
         const accessToken = response.authResponse.accessToken;
         
-        // Send token to backend
+        // Send token/code to backend
         const token = localStorage.getItem('supabase.auth.token') 
             ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
             : null;
@@ -154,7 +155,7 @@ const ClickToWhatsAppDashboard = () => {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           },
-          body: JSON.stringify({ accessToken })
+          body: JSON.stringify({ code: code, accessToken: accessToken })
         })
         .then(res => res.json())
         .then(data => {
@@ -173,7 +174,9 @@ const ClickToWhatsAppDashboard = () => {
         console.log('User cancelled login or did not fully authorize.');
       }
     }, { 
-      config_id: '976277771227161',
+      config_id: finalConfigId,
+      response_type: 'code',
+      override_default_response_type: true,
       scope: 'ads_management,pages_show_list,pages_read_engagement,pages_manage_ads', 
       return_scopes: true 
     });

@@ -164,10 +164,10 @@ router.post('/auth', requireAuth, async (req, res) => {
     try {
         const userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
-        const { accessToken } = req.body;
+        const { accessToken, code } = req.body;
 
-        if (!accessToken) {
-            return res.status(400).json({ error: 'Access token is required.' });
+        if (!accessToken && !code) {
+            return res.status(400).json({ error: 'Access token or code is required.' });
         }
 
         // Fetch system settings to get app credentials for token exchange
@@ -178,7 +178,24 @@ router.post('/auth', requireAuth, async (req, res) => {
 
         let finalToken = accessToken;
 
-        if (sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+        if (code && sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+            try {
+                const axios = require('axios');
+                const response = await axios.get('https://graph.facebook.com/v20.0/oauth/access_token', {
+                    params: {
+                        client_id: sysSettings.embedded_app_id,
+                        client_secret: sysSettings.embedded_app_secret,
+                        code: code
+                    }
+                });
+                if (response.data && response.data.access_token) {
+                    finalToken = response.data.access_token;
+                }
+            } catch (exchangeError) {
+                console.error('[Code Exchange Error]:', exchangeError.response?.data || exchangeError.message);
+                return res.status(400).json({ error: 'Failed to exchange code for token' });
+            }
+        } else if (accessToken && sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
             try {
                 const axios = require('axios');
                 const response = await axios.get('https://graph.facebook.com/v20.0/oauth/access_token', {
@@ -198,14 +215,35 @@ router.post('/auth', requireAuth, async (req, res) => {
             }
         }
 
-        // Save to whatsapp_config (upsert)
-        const { error: upsertError } = await supabase
+        if (!finalToken) {
+            return res.status(400).json({ error: 'Valid token could not be obtained.' });
+        }
+
+        // Save to whatsapp_config (update first existing, or insert new)
+        const { data: existingConfigs } = await supabase
             .from('whatsapp_config')
-            .upsert({
-                user_id: userId,
-                meta_access_token: finalToken,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'user_id' });
+            .select('id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: true });
+
+        let upsertError = null;
+        if (existingConfigs && existingConfigs.length > 0) {
+            const { error } = await supabase
+                .from('whatsapp_config')
+                .update({ meta_access_token: finalToken, updated_at: new Date().toISOString() })
+                .eq('user_id', userId); // Update all accounts for this user to have the new token
+            upsertError = error;
+        } else {
+            const { error } = await supabase
+                .from('whatsapp_config')
+                .insert({
+                    user_id: userId,
+                    name: 'Facebook Ads Config',
+                    meta_access_token: finalToken,
+                    updated_at: new Date().toISOString()
+                });
+            upsertError = error;
+        }
 
         if (upsertError) {
             throw upsertError;
