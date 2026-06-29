@@ -116,7 +116,7 @@ class FacebookAdsService {
                 params: {
                     name: campaignName,
                     objective: 'OUTCOME_ENGAGEMENT',
-                    status: 'ACTIVE',
+                    status: 'PAUSED',
                     special_ad_categories: '[]',
                     access_token: accessToken
                 }
@@ -144,7 +144,9 @@ class FacebookAdsService {
                 optimization_goal: 'CONVERSATIONS',
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 destination_type: 'WHATSAPP',
-                promoted_object: JSON.stringify({ page_id: pageId }),
+                promoted_object: JSON.stringify({ 
+                    page_id: pageId
+                }),
                 targeting: JSON.stringify({
                     geo_locations: { countries: countriesArray },
                     device_platforms: ['mobile', 'desktop'],
@@ -152,7 +154,7 @@ class FacebookAdsService {
                     age_max: maxAge ? parseInt(maxAge) : 65,
                     genders: gendersArray
                 }),
-                status: 'ACTIVE',
+                status: 'PAUSED',
                 access_token: accessToken,
                 ...scheduleParams
             };
@@ -167,12 +169,11 @@ class FacebookAdsService {
                 landing_screen_type: "welcome_message",
                 media_type: "text",
                 text_format: {
-                    customer_action_type: "prefilled_message",
+                    customer_action_type: "ice_breakers",
                     message: {
                         text: welcomeMessageText || "Hi! I'm interested in this.",
                         ice_breakers: [{
-                            title: iceBreakerText || "I'm interested!",
-                            response: "AD_CLICK_TRIGGER"
+                            title: iceBreakerText || "I'm interested!"
                         }]
                     }
                 }
@@ -182,12 +183,12 @@ class FacebookAdsService {
             // Step 3: Create Ad Creative
             const objectStorySpec = {
                 page_id: pageId,
-                page_welcome_message: welcomeMessageStr,
                 link_data: {
-                    image_hash: imageHash,
-                    link: 'https://api.whatsapp.com/send', // Standard for CTWA
                     name: headline,
                     message: primaryText,
+                    image_hash: imageHash,
+                    link: 'https://api.whatsapp.com/send',
+                    page_welcome_message: welcomeMessageStr,
                     call_to_action: {
                         type: 'WHATSAPP_MESSAGE',
                         value: { app_destination: 'WHATSAPP' }
@@ -210,7 +211,7 @@ class FacebookAdsService {
                     name: `${campaignName} - Ad`,
                     adset_id: adSetId,
                     creative: JSON.stringify({ creative_id: creativeId }),
-                    status: 'ACTIVE',
+                    status: 'PAUSED',
                     access_token: accessToken
                 }
             });

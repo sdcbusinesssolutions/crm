@@ -156,4 +156,66 @@ router.post('/launch', requireAuth, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/click-to-whatsapp/auth
+ * Handles saving the Facebook Access Token from frontend login
+ */
+router.post('/auth', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { accessToken } = req.body;
+
+        if (!accessToken) {
+            return res.status(400).json({ error: 'Access token is required.' });
+        }
+
+        // Fetch system settings to get app credentials for token exchange
+        const { data: sysSettings } = await supabase
+            .from('system_settings')
+            .select('embedded_app_id, embedded_app_secret')
+            .single();
+
+        let finalToken = accessToken;
+
+        if (sysSettings && sysSettings.embedded_app_id && sysSettings.embedded_app_secret) {
+            try {
+                const axios = require('axios');
+                const response = await axios.get('https://graph.facebook.com/v20.0/oauth/access_token', {
+                    params: {
+                        grant_type: 'fb_exchange_token',
+                        client_id: sysSettings.embedded_app_id,
+                        client_secret: sysSettings.embedded_app_secret,
+                        fb_exchange_token: accessToken
+                    }
+                });
+                if (response.data && response.data.access_token) {
+                    finalToken = response.data.access_token;
+                }
+            } catch (exchangeError) {
+                console.error('[Token Exchange Error]:', exchangeError.response?.data || exchangeError.message);
+                // Fall back to short-lived token if exchange fails
+            }
+        }
+
+        // Save to whatsapp_config (upsert)
+        const { error: upsertError } = await supabase
+            .from('whatsapp_config')
+            .upsert({
+                user_id: userId,
+                meta_access_token: finalToken,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+
+        if (upsertError) {
+            throw upsertError;
+        }
+
+        res.status(200).json({ success: true, message: 'Facebook account connected successfully.' });
+    } catch (error) {
+        console.error('[Click To WhatsApp Auth Error]:', error);
+        res.status(500).json({ error: error.message || 'An error occurred while connecting Facebook account.' });
+    }
+});
+
 module.exports = router;

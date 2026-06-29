@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './ClickToWhatsAppDashboard.css';
 import ClickToWhatsAppLauncher from './ClickToWhatsAppLauncher';
+import { settingsService } from '../services/settingsService';
 
+declare global {
+  interface Window {
+    fbAsyncInit: () => void;
+    FB: any;
+  }
+}
 interface FacebookPage {
   id: string;
   name: string;
@@ -24,6 +31,8 @@ const ClickToWhatsAppDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   const [selectedAdAccount, setSelectedAdAccount] = useState<string | null>(null);
+  const [appId, setAppId] = useState<string | null>(null);
+  const [configId, setConfigId] = useState<string | null>(null);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,13 +83,100 @@ const ClickToWhatsAppDashboard = () => {
     }
   };
 
+  const loadEmbeddedConfig = async () => {
+    try {
+      const data = await settingsService.getEmbeddedSignupConfig();
+      if (data && data.appId) {
+        setAppId(data.appId);
+        if (data.configId) setConfigId(data.configId);
+      }
+    } catch (err) {
+      console.error("Failed to load embedded config for FB Ads:", err);
+    }
+  };
+
   useEffect(() => {
     fetchPages();
+    loadEmbeddedConfig();
   }, []);
 
-  const handleConnectFacebook = () => {
-    // Integration point for Facebook Login Flow
-    alert('Connecting to Facebook... (Implement OAuth flow here)');
+  const loadFacebookSDK = (appId: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (window.FB) {
+        resolve();
+        return;
+      }
+      
+      window.fbAsyncInit = function() {
+        window.FB.init({
+          appId      : appId,
+          cookie     : true,
+          xfbml      : true,
+          version    : 'v20.0'
+        });
+        resolve();
+      };
+      
+      const loadScript = () => {
+        const script = document.createElement('script');
+        script.id = 'facebook-jssdk';
+        script.src = "https://connect.facebook.net/en_US/sdk.js";
+        script.async = true;
+        script.defer = true;
+        script.crossOrigin = "anonymous";
+        document.body.appendChild(script);
+      };
+      
+      if (!document.getElementById('facebook-jssdk')) {
+        loadScript();
+      }
+    });
+  };
+
+  const handleConnectFacebook = async () => {
+    // Hardcoding App ID as requested by user
+    const hardcodedAppId = '1046904630557061';
+    
+    await loadFacebookSDK(hardcodedAppId);
+    
+    window.FB.login((response: any) => {
+      if (response.authResponse) {
+        const accessToken = response.authResponse.accessToken;
+        
+        // Send token to backend
+        const token = localStorage.getItem('supabase.auth.token') 
+            ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
+            : null;
+            
+        fetch('/api/click-to-whatsapp/auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ accessToken })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            fetchPages(); // Refresh the pages and ads data
+            alert('Facebook account connected successfully for Ads.');
+          } else {
+            alert('Error connecting Facebook: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(err => {
+          console.error("Auth token exchange failed", err);
+          alert('Failed to connect Facebook account.');
+        });
+      } else {
+        console.log('User cancelled login or did not fully authorize.');
+      }
+    }, { 
+      config_id: '976277771227161',
+      scope: 'ads_management,pages_show_list,pages_read_engagement,pages_manage_ads', 
+      return_scopes: true 
+    });
   };
 
   const handleSyncPages = () => {
