@@ -723,9 +723,9 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
 
                             {/* Message Delay */}
                             <div className="space-y-3 p-4 bg-[var(--color-bg)] rounded-[var(--radius-btn)] border border-[var(--color-border)]">
-                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Message Delay (Anti-Ban)</label>
+                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Message Delay</label>
                                 <p className="text-xs text-[var(--color-text)] opacity-60">
-                                    Set a delay between each message to prevent WhatsApp from blocking your number.
+                                    Set a delay between each message to control the delivery rate of your campaign.
                                 </p>
                                 <div className="flex items-center gap-4 mt-2">
                                     <select
