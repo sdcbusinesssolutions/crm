@@ -8,7 +8,7 @@ router.use((req, res, next) => {
     next();
 });
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
-const { logInboxMessage, logWebhookEvent } = require('../utils/logger');
+const { logInboxMessage, logWebhookEvent, logMetaEvent } = require('../utils/logger');
 const { extractMessageContent } = require('../utils/whatsappParser');
 const fs = require('fs');
 const path = require('path');
@@ -363,6 +363,7 @@ router.get('/webhook', async (req, res) => {
         const challenge = req.query['hub.challenge'];
 
         console.log(`[Global Webhook GET] Verification request:`, { mode, token });
+        if (logMetaEvent) logMetaEvent('GLOBAL_GET_VERIFICATION', { mode, token, challenge });
 
         if (mode && token) {
             if (mode === 'subscribe') {
@@ -395,6 +396,7 @@ router.get('/:userId/:phoneNumberId/webhook', async (req, res) => {
         const challenge = req.query['hub.challenge'];
 
         console.log(`[Webhook GET] Verification request for User: ${userId}, Phone: ${phoneNumberId}`);
+        if (logMetaEvent) logMetaEvent('GET_VERIFICATION', { params: req.params, query: req.query });
 
         // Check if mode and token exist
         if (!mode || !token) {
@@ -445,6 +447,9 @@ router.post('/webhook', async (req, res) => {
     
     if (logWebhookEvent) {
         logWebhookEvent('GLOBAL_WEBHOOK', rawBody);
+    }
+    if (logMetaEvent) {
+        logMetaEvent('GLOBAL_POST_PAYLOAD', rawBody);
     }
 
     try {
@@ -599,6 +604,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
     // Log raw webhook to rotating file
     if (logWebhookEvent) {
         logWebhookEvent('INCOMING_WEBHOOK', rawBody);
+    }
+    if (logMetaEvent) {
+        logMetaEvent('POST_PAYLOAD', { userId, phoneNumberId, payload: rawBody });
     }
 
     // --- SECURITY FIX: TRUST PAYLOAD METADATA OVER URL PARAMS ---

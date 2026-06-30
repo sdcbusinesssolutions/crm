@@ -265,6 +265,12 @@ function logOnboardingEvent(type, data) {
 
 // --- New Loggers ---
 
+const MAX_META_LOG_SIZE = 5 * 1024 * 1024; // 5MB
+
+function logMetaEvent(type, data) {
+    _logToFile('meta_logs', type, data, MAX_META_LOG_SIZE);
+}
+
 function logTemplateEvent(type, data) {
     _logToFile('template_logs', type, data, MAX_TEMPLATE_LOG_SIZE);
 }
@@ -346,6 +352,7 @@ module.exports = {
     logInboxMessage,
     logFlowEvent,
     logOnboardingEvent,
+    logMetaEvent,
     logTemplateEvent,
     logCRMEvent,
     logFormBuilderEvent,
