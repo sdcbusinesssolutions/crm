@@ -62,6 +62,9 @@ const ClickToWhatsAppDashboard = () => {
            ]);
         }
       } else {
+        if (res.status === 400 || res.status === 500) {
+          alert('Error fetching accounts: ' + (result.error || 'Unknown error'));
+        }
         // For development/UI testing: Show mock data if token is missing
         setAdAccounts([
           { id: '1', account_id: '853910235680563', name: 'HD Techs Admin', currency: 'USD', balance: 0 },

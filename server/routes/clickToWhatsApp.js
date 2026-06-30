@@ -30,11 +30,21 @@ router.get('/accounts', requireAuth, async (req, res) => {
 
         const accessToken = config.meta_access_token;
 
-        // Fetch both pages and ad accounts in parallel
-        const [adAccounts, pages] = await Promise.all([
-            FacebookAdsService.fetchAdAccounts(accessToken),
-            FacebookAdsService.fetchPages(accessToken)
-        ]);
+        let adAccounts = [];
+        let pages = [];
+        try {
+            adAccounts = await FacebookAdsService.fetchAdAccounts(accessToken);
+        } catch (e) {
+            console.error('[Fetch Ad Accounts API Error]:', e.message);
+            return res.status(400).json({ error: 'Ad Accounts Error: ' + e.message });
+        }
+
+        try {
+            pages = await FacebookAdsService.fetchPages(accessToken);
+        } catch (e) {
+            console.error('[Fetch Pages API Error]:', e.message);
+            return res.status(400).json({ error: 'Pages Error: ' + e.message });
+        }
 
         res.status(200).json({
             success: true,
@@ -44,7 +54,7 @@ router.get('/accounts', requireAuth, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[Fetch Accounts API Error]:', error);
+        console.error('[Fetch Accounts Unexpected Error]:', error);
         res.status(500).json({ error: error.message || 'An error occurred while fetching accounts.' });
     }
 });
