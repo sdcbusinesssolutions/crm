@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './ClickToWhatsAppDashboard.css';
 import ClickToWhatsAppLauncher from './ClickToWhatsAppLauncher';
 import { settingsService } from '../services/settingsService';
+import { tokenService } from '../services/tokenService';
 
 declare global {
   interface Window {
@@ -41,11 +42,9 @@ const ClickToWhatsAppDashboard = () => {
   const fetchPages = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('supabase.auth.token') 
-            ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
-            : null;
+      const authHeader = await tokenService.getAuthHeader();
       const res = await fetch('/api/click-to-whatsapp/accounts', {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: authHeader
       });
       const result = await res.json();
       if (res.ok && result.success) {
@@ -145,30 +144,27 @@ const ClickToWhatsAppDashboard = () => {
         const accessToken = response.authResponse.accessToken;
         
         // Send token/code to backend
-        const token = localStorage.getItem('supabase.auth.token') 
-            ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
-            : null;
-            
-        fetch('/api/click-to-whatsapp/auth', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ code: code, accessToken: accessToken })
-        })
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            fetchPages(); // Refresh the pages and ads data
-            alert('Facebook account connected successfully for Ads.');
-          } else {
-            alert('Error connecting Facebook: ' + (data.error || 'Unknown error'));
-          }
-        })
-        .catch(err => {
-          console.error("Auth token exchange failed", err);
-          alert('Failed to connect Facebook account.');
+        tokenService.getAuthHeader().then(authHeader => {
+          fetch('/api/click-to-whatsapp/auth', {
+            method: 'POST',
+            headers: {
+              ...authHeader
+            },
+            body: JSON.stringify({ code: code, accessToken: accessToken })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              fetchPages(); // Refresh the pages and ads data
+              alert('Facebook account connected successfully for Ads.');
+            } else {
+              alert('Error connecting Facebook: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(err => {
+            console.error("Auth token exchange failed", err);
+            alert('Failed to connect Facebook account.');
+          });
         });
       } else {
         console.log('User cancelled login or did not fully authorize.');

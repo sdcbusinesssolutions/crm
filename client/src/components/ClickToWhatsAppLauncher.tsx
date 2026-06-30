@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import { tokenService } from '../services/tokenService';
 import './ClickToWhatsAppLauncher.css';
 
 const ClickToWhatsAppLauncher = () => {
@@ -37,11 +38,9 @@ const ClickToWhatsAppLauncher = () => {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const token = localStorage.getItem('supabase.auth.token') 
-              ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
-              : null;
+        const authHeader = await tokenService.getAuthHeader();
         const res = await fetch('/api/click-to-whatsapp/accounts', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          headers: authHeader
         });
         const result = await res.json();
         if (res.ok && result.success) {
@@ -90,12 +89,11 @@ const ClickToWhatsAppLauncher = () => {
     uploadData.append('module', 'ctwa');
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-            
+      const authHeader = await tokenService.getAuthHeader();
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
-          ...(session ? { 'Authorization': `Bearer ${session.access_token}` } : {})
+          'Authorization': authHeader.Authorization || ''
         },
         body: uploadData
       });
@@ -125,15 +123,12 @@ const ClickToWhatsAppLauncher = () => {
     setSuccessData(null);
 
     try {
-      const token = localStorage.getItem('supabase.auth.token') 
-            ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
-            : null;
+      const authHeader = await tokenService.getAuthHeader();
       
       const response = await fetch('/api/click-to-whatsapp/launch', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          ...authHeader
         },
         body: JSON.stringify(formData)
       });

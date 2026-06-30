@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './AdInsightsDashboard.css';
+import { tokenService } from '../services/tokenService';
 
 interface AdInsightsDashboardProps {
   level: string;
@@ -27,12 +28,10 @@ const AdInsightsDashboard: React.FC<AdInsightsDashboardProps> = ({ level, entity
       setLoading(true);
       setError('');
       try {
-        const token = localStorage.getItem('supabase.auth.token') 
-              ? JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').currentSession?.access_token
-              : null;
+        const authHeader = await tokenService.getAuthHeader();
               
         const response = await fetch(`/api/click-to-whatsapp/insights/${level}/${entityId}`, {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          headers: authHeader
         });
         
         const result = await response.json();
