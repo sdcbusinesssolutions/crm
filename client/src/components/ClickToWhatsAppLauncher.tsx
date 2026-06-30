@@ -33,9 +33,9 @@ const ClickToWhatsAppLauncher = () => {
     pageId: '',
     campaignName: '',
     dailyBudget: '',
-    headline: '',
-    primaryText: '',
-    imageUrl: '',
+    headline: 'Chat with us on WhatsApp!',
+    primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
+    imageUrl: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     targetCountries: '',
     minAge: '18',
     maxAge: '65',
@@ -243,8 +243,10 @@ const ClickToWhatsAppLauncher = () => {
                 <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.205.534 1.292.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.665.592 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824zm-3.392-10.61c-4.418 0-8 3.582-8 8s3.582 8 8 8c1.396 0 2.709-.356 3.844-.981l4.156 1.089-1.111-4.053c.699-1.203 1.111-2.607 1.111-4.055 0-4.418-3.582-8-8-8z"/>
               </svg>
             </div>
-            <h2>Launch WhatsApp Ad</h2>
-            <p>Drive conversations directly from Facebook & Instagram.</p>
+            <div className="ctwa-header-text">
+              <h2>Launch WhatsApp Ad</h2>
+              <p>Drive conversations directly from Facebook & Instagram.</p>
+            </div>
           </div>
 
           {formErrors.length > 0 && (
@@ -333,43 +335,41 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
                     <label>Primary Text</label>
-                    <textarea 
+                    <input 
+                      type="text"
                       name="primaryText" 
-                      rows={1}
+                      placeholder="e.g. Get 20% off your first order when you chat with us!" 
                       value={formData.primaryText}
                       onChange={handleChange}
                       required 
-                      style={{ minHeight: '42px', resize: 'vertical' }}
                     />
                   </div>
 
                   <div className="ctwa-form-group">
                     <label>Ad Image</label>
-                    <div className="flex gap-2 mb-2 mt-1">
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileUpload}
-                        className="block w-full text-sm text-[var(--color-text)]
-                        file:mr-4 file:py-2 file:px-4
-                        file:rounded-full file:border-0
-                        file:text-xs file:font-semibold
-                        file:bg-[#25D366] file:text-white
-                        hover:file:bg-[#128C7E]
-                        cursor-pointer"
-                        required={!formData.imageUrl}
+                    <div className="flex gap-2 items-center w-full">
+                      <input 
+                        type="url" 
+                        name="imageUrl" 
+                        placeholder="Image URL..." 
+                        value={formData.imageUrl}
+                        onChange={handleChange}
+                        required 
+                        className="flex-1"
+                        style={{ margin: 0 }}
                       />
+                      <label className="cursor-pointer bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-semibold py-2.5 px-4 rounded-xl flex-shrink-0 transition-colors whitespace-nowrap shadow-sm">
+                        Upload
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
                     </div>
-                    {uploading && <p className="text-xs text-[#25D366] animate-pulse mb-2">Uploading...</p>}
-                    {uploadError && <p className="text-xs text-red-500 mb-2">{uploadError}</p>}
-                    <input 
-                      type="url" 
-                      name="imageUrl" 
-                      placeholder="Or enter direct image URL e.g. https://yourwebsite.com/image.jpg" 
-                      value={formData.imageUrl}
-                      onChange={handleChange}
-                      required 
-                    />
+                    {uploading && <p className="text-xs text-[#25D366] animate-pulse mt-1">Uploading...</p>}
+                    {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
                   </div>
                   <div className="ctwa-form-group">
                     <label>Ad Description (Optional)</label>

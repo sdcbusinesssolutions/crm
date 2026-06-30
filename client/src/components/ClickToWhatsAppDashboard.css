@@ -1,8 +1,10 @@
 .ctwa-dash-container {
-  padding: 2rem;
+  padding: 1rem;
   background-color: #f8fafc;
   min-height: 100vh;
   font-family: 'Inter', -apple-system, sans-serif;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .ctwa-dash-header-row {

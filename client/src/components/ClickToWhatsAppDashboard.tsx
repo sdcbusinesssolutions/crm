@@ -462,8 +462,8 @@ const ClickToWhatsAppDashboard = () => {
       )}
 
       {activeTab === 'ads' && selectedAdAccount && (
-        <div style={{ marginTop: '2rem' }}>
-          <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginTop: '0.5rem' }}>
+          <div style={{ marginBottom: '0.5rem' }}>
             <button 
               onClick={() => setSelectedAdAccount(null)}
               className="ctwa-back-link"
