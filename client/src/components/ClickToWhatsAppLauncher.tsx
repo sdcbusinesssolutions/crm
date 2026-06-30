@@ -1,7 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { tokenService } from '../services/tokenService';
+import Select from 'react-select';
 import './ClickToWhatsAppLauncher.css';
+
+const countryOptions = [
+  { value: 'US', label: 'United States' },
+  { value: 'GB', label: 'United Kingdom' },
+  { value: 'IN', label: 'India' },
+  { value: 'CA', label: 'Canada' },
+  { value: 'AU', label: 'Australia' },
+  { value: 'BR', label: 'Brazil' },
+  { value: 'MX', label: 'Mexico' },
+  { value: 'ID', label: 'Indonesia' },
+  { value: 'PH', label: 'Philippines' },
+  { value: 'ZA', label: 'South Africa' },
+  { value: 'NG', label: 'Nigeria' },
+  { value: 'AE', label: 'United Arab Emirates' },
+  { value: 'SA', label: 'Saudi Arabia' },
+  { value: 'DE', label: 'Germany' },
+  { value: 'FR', label: 'France' },
+  { value: 'IT', label: 'Italy' },
+  { value: 'ES', label: 'Spain' }
+];
 
 const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -10,19 +31,21 @@ const ClickToWhatsAppLauncher = () => {
   const [formData, setFormData] = useState({
     adAccountId: '',
     pageId: '',
-    campaignName: 'New Click to WhatsApp Campaign',
-    dailyBudget: 10,
-    headline: 'Chat with us on WhatsApp!',
-    primaryText: 'Click below to instantly connect with our team via WhatsApp.',
+    campaignName: '',
+    dailyBudget: '',
+    headline: '',
+    primaryText: '',
     imageUrl: '',
-    welcomeMessageText: "Hi! I'm interested in this.",
-    iceBreakerText: "I'm interested!",
     targetCountries: '',
-    minAge: 18,
-    maxAge: 65,
+    minAge: '18',
+    maxAge: '65',
     gender: 'all',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    welcomeMessageText: 'Hi! I am interested in this.',
+    iceBreakerText: 'I am interested!',
+    description: '',
+    status: 'PAUSED'
   });
   
   const [loading, setLoading] = useState(false);
@@ -30,6 +53,7 @@ const ClickToWhatsAppLauncher = () => {
   const [uploadError, setUploadError] = useState('');
   const [successData, setSuccessData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [formErrors, setFormErrors] = useState<string[]>([]);
   
   const [adAccounts, setAdAccounts] = useState<any[]>([]);
   const [pages, setPages] = useState<any[]>([]);
@@ -66,8 +90,52 @@ const ClickToWhatsAppLauncher = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const selectedAccount = adAccounts.find(acc => acc.account_id === formData.adAccountId);
+  const currencyCode = selectedAccount?.currency || 'USD';
+  
+  const currencySymbolMap: Record<string, string> = {
+    USD: '$',
+    INR: '₹',
+    EUR: '€',
+    GBP: '£',
+    AUD: 'A$',
+    CAD: 'C$',
+    BRL: 'R$',
+    MXN: '$',
+  };
+  const currencySymbol = currencySymbolMap[currencyCode] || currencyCode + ' ';
+
+  const validateStep = (step: number) => {
+    const errors: string[] = [];
+    if (step === 1) {
+      if (!formData.campaignName) errors.push("Campaign Name is required");
+      if (!formData.headline || formData.headline.length > 255) errors.push("Headline must be 1-255 characters");
+      if (!formData.primaryText || formData.primaryText.length > 2200) errors.push("Primary text must be 1-2200 characters");
+      if (formData.description && formData.description.length > 255) errors.push("Description must be under 255 characters");
+      if (!formData.welcomeMessageText || formData.welcomeMessageText.length > 80) errors.push("Welcome Message must be 1-80 characters");
+      if (!formData.iceBreakerText || formData.iceBreakerText.length > 80) errors.push("Ice Breaker button text must be 1-80 characters");
+      if (!formData.imageUrl) errors.push("Ad Image is required");
+    } else if (step === 2) {
+      if (!formData.targetCountries) errors.push("Select at least one Target Country");
+      const minAge = parseInt(formData.minAge);
+      const maxAge = parseInt(formData.maxAge);
+      if (minAge < 13 || maxAge > 65 || minAge > maxAge) errors.push("Valid age range is 13 to 65, and min age must be less than or equal to max age");
+    } else if (step === 3) {
+      const budget = parseFloat(formData.dailyBudget);
+      if (isNaN(budget) || budget <= 0) errors.push("Daily budget must be greater than 0");
+      if (formData.startDate && formData.endDate) {
+        if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+          errors.push("End date must be after start date");
+        }
+      }
+    }
+    
+    setFormErrors(errors);
+    return errors.length === 0;
+  };
+
   const nextStep = () => {
-    if (currentStep < totalSteps) {
+    if (validateStep(currentStep) && currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -114,7 +182,11 @@ const ClickToWhatsAppLauncher = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentStep !== totalSteps) {
-      nextStep();
+      if (validateStep(currentStep)) nextStep();
+      return;
+    }
+
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       return;
     }
 
@@ -174,6 +246,14 @@ const ClickToWhatsAppLauncher = () => {
             <h2>Launch WhatsApp Ad</h2>
             <p>Drive conversations directly from Facebook & Instagram.</p>
           </div>
+
+          {formErrors.length > 0 && (
+            <div className="ctwa-error" style={{ marginBottom: '1.5rem', marginTop: '0' }}>
+              <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                {formErrors.map((err, i) => <li key={i}>{err}</li>)}
+              </ul>
+            </div>
+          )}
 
           {renderStepIndicator()}
 
@@ -277,6 +357,7 @@ const ClickToWhatsAppLauncher = () => {
                         file:bg-[#25D366] file:text-white
                         hover:file:bg-[#128C7E]
                         cursor-pointer"
+                        required={!formData.imageUrl}
                       />
                     </div>
                     {uploading && <p className="text-xs text-[#25D366] animate-pulse mb-2">Uploading...</p>}
@@ -290,9 +371,25 @@ const ClickToWhatsAppLauncher = () => {
                       required 
                     />
                   </div>
+                  <div className="ctwa-form-group">
+                    <label>Ad Description (Optional)</label>
+                    <input 
+                      type="text" 
+                      name="description" 
+                      value={formData.description}
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
 
                 <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label>Ad Status</label>
+                    <select name="status" value={formData.status} onChange={handleChange} required className="ctwa-select">
+                      <option value="PAUSED">Paused (Draft)</option>
+                      <option value="ACTIVE">Active (Publish Immediately)</option>
+                    </select>
+                  </div>
                   <div className="ctwa-form-group">
                     <label>WhatsApp Welcome Message</label>
                     <input 
@@ -321,50 +418,77 @@ const ClickToWhatsAppLauncher = () => {
               <div className="ctwa-step-content">
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label>Target Countries (Comma-separated codes)</label>
-                    <input 
-                      type="text" 
-                      name="targetCountries" 
-                      placeholder="e.g. US, IN, GB" 
-                      value={formData.targetCountries}
-                      onChange={handleChange}
-                      required 
-                    />
-                  </div>
-                  <div className="ctwa-form-group">
-                    <label>Min Age</label>
-                    <input 
-                      type="number" 
-                      name="minAge" 
-                      min="18" 
-                      max="65"
-                      value={formData.minAge}
-                      onChange={handleChange}
-                      required 
+                    <label>Target Countries</label>
+                    <Select
+                      isMulti
+                      options={countryOptions}
+                      placeholder="Select countries..."
+                      value={countryOptions.filter(c => formData.targetCountries.split(',').includes(c.value))}
+                      onChange={(selected: any) => {
+                        setFormData({ ...formData, targetCountries: selected ? selected.map((s: any) => s.value).join(',') : '' });
+                      }}
+                      styles={{
+                        control: (base, state) => ({
+                          ...base,
+                          padding: '4px',
+                          borderRadius: '12px',
+                          borderColor: state.isFocused ? '#25D366' : 'rgba(209, 213, 219, 0.6)',
+                          boxShadow: state.isFocused ? '0 0 0 4px rgba(37, 211, 102, 0.1)' : 'none',
+                          '&:hover': {
+                            borderColor: state.isFocused ? '#25D366' : 'rgba(209, 213, 219, 0.8)'
+                          }
+                        })
+                      }}
                     />
                   </div>
                 </div>
 
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label>Max Age</label>
-                    <input 
-                      type="number" 
-                      name="maxAge" 
-                      min="18" 
-                      max="65"
-                      value={formData.maxAge}
-                      onChange={handleChange}
-                      required 
-                    />
+                    <label>Age Range</label>
+                    <div className="ctwa-age-range">
+                      <input 
+                        type="number" 
+                        name="minAge" 
+                        min="18" 
+                        max="65"
+                        value={formData.minAge}
+                        onChange={handleChange}
+                        required 
+                        className="age-input"
+                      />
+                      <span className="age-separator">to</span>
+                      <input 
+                        type="number" 
+                        name="maxAge" 
+                        min="18" 
+                        max="65"
+                        value={formData.maxAge}
+                        onChange={handleChange}
+                        required 
+                        className="age-input"
+                      />
+                    </div>
                   </div>
                   <div className="ctwa-form-group">
                     <label>Gender</label>
-                    <select name="gender" value={formData.gender} onChange={handleChange} required className="ctwa-select">
-                      <option value="all">All Genders</option>
-                      <option value="1">Men</option>
-                      <option value="2">Women</option>
-                    </select>
+                    <div className="ctwa-pill-group">
+                      <button 
+                        type="button" 
+                        className={`ctwa-pill ${formData.gender === 'all' ? 'active' : ''}`}
+                        onClick={() => setFormData({...formData, gender: 'all'})}
+                      >All</button>
+                      <button 
+                        type="button" 
+                        className={`ctwa-pill ${formData.gender === '1' ? 'active' : ''}`}
+                        onClick={() => setFormData({...formData, gender: '1'})}
+                      >Men</button>
+                      <button 
+                        type="button" 
+                        className={`ctwa-pill ${formData.gender === '2' ? 'active' : ''}`}
+                        onClick={() => setFormData({...formData, gender: '2'})}
+                      >Women</button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -372,9 +496,10 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 3 && (
               <div className="ctwa-step-content">
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group">
-                    <label>Daily Budget (USD)</label>
+                <div className="ctwa-form-group">
+                  <label>Daily Budget</label>
+                  <div className="ctwa-budget-wrapper">
+                    <span className="budget-currency">{currencySymbol}</span>
                     <input 
                       type="number" 
                       name="dailyBudget" 
@@ -383,8 +508,23 @@ const ClickToWhatsAppLauncher = () => {
                       value={formData.dailyBudget}
                       onChange={handleChange}
                       required 
+                      className="budget-input"
                     />
                   </div>
+                  <div className="ctwa-budget-presets">
+                    {[10, 20, 50, 100].map(amount => (
+                      <button
+                        key={amount}
+                        type="button"
+                        className={`budget-preset ${formData.dailyBudget == amount ? 'active' : ''}`}
+                        onClick={() => setFormData({...formData, dailyBudget: amount})}
+                      >
+                        {currencySymbol}{amount}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
                     <label>Start Date (Optional)</label>
                     <input 
@@ -392,11 +532,9 @@ const ClickToWhatsAppLauncher = () => {
                       name="startDate" 
                       value={formData.startDate}
                       onChange={handleChange}
+                      className="ctwa-date-input"
                     />
                   </div>
-                </div>
-                
-                <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
                     <label>End Date (Optional)</label>
                     <input 
@@ -404,10 +542,8 @@ const ClickToWhatsAppLauncher = () => {
                       name="endDate" 
                       value={formData.endDate}
                       onChange={handleChange}
+                      className="ctwa-date-input"
                     />
-                  </div>
-                  <div className="ctwa-form-group">
-                    {/* Empty placeholder to keep column aligned */}
                   </div>
                 </div>
               </div>

@@ -10,7 +10,7 @@ class FacebookAdsService {
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
             const res = await axios.get(`${baseUrl}/me/adaccounts`, {
                 params: {
-                    fields: 'id,name,account_id',
+                    fields: 'id,name,account_id,currency',
                     access_token: accessToken
                 }
             });
@@ -82,7 +82,9 @@ class FacebookAdsService {
         startDate,
         endDate,
         welcomeMessageText,
-        iceBreakerText
+        iceBreakerText,
+        description,
+        status
     }) {
         try {
             const apiVersion = 'v20.0';
@@ -111,12 +113,11 @@ class FacebookAdsService {
                 throw new Error("Failed to retrieve image_hash from Meta after uploading image URL.");
             }
 
-            // Step 1: Create Campaign
             const campaignRes = await axios.post(`${baseUrl}/act_${adAccountId}/campaigns`, null, {
                 params: {
                     name: campaignName,
                     objective: 'OUTCOME_ENGAGEMENT',
-                    status: 'PAUSED',
+                    status: status || 'PAUSED',
                     special_ad_categories: '[]',
                     access_token: accessToken
                 }
@@ -154,7 +155,7 @@ class FacebookAdsService {
                     age_max: maxAge ? parseInt(maxAge) : 65,
                     genders: gendersArray
                 }),
-                status: 'PAUSED',
+                status: status || 'PAUSED',
                 access_token: accessToken,
                 ...scheduleParams
             };
@@ -178,21 +179,23 @@ class FacebookAdsService {
                     }
                 }
             };
-            const welcomeMessageStr = JSON.stringify(visualEditorSpec);
 
             // Step 3: Create Ad Creative
             const objectStorySpec = {
                 page_id: pageId,
                 link_data: {
-                    name: headline,
-                    message: primaryText,
                     image_hash: imageHash,
                     link: 'https://api.whatsapp.com/send',
-                    page_welcome_message: welcomeMessageStr,
+                    name: headline,
+                    message: primaryText,
+                    ...(description && { description }),
                     call_to_action: {
                         type: 'WHATSAPP_MESSAGE',
-                        value: { app_destination: 'WHATSAPP' }
-                    }
+                        value: {
+                            app_destination: 'WHATSAPP'
+                        }
+                    },
+                    page_welcome_message: JSON.stringify(visualEditorSpec)
                 }
             };
 
@@ -211,7 +214,7 @@ class FacebookAdsService {
                     name: `${campaignName} - Ad`,
                     adset_id: adSetId,
                     creative: JSON.stringify({ creative_id: creativeId }),
-                    status: 'PAUSED',
+                    status: status || 'PAUSED',
                     access_token: accessToken
                 }
             });

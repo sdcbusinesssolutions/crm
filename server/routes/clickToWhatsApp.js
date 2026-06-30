@@ -115,7 +115,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             startDate,
             endDate,
             welcomeMessageText,
-            iceBreakerText
+            iceBreakerText,
+            description,
+            status
         } = req.body;
 
         // Validation
@@ -156,7 +158,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             startDate,
             endDate,
             welcomeMessageText,
-            iceBreakerText
+            iceBreakerText,
+            description,
+            status
         });
 
         res.status(200).json(result);
