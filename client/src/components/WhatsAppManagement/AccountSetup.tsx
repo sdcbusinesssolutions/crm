@@ -118,8 +118,8 @@ const AccountSetup: React.FC<AccountSetupProps> = ({ readOnly }) => {
 
         // Determine Bridge Domain based on Configuration Type
         // If Custom (User provided own ID), use own domain (window.location.origin)
-        // If System (Provider), use the configured bridge domain (or default to cloudospire.in)
-        const SYSTEM_BRIDGE_DOMAIN = embeddedConfig.bridgeDomain || AppConfig.VITE_BRIDGE_DOMAIN;
+        // If System (Provider), use the configured bridge domain (or default to window.location.origin)
+        const SYSTEM_BRIDGE_DOMAIN = embeddedConfig.bridgeDomain || AppConfig.VITE_BRIDGE_DOMAIN || window.location.origin;
         const BRIDGE_DOMAIN = embeddedConfig.isCustom ? window.location.origin : SYSTEM_BRIDGE_DOMAIN;
 
         const bridgeUrl = new URL(`${BRIDGE_DOMAIN}/waba_auth_bridge`);

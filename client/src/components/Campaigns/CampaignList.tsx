@@ -194,7 +194,8 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                                                 <td className="px-6 py-5">
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-bold text-[var(--color-text)]">{campaign.title}</span>
-                                                        <span className="text-xs text-[var(--color-text)] opacity-40 mt-0.5">Created {new Date(campaign.created_at).toLocaleDateString()}</span>
+                                                        <span className="text-[10px] text-[var(--color-text)] opacity-40 font-mono mt-1 mb-0.5">ID: {campaign.id}</span>
+                                                        <span className="text-xs text-[var(--color-text)] opacity-40">Created {new Date(campaign.created_at).toLocaleDateString()}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-sm text-[var(--color-text)] opacity-70">{campaign.template_name}</td>

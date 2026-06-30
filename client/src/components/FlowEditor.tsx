@@ -255,7 +255,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({ flowId, onBack }) => {
       case NodeType.AskAnything: Object.assign(baseData, { label: `Ask Anything${suffix}`, text: 'Write your message here', validateResponse: false, saveResponse: false, ifUnresponsive: false, saveResponseAttribute: 'None', saveResponseNewAttribute: '', unresponsiveTimeout: '10 min' }); break;
       case NodeType.AskInput: Object.assign(baseData, { label: `Ask Input${suffix}`, inputType: 'Text', textInputType: 'Text', text: 'Please enter your input...', retryCount: 3, retryMessage: 'Invalid input, please try again.', timeout: 15, timeoutUnit: 'Minutes', timeoutMessage: 'Session timed out.', ifUnresponsive: true }); break;
       case NodeType.CheckCondition: Object.assign(baseData, { label: `Check Condition${suffix}`, conditions: [{ id: `cg-${Date.now()}`, name: 'Block-1', rules: [{ id: `cr-${Date.now()}`, attribute: 'Name', operator: 'is', value: '' }] }] }); break;
-      case NodeType.Gsheet: baseData.spreadsheetId = ''; baseData.sheetName = ''; baseData.action = 'READ'; baseData.range = 'A1'; break;
+      case NodeType.Gsheet: baseData.spreadsheetId = ''; baseData.sheetName = ''; baseData.operation = 'append'; break;
       case NodeType.Code: baseData.code = '// Your code here'; break;
       case NodeType.CatalogueMessage: baseData.header = ''; baseData.body = ''; baseData.items = []; break;
       case NodeType.Appointment: baseData.calendarId = ''; baseData.durationMinutes = 30; break;

@@ -650,41 +650,66 @@ router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req
   }
 });
 
-// Helper: Process IDs in chunks to avoid Supabase/PostgREST .in() query limits
-async function chunkedDelete(table, column, ids, chunkSize = 200) {
-  let totalDeleted = 0;
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    const chunk = ids.slice(i, i + chunkSize);
-    try {
-      const { error, count } = await supabaseAdmin
-        .from(table)
-        .delete({ count: 'exact' })
-        .in(column, chunk);
-      if (error) {
-        console.warn(`[chunkedDelete] ${table}.${column} chunk ${Math.floor(i/chunkSize)+1} error:`, error.message);
-      } else {
-        totalDeleted += (count || 0);
-      }
-    } catch (e) {
-      console.warn(`[chunkedDelete] ${table}.${column} chunk exception:`, e.message);
+// Helper to run tasks with concurrency limit
+async function runWithConcurrencyLimit(tasks, limit = 10) {
+  const results = [];
+  const executing = new Set();
+  for (const task of tasks) {
+    const p = Promise.resolve().then(() => task());
+    results.push(p);
+    executing.add(p);
+    const clean = () => executing.delete(p);
+    p.then(clean).catch(clean);
+    if (executing.size >= limit) {
+      await Promise.race(executing);
     }
   }
+  return Promise.all(results);
+}
+
+// Helper: Process IDs in chunks to avoid Supabase/PostgREST .in() query limits
+async function chunkedDelete(table, column, ids, chunkSize = 200, concurrency = 5) {
+  let totalDeleted = 0;
+  const tasks = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    tasks.push(async () => {
+      try {
+        const { error, count } = await supabaseAdmin
+          .from(table)
+          .delete({ count: 'exact' })
+          .in(column, chunk);
+        if (error) {
+          console.warn(`[chunkedDelete] ${table}.${column} chunk error:`, error.message);
+        } else {
+          totalDeleted += (count || 0);
+        }
+      } catch (e) {
+        console.warn(`[chunkedDelete] ${table}.${column} chunk exception:`, e.message);
+      }
+    });
+  }
+  await runWithConcurrencyLimit(tasks, concurrency);
   return totalDeleted;
 }
 
 // Helper: Nullify contact_id in chunks (for tables where we want to preserve history)
-async function chunkedNullify(table, column, ids, chunkSize = 200) {
+async function chunkedNullify(table, column, ids, chunkSize = 200, concurrency = 5) {
+  const tasks = [];
   for (let i = 0; i < ids.length; i += chunkSize) {
     const chunk = ids.slice(i, i + chunkSize);
-    try {
-      await supabaseAdmin
-        .from(table)
-        .update({ [column]: null })
-        .in(column, chunk);
-    } catch (e) {
-      // Column may not exist in some setups — silently skip
-    }
+    tasks.push(async () => {
+      try {
+        await supabaseAdmin
+          .from(table)
+          .update({ [column]: null })
+          .in(column, chunk);
+      } catch (e) {
+        // Column may not exist in some setups — silently skip
+      }
+    });
   }
+  await runWithConcurrencyLimit(tasks, concurrency);
 }
 
 // POST /api/contacts/bulk-delete
@@ -699,44 +724,44 @@ router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), asy
 
     console.log(`[Bulk Delete] Starting deletion of ${ids.length} contacts for user ${req.user.id}...`);
 
-    // 1. Clean STRICT FK dependencies in chunks (these block contact deletion)
+    // 1. Clean STRICT FK dependencies concurrently (these block contact deletion)
     const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
-
-    for (const table of strictDepTables) {
+    await Promise.all(strictDepTables.map(async (table) => {
       try {
         const count = await chunkedDelete(table, 'contact_id', ids);
         if (count > 0) console.log(`[Bulk Delete] Cleaned ${count} rows from ${table}`);
       } catch (e) {
         console.warn(`[Bulk Delete] ${table} cleanup error:`, e.message);
       }
-    }
+    }));
 
-    // 2. Safe Unlink — Preserve historical data (set contact_id = NULL)
+    // 2. Safe Unlink concurrently — Preserve historical data (set contact_id = NULL)
     // Same as single delete route: keeps conversations, leads, messages etc. intact
     const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
-    for (const table of unlinkTables) {
-      await chunkedNullify(table, 'contact_id', ids);
-    }
+    await Promise.all(unlinkTables.map(table => chunkedNullify(table, 'contact_id', ids)));
 
-    // 3. Final Delete — process in chunks to handle large sets
+    // 3. Final Delete — process in chunks concurrently
     let totalDeleted = 0;
     const CHUNK_SIZE = 200;
+    const deleteTasks = [];
     for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
       const chunk = ids.slice(i, i + CHUNK_SIZE);
-      const { data: deleted, error } = await supabaseAdmin
-        .from('contacts')
-        .delete()
-        .in('id', chunk)
-        .eq('user_id', req.user.id)
-        .select('id');
+      deleteTasks.push(async () => {
+        const { data: deleted, error } = await supabaseAdmin
+          .from('contacts')
+          .delete()
+          .in('id', chunk)
+          .eq('user_id', req.user.id)
+          .select('id');
 
-      if (error) {
-        console.error(`[Bulk Delete] Chunk ${Math.floor(i/CHUNK_SIZE)+1} delete error:`, error.message);
-        // Continue with remaining chunks instead of failing completely
-      } else {
-        totalDeleted += (deleted ? deleted.length : 0);
-      }
+        if (error) {
+          console.error(`[Bulk Delete] Chunk delete error:`, error.message);
+        } else {
+          totalDeleted += (deleted ? deleted.length : 0);
+        }
+      });
     }
+    await runWithConcurrencyLimit(deleteTasks, 5); // 5 concurrent chunk deletes
 
     console.log(`[Bulk Delete] Successfully deleted ${totalDeleted} of ${ids.length} contacts.`);
     res.json({ success: true, count: totalDeleted });
@@ -802,40 +827,42 @@ router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_wri
 
     console.log(`[Bulk Delete Filtered] Found ${allIds.length} contacts matching filters.`);
 
-    // 2. Clean STRICT FK dependencies in chunks
+    // 2. Clean STRICT FK dependencies concurrently
     const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
-    for (const table of strictDepTables) {
+    await Promise.all(strictDepTables.map(async (table) => {
       try {
         const cleaned = await chunkedDelete(table, 'contact_id', allIds);
         if (cleaned > 0) console.log(`[Bulk Delete Filtered] Cleaned ${cleaned} rows from ${table}`);
       } catch (e) {
         console.warn(`[Bulk Delete Filtered] ${table} cleanup error:`, e.message);
       }
-    }
+    }));
 
-    // 3. Safe Unlink — Preserve historical data (set contact_id = NULL)
+    // 3. Safe Unlink concurrently — Preserve historical data (set contact_id = NULL)
     const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
-    for (const table of unlinkTables) {
-      await chunkedNullify(table, 'contact_id', allIds);
-    }
+    await Promise.all(unlinkTables.map(table => chunkedNullify(table, 'contact_id', allIds)));
 
-    // 3. Final Delete in chunks
+    // 4. Final Delete in chunks concurrently
     let totalDeleted = 0;
     const DEL_CHUNK = 200;
+    const deleteTasks = [];
     for (let i = 0; i < allIds.length; i += DEL_CHUNK) {
       const chunk = allIds.slice(i, i + DEL_CHUNK);
-      const { count, error: delErr } = await supabaseAdmin
-        .from('contacts')
-        .delete({ count: 'exact' })
-        .in('id', chunk)
-        .eq('user_id', userId);
+      deleteTasks.push(async () => {
+        const { count, error: delErr } = await supabaseAdmin
+          .from('contacts')
+          .delete({ count: 'exact' })
+          .in('id', chunk)
+          .eq('user_id', userId);
 
-      if (delErr) {
-        console.error(`[Bulk Delete Filtered] Chunk ${Math.floor(i/DEL_CHUNK)+1} error:`, delErr.message);
-      } else {
-        totalDeleted += (count || 0);
-      }
+        if (delErr) {
+          console.error(`[Bulk Delete Filtered] Chunk error:`, delErr.message);
+        } else {
+          totalDeleted += (count || 0);
+        }
+      });
     }
+    await runWithConcurrencyLimit(deleteTasks, 5); // 5 concurrent chunk deletes
 
     console.log(`[Bulk Delete Filtered] Successfully deleted ${totalDeleted} contacts for user ${userId}`);
     res.json({ success: true, count: totalDeleted });
@@ -885,42 +912,44 @@ router.post('/bulk-delete-all', requirePermission('Contact+List', 'all_access'),
     console.log(`[Wipe CRM] Found ${allIds.length} contacts to delete.`);
 
     if (allIds.length > 0) {
-      // 2. Clean STRICT FK dependencies in chunks (these block contact deletion)
+      // 2. Clean STRICT FK dependencies concurrently (these block contact deletion)
       const strictDepTables = ['campaign_queue', 'whatsapp_flow_submissions', 'drip_enrollments', 'follow_ups'];
-      for (const table of strictDepTables) {
+      await Promise.all(strictDepTables.map(async (table) => {
         try {
           const cleaned = await chunkedDelete(table, 'contact_id', allIds);
           if (cleaned > 0) console.log(`[Wipe CRM] Cleaned ${cleaned} rows from ${table}`);
         } catch (e) {
           console.warn(`[Wipe CRM] ${table} cleanup error:`, e.message);
         }
-      }
+      }));
 
-      // 3. Safe Unlink — Preserve historical data (set contact_id = NULL)
+      // 3. Safe Unlink concurrently — Preserve historical data (set contact_id = NULL)
       // Keeps conversations, leads, messages, tasks etc. readable after wipe
       const unlinkTables = ['conversations', 'leads', 'tasks', 'notes', 'appointments', 'flow_sessions', 'messages', 'drip_logs'];
-      for (const table of unlinkTables) {
-        await chunkedNullify(table, 'contact_id', allIds);
-      }
+      await Promise.all(unlinkTables.map(table => chunkedNullify(table, 'contact_id', allIds)));
     }
 
-    // 3. Final Wipe in chunks
+    // 4. Final Wipe in chunks concurrently
     let totalDeleted = 0;
     const DEL_CHUNK = 200;
+    const deleteTasks = [];
     for (let i = 0; i < allIds.length; i += DEL_CHUNK) {
       const chunk = allIds.slice(i, i + DEL_CHUNK);
-      const { count, error } = await supabaseAdmin
-        .from('contacts')
-        .delete({ count: 'exact' })
-        .in('id', chunk)
-        .eq('user_id', userId);
+      deleteTasks.push(async () => {
+        const { count, error } = await supabaseAdmin
+          .from('contacts')
+          .delete({ count: 'exact' })
+          .in('id', chunk)
+          .eq('user_id', userId);
 
-      if (error) {
-        console.error(`[Wipe CRM] Chunk ${Math.floor(i/DEL_CHUNK)+1} error:`, error.message);
-      } else {
-        totalDeleted += (count || 0);
-      }
+        if (error) {
+          console.error(`[Wipe CRM] Chunk error:`, error.message);
+        } else {
+          totalDeleted += (count || 0);
+        }
+      });
     }
+    await runWithConcurrencyLimit(deleteTasks, 5); // 5 concurrent chunk deletes
 
     console.log(`[Wipe CRM] Successfully wiped ${totalDeleted} contacts for user ${userId}`);
     res.json({ success: true, count: totalDeleted });
