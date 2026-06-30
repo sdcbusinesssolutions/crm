@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FacebookAdsService = require('../services/facebookAdsService');
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 
 const getUserId = (req) => req.user.id;
@@ -170,11 +170,15 @@ router.post('/auth', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Access token or code is required.' });
         }
 
-        // Fetch system settings to get app credentials for token exchange
-        const { data: sysSettings } = await supabase
-            .from('system_settings')
-            .select('embedded_app_id, embedded_app_secret')
-            .single();
+        const targetDomain = req.get('host') ? req.get('host').split(':')[0] : 'cloudospire.in';
+        const metaService = require('../services/MetaOnboardingService');
+        
+        let sysSettings = null;
+        try {
+            sysSettings = await metaService.getSystemSettings(targetDomain);
+        } catch (e) {
+            console.error('Failed to get system settings:', e);
+        }
 
         let finalToken = accessToken;
 
