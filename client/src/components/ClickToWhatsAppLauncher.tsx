@@ -432,10 +432,11 @@ const ClickToWhatsAppLauncher = () => {
                           ...base,
                           padding: '4px',
                           borderRadius: '12px',
-                          borderColor: state.isFocused ? '#25D366' : 'rgba(209, 213, 219, 0.6)',
-                          boxShadow: state.isFocused ? '0 0 0 4px rgba(37, 211, 102, 0.1)' : 'none',
+                          borderWidth: '2px',
+                          borderColor: state.isFocused ? '#25D366' : '#e5e7eb',
+                          boxShadow: state.isFocused ? '0 0 0 4px rgba(37, 211, 102, 0.15), 0 2px 4px rgba(0,0,0,0.02) inset' : '0 2px 4px rgba(0,0,0,0.02) inset',
                           '&:hover': {
-                            borderColor: state.isFocused ? '#25D366' : 'rgba(209, 213, 219, 0.8)'
+                            borderColor: state.isFocused ? '#25D366' : '#d1d5db'
                           }
                         })
                       }}
@@ -568,7 +569,7 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Daily Budget:</span>
-                      <span className="summary-value">${formData.dailyBudget}</span>
+                      <span className="summary-value">{currencySymbol}{formData.dailyBudget}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label">Locations:</span>
