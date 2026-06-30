@@ -469,7 +469,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && isContactsOpen && <div className="space-y-1 mt-2 mb-2.5">{contactSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
 
                         {renderItem('Campaigns', <MegaphoneIcon className="w-5 h-5" />)}
-                        {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
@@ -483,7 +482,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">AI & Tools</p>}
                         {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
 
-                        {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
+                        {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Team Staff', <UsersIcon className="w-5 h-5" />)}
