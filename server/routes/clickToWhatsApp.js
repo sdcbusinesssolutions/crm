@@ -32,18 +32,19 @@ router.get('/accounts', requireAuth, async (req, res) => {
 
         let adAccounts = [];
         let pages = [];
+        let apiErrors = [];
         try {
             adAccounts = await FacebookAdsService.fetchAdAccounts(accessToken);
         } catch (e) {
             console.error('[Fetch Ad Accounts API Error]:', e.message);
-            return res.status(400).json({ error: 'Ad Accounts Error: ' + e.message });
+            apiErrors.push('Ad Accounts Error: ' + e.message);
         }
 
         try {
             pages = await FacebookAdsService.fetchPages(accessToken);
         } catch (e) {
             console.error('[Fetch Pages API Error]:', e.message);
-            return res.status(400).json({ error: 'Pages Error: ' + e.message });
+            apiErrors.push('Pages Error: ' + e.message);
         }
 
         res.status(200).json({
