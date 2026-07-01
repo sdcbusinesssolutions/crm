@@ -608,8 +608,9 @@
 
 .premium-header-info strong {
   font-size: 0.95rem;
-  color: #111827;
+  color: #050505;
   font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .premium-header-info span {
@@ -638,10 +639,11 @@
 
 .premium-caption {
   margin: 0;
-  padding: 1.25rem 1.25rem 1rem;
+  padding: 1rem 1.25rem 0.75rem;
   font-size: 0.95rem;
-  color: #374151;
+  color: #050505;
   line-height: 1.5;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .premium-media-container {
@@ -738,35 +740,36 @@
 }
 
 .premium-headline {
-  font-size: 1.05rem;
-  color: #111827;
-  font-weight: 700;
+  font-size: 1rem;
+  color: #050505;
+  font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .premium-cta-btn {
-  background: #111827;
-  color: white;
+  background: #f0f2f5;
+  color: #050505;
   border: none;
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.9rem;
   font-weight: 600;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
 .premium-cta-btn:hover {
-  background: #1f2937;
-  transform: translateY(-2px);
+  background: #e4e6eb;
 }
 
 .premium-cta-btn svg {
-  width: 14px; height: 14px;
+  width: 16px; height: 16px;
+  color: #25D366;
 }
