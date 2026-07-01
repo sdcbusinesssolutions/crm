@@ -213,22 +213,32 @@
 
 .ctwa-next-btn, .ctwa-submit-btn {
   border: none;
-  background: #111827;
   color: white;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
 }
 
-.ctwa-next-btn:hover, .ctwa-submit-btn:hover {
-  background: #1f2937;
+.ctwa-next-btn {
+  background: linear-gradient(135deg, #111827 0%, #374151 100%);
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.2);
+}
+
+.ctwa-next-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.3);
 }
 
 .ctwa-submit-btn {
-  background: #25D366;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
 }
 
 .ctwa-submit-btn:hover {
-  background: #128C7E;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.4);
 }
 
 .ctwa-submit-btn:disabled {
@@ -236,6 +246,29 @@
   cursor: not-allowed;
   transform: none;
   background: #9ca3af;
+  box-shadow: none;
+}
+
+.ctwa-upload-btn {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: white;
+  padding: 0.875rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ctwa-upload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.3);
 }
 
 /* Summary Grid */
@@ -337,13 +370,20 @@
 .ctwa-form-group textarea {
   padding: 0.875rem 1rem;
   border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
   font-size: 0.95rem;
   color: #111827;
   transition: all 0.3s ease;
   font-family: inherit;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02) inset;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) inset;
+}
+
+.ctwa-form-group input:hover,
+.ctwa-form-group textarea:hover,
+.ctwa-select:hover {
+  border-color: #9ca3af;
+  background: #ffffff;
 }
 
 .ctwa-form-group input:focus,
@@ -351,21 +391,21 @@
 .ctwa-select:focus {
   outline: none;
   border-color: #25D366;
-  box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.15), 0 2px 4px rgba(0,0,0,0.02) inset;
-  background: #fff;
+  box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.15);
+  background: #ffffff;
 }
 
 .ctwa-select {
   padding: 0.875rem 1rem;
   border-radius: 12px;
-  border: 2px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
   font-size: 0.95rem;
   color: #111827;
   transition: all 0.3s ease;
   font-family: inherit;
   appearance: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02) inset;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02) inset;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;

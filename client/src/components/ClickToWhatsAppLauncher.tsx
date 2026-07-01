@@ -362,7 +362,7 @@ const ClickToWhatsAppLauncher = () => {
                         className="flex-1"
                         style={{ margin: 0 }}
                       />
-                      <label className="cursor-pointer bg-[#25D366] hover:bg-[#128C7E] text-white text-sm font-semibold py-2.5 px-4 rounded-xl flex-shrink-0 transition-colors whitespace-nowrap shadow-sm">
+                      <label className="ctwa-upload-btn">
                         Upload
                         <input
                           type="file"
