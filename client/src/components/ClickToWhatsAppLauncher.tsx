@@ -109,8 +109,8 @@ const ClickToWhatsAppLauncher = () => {
     const errors: string[] = [];
     if (step === 1) {
       if (!formData.campaignName) errors.push("Campaign Name is required");
-      if (!formData.headline || formData.headline.length > 255) errors.push("Headline must be 1-255 characters");
-      if (!formData.primaryText || formData.primaryText.length > 2200) errors.push("Primary text must be 1-2200 characters");
+      if (!formData.headline || formData.headline.length > 40) errors.push("Headline must be 1-40 characters");
+      if (!formData.primaryText || formData.primaryText.length > 500) errors.push("Primary text must be 1-500 characters");
       if (formData.description && formData.description.length > 255) errors.push("Description must be under 255 characters");
       if (!formData.welcomeMessageText || formData.welcomeMessageText.length > 80) errors.push("Welcome Message must be 1-80 characters");
       if (!formData.iceBreakerText || formData.iceBreakerText.length > 80) errors.push("Ice Breaker button text must be 1-80 characters");
@@ -327,8 +327,10 @@ const ClickToWhatsAppLauncher = () => {
                       name="headline" 
                       value={formData.headline}
                       onChange={handleChange}
+                      maxLength={40}
                       required 
                     />
+                    <p className="text-xs text-gray-500 mt-1" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Max 40 characters.</p>
                   </div>
                 </div>
 
@@ -341,12 +343,14 @@ const ClickToWhatsAppLauncher = () => {
                       placeholder="e.g. Get 20% off your first order when you chat with us!" 
                       value={formData.primaryText}
                       onChange={handleChange}
+                      maxLength={500}
                       required 
                     />
+                    <p className="text-xs text-gray-500 mt-1" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Best practice: 125 chars. Max 500 chars.</p>
                   </div>
 
                   <div className="ctwa-form-group">
-                    <label>Ad Image</label>
+                    <label>Ad Media (Image/Video)</label>
                     <div className="flex gap-2 items-center w-full">
                       <input 
                         type="url" 
@@ -368,6 +372,9 @@ const ClickToWhatsAppLauncher = () => {
                         />
                       </label>
                     </div>
+                    <p className="text-xs text-gray-500 mt-1" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                      Recommended: 1:1 aspect ratio (Square), at least 1080 x 1080 pixels.
+                    </p>
                     {uploading && <p className="text-xs text-[#25D366] animate-pulse mt-1">Uploading...</p>}
                     {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
                   </div>
@@ -652,7 +659,14 @@ const ClickToWhatsAppLauncher = () => {
               
               <div className="premium-preview-body">
                 <p className="premium-caption">
-                  {formData.primaryText || 'Your compelling ad copy will appear here. Write something that drives action!'}
+                  {formData.primaryText 
+                    ? (formData.primaryText.length > 125 ? (
+                        <>
+                          {formData.primaryText.substring(0, 125)}...
+                          <span style={{ color: '#65676b', cursor: 'pointer', fontWeight: 600 }}> See more</span>
+                        </>
+                      ) : formData.primaryText)
+                    : 'Your compelling ad copy will appear here. Write something that drives action!'}
                 </p>
                 
                 <div className="premium-media-container">
@@ -661,7 +675,10 @@ const ClickToWhatsAppLauncher = () => {
                       {formData.imageUrl.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
                         <video 
                           src={formData.imageUrl} 
-                          controls
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
                           className="w-full h-full object-cover"
                         />
                       ) : (
