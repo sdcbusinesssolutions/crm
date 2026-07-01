@@ -96,12 +96,24 @@
   background: #1d4ed8;
 }
 
+.ctwa-btn-create-ad {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+}
+
+.ctwa-btn-create-ad:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(37, 211, 102, 0.4);
+}
+
 .ctwa-dash-content {
   background: white;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.04);
   overflow: hidden;
+  border: 1px solid #e2e8f0;
 }
 
 .ctwa-dash-toolbar {
@@ -404,28 +416,31 @@
   display: inline-block;
 }
 
-.ctwa-manage-campaigns-btn {
-  display: flex;
+.ctwa-create-ad-table-btn {
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: transparent;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+  color: white;
   border: none;
-  color: #3b82f6;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
   border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
   transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);
 }
 
-.ctwa-manage-campaigns-btn:hover {
-  background: #eff6ff;
+.ctwa-create-ad-table-btn:hover {
+  background: linear-gradient(135deg, #20bc5a 0%, #0f7a6e 100%);
+  box-shadow: 0 4px 8px rgba(37, 211, 102, 0.3);
+  transform: translateY(-1px);
 }
 
-.ctwa-manage-campaigns-btn svg {
-  width: 16px;
-  height: 16px;
+.ctwa-create-ad-table-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .ctwa-back-link {

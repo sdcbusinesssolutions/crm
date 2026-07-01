@@ -235,6 +235,24 @@ const ClickToWhatsAppDashboard = () => {
             </button>
           )}
 
+          <button 
+            className="ctwa-btn ctwa-btn-create-ad" 
+            onClick={() => {
+              if (adAccounts.length > 0) {
+                setSelectedAdAccount(adAccounts[0].account_id);
+                setActiveTab('ads');
+              } else {
+                alert('Please connect your Facebook account and ensure you have an active Ad Account first.');
+              }
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Create WhatsApp Ad
+          </button>
+
           <button className="ctwa-btn ctwa-btn-primary" onClick={handleConnectFacebook}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon text-white">
               <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path>
@@ -438,16 +456,17 @@ const ClickToWhatsAppDashboard = () => {
                       <td><span className="ctwa-badge-active">Active</span></td>
                       <td>
                         <button 
-                          className="ctwa-manage-campaigns-btn"
-                          onClick={() => setSelectedAdAccount(account.account_id)}
+                          className="ctwa-create-ad-table-btn"
+                          onClick={() => {
+                            setSelectedAdAccount(account.account_id);
+                            setActiveTab('ads');
+                          }}
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
                           </svg>
-                          Manage Campaigns
+                          Create Ad
                         </button>
                       </td>
                     </tr>

@@ -58,6 +58,16 @@ const ClickToWhatsAppLauncher = () => {
   const [adAccounts, setAdAccounts] = useState<any[]>([]);
   const [pages, setPages] = useState<any[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
+  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+
+  const renderCaptionWithNewlines = (text: string) => {
+    return text.split('\n').map((line, i) => (
+      <React.Fragment key={i}>
+        {line}
+        {i !== text.split('\n').length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -336,17 +346,35 @@ const ClickToWhatsAppLauncher = () => {
 
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label>Primary Text</label>
-                    <input 
-                      type="text"
+                    <label>
+                      Primary Text
+                      <span style={{ float: 'right', fontWeight: 'normal', color: formData.primaryText.length > 125 ? '#d97706' : '#16a34a' }}>
+                        {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
+                      </span>
+                    </label>
+                    <textarea 
                       name="primaryText" 
-                      placeholder="e.g. Get 20% off your first order when you chat with us!" 
+                      placeholder="e.g. Get 20% off your first order when you chat with us! 👋" 
                       value={formData.primaryText}
                       onChange={handleChange}
                       maxLength={500}
+                      rows={4}
                       required 
+                      style={{ resize: 'vertical' }}
                     />
-                    <p className="text-xs text-gray-500 mt-1" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>Best practice: 125 chars. Max 500 chars.</p>
+                    
+                    {/(http|www\.)/i.test(formData.primaryText) && (
+                      <p className="text-xs text-red-500 mt-1" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                        ⚠️ Avoid URLs here! The WhatsApp CTA button is your only link.
+                      </p>
+                    )}
+                    
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '8px 12px', borderRadius: '8px', marginTop: '8px' }}>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>💡 Winning Formula:</p>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#15803d' }}>
+                        Hook (First 3 lines) + Pain Point + Solution + CTA
+                      </p>
+                    </div>
                   </div>
 
                   <div className="ctwa-form-group">
@@ -660,12 +688,25 @@ const ClickToWhatsAppLauncher = () => {
               <div className="premium-preview-body">
                 <p className="premium-caption">
                   {formData.primaryText 
-                    ? (formData.primaryText.length > 125 ? (
+                    ? (formData.primaryText.length > 125 && !isCaptionExpanded ? (
                         <>
-                          {formData.primaryText.substring(0, 125)}...
-                          <span style={{ color: '#65676b', cursor: 'pointer', fontWeight: 600 }}> See more</span>
+                          {renderCaptionWithNewlines(formData.primaryText.substring(0, 125))}...
+                          <span 
+                            style={{ color: '#65676b', cursor: 'pointer', fontWeight: 600 }} 
+                            onClick={() => setIsCaptionExpanded(true)}
+                          > See more</span>
                         </>
-                      ) : formData.primaryText)
+                      ) : (
+                        <>
+                          {renderCaptionWithNewlines(formData.primaryText)}
+                          {formData.primaryText.length > 125 && (
+                            <span 
+                              style={{ display: 'block', color: '#65676b', cursor: 'pointer', fontWeight: 600, marginTop: '4px' }} 
+                              onClick={() => setIsCaptionExpanded(false)}
+                            > See less</span>
+                          )}
+                        </>
+                      ))
                     : 'Your compelling ad copy will appear here. Write something that drives action!'}
                 </p>
                 
@@ -709,12 +750,14 @@ const ClickToWhatsAppLauncher = () => {
 
               <div className="premium-preview-footer">
                 <div className="premium-footer-content">
-                  <span className="premium-chat-label">CHAT WITH US</span>
+                  <span className="premium-chat-label">WHATSAPP</span>
                   <strong className="premium-headline">{formData.headline || 'Your Catchy Headline'}</strong>
+                  {formData.description && (
+                    <span className="premium-description">{formData.description}</span>
+                  )}
                 </div>
                 <button className="premium-cta-btn">
-                  Send Message
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                  Send WhatsApp Message
                 </button>
               </div>
             </div>
