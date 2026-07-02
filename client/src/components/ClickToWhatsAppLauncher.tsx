@@ -401,6 +401,9 @@ const ClickToWhatsAppLauncher = () => {
                         ⚠️ Avoid URLs here! The WhatsApp CTA button is your only link.
                       </p>
                     )}
+                    
+
+                    
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                     <div className="ctwa-form-group">
@@ -426,32 +429,35 @@ const ClickToWhatsAppLauncher = () => {
                       {uploading && <p style={{color: '#25D366', fontSize: '0.72rem'}}>Uploading...</p>}
                       {uploadError && <p style={{color: '#dc2626', fontSize: '0.72rem'}}>{uploadError}</p>}
                     </div>
-                    <div className="ctwa-form-group">
-                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span> Ad Description (Optional)</label>
-                      <textarea 
-                        name="description" 
-                        placeholder="Write ad description..."
-                        value={formData.description}
-                        onChange={handleChange}
-                        rows={2}
-                      />
-                    </div>
                   </div>
                 </div>
 
-                {/* Winning Formula */}
-                <div className="winning-formula-box">
-                  <div className="formula-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <circle cx="12" cy="12" r="6"></circle>
-                      <circle cx="12" cy="12" r="2"></circle>
-                      <line x1="22" y1="2" x2="14" y2="10"></line>
-                    </svg>
+                {/* Ad Description + Winning Formula */}
+                <div className="ctwa-form-row">
+                  <div className="winning-formula-box" style={{ marginBottom: 0, marginTop: 'auto' }}>
+                    <div className="formula-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="12" cy="12" r="6"></circle>
+                        <circle cx="12" cy="12" r="2"></circle>
+                        <line x1="22" y1="2" x2="14" y2="10"></line>
+                      </svg>
+                    </div>
+                    <div className="formula-text">
+                      <strong>💡 Winning Formula:</strong>
+                      <p>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
+                    </div>
                   </div>
-                  <div className="formula-text">
-                    <strong>💡 Winning Formula:</strong>
-                    <p>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
+
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span> Ad Description (Optional)</label>
+                    <textarea 
+                      name="description" 
+                      placeholder="Write ad description..."
+                      value={formData.description}
+                      onChange={handleChange}
+                      rows={2}
+                    />
                   </div>
                 </div>
 
