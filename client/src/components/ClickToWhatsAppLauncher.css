@@ -351,7 +351,7 @@
   position: relative;
 }
 .ctwa-submit-btn {
-  background: linear-gradient(135deg, #25D366, #1db954);
+  background: #068E3E;
   color: white;
   border: none;
   padding: 0.6rem 2.5rem;
@@ -360,12 +360,12 @@
   border-radius: 22px;
   cursor: pointer;
   transition: all 0.25s;
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  box-shadow: 0 4px 14px rgba(6, 142, 62, 0.35);
   letter-spacing: 0.3px;
 }
 .ctwa-submit-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(37, 211, 102, 0.45);
+  box-shadow: 0 10px 28px rgba(6, 142, 62, 0.45);
 }
 .ctwa-submit-btn:disabled {
   opacity: 0.6;
@@ -593,7 +593,7 @@
 }
 /* RED CTA Button to match reference */
 .preview-cta {
-  background: #12c04d;
+  background: #068E3E;
   color: white;
   border: none;
   padding: 0.45rem 0.8rem;
@@ -605,7 +605,8 @@
   flex-shrink: 0;
   transition: background 0.2s;
 }
-.preview-cta:hover { background: #047857; }
+.preview-cta:hover { background: #046b2f; }
+
 
 /* ═══════════ FEATURE ICONS ROW ═══════════ */
 .feature-icons-row {
