@@ -730,13 +730,13 @@ const ClickToWhatsAppLauncher = () => {
                   <h2>Chat<br/>with us on<br/><span>WhatsApp!</span></h2>
                   <div className="mock-features">
                     <div className="mock-feature">
-                      <span className="icon">⚡</span> Instant Support
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Instant Support
                     </div>
                     <div className="mock-feature">
-                      <span className="icon">🏷️</span> Exclusive Offers
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></span> Exclusive Offers
                     </div>
                     <div className="mock-feature">
-                      <span className="icon">✅</span> 100% Secure
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span> 100% Secure
                     </div>
                   </div>
                   <div className="mock-phone">
@@ -765,24 +765,34 @@ const ClickToWhatsAppLauncher = () => {
           
           <div className="feature-icons-row">
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>👥</div>
+              <div className="f-icon" style={{color: '#059669'}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              </div>
               <span>More Leads</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>💬</div>
-              <span>Better Engagement</span>
+              <div className="f-icon" style={{color: '#059669'}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+              </div>
+              <span>Better<br/>Engagement</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>⚡</div>
-              <span>Instant Responses</span>
+              <div className="f-icon" style={{color: '#059669'}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.37-.71.55-1.02.16-.31 3.51-6.02 3.51-6.02C11.36 6.09 11.66 6 12 6h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/></svg>
+              </div>
+              <span>Instant<br/>Responses</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>📈</div>
-              <span>Higher Conversions</span>
+              <div className="f-icon" style={{color: '#059669'}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+              </div>
+              <span>Higher<br/>Conversions</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>🚀</div>
-              <span>Grow Your Business</span>
+              <div className="f-icon" style={{color: '#059669'}}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13.13 2.13l3.18 3.18c2.14-1.28 4.67-1.12 6.57.77-1.6 4.79-5.11 7.23-9.52 7.74l-3.32-3.32c.51-4.41 2.95-7.92 7.74-9.52.4.4.76.85 1.08 1.34L15.68.87a9.92 9.92 0 0 0-2.55 1.26zm-7.9 7.9l3.32 3.32c-2.3 3.57-5.55 6.04-9.55 7.65.34-.14.67-.3 1-.48l3.18-3.18c-1.39-1.92-1.57-4.46-.35-6.61a9.92 9.92 0 0 0 2.4-1z"/></svg>
+              </div>
+              <span>Grow Your<br/>Business</span>
             </div>
           </div>
         </div>

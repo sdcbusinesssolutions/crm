@@ -3,7 +3,7 @@
 /* ═══════════ CONTAINER & BACKGROUND ═══════════ */
 .ctwa-container {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #eaf7ef;
+  background: #f3fcf6;
   background-image:
     radial-gradient(circle at 5% 15%, rgba(37, 211, 102, 0.12) 0%, transparent 30%),
     radial-gradient(circle at 95% 85%, rgba(37, 211, 102, 0.08) 0%, transparent 25%),
@@ -88,6 +88,8 @@
   position: relative;
   z-index: 10;
   align-items: start;
+  max-width: 1150px;
+  margin: 0 auto;
 }
 @media (min-width: 1024px) {
   .ctwa-layout-wrapper {
@@ -96,6 +98,12 @@
 }
 
 /* ═══════════ FORM CARD ═══════════ */
+.ctwa-right-panel {
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 .ctwa-card {
   background: rgba(255,255,255,0.92);
   border: 2px solid #25D366;
@@ -509,10 +517,10 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 500;
 }
-.mock-feature .icon { font-size: 0.9rem; }
+.mock-feature .icon { display: flex; align-items: center; }
 
 /* Phone mockup */
 .mock-phone {
@@ -629,16 +637,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   text-align: center;
   flex: 1;
 }
 .f-icon {
-  width: 30px; height: 30px;
+  width: 32px; height: 32px;
   background: #e8f5e9;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem;
 }
 .feature-icon-item span {
   font-size: 0.58rem;
