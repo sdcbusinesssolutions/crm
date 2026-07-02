@@ -2,27 +2,60 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { tokenService } from '../services/tokenService';
 import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import * as L from 'leaflet';
 import './ClickToWhatsAppLauncher.css';
 
 const countryOptions = [
-  { value: 'US', label: 'United States' },
-  { value: 'GB', label: 'United Kingdom' },
-  { value: 'IN', label: 'India' },
-  { value: 'CA', label: 'Canada' },
-  { value: 'AU', label: 'Australia' },
-  { value: 'BR', label: 'Brazil' },
-  { value: 'MX', label: 'Mexico' },
-  { value: 'ID', label: 'Indonesia' },
-  { value: 'PH', label: 'Philippines' },
-  { value: 'ZA', label: 'South Africa' },
-  { value: 'NG', label: 'Nigeria' },
-  { value: 'AE', label: 'United Arab Emirates' },
-  { value: 'SA', label: 'Saudi Arabia' },
-  { value: 'DE', label: 'Germany' },
-  { value: 'FR', label: 'France' },
-  { value: 'IT', label: 'Italy' },
-  { value: 'ES', label: 'Spain' }
+  { value: 'US', label: 'United States', lat: 37.0902, lng: -95.7129 },
+  { value: 'GB', label: 'United Kingdom', lat: 55.3781, lng: -3.4360 },
+  { value: 'IN', label: 'India', lat: 20.5937, lng: 78.9629 },
+  { value: 'CA', label: 'Canada', lat: 56.1304, lng: -106.3468 },
+  { value: 'AU', label: 'Australia', lat: -25.2744, lng: 133.7751 },
+  { value: 'BR', label: 'Brazil', lat: -14.2350, lng: -51.9253 },
+  { value: 'MX', label: 'Mexico', lat: 23.6345, lng: -102.5528 },
+  { value: 'ID', label: 'Indonesia', lat: -0.7893, lng: 113.9213 },
+  { value: 'PH', label: 'Philippines', lat: 12.8797, lng: 121.7740 },
+  { value: 'ZA', label: 'South Africa', lat: -30.5595, lng: 22.9375 },
+  { value: 'NG', label: 'Nigeria', lat: 9.0820, lng: 8.6753 },
+  { value: 'AE', label: 'United Arab Emirates', lat: 23.4241, lng: 53.8478 },
+  { value: 'SA', label: 'Saudi Arabia', lat: 23.8859, lng: 45.0792 },
+  { value: 'DE', label: 'Germany', lat: 51.1657, lng: 10.4515 },
+  { value: 'FR', label: 'France', lat: 46.2276, lng: 2.2137 },
+  { value: 'IT', label: 'Italy', lat: 41.8719, lng: 12.5674 },
+  { value: 'ES', label: 'Spain', lat: 40.4637, lng: -3.7492 }
 ];
+
+const customMarkerIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+});
+
+function MapClickHandler({ onLocationClick }: { onLocationClick: (latlng: L.LatLng) => void }) {
+  useMapEvents({
+    click(e) {
+      onLocationClick(e.latlng);
+    }
+  });
+  return null;
+}
+
+function MapResizer() {
+  const map = useMapEvents({});
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+  return null;
+}
 
 const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -59,6 +92,38 @@ const ClickToWhatsAppLauncher = () => {
   const [pages, setPages] = useState<any[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
+  const [droppedPins, setDroppedPins] = useState<{lat: number, lng: number, name?: string}[]>([]);
+
+  // Geocode custom locations that are added to formData but not yet in droppedPins
+  useEffect(() => {
+    const currentLocations = formData.targetCountries ? formData.targetCountries.split(',').filter(Boolean) : [];
+    
+    currentLocations.forEach(locName => {
+      const isPredefined = countryOptions.some(c => c.value === locName || c.label === locName);
+      if (isPredefined) return;
+      
+      setDroppedPins(prev => {
+        if (prev.some(p => p.name === locName)) return prev;
+        
+        // Fetch if not present
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locName)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.length > 0) {
+              const lat = parseFloat(data[0].lat);
+              const lon = parseFloat(data[0].lon);
+              setDroppedPins(currentPins => {
+                if (currentPins.some(p => p.name === locName)) return currentPins;
+                return [...currentPins, { lat, lng: lon, name: locName }];
+              });
+            }
+          })
+          .catch(e => console.error("Geocoding failed", e));
+          
+        return prev;
+      });
+    });
+  }, [formData.targetCountries]);
 
   const renderCaptionWithNewlines = (text: string) => {
     return text.split('\n').map((line, i) => (
@@ -390,15 +455,22 @@ const ClickToWhatsAppLauncher = () => {
                   <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                     <div className="ctwa-form-group">
                       <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></span> Ad Media (Image/Video)</label>
-                      <div className="media-upload-area" onClick={() => document.getElementById('ad-media-upload')?.click()}>
-                        <div className="upload-placeholder">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="upload-icon">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                          </svg>
-                          <span>Upload Image</span>
-                        </div>
+                      <div className={`media-upload-area ${formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? 'has-image' : ''}`} onClick={() => document.getElementById('ad-media-upload')?.click()}>
+                        {formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? (
+                          <div className="upload-preview-container" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0'}}>
+                            <img src={formData.imageUrl} alt="Ad Media" style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                            <span style={{fontSize: '0.8rem', fontWeight: 500, color: '#068E3E'}}>Image Selected (Click to change)</span>
+                          </div>
+                        ) : (
+                          <div className="upload-placeholder">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="upload-icon">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="17 8 12 3 7 8"></polyline>
+                              <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span>Upload Image</span>
+                          </div>
+                        )}
                         <input
                           id="ad-media-upload"
                           type="file"
@@ -478,16 +550,20 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 2 && (
               <div className="ctwa-step-content">
-                <div className="ctwa-form-row">
+                <div className="ctwa-form-row" style={{ gridTemplateColumns: '1fr' }}>
                   <div className="ctwa-form-group">
-                    <label>Target Countries</label>
-                    <Select
+                    <label>Target Locations (City, State, Country)</label>
+                    <CreatableSelect
                       isMulti
                       options={countryOptions}
-                      placeholder="Select countries..."
-                      value={countryOptions.filter(c => formData.targetCountries.split(',').includes(c.value))}
+                      placeholder="Type a location or select a country..."
+                      value={formData.targetCountries.split(',').filter(Boolean).map(val => {
+                        const existingOption = countryOptions.find(c => c.value === val);
+                        return existingOption ? existingOption : { label: val, value: val };
+                      })}
                       onChange={(selected: any) => {
-                        setFormData({ ...formData, targetCountries: selected ? selected.map((s: any) => s.value).join(',') : '' });
+                        const newLocations = selected ? selected.map((s: any) => s.value) : [];
+                        setFormData({ ...formData, targetCountries: newLocations.join(',') });
                       }}
                       styles={{
                         control: (base, state) => ({
@@ -503,6 +579,60 @@ const ClickToWhatsAppLauncher = () => {
                         })
                       }}
                     />
+                    
+                    {/* Interactive Meta-style Map */}
+                    <div style={{ height: '350px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
+                      <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer
+                          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                        />
+                        <MapResizer />
+                        <MapClickHandler onLocationClick={async (latlng) => {
+                          try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=10&addressdetails=1`);
+                            const data = await res.json();
+                            const locationName = data.address?.city || data.address?.state || data.address?.country || 'Custom Target Region';
+                            
+                            setDroppedPins([...droppedPins, { lat: latlng.lat, lng: latlng.lng, name: locationName }]);
+                            
+                            // Add to form data target locations as well
+                            const currentLocations = formData.targetCountries ? formData.targetCountries.split(',') : [];
+                            if (!currentLocations.includes(locationName)) {
+                              setFormData({ ...formData, targetCountries: [...currentLocations, locationName].join(',') });
+                            }
+                          } catch (err) {
+                            console.error('Failed to geocode location', err);
+                            setDroppedPins([...droppedPins, { lat: latlng.lat, lng: latlng.lng, name: 'Custom Target Region' }]);
+                          }
+                        }} />
+                        
+                        {/* Selected Country Markers */}
+                        {formData.targetCountries.split(',').filter(Boolean).map((locName, idx) => {
+                          const country = countryOptions.find(c => c.value === locName || c.label === locName);
+                          if (country) {
+                            return (
+                              <Marker key={`preset-${idx}`} position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
+                                <Tooltip direction="top" offset={[0, -30]} opacity={1}>{country.label}</Tooltip>
+                                <Popup>{country.label}</Popup>
+                              </Marker>
+                            );
+                          }
+                          return null;
+                        })}
+
+                        {/* Custom Dropped Pins */}
+                        {droppedPins.map((pin: any, i) => (
+                          <Marker key={`pin-${i}`} position={[pin.lat, pin.lng]} icon={customMarkerIcon} title={pin.name}>
+                            <Tooltip direction="top" offset={[0, -30]} opacity={1}>{pin.name}</Tooltip>
+                            <Popup>{pin.name}</Popup>
+                          </Marker>
+                        ))}
+                      </MapContainer>
+                      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 1000, fontWeight: 600 }}>
+                        Click anywhere to drop a target pin
+                      </div>
+                    </div>
                   </div>
                 </div>
 
