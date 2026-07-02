@@ -433,9 +433,9 @@
 .ctwa-preview-card {
   background: white;
   border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
 }
 
 /* Preview header (YOUR BRAND) */
@@ -447,9 +447,9 @@
   background: white;
 }
 .preview-avatar {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, #25D366, #128c7e);
-  border-radius: 6px;
+  width: 36px; height: 36px;
+  background: #068E3E;
+  border-radius: 8px;
   color: white;
   display: flex; align-items: center; justify-content: center;
   font-weight: 800;
@@ -460,7 +460,7 @@
 .preview-header-text span  { font-size: 0.65rem; color: #888; }
 .preview-wa-icon {
   margin-left: auto;
-  color: #25D366;
+  color: #068E3E;
   width: 18px; height: 18px;
 }
 .preview-wa-icon svg { width: 18px; height: 18px; }
@@ -477,7 +477,7 @@
 .preview-media {
   background: #013F2A;
   position: relative;
-  aspect-ratio: 4 / 4.5;
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -519,26 +519,27 @@
   font-size: 0.75rem;
   font-weight: 500;
 }
-.mock-feature .icon { display: flex; align-items: center; }
+.mock-feature .icon { display: flex; align-items: center; color: #4ade80; }
 
 /* Phone mockup alternative -> simplified phone design mimicking the reference */
 .mock-phone {
   position: absolute;
-  bottom: 10px; right: 15px;
-  width: 100px; height: 180px;
-  background: #111;
-  border-radius: 18px;
-  border: 4px solid #333;
-  padding: 5px;
+  bottom: -15px; right: 10px;
+  width: 120px; height: 240px;
+  background: #2a2a2a;
+  border-radius: 22px;
+  border: 2px solid #555;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  box-shadow: 0 15px 30px rgba(0,0,0,0.4);
-  transform: rotate(-5deg);
+  box-shadow: -10px 20px 30px rgba(0,0,0,0.6), inset 0 0 10px rgba(255,255,255,0.1);
+  transform: rotate(-12deg);
+  transform-origin: bottom right;
 }
 .mock-phone-screen {
-  background: #013F2A;
-  border-radius: 12px;
+  background: #013120;
+  border-radius: 16px;
   height: 100%;
   padding: 6px;
   display: flex;
@@ -548,17 +549,28 @@
   position: relative;
   overflow: hidden;
 }
+.mock-phone-screen::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 45px; height: 12px;
+  background: #2a2a2a;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  z-index: 2;
+}
 .mock-phone-wa-icon {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 50px; height: 50px;
+  width: 54px; height: 54px;
   background: #25D366;
   border-radius: 50%;
-  padding: 8px;
+  padding: 10px;
   color: white;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.5);
-  border: 2px solid white;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  border: 3px solid white;
 }
 
 /* Footer with CTA */
