@@ -268,7 +268,7 @@ const ClickToWhatsAppLauncher = () => {
       <div className="ctwa-main-header">
         <div className="whatsapp-logo-wrapper">
           <svg viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+            <path d="M6.62 10.79c1.44 2.83 3.76 5.15 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
           </svg>
         </div>
         <div className="header-text-container">
@@ -301,7 +301,7 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 1: Ad Account + Facebook Page */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label><span className="icon">🔴</span> Ad Account</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> Ad Account</label>
                     {accountsLoading ? (
                        <div style={{height: '40px', background: '#f3f4f6', borderRadius: '10px'}}></div>
                     ) : adAccounts.length > 0 ? (
@@ -322,7 +322,7 @@ const ClickToWhatsAppLauncher = () => {
                     )}
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon">f</span> Facebook Page</label>
+                    <label><span className="icon" style={{color: '#1877F2'}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg></span> Facebook Page</label>
                     {accountsLoading ? (
                        <div style={{height: '40px', background: '#f3f4f6', borderRadius: '10px'}}></div>
                     ) : pages.length > 0 ? (
@@ -347,7 +347,7 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 2: Campaign Name + Headline */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label><span className="icon">📢</span> Campaign Name</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> Campaign Name</label>
                     <input 
                       type="text" 
                       name="campaignName" 
@@ -358,7 +358,7 @@ const ClickToWhatsAppLauncher = () => {
                     />
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon">T</span> Headline</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg></span> Headline</label>
                     <input 
                       type="text" 
                       name="headline" 
@@ -375,7 +375,7 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
                     <label>
-                      <span className="icon">📄</span> Primary Text
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> Primary Text
                       <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`}>
                         {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
                       </span>
@@ -397,7 +397,7 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                     <div className="ctwa-form-group">
-                      <label><span className="icon">🖼️</span> Ad Media (Image/Video)</label>
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></span> Ad Media (Image/Video)</label>
                       <div className="media-upload-area" onClick={() => document.getElementById('ad-media-upload')?.click()}>
                         <div className="upload-placeholder">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="upload-icon">
@@ -420,13 +420,13 @@ const ClickToWhatsAppLauncher = () => {
                       {uploadError && <p style={{color: '#dc2626', fontSize: '0.72rem'}}>{uploadError}</p>}
                     </div>
                     <div className="ctwa-form-group">
-                      <label><span className="icon">📝</span> Ad Description (Optional)</label>
-                      <input 
-                        type="text" 
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span> Ad Description (Optional)</label>
+                      <textarea 
                         name="description" 
                         placeholder="Write ad description..."
                         value={formData.description}
                         onChange={handleChange}
+                        rows={2}
                       />
                     </div>
                   </div>
@@ -451,14 +451,14 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 4: Ad Status + Welcome Message + Ice Breaker (3 cols) */}
                 <div className="ctwa-form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
                   <div className="ctwa-form-group">
-                    <label><span className="icon">🕒</span> Ad Status</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span> Ad Status</label>
                     <select name="status" value={formData.status} onChange={handleChange} required className="ctwa-select">
                       <option value="PAUSED">Paused (Draft)</option>
                       <option value="ACTIVE">Active (Publish Immediately)</option>
                     </select>
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon">💬</span> WhatsApp Welcome Message</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></span> WhatsApp Welcome Message</label>
                     <input 
                       type="text" 
                       name="welcomeMessageText" 
@@ -468,7 +468,7 @@ const ClickToWhatsAppLauncher = () => {
                     />
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon">✨</span> Ice Breaker Button Text</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span> Ice Breaker Button Text</label>
                     <input 
                       type="text" 
                       name="iceBreakerText" 
@@ -730,24 +730,22 @@ const ClickToWhatsAppLauncher = () => {
                   <h2>Chat<br/>with us on<br/><span>WhatsApp!</span></h2>
                   <div className="mock-features">
                     <div className="mock-feature">
-                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Instant Support
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="#12c04d" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></span> Instant Support
                     </div>
                     <div className="mock-feature">
-                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></span> Exclusive Offers
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="#12c04d" stroke="currentColor" strokeWidth="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></span> Exclusive Offers
                     </div>
                     <div className="mock-feature">
-                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span> 100% Secure
+                      <span className="icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="#12c04d" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span> 100% Secure
                     </div>
                   </div>
                   <div className="mock-phone">
                     <div className="mock-phone-screen">
-                      <div className="mock-msg bubble">Chat with us!</div>
-                      <div className="mock-msg bubble-green">Hi there!</div>
-                    </div>
-                    <div className="mock-phone-wa-icon">
-                      <svg viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                      </svg>
+                      <div className="mock-phone-wa-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -765,32 +763,38 @@ const ClickToWhatsAppLauncher = () => {
           
           <div className="feature-icons-row">
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <div className="f-icon" style={{color: '#034B33'}}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
               </div>
-              <span>More Leads</span>
+              <span>More<br/>Leads</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+              <div className="f-icon" style={{color: '#034B33'}}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM7 9h2v2H7V9zm4 0h2v2h-2V9zm4 0h2v2h-2V9z"/></svg>
               </div>
               <span>Better<br/>Engagement</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 21h-1l1-7H7.5c-.58 0-.57-.32-.38-.66.19-.34.37-.71.55-1.02.16-.31 3.51-6.02 3.51-6.02C11.36 6.09 11.66 6 12 6h1l-1 7h3.5c.49 0 .56.33.47.51l-.07.15C12.96 17.55 11 21 11 21z"/></svg>
+              <div className="f-icon" style={{color: '#034B33'}}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 3L4 14h7v8l9-11h-7z"/></svg>
               </div>
               <span>Instant<br/>Responses</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
+              <div className="f-icon" style={{color: '#034B33'}}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
               </div>
               <span>Higher<br/>Conversions</span>
             </div>
             <div className="feature-icon-item">
-              <div className="f-icon" style={{color: '#059669'}}>
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M13.13 2.13l3.18 3.18c2.14-1.28 4.67-1.12 6.57.77-1.6 4.79-5.11 7.23-9.52 7.74l-3.32-3.32c.51-4.41 2.95-7.92 7.74-9.52.4.4.76.85 1.08 1.34L15.68.87a9.92 9.92 0 0 0-2.55 1.26zm-7.9 7.9l3.32 3.32c-2.3 3.57-5.55 6.04-9.55 7.65.34-.14.67-.3 1-.48l3.18-3.18c-1.39-1.92-1.57-4.46-.35-6.61a9.92 9.92 0 0 0 2.4-1z"/></svg>
+              <div className="f-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22">
+                  <g transform="rotate(45 12 12)">
+                    <polygon points="9,19 15,19 12,24" fill="#eab308" />
+                    <path d="M12 2 C17 5 16 14 16 14 L19 20 L5 20 L8 14 C8 14 7 5 12 2 Z" fill="#034B33" />
+                    <circle cx="12" cy="11" r="2.5" fill="#f0fdf4" />
+                  </g>
+                </svg>
               </div>
               <span>Grow Your<br/>Business</span>
             </div>
