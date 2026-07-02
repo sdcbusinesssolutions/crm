@@ -562,7 +562,6 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="ctwa-form-group">
                   <label>Daily Budget</label>
                   <div className="ctwa-budget-wrapper">
-                    <span className="budget-currency">{currencySymbol}</span>
                     <input 
                       type="number" 
                       name="dailyBudget" 
@@ -582,7 +581,7 @@ const ClickToWhatsAppLauncher = () => {
                         className={`budget-preset ${Number(formData.dailyBudget) === amount ? 'active' : ''}`}
                         onClick={() => setFormData({...formData, dailyBudget: amount.toString()})}
                       >
-                        {currencySymbol}{amount}
+                        {amount}
                       </button>
                     ))}
                   </div>
@@ -631,7 +630,7 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Daily Budget:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{currencySymbol}{formData.dailyBudget}</span>
+                      <span className="summary-value" style={{fontWeight: 600}}>{formData.dailyBudget}</span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Locations:</span>
