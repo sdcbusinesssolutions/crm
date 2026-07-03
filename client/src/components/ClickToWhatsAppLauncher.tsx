@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { tokenService } from '../services/tokenService';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
+import AsyncCreatableSelect from 'react-select/async-creatable';
+import debounce from 'lodash/debounce';
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
@@ -56,6 +58,62 @@ function MapResizer() {
   }, [map]);
   return null;
 }
+
+const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDroppedPins }: any) => {
+  return (
+    <div style={{ height: '350px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
+      <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+        <TileLayer
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        />
+        <MapResizer />
+        <MapClickHandler onLocationClick={async (latlng) => {
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=10&addressdetails=1`);
+            const data = await res.json();
+            const locationName = data.address?.city || data.address?.state || data.address?.country || 'Custom Target Region';
+            
+            setDroppedPins((prev: any) => [...prev, { lat: latlng.lat, lng: latlng.lng, name: locationName }]);
+            
+            setFormData((prev: any) => {
+              const currentLocations = prev.targetCountries ? prev.targetCountries.split(',') : [];
+              if (!currentLocations.includes(locationName)) {
+                return { ...prev, targetCountries: [...currentLocations, locationName].join(',') };
+              }
+              return prev;
+            });
+          } catch (err) {
+            console.error('Failed to geocode location', err);
+            setDroppedPins((prev: any) => [...prev, { lat: latlng.lat, lng: latlng.lng, name: 'Custom Target Region' }]);
+          }
+        }} />
+        
+        {/* Selected Country Markers */}
+        {formData.targetCountries.split(',').filter(Boolean).map((locName: string, idx: number) => {
+          const country = countryOptions.find((c: any) => c.value === locName || c.label === locName);
+          if (country) {
+            return (
+              <Marker key={`preset-${idx}`} position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
+                <Popup>{country.label}</Popup>
+              </Marker>
+            );
+          }
+          return null;
+        })}
+        {/* Dropped Pins */}
+        {droppedPins.map((pin: any, idx: number) => (
+          <Marker key={`dropped-${idx}`} position={[pin.lat, pin.lng]} icon={customMarkerIcon}>
+            <Popup>{pin.name || 'Custom Pin'}</Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 1000, fontWeight: 600 }}>
+        Click anywhere to drop a target pin
+      </div>
+    </div>
+  );
+}, (prev, next) => prev.formData.targetCountries === next.formData.targetCountries && prev.droppedPins === next.droppedPins);
 
 const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -161,9 +219,10 @@ const ClickToWhatsAppLauncher = () => {
     fetchAccounts();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
 
   const selectedAccount = adAccounts.find(acc => acc.account_id === formData.adAccountId);
   const currencyCode = selectedAccount?.currency || 'USD';
@@ -295,7 +354,61 @@ const ClickToWhatsAppLauncher = () => {
   };
 
 
-  const renderStepIndicator = () => {
+  const targetCountriesOptions = useMemo(() => {
+    return formData.targetCountries.split(',').filter(Boolean).map(val => {
+      const existingOption = countryOptions.find(c => c.value === val);
+      return existingOption ? existingOption : { label: val, value: val };
+    });
+  }, [formData.targetCountries]);
+
+  const commonLocations = useMemo(() => [
+    // Countries
+    "India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates", 
+    "Singapore", "Malaysia", "South Africa", "Nigeria", "Kenya", "Brazil", "Mexico", 
+    "Germany", "France", "Italy", "Spain", "Japan", "China", "South Korea", "Indonesia",
+    // Major Indian States & Cities
+    "Maharashtra, India", "Mumbai, Maharashtra, India", "Pune, Maharashtra, India", "Nagpur, Maharashtra, India",
+    "Delhi, India", "New Delhi, Delhi, India",
+    "Karnataka, India", "Bengaluru, Karnataka, India", "Mysuru, Karnataka, India",
+    "Tamil Nadu, India", "Chennai, Tamil Nadu, India", "Coimbatore, Tamil Nadu, India",
+    "Telangana, India", "Hyderabad, Telangana, India",
+    "Gujarat, India", "Ahmedabad, Gujarat, India", "Surat, Gujarat, India",
+    "West Bengal, India", "Kolkata, West Bengal, India",
+    "Uttar Pradesh, India", "Lucknow, Uttar Pradesh, India", "Noida, Uttar Pradesh, India",
+    "Rajasthan, India", "Jaipur, Rajasthan, India",
+    "Kerala, India", "Kochi, Kerala, India", "Thiruvananthapuram, Kerala, India",
+    // Major Global Cities
+    "New York, USA", "Los Angeles, USA", "Chicago, USA", "San Francisco, USA",
+    "London, UK", "Manchester, UK", "Birmingham, UK",
+    "Toronto, Canada", "Vancouver, Canada", "Montreal, Canada",
+    "Sydney, Australia", "Melbourne, Australia", "Brisbane, Australia",
+    "Dubai, UAE", "Abu Dhabi, UAE",
+    "Singapore City, Singapore",
+    "Kuala Lumpur, Malaysia",
+    "Cape Town, South Africa", "Johannesburg, South Africa",
+    "Lagos, Nigeria",
+    "Nairobi, Kenya"
+  ], []);
+
+  const loadOptions = useCallback((inputValue: string, callback: (options: any[]) => void) => {
+    if (!inputValue) {
+      callback(countryOptions);
+      return;
+    }
+    
+    const lowerInput = inputValue.toLowerCase();
+    const filtered = commonLocations
+      .filter(loc => loc.toLowerCase().includes(lowerInput))
+      .slice(0, 10)
+      .map(loc => ({ label: loc, value: loc }));
+      
+    // Simulate slight network delay for better UX
+    setTimeout(() => {
+      callback(filtered);
+    }, 300);
+  }, [commonLocations]);
+
+  const renderStepIndicator = useCallback(() => {
     const stepLabels = ['DETAILS', 'AUDIENCE', 'INVESTMENT', 'OVERVIEW'];
     return (
       <div className="ctwa-stepper">
@@ -323,7 +436,56 @@ const ClickToWhatsAppLauncher = () => {
         })}
       </div>
     );
-  };
+  }, [currentStep]);
+
+  const adPreview = useMemo(() => (
+    <div className="ctwa-preview-card">
+      <div className="preview-header">
+        <div className="preview-avatar">
+          {formData.pageId && pages.length > 0 
+            ? pages.find(p => p.id === formData.pageId)?.name?.charAt(0).toUpperCase() || 'W' 
+            : (formData.pageId ? formData.pageId.charAt(0).toUpperCase() : 'W')}
+        </div>
+        <div className="preview-header-text">
+          <strong>
+            {formData.pageId && pages.length > 0 
+              ? pages.find(p => p.id === formData.pageId)?.name || 'YOUR BRAND' 
+              : (formData.pageId || 'YOUR BRAND')}
+          </strong>
+          <span>Sponsored Ad</span>
+        </div>
+        <div className="preview-wa-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+          </svg>
+        </div>
+      </div>
+      
+      <div className="preview-caption">
+        {formData.primaryText || 'Get instant support and exclusive offers right in your WhatsApp inbox.'}
+      </div>
+      
+      <div className="preview-media">
+        {formData.imageUrl ? (
+          formData.imageUrl.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
+            <video src={formData.imageUrl} autoPlay muted loop playsInline />
+          ) : (
+            <img src={formData.imageUrl} alt="Ad Creative" />
+          )
+        ) : (
+          <img src="/mock-ad.png" alt="Ad Creative" />
+        )}
+      </div>
+      
+      <div className="preview-footer">
+        <div className="preview-footer-left">
+          <span className="whatsapp-label">WHATSAPP</span>
+          <strong className="headline-text">{formData.headline || 'Chat with us on WhatsApp!'}</strong>
+        </div>
+        <button className="preview-cta">Send WhatsApp Message</button>
+      </div>
+    </div>
+  ), [formData.pageId, pages, formData.primaryText, formData.imageUrl, formData.headline]);
 
   return (
     <div className="ctwa-container">
@@ -610,14 +772,13 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="ctwa-form-row" style={{ gridTemplateColumns: '1fr' }}>
                   <div className="ctwa-form-group">
                     <label>Target Locations (City, State, Country)</label>
-                    <CreatableSelect
+                    <AsyncCreatableSelect
                       isMulti
-                      options={countryOptions}
+                      cacheOptions
+                      defaultOptions
+                      loadOptions={loadOptions}
                       placeholder="Type a location or select a country..."
-                      value={formData.targetCountries.split(',').filter(Boolean).map(val => {
-                        const existingOption = countryOptions.find(c => c.value === val);
-                        return existingOption ? existingOption : { label: val, value: val };
-                      })}
+                      value={targetCountriesOptions}
                       onChange={(selected: any) => {
                         const newLocations = selected ? selected.map((s: any) => s.value) : [];
                         setFormData({ ...formData, targetCountries: newLocations.join(',') });
@@ -638,58 +799,12 @@ const ClickToWhatsAppLauncher = () => {
                     />
                     
                     {/* Interactive Meta-style Map */}
-                    <div style={{ height: '350px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
-                      <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
-                        <TileLayer
-                          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                        />
-                        <MapResizer />
-                        <MapClickHandler onLocationClick={async (latlng) => {
-                          try {
-                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=10&addressdetails=1`);
-                            const data = await res.json();
-                            const locationName = data.address?.city || data.address?.state || data.address?.country || 'Custom Target Region';
-                            
-                            setDroppedPins([...droppedPins, { lat: latlng.lat, lng: latlng.lng, name: locationName }]);
-                            
-                            // Add to form data target locations as well
-                            const currentLocations = formData.targetCountries ? formData.targetCountries.split(',') : [];
-                            if (!currentLocations.includes(locationName)) {
-                              setFormData({ ...formData, targetCountries: [...currentLocations, locationName].join(',') });
-                            }
-                          } catch (err) {
-                            console.error('Failed to geocode location', err);
-                            setDroppedPins([...droppedPins, { lat: latlng.lat, lng: latlng.lng, name: 'Custom Target Region' }]);
-                          }
-                        }} />
-                        
-                        {/* Selected Country Markers */}
-                        {formData.targetCountries.split(',').filter(Boolean).map((locName, idx) => {
-                          const country = countryOptions.find(c => c.value === locName || c.label === locName);
-                          if (country) {
-                            return (
-                              <Marker key={`preset-${idx}`} position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
-                                <Tooltip direction="top" offset={[0, -30]} opacity={1}>{country.label}</Tooltip>
-                                <Popup>{country.label}</Popup>
-                              </Marker>
-                            );
-                          }
-                          return null;
-                        })}
-
-                        {/* Custom Dropped Pins */}
-                        {droppedPins.map((pin: any, i) => (
-                          <Marker key={`pin-${i}`} position={[pin.lat, pin.lng]} icon={customMarkerIcon} title={pin.name}>
-                            <Tooltip direction="top" offset={[0, -30]} opacity={1}>{pin.name}</Tooltip>
-                            <Popup>{pin.name}</Popup>
-                          </Marker>
-                        ))}
-                      </MapContainer>
-                      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 1000, fontWeight: 600 }}>
-                        Click anywhere to drop a target pin
-                      </div>
-                    </div>
+                    <MemoizedMap 
+                      formData={formData} 
+                      setFormData={setFormData} 
+                      droppedPins={droppedPins} 
+                      setDroppedPins={setDroppedPins} 
+                    />
                   </div>
                 </div>
 
@@ -878,56 +993,8 @@ const ClickToWhatsAppLauncher = () => {
 
         </div>
 
-        {/* Live Preview Panel */}
         <div className="ctwa-right-panel">
-          <div className="ctwa-preview-card">
-            <div className="preview-header">
-              <div className="preview-avatar">
-                {formData.pageId && pages.length > 0 
-                  ? pages.find(p => p.id === formData.pageId)?.name?.charAt(0).toUpperCase() || 'W' 
-                  : (formData.pageId ? formData.pageId.charAt(0).toUpperCase() : 'W')}
-              </div>
-              <div className="preview-header-text">
-                <strong>
-                  {formData.pageId && pages.length > 0 
-                    ? pages.find(p => p.id === formData.pageId)?.name || 'YOUR BRAND' 
-                    : (formData.pageId || 'YOUR BRAND')}
-                </strong>
-                <span>Sponsored Ad</span>
-              </div>
-              <div className="preview-wa-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.489-1.761-1.663-2.06-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                </svg>
-              </div>
-            </div>
-            
-            <div className="preview-caption">
-              {formData.primaryText || 'Get instant support and exclusive offers right in your WhatsApp inbox.'}
-            </div>
-            
-            <div className="preview-media">
-              {formData.imageUrl ? (
-                formData.imageUrl.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
-                  <video src={formData.imageUrl} autoPlay muted loop playsInline />
-                ) : (
-                  <img src={formData.imageUrl} alt="Ad Creative" />
-                )
-              ) : (
-                <img src="/mock-ad.png" alt="Ad Creative" />
-              )}
-            </div>
-            
-            <div className="preview-footer">
-              <div className="preview-footer-left">
-                <span className="whatsapp-label">WHATSAPP</span>
-                <strong className="headline-text">{formData.headline || 'Chat with us on WhatsApp!'}</strong>
-              </div>
-              <button className="preview-cta">Send WhatsApp Message</button>
-            </div>
-          </div>
-          
-
+          {adPreview}
         </div>
       </div>
     </div>
