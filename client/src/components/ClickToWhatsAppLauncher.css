@@ -145,19 +145,19 @@
   transition: all 0.3s ease;
 }
 .step-circle.active {
-  background: #068E3E;
-  border-color: #068E3E;
+  background: #1D4ED8;
+  border-color: #1D4ED8;
   color: white;
-  box-shadow: 0 0 0 4px rgba(6, 142, 62, 0.15);
+  box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.15);
 }
 .stepper-item.active .stepper-circle {
-  background: #068E3E;
-  border-color: #068E3E;
+  background: #1D4ED8;
+  border-color: #1D4ED8;
   color: white;
 }
 .stepper-item.completed .stepper-circle {
-  background: #068E3E;
-  border-color: #068E3E;
+  background: #1D4ED8;
+  border-color: #1D4ED8;
   color: white;
 }
 .stepper-label {
@@ -167,19 +167,19 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.stepper-item.active .stepper-label { color: #068E3E; }
+.stepper-item.active .stepper-label { color: #1D4ED8; }
 .stepper-item.completed .stepper-label { color: #333; }
 
 .stepper-line {
   flex-grow: 1;
   height: 2.5px;
-  background: #068E3E;
+  background: #1D4ED8;
   margin: 0;
   margin-top: 13px;
   border-radius: 2px;
 }
 .stepper-line.completed {
-  background: #068E3E;
+  background: #1D4ED8;
 }
 
 /* ═══════════ STEP CONTENT ANIMATION ═══════════ */
