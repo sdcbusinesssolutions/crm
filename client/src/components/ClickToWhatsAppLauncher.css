@@ -91,12 +91,12 @@
   position: relative;
   z-index: 10;
   align-items: start;
-  max-width: 1150px;
+  max-width: 1250px;
   margin: 0 auto;
 }
 @media (min-width: 1024px) {
   .ctwa-layout-wrapper {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2.2fr 1fr;
   }
 }
 
@@ -763,15 +763,27 @@
 
 /* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width: 768px) {
-  .ctwa-container { padding: 1rem; }
+  .ctwa-container { padding: 1rem 0.75rem; }
+  .ctwa-card { padding: 1.25rem 1rem; }
   .ctwa-form-row,
   .ctwa-form-row.multi-col {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
   .col-span-2 { grid-column: span 1; }
-  .ctwa-main-header { gap: 0.75rem; }
-  .header-text-container h1 { font-size: 1.3rem; }
-  .feature-icons-row { flex-wrap: wrap; gap: 0.5rem; }
+  .ctwa-main-header { gap: 0.5rem; text-align: center; width: 100%; }
+  .header-text-container h1 { font-size: 1.5rem; justify-content: center; }
+  .header-text-container p { font-size: 0.85rem; }
+  
+  .ctwa-top-header-row { justify-content: center !important; gap: 20px !important; }
+  .feature-icons-row { flex-wrap: wrap; justify-content: center; gap: 0.75rem; margin-left: 0 !important; width: 100%; padding: 1rem; }
+  .feature-icon-item span { font-size: 0.65rem; }
+  
+  .ctwa-stepper { margin-bottom: 1.5rem; padding-bottom: 1rem; }
+  .stepper-item { width: 60px; }
+  .stepper-label { font-size: 0.55rem; }
+  .stepper-line { margin-top: 10px; }
+  .step-circle.active, .stepper-circle { width: 24px; height: 24px; font-size: 0.75rem; }
 }
 
 /* Map Container Styles */

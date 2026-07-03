@@ -329,7 +329,7 @@ const ClickToWhatsAppLauncher = () => {
     <div className="ctwa-container">
       <div className="ctwa-bg-element-1"></div>
       <div className="ctwa-bg-element-2"></div>
-      <div className="ctwa-top-header-row" style={{ maxWidth: '1150px', margin: '0 auto 20px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', position: 'relative', zIndex: 10, flexWrap: 'wrap', gap: '40px' }}>
+      <div className="ctwa-top-header-row" style={{ maxWidth: '1250px', margin: '0 auto 20px', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', position: 'relative', zIndex: 10, flexWrap: 'wrap', gap: '40px' }}>
         <div className="ctwa-main-header" style={{ margin: 0, padding: 0 }}>
           <div className="header-text-container">
             <h1>Launch <span>WhatsApp Ad</span></h1>
