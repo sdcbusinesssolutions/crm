@@ -109,7 +109,7 @@
 
 .ctwa-card {
   background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 104, 74, 0.3); /* Light #00684A */
   border-radius: 16px;
   padding: 1.5rem;
   box-shadow: 0 8px 30px rgba(0,0,0,0.04);
@@ -448,7 +448,7 @@
 
 .ctwa-preview-card {
   background: white;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 104, 74, 0.3); /* Light #00684A */
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 6px 24px rgba(0,0,0,0.06);
