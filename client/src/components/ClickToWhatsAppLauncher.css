@@ -249,12 +249,12 @@
 .ctwa-form-group input,
 .ctwa-form-group textarea,
 .ctwa-select {
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgba(0, 104, 74, 0.3);
   border-radius: 8px;
   font-size: 0.8rem;
   color: #333;
   transition: all 0.2s;
-  background: #f8fafc;
+  background: #ffffff;
   padding: 0.5rem 0.75rem;
   width: 100%;
 }
@@ -268,7 +268,11 @@
 }
 .ctwa-form-group textarea {
   resize: vertical;
-  min-height: 60px;
+  min-height: 80px;
+}
+.ctwa-form-group input::placeholder,
+.ctwa-form-group textarea::placeholder {
+  color: rgba(0, 104, 74, 0.45);
 }
 .ctwa-select {
   appearance: none;
