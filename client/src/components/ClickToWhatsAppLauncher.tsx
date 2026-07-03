@@ -339,36 +339,36 @@ const ClickToWhatsAppLauncher = () => {
 
         <div className="feature-icons-row" style={{ marginTop: 0, maxWidth: '550px', flex: 1, padding: '1rem', marginLeft: '20px' }}>
           <div className="feature-icon-item">
-            <div className="f-icon" style={{color: '#068E3E'}}>
+            <div className="f-icon" style={{color: '#3B82F6', backgroundColor: '#EFF6FF'}}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
             </div>
             <span>More<br/>Leads</span>
           </div>
           <div className="feature-icon-item">
-            <div className="f-icon" style={{color: '#068E3E'}}>
+            <div className="f-icon" style={{color: '#A855F7', backgroundColor: '#FAF5FF'}}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM7 9h2v2H7V9zm4 0h2v2h-2V9zm4 0h2v2h-2V9z"/></svg>
             </div>
             <span>Better<br/>Engagement</span>
           </div>
           <div className="feature-icon-item">
-            <div className="f-icon" style={{color: '#068E3E'}}>
+            <div className="f-icon" style={{color: '#14B8A6', backgroundColor: '#F0FDFA'}}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 3L4 14h7v8l9-11h-7z"/></svg>
             </div>
             <span>Instant<br/>Responses</span>
           </div>
           <div className="feature-icon-item">
-            <div className="f-icon" style={{color: '#068E3E'}}>
+            <div className="f-icon" style={{color: '#F59E0B', backgroundColor: '#FFFBEB'}}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
             </div>
             <span>Higher<br/>Conversions</span>
           </div>
           <div className="feature-icon-item">
-            <div className="f-icon">
+            <div className="f-icon" style={{color: '#EC4899', backgroundColor: '#FDF2F8'}}>
               <svg viewBox="0 0 24 24" width="22" height="22">
                 <g transform="rotate(45 12 12)">
-                  <polygon points="9,19 15,19 12,24" fill="#eab308" />
-                  <path d="M12 2 C17 5 16 14 16 14 L19 20 L5 20 L8 14 C8 14 7 5 12 2 Z" fill="#034B33" />
-                  <circle cx="12" cy="11" r="2.5" fill="#f0fdf4" />
+                  <polygon points="9,19 15,19 12,24" fill="currentColor" opacity="0.8" />
+                  <path d="M12 2 C17 5 16 14 16 14 L19 20 L5 20 L8 14 C8 14 7 5 12 2 Z" fill="currentColor" />
+                  <circle cx="12" cy="11" r="2.5" fill="#ffffff" />
                 </g>
               </svg>
             </div>
