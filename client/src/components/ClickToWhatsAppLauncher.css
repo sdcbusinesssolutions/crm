@@ -220,20 +220,22 @@
   margin-bottom: 0.4rem;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 .ctwa-form-group label .icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px; height: 18px;
-  color: #013F2A;
+  width: 22px; height: 22px;
+  background-color: #068E3E;
+  color: white;
+  border-radius: 6px;
   font-size: 0.9rem;
   font-weight: 700;
   flex-shrink: 0;
 }
 .ctwa-form-group label .icon svg {
-  width: 16px; height: 16px;
+  width: 14px; height: 14px;
 }
 .char-count {
   margin-left: auto;
@@ -357,17 +359,20 @@
   position: relative;
 }
 .ctwa-submit-btn {
-  background: #068E3E;
+  background: linear-gradient(90deg, #64e32d, #038a16);
   color: white;
   border: none;
-  padding: 0.6rem 2.5rem;
-  font-size: 0.9rem;
+  padding: 0.6rem 2rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  border-radius: 22px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.25s;
-  box-shadow: 0 4px 14px rgba(6, 142, 62, 0.35);
+  box-shadow: 0 4px 14px rgba(6, 142, 62, 0.25);
   letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .ctwa-submit-btn:hover {
   transform: translateY(-2px);

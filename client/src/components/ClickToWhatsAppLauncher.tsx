@@ -355,7 +355,7 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 1: Ad Account + Facebook Page */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span> Ad Account</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></span> Ad Account</label>
                     {accountsLoading ? (
                        <div style={{height: '40px', background: '#f3f4f6', borderRadius: '10px'}}></div>
                     ) : adAccounts.length > 0 ? (
@@ -376,7 +376,7 @@ const ClickToWhatsAppLauncher = () => {
                     )}
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon" style={{color: '#1877F2'}}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg></span> Facebook Page</label>
+                    <label><span className="icon" style={{ background: 'transparent' }}><svg viewBox="0 0 24 24" fill="none" stroke="none" style={{ width: '18px', height: '18px', marginLeft: '2px', marginRight: '2px' }}><circle cx="12" cy="12" r="12" fill="#1877F2" /><path d="M15.36 12l-.54-3.52h-2.99V6.21c0-.97.48-1.91 2-1.91h1.55V1.31s-1.41-.24-2.75-.24c-2.82 0-4.65 1.71-4.65 4.79v2.66H5.43V12h2.55v8.52h3.84V12h3.54z" fill="white" /></svg></span> Facebook Page</label>
                     {accountsLoading ? (
                        <div style={{height: '40px', background: '#f3f4f6', borderRadius: '10px'}}></div>
                     ) : pages.length > 0 ? (
@@ -401,7 +401,7 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 2: Campaign Name + Headline */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></span> Campaign Name</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg></span> Campaign Name</label>
                     <input 
                       type="text" 
                       name="campaignName" 
@@ -412,7 +412,7 @@ const ClickToWhatsAppLauncher = () => {
                     />
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg></span> Headline</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg></span> Headline</label>
                     <input 
                       type="text" 
                       name="headline" 
@@ -429,7 +429,7 @@ const ClickToWhatsAppLauncher = () => {
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
                     <label>
-                      <span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span> Primary Text
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> Primary Text
                       <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`}>
                         {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
                       </span>
@@ -454,7 +454,7 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
                   <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                     <div className="ctwa-form-group">
-                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg></span> Ad Media (Image/Video)</label>
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span> Ad Media (Image/Video)</label>
                       <div className={`media-upload-area ${formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? 'has-image' : ''}`} onClick={() => document.getElementById('ad-media-upload')?.click()}>
                         {formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? (
                           <div className="upload-preview-container" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0'}}>
@@ -462,24 +462,29 @@ const ClickToWhatsAppLauncher = () => {
                             <span style={{fontSize: '0.8rem', fontWeight: 500, color: '#068E3E'}}>Image Selected (Click to change)</span>
                           </div>
                         ) : (
-                          <div className="upload-placeholder">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="upload-icon">
-                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                              <polyline points="17 8 12 3 7 8"></polyline>
-                              <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                            <span>Upload Image</span>
+                          <div className="upload-placeholder-new" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                            <div className="upload-icon-box" style={{ background: '#eafff0', padding: '12px', borderRadius: '12px' }}>
+                              <svg viewBox="0 0 24 24" fill="#068E3E" style={{ width: '28px', height: '28px' }}><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                            </div>
+                            <div className="upload-text-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Image or Video</span>
+                              <span style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>Recommended: 1:1 aspect ratio<br/>at least 1080 × 1080 pixels.</span>
+                              <button type="button" className="ctwa-upload-btn-mini" style={{ background: '#068E3E', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Upload
+                              </button>
+                            </div>
                           </div>
                         )}
                         <input
                           id="ad-media-upload"
                           type="file"
                           accept="image/*,video/*"
+                          style={{ display: 'none' }}
                           onChange={handleFileUpload}
-                          className="file-input"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
-                      <p className="field-hint">Recommended: 1:1 aspect ratio<br/>at least 1080 × 1080 pixels.</p>
                       {uploading && <p style={{color: '#25D366', fontSize: '0.72rem'}}>Uploading...</p>}
                       {uploadError && <p style={{color: '#dc2626', fontSize: '0.72rem'}}>{uploadError}</p>}
                     </div>
@@ -488,23 +493,34 @@ const ClickToWhatsAppLauncher = () => {
 
                 {/* Ad Description + Winning Formula */}
                 <div className="ctwa-form-row">
-                  <div className="winning-formula-box" style={{ marginBottom: 0, marginTop: 'auto' }}>
-                    <div className="formula-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <circle cx="12" cy="12" r="6"></circle>
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <line x1="22" y1="2" x2="14" y2="10"></line>
-                      </svg>
-                    </div>
+                  <div className="winning-formula-box" style={{ marginBottom: 0, marginTop: 'auto', background: '#eafff0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6d5' }}>
                     <div className="formula-text">
-                      <strong>💡 Winning Formula:</strong>
-                      <p>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
+                      <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563EB', fontSize: '0.8rem' }}>💡 Winning Formula:</strong>
+                      <p style={{ color: '#2563EB', fontSize: '0.75rem', fontWeight: 600, margin: '4px 0 0' }}>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
+                    </div>
+                    <div className="formula-icon-large">
+                      <svg viewBox="0 0 120 120" style={{ width: '56px', height: '56px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
+                        <circle cx="50" cy="70" r="38" fill="#22c55e"></circle>
+                        <circle cx="50" cy="70" r="26" fill="#ffffff"></circle>
+                        <circle cx="50" cy="70" r="14" fill="#22c55e"></circle>
+                        <circle cx="50" cy="70" r="6" fill="#f97316"></circle>
+                        <circle cx="50" cy="70" r="2" fill="#ea580c"></circle>
+                        <g>
+                          <line x1="50" y1="70" x2="88" y2="32" stroke="#4b5563" strokeWidth="2.5" strokeLinecap="round"></line>
+                          <polygon points="78,42 98,22 103,27 83,47" fill="#15803d" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
+                          <polygon points="78,42 98,22 93,17 73,37" fill="#22c55e" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
+                        </g>
+                        <g>
+                          <line x1="74" y1="70" x2="104" y2="50" stroke="#4b5563" strokeWidth="2.5" strokeLinecap="round"></line>
+                          <polygon points="92,58 110,46 114,52 96,64" fill="#15803d" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
+                          <polygon points="92,58 110,46 106,40 88,52" fill="#22c55e" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
+                        </g>
+                      </svg>
                     </div>
                   </div>
 
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></span> Ad Description (Optional)</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span> Ad Description (Optional)</label>
                     <textarea 
                       name="description" 
                       placeholder="Write ad description..."
@@ -518,14 +534,14 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 4: Ad Status + Welcome Message + Ice Breaker (3 cols) */}
                 <div className="ctwa-form-row" style={{gridTemplateColumns: '1fr 1fr 1fr'}}>
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></span> Ad Status</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V12c0-.55-.45-1-1-1s-1 .45-1 1v6.09c-1.42-.51-2.5-1.78-2.83-3.34L11 11.41C11.39 10.05 12.74 9 14.34 9c1.66 0 3.04 1.14 3.39 2.59l-2.4 3.33c-.35 1.57-1.45 2.84-2.92 3.17z"/></svg></span> Ad Status</label>
                     <select name="status" value={formData.status} onChange={handleChange} required className="ctwa-select">
                       <option value="PAUSED">Paused (Draft)</option>
                       <option value="ACTIVE">Active (Publish Immediately)</option>
                     </select>
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></span> WhatsApp Welcome Message</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg></span> WhatsApp Welcome Message</label>
                     <input 
                       type="text" 
                       name="welcomeMessageText" 
@@ -535,7 +551,7 @@ const ClickToWhatsAppLauncher = () => {
                     />
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span> Ice Breaker Button Text</label>
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 9h-2V9h2v2zm-4 0H9V9h2v2zm-4 0H5V9h2v2z"/></svg></span> Ice Breaker Button Text</label>
                     <input 
                       type="text" 
                       name="iceBreakerText" 
@@ -797,7 +813,12 @@ const ClickToWhatsAppLauncher = () => {
               
               {!successData && (
                 <button type="submit" disabled={loading} className="ctwa-submit-btn" style={{marginLeft: 'auto'}}>
-                  {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : 'Next →'}
+                  {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : (
+                    <>
+                      {loading ? 'Creating...' : 'Next'}
+                      {!loading && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width: '16px', height: '16px', marginLeft: '6px'}}><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>}
+                    </>
+                  )}
                 </button>
               )}
 
