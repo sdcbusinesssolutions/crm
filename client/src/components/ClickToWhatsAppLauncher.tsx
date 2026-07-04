@@ -77,9 +77,9 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
             setDroppedPins((prev: any) => [...prev, { lat: latlng.lat, lng: latlng.lng, name: locationName }]);
             
             setFormData((prev: any) => {
-              const currentLocations = prev.targetCountries ? prev.targetCountries.split(',') : [];
+              const currentLocations = prev.targetCountries ? prev.targetCountries.split('|') : [];
               if (!currentLocations.includes(locationName)) {
-                return { ...prev, targetCountries: [...currentLocations, locationName].join(',') };
+                return { ...prev, targetCountries: [...currentLocations, locationName].join('|') };
               }
               return prev;
             });
@@ -90,7 +90,7 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
         }} />
         
         {/* Selected Country Markers */}
-        {formData.targetCountries.split(',').filter(Boolean).map((locName: string, idx: number) => {
+        {formData.targetCountries.split('|').filter(Boolean).map((locName: string, idx: number) => {
           const country = countryOptions.find((c: any) => c.value === locName || c.label === locName);
           if (country) {
             return (
@@ -155,7 +155,7 @@ const ClickToWhatsAppLauncher = () => {
 
   // Synchronize droppedPins with formData.targetCountries (add missing, remove deleted)
   useEffect(() => {
-    const currentLocations = formData.targetCountries ? formData.targetCountries.split(',').filter(Boolean) : [];
+    const currentLocations = formData.targetCountries ? formData.targetCountries.split('|').filter(Boolean) : [];
     
     setDroppedPins(prevPins => {
       // 1. Remove pins that are no longer in targetCountries
@@ -372,7 +372,7 @@ const ClickToWhatsAppLauncher = () => {
 
 
   const targetCountriesOptions = useMemo(() => {
-    return formData.targetCountries.split(',').filter(Boolean).map(val => {
+    return formData.targetCountries.split('|').filter(Boolean).map(val => {
       const existingOption = countryOptions.find(c => c.value === val);
       return existingOption ? existingOption : { label: val, value: val };
     });
@@ -855,7 +855,7 @@ const ClickToWhatsAppLauncher = () => {
                       value={targetCountriesOptions}
                       onChange={(selected: any) => {
                         const newLocations = selected ? selected.map((s: any) => s.value) : [];
-                        setFormData({ ...formData, targetCountries: newLocations.join(',') });
+                        setFormData({ ...formData, targetCountries: newLocations.join('|') });
                         
                         // If selected option has lat/lng, automatically drop a pin
                         if (selected && selected.length > 0) {
