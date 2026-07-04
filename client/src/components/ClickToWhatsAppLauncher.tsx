@@ -128,6 +128,7 @@ const ClickToWhatsAppLauncher = () => {
     primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
     imageUrl: '',
     targetCountries: '',
+    baseCountryCode: '',
     minAge: '18',
     maxAge: '65',
     gender: 'all',
@@ -152,26 +153,42 @@ const ClickToWhatsAppLauncher = () => {
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [droppedPins, setDroppedPins] = useState<{lat: number, lng: number, name?: string}[]>([]);
 
-  // Geocode custom locations that are added to formData but not yet in droppedPins
+  // Synchronize droppedPins with formData.targetCountries (add missing, remove deleted)
   useEffect(() => {
     const currentLocations = formData.targetCountries ? formData.targetCountries.split(',').filter(Boolean) : [];
     
+    setDroppedPins(prevPins => {
+      // 1. Remove pins that are no longer in targetCountries
+      const nextPins = prevPins.filter(pin => {
+        // If pin has no name, we can't sync it easily, keep it as custom pin.
+        // Otherwise, keep it only if it's still in currentLocations
+        if (!pin.name) return true;
+        return currentLocations.includes(pin.name);
+      });
+      return nextPins;
+    });
+    
+    // 2. Geocode and add new pins that are in targetCountries but not in droppedPins
     currentLocations.forEach(locName => {
       const isPredefined = countryOptions.some(c => c.value === locName || c.label === locName);
-      if (isPredefined) return;
+      if (isPredefined) return; // Predefined countries have their own markers
       
       setDroppedPins(prev => {
         if (prev.some(p => p.name === locName)) return prev;
         
         // Fetch if not present
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locName)}`)
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(locName)}`)
           .then(res => res.json())
           .then(data => {
             if (data && data.length > 0) {
               const lat = parseFloat(data[0].lat);
               const lon = parseFloat(data[0].lon);
               setDroppedPins(currentPins => {
+                // Double check it wasn't removed while we were fetching
                 if (currentPins.some(p => p.name === locName)) return currentPins;
+                const stillExists = (formData.targetCountries || '').includes(locName);
+                if (!stillExists) return currentPins;
+                
                 return [...currentPins, { lat, lng: lon, name: locName }];
               });
             }
@@ -361,24 +378,59 @@ const ClickToWhatsAppLauncher = () => {
     });
   }, [formData.targetCountries]);
 
+  const baseCountryCodeRef = useRef(formData.baseCountryCode);
+  useEffect(() => {
+    baseCountryCodeRef.current = formData.baseCountryCode;
+  }, [formData.baseCountryCode]);
+
   const fetchLocations = useMemo(
     () =>
       debounce((inputValue: string, resolve: (options: any[]) => void) => {
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&email=hello@clicktowp.com&q=${encodeURIComponent(inputValue)}`)
+        // Append countrycode if baseCountryCode is set
+        const currentCountryCode = baseCountryCodeRef.current;
+        const countryParam = currentCountryCode ? `&countrycodes=${currentCountryCode.toLowerCase()}` : '';
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=15&email=hello@clicktowp.com&accept-language=en${countryParam}&q=${encodeURIComponent(inputValue)}`)
           .then(res => res.json())
           .then(data => {
             if (!Array.isArray(data)) {
               resolve([]);
               return;
             }
-            const options = data.map((item: any) => ({
-              label: item.display_name,
-              value: item.display_name,
-              type: item.addresstype || item.type || 'Location',
-              lat: parseFloat(item.lat),
-              lng: parseFloat(item.lon)
-            }));
-            resolve(options);
+            
+            const options = data.map((item: any) => {
+              const addr = item.address || {};
+              const nameParts = [];
+              
+              // 1. Specific local area
+              const localName = addr.neighbourhood || addr.suburb || addr.village || addr.town || addr.city || item.name;
+              if (localName) nameParts.push(localName);
+              
+              // 2. State
+              if (addr.state && addr.state !== localName) nameParts.push(addr.state);
+              
+              // 3. Country
+              if (addr.country && addr.country !== localName && addr.country !== addr.state) nameParts.push(addr.country);
+              
+              const cleanLabel = nameParts.join(', ');
+              
+              // Format type for display
+              let type = item.addresstype || item.type || 'Location';
+              if (type === 'administrative' || type === 'state_district') type = 'Region';
+              else type = type.charAt(0).toUpperCase() + type.slice(1);
+              
+              return {
+                label: cleanLabel,
+                value: cleanLabel,
+                type: type,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon)
+              };
+            });
+            
+            // Filter out exact duplicates that arise from cleaning the names
+            const uniqueOptions = options.filter((v, i, a) => a.findIndex(t => (t.label === v.label)) === i).slice(0, 8);
+            
+            resolve(uniqueOptions);
           })
           .catch(error => {
             console.error("Error fetching locations:", error);
@@ -771,8 +823,28 @@ const ClickToWhatsAppLauncher = () => {
             {currentStep === 2 && (
               <div className="ctwa-step-content">
                 <div className="ctwa-form-row" style={{ gridTemplateColumns: '1fr' }}>
+                  <div className="ctwa-form-group" style={{ marginBottom: '1rem' }}>
+                    <label>1. Select Primary Country (Optional, for higher accuracy)</label>
+                    <Select
+                      options={countryOptions}
+                      placeholder="Select a country to narrow down search..."
+                      value={countryOptions.find(c => c.value === formData.baseCountryCode) || null}
+                      onChange={(selected: any) => setFormData({ ...formData, baseCountryCode: selected ? selected.value : '' })}
+                      isClearable
+                      styles={{
+                        control: (base, state) => ({
+                          ...base,
+                          padding: '4px',
+                          borderRadius: '8px',
+                          borderWidth: '1px',
+                          borderColor: state.isFocused ? '#25D366' : '#e5e7eb',
+                          boxShadow: state.isFocused ? '0 0 0 3px rgba(37, 211, 102, 0.1)' : 'none',
+                        })
+                      }}
+                    />
+                  </div>
                   <div className="ctwa-form-group">
-                    <label>Target Locations (City, State, Country)</label>
+                    <label>2. Search Specific Target Locations (City, State, Neighborhood)</label>
                     <AsyncCreatableSelect
                       isMulti
                       cacheOptions
@@ -789,10 +861,12 @@ const ClickToWhatsAppLauncher = () => {
                         if (selected && selected.length > 0) {
                           const latest = selected[selected.length - 1];
                           if (latest && latest.lat && latest.lng) {
-                            // Check if pin already exists
-                            if (!droppedPins.some((p: any) => p.name === latest.value)) {
-                              setDroppedPins([...droppedPins, { lat: latest.lat, lng: latest.lng, name: latest.value }]);
-                            }
+                            setDroppedPins((prev: any) => {
+                              if (!prev.some((p: any) => p.name === latest.value)) {
+                                return [...prev, { lat: latest.lat, lng: latest.lng, name: latest.value }];
+                              }
+                              return prev;
+                            });
                           }
                         }
                       }}
