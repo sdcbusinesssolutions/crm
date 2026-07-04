@@ -361,52 +361,53 @@ const ClickToWhatsAppLauncher = () => {
     });
   }, [formData.targetCountries]);
 
-  const commonLocations = useMemo(() => [
-    // Countries
-    "India", "United States", "United Kingdom", "Canada", "Australia", "United Arab Emirates", 
-    "Singapore", "Malaysia", "South Africa", "Nigeria", "Kenya", "Brazil", "Mexico", 
-    "Germany", "France", "Italy", "Spain", "Japan", "China", "South Korea", "Indonesia",
-    // Major Indian States & Cities
-    "Maharashtra, India", "Mumbai, Maharashtra, India", "Pune, Maharashtra, India", "Nagpur, Maharashtra, India",
-    "Delhi, India", "New Delhi, Delhi, India",
-    "Karnataka, India", "Bengaluru, Karnataka, India", "Mysuru, Karnataka, India",
-    "Tamil Nadu, India", "Chennai, Tamil Nadu, India", "Coimbatore, Tamil Nadu, India",
-    "Telangana, India", "Hyderabad, Telangana, India",
-    "Gujarat, India", "Ahmedabad, Gujarat, India", "Surat, Gujarat, India",
-    "West Bengal, India", "Kolkata, West Bengal, India",
-    "Uttar Pradesh, India", "Lucknow, Uttar Pradesh, India", "Noida, Uttar Pradesh, India",
-    "Rajasthan, India", "Jaipur, Rajasthan, India",
-    "Kerala, India", "Kochi, Kerala, India", "Thiruvananthapuram, Kerala, India",
-    // Major Global Cities
-    "New York, USA", "Los Angeles, USA", "Chicago, USA", "San Francisco, USA",
-    "London, UK", "Manchester, UK", "Birmingham, UK",
-    "Toronto, Canada", "Vancouver, Canada", "Montreal, Canada",
-    "Sydney, Australia", "Melbourne, Australia", "Brisbane, Australia",
-    "Dubai, UAE", "Abu Dhabi, UAE",
-    "Singapore City, Singapore",
-    "Kuala Lumpur, Malaysia",
-    "Cape Town, South Africa", "Johannesburg, South Africa",
-    "Lagos, Nigeria",
-    "Nairobi, Kenya"
-  ], []);
+  const fetchLocations = useMemo(
+    () =>
+      debounce((inputValue: string, resolve: (options: any[]) => void) => {
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&email=hello@clicktowp.com&q=${encodeURIComponent(inputValue)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (!Array.isArray(data)) {
+              resolve([]);
+              return;
+            }
+            const options = data.map((item: any) => ({
+              label: item.display_name,
+              value: item.display_name,
+              type: item.addresstype || item.type || 'Location',
+              lat: parseFloat(item.lat),
+              lng: parseFloat(item.lon)
+            }));
+            resolve(options);
+          })
+          .catch(error => {
+            console.error("Error fetching locations:", error);
+            resolve([]);
+          });
+      }, 600),
+    []
+  );
 
-  const loadOptions = useCallback((inputValue: string, callback: (options: any[]) => void) => {
-    if (!inputValue) {
-      callback(countryOptions);
-      return;
-    }
-    
-    const lowerInput = inputValue.toLowerCase();
-    const filtered = commonLocations
-      .filter(loc => loc.toLowerCase().includes(lowerInput))
-      .slice(0, 10)
-      .map(loc => ({ label: loc, value: loc }));
-      
-    // Simulate slight network delay for better UX
-    setTimeout(() => {
-      callback(filtered);
-    }, 300);
-  }, [commonLocations]);
+  const loadOptions = useCallback((inputValue: string) => {
+    return new Promise<any[]>(resolve => {
+      if (!inputValue) {
+        resolve([]);
+        return;
+      }
+      fetchLocations(inputValue, resolve);
+    });
+  }, [fetchLocations]);
+
+  const customFormatOptionLabel = ({ label, type, __isNew__ }: any) => (
+    <div style={{ display: 'flex', flexDirection: 'column', padding: '2px 0' }}>
+      <span style={{ fontWeight: 500, color: '#1c1e21', fontSize: '14px' }}>{label}</span>
+      {!__isNew__ && (
+        <span style={{ fontSize: '12px', color: '#606770', textTransform: 'capitalize', marginTop: '2px' }}>
+          {type || 'Location'}
+        </span>
+      )}
+    </div>
+  );
 
   const renderStepIndicator = useCallback(() => {
     const stepLabels = ['DETAILS', 'AUDIENCE', 'INVESTMENT', 'OVERVIEW'];
@@ -775,15 +776,28 @@ const ClickToWhatsAppLauncher = () => {
                     <AsyncCreatableSelect
                       isMulti
                       cacheOptions
-                      defaultOptions
+                      defaultOptions={[]}
                       loadOptions={loadOptions}
-                      placeholder="Type a location or select a country..."
+                      formatOptionLabel={customFormatOptionLabel}
+                      placeholder="Search locations (e.g. City, Neighborhood)..."
                       value={targetCountriesOptions}
                       onChange={(selected: any) => {
                         const newLocations = selected ? selected.map((s: any) => s.value) : [];
                         setFormData({ ...formData, targetCountries: newLocations.join(',') });
+                        
+                        // If selected option has lat/lng, automatically drop a pin
+                        if (selected && selected.length > 0) {
+                          const latest = selected[selected.length - 1];
+                          if (latest && latest.lat && latest.lng) {
+                            // Check if pin already exists
+                            if (!droppedPins.some((p: any) => p.name === latest.value)) {
+                              setDroppedPins([...droppedPins, { lat: latest.lat, lng: latest.lng, name: latest.value }]);
+                            }
+                          }
+                        }
                       }}
                       styles={{
+                        menu: base => ({ ...base, zIndex: 9999 }),
                         control: (base, state) => ({
                           ...base,
                           padding: '4px',
