@@ -5,7 +5,7 @@ import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import AsyncCreatableSelect from 'react-select/async-creatable';
 import debounce from 'lodash/debounce';
-import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import './ClickToWhatsAppLauncher.css';
@@ -59,6 +59,23 @@ function MapResizer() {
   return null;
 }
 
+function MapZoomToPins({ droppedPins, presetCountries }: { droppedPins: any[], presetCountries: any[] }) {
+  const map = useMapEvents({});
+  useEffect(() => {
+    if (droppedPins.length === 0 && presetCountries.length === 0) return;
+    
+    const bounds = L.latLngBounds([]);
+    presetCountries.forEach(c => { if(c) bounds.extend([c.lat, c.lng]); });
+    droppedPins.forEach(p => { if(p) bounds.extend([p.lat, p.lng]); });
+    
+    if (bounds.isValid()) {
+      // Zoom map to fit the bounds to perfectly frame the 25-mile radius circles
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+    }
+  }, [map, droppedPins, presetCountries]);
+  return null;
+}
+
 const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDroppedPins }: any) => {
   return (
     <div style={{ height: '350px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
@@ -68,6 +85,10 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
         <MapResizer />
+        <MapZoomToPins 
+          droppedPins={droppedPins} 
+          presetCountries={formData.targetCountries.split('|').filter(Boolean).map((locName: string) => countryOptions.find(c => c.value === locName || c.label === locName)).filter(Boolean)} 
+        />
         <MapClickHandler onLocationClick={async (latlng) => {
           try {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}&zoom=10&addressdetails=1`);
@@ -94,19 +115,27 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
           const country = countryOptions.find((c: any) => c.value === locName || c.label === locName);
           if (country) {
             return (
-              <Marker key={`preset-${idx}`} position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
-                <Popup>{country.label}</Popup>
-              </Marker>
+              <React.Fragment key={`preset-${idx}`}>
+                <Circle center={[country.lat, country.lng]} radius={40233} pathOptions={{ color: '#25D366', fillColor: '#25D366', fillOpacity: 0.2, weight: 2 }} />
+                <Marker position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
+                  <Popup>{country.label} (+25mi radius)</Popup>
+                </Marker>
+              </React.Fragment>
             );
           }
           return null;
         })}
         {/* Dropped Pins */}
-        {droppedPins.map((pin: any, idx: number) => (
-          <Marker key={`dropped-${idx}`} position={[pin.lat, pin.lng]} icon={customMarkerIcon}>
-            <Popup>{pin.name || 'Custom Pin'}</Popup>
-          </Marker>
-        ))}
+        {droppedPins.map((pin: any, idx: number) => {
+          const radiusMi = formData.locationRadiuses?.[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25;
+          return (
+          <React.Fragment key={`dropped-${idx}`}>
+            {radiusMi > 0 && <Circle center={[pin.lat, pin.lng]} radius={radiusMi * 1609.34} pathOptions={{ color: '#25D366', fillColor: '#25D366', fillOpacity: 0.2, weight: 2 }} />}
+            <Marker position={[pin.lat, pin.lng]} icon={customMarkerIcon}>
+              <Popup>{pin.name || 'Custom Pin'} {radiusMi > 0 ? `(+${radiusMi}mi radius)` : '(Current city only)'}</Popup>
+            </Marker>
+          </React.Fragment>
+        )})}
       </MapContainer>
       <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'white', padding: '6px 12px', borderRadius: '20px', fontSize: '0.75rem', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', zIndex: 1000, fontWeight: 600 }}>
         Click anywhere to drop a target pin
@@ -114,6 +143,64 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
     </div>
   );
 }, (prev, next) => prev.formData.targetCountries === next.formData.targetCountries && prev.droppedPins === next.droppedPins);
+
+function RadiusConfigurator({ locationName, radius, onChange }: { locationName: string, radius: number, onChange: (r: number) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{ 
+          background: '#f3f4f6', border: 'none', padding: '4px 8px', borderRadius: '4px', 
+          fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+          color: '#4b5563', fontWeight: 500
+        }}
+      >
+        {radius === 0 ? 'Current city only' : `+ ${radius} mi`}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      
+      {isOpen && (
+        <div style={{ 
+          position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '220px', 
+          background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', 
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 9999, padding: '12px' 
+        }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', marginBottom: '12px' }}>
+            <input type="radio" checked={radius === 0} onChange={() => { onChange(0); setIsOpen(false); }} />
+            Current city only
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', marginBottom: '8px' }}>
+            <input type="radio" checked={radius > 0} onChange={() => onChange(25)} />
+            Cities within radius
+          </label>
+          {radius > 0 && (
+            <div style={{ paddingLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="range" min="10" max="50" step="1" 
+                value={radius} 
+                onChange={(e) => onChange(parseInt(e.target.value))}
+                style={{ width: '100px' }}
+              />
+              <span style={{ fontSize: '0.75rem', background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>{radius} mi</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -128,6 +215,7 @@ const ClickToWhatsAppLauncher = () => {
     primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
     imageUrl: '',
     targetCountries: '',
+    locationRadiuses: {},
     baseCountryCode: '',
     minAge: '18',
     maxAge: '65',
@@ -885,6 +973,42 @@ const ClickToWhatsAppLauncher = () => {
                         })
                       }}
                     />
+                    
+                    {/* Meta-style Location List Configuration */}
+                    {formData.targetCountries && (
+                      <div style={{ marginTop: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                        {formData.targetCountries.split('|').filter(Boolean).map((locName: string, idx: number, arr: string[]) => (
+                          <div key={idx} style={{ 
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+                            padding: '10px 16px', background: idx % 2 === 0 ? '#f9fafb' : 'white',
+                            borderBottom: idx < arr.length - 1 ? '1px solid #e5e7eb' : 'none',
+                            borderTopLeftRadius: idx === 0 ? '8px' : '0',
+                            borderTopRightRadius: idx === 0 ? '8px' : '0',
+                            borderBottomLeftRadius: idx === arr.length - 1 ? '8px' : '0',
+                            borderBottomRightRadius: idx === arr.length - 1 ? '8px' : '0',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#374151' }}>{locName}</span>
+                            </div>
+                            
+                            <RadiusConfigurator 
+                              locationName={locName} 
+                              radius={formData.locationRadiuses?.[locName] !== undefined ? formData.locationRadiuses[locName] : 25} 
+                              onChange={(newRadius) => {
+                                setFormData({
+                                  ...formData,
+                                  locationRadiuses: {
+                                    ...formData.locationRadiuses,
+                                    [locName]: newRadius
+                                  }
+                                });
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     
                     {/* Interactive Meta-style Map */}
                     <MemoizedMap 
