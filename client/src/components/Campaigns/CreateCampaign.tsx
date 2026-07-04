@@ -136,6 +136,10 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     const [recipientType, setRecipientType] = useState<'group' | 'manual' | 'tags'>('group');
     const [manualInput, setManualInput] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    
+    // Date Filters
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -423,6 +427,17 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
             return;
         }
 
+        if (recipientType === 'group' || recipientType === 'tags') {
+            if (fromDate && toDate) {
+                const from = new Date(fromDate);
+                const to = new Date(toDate);
+                if (from > to) {
+                    setToast({ type: 'error', title: 'Validation Error', message: '"From Date" cannot be later than "To Date".' });
+                    return;
+                }
+            }
+        }
+
         let processedManualNumbers: string[] = [];
         if (recipientType === 'manual') {
             if (!manualInput.trim()) {
@@ -475,6 +490,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 contactGroupId: recipientType === 'group' ? selectedGroup : null,
                 manualNumbers: recipientType === 'manual' ? processedManualNumbers : [],
                 selectedTags: recipientType === 'tags' ? selectedTags : [],
+                fromDate: (recipientType === 'group' || recipientType === 'tags') && fromDate ? fromDate : null,
+                toDate: (recipientType === 'group' || recipientType === 'tags') && toDate ? toDate : null,
 
                 scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
                 sendNow,
@@ -668,6 +685,37 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                                 {selectedTags.length} tag{selectedTags.length > 1 ? 's' : ''} selected
                                             </p>
                                         )}
+                                    </div>
+                                )}
+
+                                {(recipientType === 'group' || recipientType === 'tags') && (
+                                    <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                                        <div className="mb-3">
+                                            <label className="block text-sm font-bold text-[var(--color-text)] mb-1">Filter by Date Added (Optional)</label>
+                                            <p className="text-xs text-[var(--color-text)] opacity-60">
+                                                Only send to contacts that were added between these dates. Leave blank to include all contacts in the selected {recipientType === 'group' ? 'group' : 'tags'}.
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">From Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={fromDate}
+                                                    onChange={(e) => setFromDate(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all text-[var(--color-text)]"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">To Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={toDate}
+                                                    onChange={(e) => setToDate(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all text-[var(--color-text)]"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>

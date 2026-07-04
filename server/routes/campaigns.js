@@ -176,6 +176,16 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                         query = query.overlaps('tags', selectedTags);
                     }
                 }
+                
+                // Optional Date Filtering
+                if (recipientType === 'group' || recipientType === 'tags') {
+                    if (req.body.fromDate) {
+                        query = query.gte('created_at', req.body.fromDate + 'T00:00:00Z');
+                    }
+                    if (req.body.toDate) {
+                        query = query.lte('created_at', req.body.toDate + 'T23:59:59Z');
+                    }
+                }
 
                 const { data: chunk, error: chunkErr } = await query;
                 if (chunkErr) throw chunkErr;
