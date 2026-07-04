@@ -142,7 +142,12 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
       </div>
     </div>
   );
-}, (prev, next) => prev.formData.targetCountries === next.formData.targetCountries && prev.droppedPins === next.droppedPins);
+}, (prev, next) => 
+  prev.formData.targetCountries === next.formData.targetCountries && 
+  prev.formData.locationRadiuses === next.formData.locationRadiuses &&
+  prev.droppedPins === next.droppedPins
+);
+
 
 function RadiusConfigurator({ locationName, radius, onChange }: { locationName: string, radius: number, onChange: (r: number) => void }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -162,40 +167,55 @@ function RadiusConfigurator({ locationName, radius, onChange }: { locationName: 
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         style={{ 
-          background: '#f3f4f6', border: 'none', padding: '4px 8px', borderRadius: '4px', 
-          fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-          color: '#4b5563', fontWeight: 500
+          background: isOpen ? '#e5e7eb' : '#f3f4f6', 
+          border: 'none', padding: '6px 12px', borderRadius: '6px', 
+          fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+          color: '#374151', fontWeight: 600, transition: 'all 0.2s ease',
+          boxShadow: isOpen ? 'inset 0 2px 4px rgba(0,0,0,0.05)' : '0 1px 2px rgba(0,0,0,0.05)'
         }}
+        onMouseEnter={(e) => e.currentTarget.style.background = '#e5e7eb'}
+        onMouseLeave={(e) => e.currentTarget.style.background = isOpen ? '#e5e7eb' : '#f3f4f6'}
       >
         {radius === 0 ? 'Current city only' : `+ ${radius} mi`}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d={isOpen ? "M18 15l-6-6-6 6" : "M6 9l6 6 6-6"}/></svg>
       </button>
       
       {isOpen && (
         <div style={{ 
-          position: 'absolute', top: '100%', right: 0, marginTop: '4px', width: '220px', 
-          background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', 
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 9999, padding: '12px' 
+          position: 'absolute', top: '100%', right: 0, marginTop: '8px', width: '260px', 
+          background: 'white', border: '1px solid #e5e7eb', borderRadius: '12px', 
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)', 
+          zIndex: 9999, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'
         }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', marginBottom: '12px' }}>
-            <input type="radio" checked={radius === 0} onChange={() => { onChange(0); setIsOpen(false); }} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.9rem', cursor: 'pointer', color: '#111827', fontWeight: radius === 0 ? 600 : 400 }}>
+            <div style={{ 
+              width: '18px', height: '18px', borderRadius: '50%', border: radius === 0 ? '5px solid #25D366' : '1px solid #d1d5db',
+              background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s ease', boxSizing: 'border-box'
+            }} />
+            <input type="radio" checked={radius === 0} onChange={() => { onChange(0); setIsOpen(false); }} style={{ display: 'none' }} />
             Current city only
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', cursor: 'pointer', marginBottom: '8px' }}>
-            <input type="radio" checked={radius > 0} onChange={() => onChange(25)} />
+          
+          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.9rem', cursor: 'pointer', color: '#111827', fontWeight: radius > 0 ? 600 : 400 }}>
+            <div style={{ 
+              width: '18px', height: '18px', borderRadius: '50%', border: radius > 0 ? '5px solid #25D366' : '1px solid #d1d5db',
+              background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s ease', boxSizing: 'border-box'
+            }} />
+            <input type="radio" checked={radius > 0} onChange={() => { if(radius === 0) onChange(25); }} style={{ display: 'none' }} />
             Cities within radius
           </label>
-          {radius > 0 && (
-            <div style={{ paddingLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
-                type="range" min="10" max="50" step="1" 
-                value={radius} 
-                onChange={(e) => onChange(parseInt(e.target.value))}
-                style={{ width: '100px' }}
-              />
-              <span style={{ fontSize: '0.75rem', background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px' }}>{radius} mi</span>
-            </div>
-          )}
+          
+          <div style={{ paddingLeft: '30px', display: 'flex', alignItems: 'center', gap: '12px', opacity: radius > 0 ? 1 : 0.4, pointerEvents: radius > 0 ? 'auto' : 'none', transition: 'opacity 0.2s ease' }}>
+            <input 
+              type="range" min="10" max="50" step="1" 
+              value={radius > 0 ? radius : 25} 
+              onChange={(e) => onChange(parseInt(e.target.value))}
+              style={{ flex: 1, accentColor: '#25D366', height: '4px', cursor: 'pointer' }}
+            />
+            <span style={{ fontSize: '0.85rem', background: '#f3f4f6', padding: '4px 8px', borderRadius: '6px', fontWeight: 600, color: '#374151', minWidth: '45px', textAlign: 'center' }}>
+              {radius > 0 ? radius : 25} mi
+            </span>
+          </div>
         </div>
       )}
     </div>
