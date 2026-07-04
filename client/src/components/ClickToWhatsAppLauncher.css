@@ -249,22 +249,23 @@
 .ctwa-form-group input,
 .ctwa-form-group textarea,
 .ctwa-select {
-  border: 1px solid rgba(0, 104, 74, 0.3);
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: #333;
-  transition: all 0.2s;
-  background: #ffffff;
-  padding: 0.5rem 0.75rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  transition: all 0.25s ease;
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
   width: 100%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02) inset;
 }
 .ctwa-form-group input:focus,
 .ctwa-form-group textarea:focus,
 .ctwa-select:focus {
   outline: none;
   border-color: #25D366;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.15), 0 2px 4px rgba(0,0,0,0.02) inset;
 }
 .ctwa-form-group textarea {
   resize: vertical;
@@ -387,6 +388,26 @@
   cursor: not-allowed;
   transform: none;
 }
+
+/* High Converting Pulse */
+@keyframes pulse-green {
+  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+
+.ctwa-submit-btn.pulse-button {
+  animation: pulse-green 2s infinite;
+  background: linear-gradient(90deg, #25D366, #128C7E);
+  font-size: 1rem;
+  padding: 0.75rem 2.5rem;
+}
+.ctwa-submit-btn.pulse-button:hover {
+  animation: none;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(37, 211, 102, 0.4);
+}
+
 .ctwa-back-btn {
   position: absolute;
   left: 0; top: 50%;
@@ -792,12 +813,18 @@
 
 /* Map Container Styles */
 .audience-map-container {
-  height: 350px;
+  height: 400px;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
-  margin-top: 1rem;
+  border: 2px solid #e2e8f0;
+  margin-top: 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.audience-map-container:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .leaflet-container {

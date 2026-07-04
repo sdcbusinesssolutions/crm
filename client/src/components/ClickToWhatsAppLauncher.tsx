@@ -943,10 +943,15 @@ const ClickToWhatsAppLauncher = () => {
                         control: (base, state) => ({
                           ...base,
                           padding: '4px',
-                          borderRadius: '8px',
-                          borderWidth: '1px',
-                          borderColor: state.isFocused ? '#25D366' : '#e5e7eb',
-                          boxShadow: state.isFocused ? '0 0 0 3px rgba(37, 211, 102, 0.1)' : 'none',
+                          borderRadius: '10px',
+                          borderWidth: '1.5px',
+                          borderColor: state.isFocused ? '#25D366' : '#e2e8f0',
+                          backgroundColor: '#f8fafc',
+                          boxShadow: state.isFocused ? '0 0 0 4px rgba(37, 211, 102, 0.15), 0 2px 4px rgba(0,0,0,0.02) inset' : '0 2px 4px rgba(0,0,0,0.02) inset',
+                          transition: 'all 0.25s ease',
+                          '&:hover': {
+                            borderColor: state.isFocused ? '#25D366' : '#cbd5e1'
+                          }
                         })
                       }}
                     />
@@ -979,16 +984,18 @@ const ClickToWhatsAppLauncher = () => {
                         }
                       }}
                       styles={{
-                        menu: base => ({ ...base, zIndex: 9999 }),
+                        menu: base => ({ ...base, zIndex: 9999, borderRadius: '12px', overflow: 'hidden', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)' }),
                         control: (base, state) => ({
                           ...base,
                           padding: '4px',
-                          borderRadius: '8px',
-                          borderWidth: '1px',
-                          borderColor: state.isFocused ? '#25D366' : '#e5e7eb',
-                          boxShadow: state.isFocused ? '0 0 0 3px rgba(37, 211, 102, 0.1)' : 'none',
+                          borderRadius: '10px',
+                          borderWidth: '1.5px',
+                          borderColor: state.isFocused ? '#25D366' : '#e2e8f0',
+                          backgroundColor: '#f8fafc',
+                          boxShadow: state.isFocused ? '0 0 0 4px rgba(37, 211, 102, 0.15), 0 2px 4px rgba(0,0,0,0.02) inset' : '0 2px 4px rgba(0,0,0,0.02) inset',
+                          transition: 'all 0.25s ease',
                           '&:hover': {
-                            borderColor: state.isFocused ? '#25D366' : '#d1d5db'
+                            borderColor: state.isFocused ? '#25D366' : '#cbd5e1'
                           }
                         })
                       }}
@@ -1192,22 +1199,37 @@ const ClickToWhatsAppLauncher = () => {
               </div>
             )}
 
-            <div className="ctwa-actions">
-              {currentStep > 1 && !successData && (
-                <button type="button" onClick={prevStep} className="ctwa-back-btn">
-                  Back
-                </button>
-              )}
+            <div className="ctwa-actions" style={{ flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', position: 'relative' }}>
+                {currentStep > 1 && !successData && (
+                  <button type="button" onClick={prevStep} className="ctwa-back-btn" style={{ position: 'relative', transform: 'none', top: 'auto', left: 'auto' }}>
+                    Back
+                  </button>
+                )}
+                
+                {!successData && (
+                  <button type="submit" disabled={loading} className={`ctwa-submit-btn ${currentStep === totalSteps ? 'pulse-button' : ''}`} style={{marginLeft: 'auto'}}>
+                    {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : (
+                      <>
+                        {loading ? 'Creating...' : 'Next'}
+                        {!loading && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width: '16px', height: '16px', marginLeft: '6px'}}><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>}
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
               
               {!successData && (
-                <button type="submit" disabled={loading} className="ctwa-submit-btn" style={{marginLeft: 'auto'}}>
-                  {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : (
-                    <>
-                      {loading ? 'Creating...' : 'Next'}
-                      {!loading && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width: '16px', height: '16px', marginLeft: '6px'}}><path d="M5 12h14"></path><path d="M12 5l7 7-7 7"></path></svg>}
-                    </>
-                  )}
-                </button>
+                <div style={{ textAlign: 'center', fontSize: '0.72rem', color: '#64748b', display: 'flex', justifyContent: 'flex-end', width: '100%', gap: '16px', marginTop: '6px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Meta Ads API Secured
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                    Takes ~2 mins
+                  </span>
+                </div>
               )}
 
               {successData && (
