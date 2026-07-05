@@ -197,10 +197,34 @@ const ClickToWhatsAppDashboard = () => {
   return (
     <div className="ctwa-dash-container">
       {/* Header section matching the screenshot */}
-      <div className="ctwa-dash-header-row">
-        <div>
-          <h1 className="ctwa-dash-title">Click To WhatsApp Ads</h1>
-          <p className="ctwa-dash-subtitle">Connect your Facebook account to manage pages and ads.</p>
+      <div className="ctwa-dash-header-row" style={activeTab === 'ads' && selectedAdAccount ? { marginBottom: '0.5rem' } : {}}>
+        <div style={{ display: 'flex', alignItems: 'center', height: '100%', minHeight: '50px', gap: '1.5rem' }}>
+          {activeTab === 'ads' && selectedAdAccount && (
+            <button 
+              onClick={() => setSelectedAdAccount(null)}
+              className="ctwa-btn"
+              style={{ 
+                padding: '0.5rem 0.8rem', 
+                fontSize: '0.9rem', 
+                marginRight: '0.5rem', 
+                backgroundColor: '#21C46C', 
+                color: 'white', 
+                border: 'none',
+                boxShadow: '0 2px 4px rgba(33, 196, 108, 0.2)' 
+              }}
+              title="Back to Ad Accounts"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+              Back
+            </button>
+          )}
+          <div>
+            <h1 className="ctwa-dash-title">Click To WhatsApp Ads</h1>
+            <p className="ctwa-dash-subtitle">Connect your Facebook account to manage pages and ads.</p>
+          </div>
         </div>
         
         <div className="ctwa-dash-actions">
@@ -481,15 +505,7 @@ const ClickToWhatsAppDashboard = () => {
       )}
 
       {activeTab === 'ads' && selectedAdAccount && (
-        <div style={{ marginTop: '0.5rem' }}>
-          <div style={{ marginBottom: '0.5rem' }}>
-            <button 
-              onClick={() => setSelectedAdAccount(null)}
-              className="ctwa-back-link"
-            >
-              &larr; Back to Ad Accounts
-            </button>
-          </div>
+        <div style={{ marginTop: '0' }}>
           <ClickToWhatsAppLauncher />
         </div>
       )}
