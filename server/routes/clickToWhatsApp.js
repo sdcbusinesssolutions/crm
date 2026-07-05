@@ -22,13 +22,15 @@ router.get('/accounts', requireAuth, async (req, res) => {
             .eq('user_id', userId)
             .single();
 
-        if (error || !config || !config.meta_access_token) {
+        const envToken = process.env.META_ACCESS_TOKEN;
+
+        if (!envToken && (error || !config || !config.meta_access_token)) {
             return res.status(403).json({ 
                 error: 'Meta Access Token not found. Please complete the WhatsApp Embedded Signup first.' 
             });
         }
 
-        const accessToken = config.meta_access_token;
+        const accessToken = envToken || config.meta_access_token;
 
         let adAccounts = [];
         let pages = [];
@@ -76,11 +78,15 @@ router.get('/insights/:level/:id', requireAuth, async (req, res) => {
             .eq('user_id', userId)
             .single();
 
-        if (error || !config || !config.meta_access_token) {
+        const envToken = process.env.META_ACCESS_TOKEN;
+
+        if (!envToken && (error || !config || !config.meta_access_token)) {
             return res.status(403).json({ error: 'Meta Access Token not found.' });
         }
 
-        const insights = await FacebookAdsService.fetchInsights(config.meta_access_token, id, level);
+        const accessToken = envToken || config.meta_access_token;
+
+        const insights = await FacebookAdsService.fetchInsights(accessToken, id, level);
 
         res.status(200).json({
             success: true,
@@ -134,13 +140,15 @@ router.post('/launch', requireAuth, async (req, res) => {
             .eq('user_id', userId)
             .single();
 
-        if (error || !config || !config.meta_access_token) {
+        const envToken = process.env.META_ACCESS_TOKEN;
+
+        if (!envToken && (error || !config || !config.meta_access_token)) {
             return res.status(403).json({ 
                 error: 'Meta Access Token not found. Please complete the WhatsApp Embedded Signup first.' 
             });
         }
 
-        const accessToken = config.meta_access_token;
+        const accessToken = envToken || config.meta_access_token;
 
         // Launch Ad via Service
         const result = await FacebookAdsService.launchAd({

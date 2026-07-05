@@ -91,15 +91,26 @@ class FacebookAdsService {
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
 
             // Parse target countries e.g. "US, IN, GB" -> ["US", "IN", "GB"]
-            const countriesArray = targetCountries
+            let countriesArray = targetCountries
                 ? targetCountries.split(',').map(c => c.trim().toUpperCase()).filter(c => c.length === 2)
-                : ['US']; // Fallback
+                : ['IN']; // Fallback
+            
+            // If the user selected a city (e.g. "Pune, Maharashtra, India"), the 2-letter filter makes it empty
+            if (countriesArray.length === 0) {
+                countriesArray = ['IN'];
+            }
 
-            // Step 0: Upload Image to Asset Library to get image_hash
-            const imageRes = await axios.post(`${baseUrl}/act_${adAccountId}/adimages`, null, {
-                params: {
-                    url: imageUrl,
-                    access_token: accessToken
+            // Step 0: Download Image and Upload to Asset Library as form-data
+            const FormData = require('form-data');
+            const imageBufferRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+            
+            const form = new FormData();
+            form.append('access_token', accessToken);
+            form.append('filename', imageBufferRes.data, 'ad_image.jpg');
+
+            const imageRes = await axios.post(`${baseUrl}/act_${adAccountId}/adimages`, form, {
+                headers: {
+                    ...form.getHeaders()
                 }
             });
             
@@ -119,6 +130,7 @@ class FacebookAdsService {
                     objective: 'OUTCOME_ENGAGEMENT',
                     status: status || 'PAUSED',
                     special_ad_categories: '[]',
+                    is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
             });
@@ -127,13 +139,20 @@ class FacebookAdsService {
             // Prepare Gender targeting
             const gendersArray = gender === 'all' ? [1, 2] : [parseInt(gender)];
 
-            // Prepare Start and End time
+            // Prepare Start and End time (Meta requires Unix timestamps, and daily budget requires >= 24h schedule)
             const scheduleParams = {};
+            const now = Math.floor(Date.now() / 1000);
+            
             if (startDate) {
-                scheduleParams.start_time = new Date(startDate).toISOString();
+                scheduleParams.start_time = Math.floor(new Date(startDate).getTime() / 1000);
+            } else {
+                scheduleParams.start_time = now + 300; // 5 mins from now
             }
+            
             if (endDate) {
-                scheduleParams.end_time = new Date(endDate).toISOString();
+                scheduleParams.end_time = Math.floor(new Date(endDate).getTime() / 1000);
+            } else {
+                scheduleParams.end_time = scheduleParams.start_time + (25 * 60 * 60); // 25 hours from start time
             }
 
             // Step 2: Create Ad Set
@@ -153,12 +172,22 @@ class FacebookAdsService {
                     device_platforms: ['mobile', 'desktop'],
                     age_min: minAge ? parseInt(minAge) : 18,
                     age_max: maxAge ? parseInt(maxAge) : 65,
-                    genders: gendersArray
+                    genders: gendersArray,
+                    publisher_platforms: ['facebook', 'instagram', 'messenger'],
+                    facebook_positions: ['feed', 'story', 'marketplace'],
+                    instagram_positions: ['stream', 'story', 'reels'],
+                    messenger_positions: ['messenger_home'],
+                    targeting_automation: {
+                        advantage_audience: 0
+                    }
                 }),
                 status: status || 'PAUSED',
                 access_token: accessToken,
                 ...scheduleParams
             };
+
+            console.log('--- Creating Ad Set with Params ---');
+            console.log(JSON.stringify(adSetParams, null, 2));
 
             const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, null, { params: adSetParams });
             const adSetId = adSetRes.data.id;
@@ -230,8 +259,12 @@ class FacebookAdsService {
                 }
             };
         } catch (error) {
-            console.error('Error launching Click to WhatsApp Ad:', error.response?.data || error.message);
-            throw new Error(error.response?.data?.error?.message || 'Failed to launch ad via Meta Marketing API');
+            console.error('--- Click to WhatsApp API Error (Full Response) ---');
+            console.error(JSON.stringify(error.response?.data || error.message, null, 2));
+            
+            const errData = error.response?.data?.error;
+            const userFriendlyMsg = errData?.error_user_msg || errData?.message || 'Failed to launch ad via Meta Marketing API';
+            throw new Error(userFriendlyMsg);
         }
     }
 }
