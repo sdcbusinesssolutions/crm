@@ -197,7 +197,7 @@ const ClickToWhatsAppDashboard = () => {
   return (
     <div className="ctwa-dash-container">
       {/* Header section matching the screenshot */}
-      <div className="ctwa-dash-header-row" style={activeTab === 'ads' && selectedAdAccount ? { marginBottom: '0.5rem' } : {}}>
+      <div className="ctwa-dash-header-row" style={activeTab === 'ads' && selectedAdAccount ? { marginBottom: '0' } : {}}>
         <div style={{ display: 'flex', alignItems: 'center', height: '100%', minHeight: '50px', gap: '1.5rem' }}>
           {activeTab === 'ads' && selectedAdAccount && (
             <button 
