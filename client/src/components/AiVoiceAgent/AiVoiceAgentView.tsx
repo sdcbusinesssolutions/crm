@@ -236,24 +236,29 @@ const AiVoiceAgentView: React.FC = () => {
                         <p className="text-slate-500 mt-1">Create and manage your AI-powered assistants</p>
                     </div>
                     <div className="flex gap-3">
-                        <a href="#" className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm flex items-center gap-2">
-                            <span>📚</span> Documentation
-                        </a>
                         {canWrite && (
-                            <button
-                                onClick={handleCreateDemoSalesAgent}
-                                className="px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-bold transition-colors shadow-sm flex items-center gap-2"
-                            >
-                                <span>🪄</span> Demo Sales Agent
-                            </button>
+                            <div className="relative">
+                                <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20">NEW</div>
+                                <button
+                                    onClick={handleCreateDemoSalesAgent}
+                                    className="relative px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-bold transition-colors shadow-sm flex items-center gap-2 overflow-hidden group"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                    <span>🪄</span> Demo Sales Agent
+                                </button>
+                            </div>
                         )}
                         {canWrite && (
-                            <button
-                                onClick={() => setIsCreating(true)}
-                                className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200 flex items-center gap-2"
-                            >
-                                <span>+</span> Create Agent
-                            </button>
+                            <div className="relative">
+                                <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20" style={{ animationDelay: '0.2s' }}>NEW</div>
+                                <button
+                                    onClick={() => setIsCreating(true)}
+                                    className="relative px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-bold transition-colors shadow-sm shadow-brand-500/30 flex items-center gap-2 overflow-hidden group"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                    <span>+</span> Create Agent
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
