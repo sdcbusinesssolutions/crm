@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
 const { supabaseAdmin } = require('../../lib/supabaseClient');
 
 // 1. Create Agent
@@ -110,6 +111,245 @@ router.delete('/:id', async (req, res) => {
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+});
+// 6. Chat with Agent (Testing Playground)
+router.post('/:id/chat', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const user_id = req.user.id;
+        const { message, history = [] } = req.body;
+
+        // 1. Fetch Agent Config
+        const { data: agent, error } = await supabaseAdmin
+            .from('ai_agents')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', user_id)
+            .single();
+
+        if (error || !agent) throw new Error('Agent not found');
+
+        const config = agent.model_config || {};
+        const provider = config.provider || 'openai';
+        const apiKey = config.api_key;
+
+        if (!apiKey) {
+            return res.status(400).json({ error: 'API Key is missing. Please configure it in the agent settings.' });
+        }
+
+        // 2. Build System Prompt with Knowledge Base
+        let finalSystemPrompt = agent.system_prompt;
+        
+        // Inject FAQs
+        if (config.faqs && config.faqs.length > 0) {
+            finalSystemPrompt += "\n\n--- KNOWLEDGE BASE (FAQs) ---\nUse the following information to answer user queries. If the answer is not here, you can use your general knowledge, but prioritize these FAQs:\n";
+            config.faqs.forEach(faq => {
+                finalSystemPrompt += `Q: ${faq.question}\nA: ${faq.answer}\n\n`;
+            });
+        }
+
+        // 3. Define Tools
+        const tools = [];
+        const geminiTools = [];
+        
+        if (config.webhook_url) {
+            const webhookTool = {
+                type: "function",
+                function: {
+                    name: "trigger_webhook",
+                    description: "Trigger an external webhook to perform an action or automation.",
+                    parameters: { type: "object", properties: { payload: { type: "string", description: "JSON string payload to send to the webhook." } }, required: ["payload"] }
+                }
+            };
+            tools.push(webhookTool);
+            geminiTools.push(webhookTool.function);
+        }
+
+        if (config.custom_tools && Array.isArray(config.custom_tools)) {
+            config.custom_tools.forEach(tool => {
+                if (tool.name && tool.url) {
+                    const customTool = {
+                        type: "function",
+                        function: {
+                            name: tool.name,
+                            description: tool.description || `Trigger the ${tool.name} webhook.`,
+                            parameters: { type: "object", properties: { payload: { type: "string", description: "JSON string payload to send." } } }
+                        }
+                    };
+                    tools.push(customTool);
+                    geminiTools.push(customTool.function);
+                }
+            });
+        }
+        
+        if (config.transfer_number) {
+            const transferTool = {
+                type: "function",
+                function: {
+                    name: "transfer_to_human",
+                    description: "Transfer the conversation to a human agent.",
+                    parameters: { type: "object", properties: { reason: { type: "string", description: "Reason for transferring." } }, required: ["reason"] }
+                }
+            };
+            tools.push(transferTool);
+            geminiTools.push(transferTool.function);
+        }
+
+        // 4. Format Messages
+        const messages = [
+            { role: 'system', content: finalSystemPrompt },
+            ...history,
+            { role: 'user', content: message }
+        ];
+
+        // 5. Call Provider (with tool execution loop)
+        let aiResponseText = '';
+        let currentMessages = [...messages];
+        let maxTurns = 5;
+        let turn = 0;
+
+        while (turn < maxTurns) {
+            turn++;
+            
+            if (provider === 'openai' || provider === 'openrouter') {
+                const endpoint = provider === 'openai' ? 'https://api.openai.com/v1/chat/completions' : 'https://openrouter.ai/api/v1/chat/completions';
+                const defaultModel = provider === 'openai' ? 'gpt-4o' : 'openai/gpt-4o';
+                
+                const payload = {
+                    model: config.model_id || defaultModel,
+                    messages: currentMessages,
+                    temperature: config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
+                };
+                if (tools.length > 0) payload.tools = tools;
+
+                const headers = { 'Authorization': `Bearer ${apiKey}` };
+                if (provider === 'openrouter') headers['HTTP-Referer'] = 'http://localhost:3000';
+
+                const response = await axios.post(endpoint, payload, { headers });
+                const responseMessage = response.data.choices[0].message;
+
+                if (responseMessage.tool_calls) {
+                    currentMessages.push(responseMessage); // Add assistant tool call
+                    
+                    for (const toolCall of responseMessage.tool_calls) {
+                        const functionName = toolCall.function.name;
+                        const functionArgs = JSON.parse(toolCall.function.arguments);
+                        let toolResult = '';
+                        
+                        let matchedCustomTool = null;
+                        if (config.custom_tools && Array.isArray(config.custom_tools)) {
+                            matchedCustomTool = config.custom_tools.find(t => t.name === functionName);
+                        }
+                        
+                        if (matchedCustomTool) {
+                            try {
+                                const webhookRes = await axios.post(matchedCustomTool.url, functionArgs);
+                                toolResult = JSON.stringify(webhookRes.data || { success: true });
+                            } catch (e) {
+                                toolResult = JSON.stringify({ error: e.message });
+                            }
+                        } else if (functionName === 'trigger_webhook') {
+                            try {
+                                const webhookRes = await axios.post(config.webhook_url, functionArgs);
+                                toolResult = JSON.stringify(webhookRes.data || { success: true });
+                            } catch (e) {
+                                toolResult = JSON.stringify({ error: e.message });
+                            }
+                        } else if (functionName === 'transfer_to_human') {
+                            toolResult = `Transfer initiated to ${config.transfer_number}. Reason: ${functionArgs.reason}`;
+                        }
+                        
+                        currentMessages.push({
+                            tool_call_id: toolCall.id,
+                            role: "tool",
+                            name: functionName,
+                            content: toolResult
+                        });
+                    }
+                    continue; // Loop again to get final answer
+                } else {
+                    aiResponseText = responseMessage.content;
+                    break;
+                }
+                
+            } else if (provider === 'gemini') {
+                const geminiMessages = currentMessages.map(m => ({
+                    role: (m.role === 'system' || m.role === 'tool') ? 'user' : (m.role === 'assistant' ? 'model' : 'user'),
+                    parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }]
+                }));
+                
+                const payload = { contents: geminiMessages };
+                if (geminiTools.length > 0) {
+                    payload.tools = [{ functionDeclarations: geminiTools }];
+                }
+
+                const geminiModel = config.model_id || 'gemini-2.5-flash';
+                const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`, payload);
+                
+                const part = response.data.candidates[0].content.parts[0];
+                
+                if (part.functionCall) {
+                    const functionName = part.functionCall.name;
+                    const functionArgs = part.functionCall.args;
+                    let toolResult = '';
+                    
+                    let matchedCustomTool = null;
+                    if (config.custom_tools && Array.isArray(config.custom_tools)) {
+                        matchedCustomTool = config.custom_tools.find(t => t.name === functionName);
+                    }
+                    
+                    if (matchedCustomTool) {
+                        try {
+                            const webhookRes = await axios.post(matchedCustomTool.url, functionArgs);
+                            toolResult = JSON.stringify(webhookRes.data || { success: true });
+                        } catch (e) {
+                            toolResult = JSON.stringify({ error: e.message });
+                        }
+                    } else if (functionName === 'trigger_webhook') {
+                        try {
+                            const webhookRes = await axios.post(config.webhook_url, functionArgs);
+                            toolResult = JSON.stringify(webhookRes.data || { success: true });
+                        } catch (e) {
+                            toolResult = JSON.stringify({ error: e.message });
+                        }
+                    } else if (functionName === 'transfer_to_human') {
+                        toolResult = `Transfer initiated to ${config.transfer_number}. Reason: ${functionArgs.reason}`;
+                    }
+                    
+                    // Add model's tool call and user's tool response
+                    currentMessages.push({ role: 'assistant', content: `[Function Call: ${functionName}]` });
+                    currentMessages.push({ role: 'tool', content: `[Function Result]: ${toolResult}` });
+                    continue;
+                } else {
+                    aiResponseText = part.text;
+                    break;
+                }
+                
+            } else if (provider === 'claude') {
+                const response = await axios.post('https://api.anthropic.com/v1/messages', {
+                    model: config.model_id || 'claude-3-opus-20240229',
+                    messages: history.concat({ role: 'user', content: message }),
+                    system: finalSystemPrompt,
+                    max_tokens: 1024,
+                    temperature: config.temperature !== undefined ? parseFloat(config.temperature) : 0.7
+                }, {
+                    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
+                });
+                aiResponseText = response.data.content[0].text;
+                break;
+            }
+        }
+
+        if (!aiResponseText || aiResponseText.trim() === '') {
+            aiResponseText = "I'm sorry, I'm having a bit of trouble processing that right now. Could you please provide more details or try a different time?";
+        }
+
+        res.json({ reply: aiResponseText });
+
+    } catch (error) {
+        console.error('Chat Error:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data?.error?.message || error.message || 'Failed to communicate with AI provider.' });
     }
 });
 
