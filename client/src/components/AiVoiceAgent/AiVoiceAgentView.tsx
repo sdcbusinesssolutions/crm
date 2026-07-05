@@ -236,18 +236,7 @@ const AiVoiceAgentView: React.FC = () => {
                         <p className="text-slate-500 mt-1">Create and manage your AI-powered assistants</p>
                     </div>
                     <div className="flex gap-3">
-                        {canWrite && (
-                            <div className="relative">
-                                <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20">NEW</div>
-                                <button
-                                    onClick={handleCreateDemoSalesAgent}
-                                    className="relative px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-bold transition-colors shadow-sm flex items-center gap-2 overflow-hidden group"
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]" />
-                                    <span>🪄</span> Demo Sales Agent
-                                </button>
-                            </div>
-                        )}
+
                         {canWrite && (
                             <div className="relative">
                                 <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20" style={{ animationDelay: '0.2s' }}>NEW</div>

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
 import { aiAgentService } from '../../services/aiAgentService';
 
 interface Message {
@@ -45,17 +44,28 @@ const AgentChatModal: React.FC<AgentChatModalProps> = ({ agentId, agentName, onC
             // Extract history without the very first hardcoded welcome message, or keep it all
             const history = messages.filter((m, i) => i !== 0 || m.role !== 'assistant');
 
-            const res = await axios.post(`/api/ai-agents/${agentId}/chat`, {
-                message: text,
-                history: history
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
+            const res = await fetch(`/api/ai-agents/${agentId}/chat`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({
+                    message: text,
+                    history: history
+                })
             });
 
-            setMessages(prev => [...prev, { role: 'assistant', content: res.data.reply }]);
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to connect to agent.');
+            }
+
+            setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
         } catch (error: any) {
             console.error('Chat error:', error);
-            setMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${error.response?.data?.error || 'Failed to connect to agent.'}` }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: `❌ Error: ${error.message}` }]);
         } finally {
             setIsLoading(false);
         }
