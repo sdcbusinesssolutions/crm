@@ -679,12 +679,24 @@
   text-align: center;
   flex: 1;
 }
+@keyframes popInterval {
+  0%, 85%, 100% { transform: scale(1); }
+  92.5% { transform: scale(1.15); }
+}
+
 .f-icon {
   width: 40px; height: 40px;
   background: #f0fdf4;
   border-radius: 12px;
   display: flex; align-items: center; justify-content: center;
+  animation: popInterval 4s infinite ease-in-out;
 }
+
+.feature-icon-item:nth-child(1) .f-icon { animation-delay: 0s; }
+.feature-icon-item:nth-child(2) .f-icon { animation-delay: 0.2s; }
+.feature-icon-item:nth-child(3) .f-icon { animation-delay: 0.4s; }
+.feature-icon-item:nth-child(4) .f-icon { animation-delay: 0.6s; }
+.feature-icon-item:nth-child(5) .f-icon { animation-delay: 0.8s; }
 .feature-icon-item span {
   font-size: 10px;
   font-weight: 700;
