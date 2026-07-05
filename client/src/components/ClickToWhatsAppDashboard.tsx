@@ -222,7 +222,20 @@ const ClickToWhatsAppDashboard = () => {
             </button>
           )}
           <div>
-            <h1 className="ctwa-dash-title">Click To WhatsApp Ads</h1>
+            <h1 className="ctwa-dash-title">
+              Click To{' '}
+              <span className="ctwa-title-highlight">
+                {"WhatsApp Ads".split('').map((char, index) => (
+                  <span 
+                    key={index} 
+                    className="ctwa-char-anim"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    {char === ' ' ? '\u00A0' : char}
+                  </span>
+                ))}
+              </span>
+            </h1>
             <p className="ctwa-dash-subtitle">Connect your Facebook account to manage pages and ads.</p>
           </div>
         </div>
