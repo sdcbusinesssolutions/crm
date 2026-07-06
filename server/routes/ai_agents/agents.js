@@ -137,6 +137,16 @@ router.post('/:id/chat', async (req, res) => {
         if (!apiKey) {
             return res.status(400).json({ error: 'API Key is missing. Please configure it in the agent settings.' });
         }
+        
+        // Strict Stop Keyword Interception
+        if (config.stop_keywords) {
+            const stopWords = config.stop_keywords.split(',').map(w => w.trim().toLowerCase()).filter(w => w);
+            const userMsgLower = message.toLowerCase();
+            const hasStopWord = stopWords.some(w => userMsgLower.includes(w) || userMsgLower === w);
+            if (hasStopWord) {
+                return res.json({ reply: "Conversation stopped by user." });
+            }
+        }
 
         // 2. Build System Prompt with Knowledge Base
         let finalSystemPrompt = agent.system_prompt;
@@ -147,6 +157,39 @@ router.post('/:id/chat', async (req, res) => {
             config.faqs.forEach(faq => {
                 finalSystemPrompt += `Q: ${faq.question}\nA: ${faq.answer}\n\n`;
             });
+        }
+        
+        // Inject Answer Formatting & Identity Rules
+        finalSystemPrompt += "\n\n--- BEHAVIOR & FORMATTING RULES ---\n";
+        
+        if (config.response_length === 'short') {
+            finalSystemPrompt += "- Keep responses brief, concise, and to the point.\n";
+        } else if (config.response_length === 'descriptive') {
+            finalSystemPrompt += "- Provide descriptive, detailed, and comprehensive responses.\n";
+        }
+        
+        if (config.bot_tone) {
+            finalSystemPrompt += `- Adopt a ${config.bot_tone.replace('_', ' ')} tone.\n`;
+        }
+        
+        if (config.bot_gender && config.bot_gender !== 'neutral') {
+            finalSystemPrompt += `- Adopt a ${config.bot_gender} persona.\n`;
+        }
+        
+        if (config.use_emojis) {
+            finalSystemPrompt += "- Use emojis naturally in your responses.\n";
+        } else if (config.use_emojis === false) {
+            finalSystemPrompt += "- Do NOT use emojis.\n";
+        }
+        
+        if (config.use_bullet_points) {
+            finalSystemPrompt += "- Format lists using bullet points where appropriate for readability.\n";
+        } else if (config.use_bullet_points === false) {
+            finalSystemPrompt += "- Do NOT use bullet points.\n";
+        }
+        
+        if (config.stop_keywords) {
+            finalSystemPrompt += `- CRITICAL: If the user says any of the following words (${config.stop_keywords}), you must immediately acknowledge their request to stop and end the conversation.\n`;
         }
 
         // 3. Define Tools
@@ -196,10 +239,21 @@ router.post('/:id/chat', async (req, res) => {
             geminiTools.push(transferTool.function);
         }
 
+        // Clean history of headers and footers so LLM doesn't learn them as patterns
+        const cleanHistory = history.map(msg => {
+            if (msg.role === 'assistant') {
+                let text = msg.content || '';
+                if (config.header_message) text = text.split(config.header_message).join('').trim();
+                if (config.footer_message) text = text.split(config.footer_message).join('').trim();
+                return { ...msg, content: text };
+            }
+            return msg;
+        });
+
         // 4. Format Messages
         const messages = [
             { role: 'system', content: finalSystemPrompt },
-            ...history,
+            ...cleanHistory,
             { role: 'user', content: message }
         ];
 
@@ -227,6 +281,14 @@ router.post('/:id/chat', async (req, res) => {
                 if (provider === 'openrouter') headers['HTTP-Referer'] = 'http://localhost:3000';
 
                 const response = await axios.post(endpoint, payload, { headers });
+                
+                if (response.data.error) {
+                    throw new Error(`AI Provider Error: ${response.data.error.message || JSON.stringify(response.data.error)}`);
+                }
+                if (!response.data.choices || !response.data.choices[0]) {
+                    throw new Error(`Unexpected API response format: ${JSON.stringify(response.data)}`);
+                }
+                
                 const responseMessage = response.data.choices[0].message;
 
                 if (responseMessage.tool_calls) {
@@ -287,6 +349,10 @@ router.post('/:id/chat', async (req, res) => {
                 const geminiModel = config.model_id || 'gemini-2.5-flash';
                 const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`, payload);
                 
+                if (!response.data.candidates || !response.data.candidates[0]) {
+                    throw new Error(`Unexpected Gemini response format: ${JSON.stringify(response.data)}`);
+                }
+                
                 const part = response.data.candidates[0].content.parts[0];
                 
                 if (part.functionCall) {
@@ -342,9 +408,27 @@ router.post('/:id/chat', async (req, res) => {
         }
 
         if (!aiResponseText || aiResponseText.trim() === '') {
-            aiResponseText = "I'm sorry, I'm having a bit of trouble processing that right now. Could you please provide more details or try a different time?";
+            aiResponseText = config.fallback_message || "I'm sorry, I'm having a bit of trouble processing that right now. Could you please provide more details or try a different time?";
+        } else {
+            // Clean up if LLM hallucinated the header/footer from history context
+            if (config.header_message && aiResponseText.includes(config.header_message)) {
+                aiResponseText = aiResponseText.split(config.header_message).join('').trim();
+            }
+            if (config.footer_message && aiResponseText.includes(config.footer_message)) {
+                aiResponseText = aiResponseText.split(config.footer_message).join('').trim();
+            }
+            
+            // Prepend header if exists
+            if (config.header_message) {
+                aiResponseText = `${config.header_message}\n\n${aiResponseText}`;
+            }
+            // Append footer if exists
+            if (config.footer_message) {
+                aiResponseText = `${aiResponseText}\n\n${config.footer_message}`;
+            }
         }
 
+        console.log("\n\n[DEBUG AI RESPONSE]:", JSON.stringify(aiResponseText));
         res.json({ reply: aiResponseText });
 
     } catch (error) {
