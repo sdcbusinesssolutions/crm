@@ -423,7 +423,19 @@ router.post('/:id/chat', async (req, res) => {
 
     } catch (error) {
         console.error('Chat Error:', error.response?.data || error.message);
-        res.status(500).json({ error: error.response?.data?.error?.message || error.message || 'Failed to communicate with AI provider.' });
+        
+        // Return a graceful fallback message instead of a raw API error
+        const fallbackConfig = agent?.model_config || {};
+        let fallbackReply = fallbackConfig.fallback_message || "I'm sorry, I'm currently experiencing high traffic and cannot answer right now. Please try again in a few minutes.";
+        
+        if (fallbackConfig.header_message) {
+            fallbackReply = `${fallbackConfig.header_message}\n\n${fallbackReply}`;
+        }
+        if (fallbackConfig.footer_message) {
+            fallbackReply = `${fallbackReply}\n\n${fallbackConfig.footer_message}`;
+        }
+        
+        res.json({ reply: fallbackReply });
     }
 });
 

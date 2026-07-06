@@ -81,7 +81,16 @@ async function generateAIResponse(agentConfig, userMessage, context = [], knowle
 
     } catch (error) {
         console.error("AI Generation Error:", error.response?.data || error.message);
-        return { success: false, error: error.message };
+        
+        let fallbackReply = agentConfig.model_config?.fallback_message || "I'm sorry, I'm currently experiencing high traffic and cannot answer right now. Please try again in a few minutes.";
+        if (agentConfig.model_config?.header_message) {
+            fallbackReply = `${agentConfig.model_config.header_message}\n\n${fallbackReply}`;
+        }
+        if (agentConfig.model_config?.footer_message) {
+            fallbackReply = `${fallbackReply}\n\n${agentConfig.model_config.footer_message}`;
+        }
+        
+        return { success: true, reply: fallbackReply };
     }
 }
 
