@@ -7,7 +7,7 @@ interface CreateAgentModalProps {
 }
 
 const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, initialData }) => {
-    const [activeTab, setActiveTab] = useState<'identity' | 'model' | 'knowledge' | 'tools'>('identity');
+    const [activeTab, setActiveTab] = useState<'identity' | 'settings' | 'model' | 'knowledge' | 'tools'>('identity');
     
     // Tab 1: Identity State
     const [name, setName] = useState(initialData?.name || '');
@@ -28,6 +28,25 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
     const [faqs, setFaqs] = useState<{question: string, answer: string}[]>(initialData?.model_config?.faqs || []);
     const [faqQuestion, setFaqQuestion] = useState('');
     const [faqAnswer, setFaqAnswer] = useState('');
+
+    // Bot Settings (Formatting & Identity)
+    const [responseLength, setResponseLength] = useState(initialData?.model_config?.response_length || 'short');
+    const [botTone, setBotTone] = useState(initialData?.model_config?.bot_tone || 'professional');
+    const [botGender, setBotGender] = useState(initialData?.model_config?.bot_gender || 'neutral');
+    const [showMaxMessages, setShowMaxMessages] = useState(initialData?.model_config?.max_messages !== undefined && initialData?.model_config?.max_messages !== null);
+    const [maxMessages, setMaxMessages] = useState(initialData?.model_config?.max_messages || 20);
+    const [useEmojis, setUseEmojis] = useState(initialData?.model_config?.use_emojis !== undefined ? initialData.model_config.use_emojis : true);
+    const [useBulletPoints, setUseBulletPoints] = useState(initialData?.model_config?.use_bullet_points !== undefined ? initialData.model_config.use_bullet_points : true);
+    const [headerMessage, setHeaderMessage] = useState(initialData?.model_config?.header_message || '');
+    const [footerMessage, setFooterMessage] = useState(initialData?.model_config?.footer_message || '');
+    const [fallbackMessage, setFallbackMessage] = useState(initialData?.model_config?.fallback_message || '');
+    const [stopKeywords, setStopKeywords] = useState(initialData?.model_config?.stop_keywords || '');
+    const [retryAttempt, setRetryAttempt] = useState(initialData?.model_config?.retry_attempt || '');
+    const [showHeaderMsg, setShowHeaderMsg] = useState(!!initialData?.model_config?.header_message);
+    const [showFooterMsg, setShowFooterMsg] = useState(!!initialData?.model_config?.footer_message);
+    const [showFallbackMsg, setShowFallbackMsg] = useState(!!initialData?.model_config?.fallback_message);
+    const [showStopKeywords, setShowStopKeywords] = useState(!!initialData?.model_config?.stop_keywords);
+    const [showRetryAttempt, setShowRetryAttempt] = useState(!!initialData?.model_config?.retry_attempt);
 
     // Tab 4: Tools & Actions
     const [webhookUrl, setWebhookUrl] = useState(initialData?.model_config?.webhook_url || '');
@@ -70,7 +89,18 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                     faqs: faqs,
                     webhook_url: webhookUrl,
                     transfer_number: transferNumber,
-                    custom_tools: customTools
+                    custom_tools: customTools,
+                    response_length: responseLength,
+                    bot_tone: botTone,
+                    bot_gender: botGender,
+                    use_emojis: useEmojis,
+                    use_bullet_points: useBulletPoints,
+                    header_message: showHeaderMsg ? headerMessage : '',
+                    footer_message: showFooterMsg ? footerMessage : '',
+                    max_messages: showMaxMessages ? maxMessages : null,
+                    fallback_message: showFallbackMsg ? fallbackMessage : null,
+                    stop_keywords: showStopKeywords ? stopKeywords : '',
+                    retry_attempt: showRetryAttempt ? retryAttempt : ''
                 },
                 knowledgeFiles // processed by parent
             });
@@ -108,7 +138,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
         }
     };
     const removeUrl = (index: number) => {
-        setKnowledgeUrls(prev => prev.filter((_, i) => i !== index));
+        setKnowledgeUrls(prev => knowledgeUrls.filter((_, i) => i !== index));
     };
 
     // FAQ Handlers
@@ -120,12 +150,12 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
         }
     };
     const removeFaq = (index: number) => {
-        setFaqs(prev => prev.filter((_, i) => i !== index));
+        setFaqs(prev => faqs.filter((_, i) => i !== index));
     };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-slate-900/60 transition-opacity">
-            <div className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-fade-in ring-1 ring-slate-900/5">
+            <div className="bg-white rounded-2xl w-full max-w-6xl xl:max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-fade-in ring-1 ring-slate-900/5">
                 
                 {/* Header */}
                 <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -147,6 +177,13 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'identity' ? 'bg-white text-brand-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
                         >
                             <span className="text-lg">🤖</span> Identity
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setActiveTab('settings')}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === 'settings' ? 'bg-white text-brand-600 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}
+                        >
+                            <span className="text-lg">⚙️</span> Bot Settings
                         </button>
                         <button 
                             type="button"
@@ -172,7 +209,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                     </div>
 
                     {/* Main Content Area */}
-                    <div className="flex-1 overflow-y-auto p-8 bg-white relative">
+                    <div className="flex-1 overflow-y-auto p-6 pt-5 md:p-8 md:pt-6 bg-white relative">
                         <form id="create-agent-form" onSubmit={handleSubmit} className="space-y-8">
                             
                             {/* ----------------- TAB: IDENTITY ----------------- */}
@@ -593,6 +630,274 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                                                 value={transferNumber}
                                                 onChange={(e) => setTransferNumber(e.target.value)}
                                             />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ----------------- TAB: SETTINGS ----------------- */}
+                            <div className={activeTab === 'settings' ? 'block animate-fade-in' : 'hidden'}>
+                                <div className="space-y-5">
+                                    <div className="mb-2">
+                                        <h3 className="text-lg font-bold text-slate-800">Bot Settings</h3>
+                                        <p className="text-sm text-slate-500 font-medium">Configure answer formatting and bot identity.</p>
+                                    </div>
+
+                                    {/* Answer Formatting */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-bold text-slate-700 border-b pb-2">Answer formatting</h4>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <label className="block text-sm font-bold text-slate-700">Length of responses</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {['descriptive', 'medium', 'short'].map(len => (
+                                                        <button
+                                                            key={len}
+                                                            type="button"
+                                                            onClick={() => setResponseLength(len)}
+                                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${responseLength === len ? 'bg-slate-100 text-slate-800 border-2 border-slate-300' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                                                        >
+                                                            {responseLength === len && '✓ '} {len.charAt(0).toUpperCase() + len.slice(1)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="block text-sm font-bold text-slate-700">Formatting toggles</label>
+                                                <div className="flex flex-row flex-wrap gap-5 pt-1">
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox" checked={useEmojis} onChange={(e) => setUseEmojis(e.target.checked)} className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500" />
+                                                        <span className="text-sm font-bold text-slate-700">Use emojis</span>
+                                                    </label>
+                                                    <label className="flex items-center gap-2 cursor-pointer">
+                                                        <input type="checkbox" checked={useBulletPoints} onChange={(e) => setUseBulletPoints(e.target.checked)} className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500" />
+                                                        <span className="text-sm font-bold text-slate-700">Use bullet points</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Bot Identity */}
+                                    <div className="space-y-3 pt-3 border-t border-slate-100">
+                                        <h4 className="text-sm font-bold text-slate-700 border-b pb-2">Bot Identity</h4>
+                                        
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <label className="block text-sm font-bold text-slate-700">Chatbot tone</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {['matter_of_fact', 'friendly', 'humorous', 'neutral', 'professional'].map(t => (
+                                                        <button
+                                                            key={t}
+                                                            type="button"
+                                                            onClick={() => setBotTone(t)}
+                                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${botTone === t ? 'bg-slate-100 text-slate-800 border-2 border-slate-300' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                                                        >
+                                                            {botTone === t && '✓ '} {t.replace('_', ' ').charAt(0).toUpperCase() + t.replace('_', ' ').slice(1)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <label className="block text-sm font-bold text-slate-700">Chatbot gender</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {['female', 'male', 'neutral'].map(g => (
+                                                        <button
+                                                            key={g}
+                                                            type="button"
+                                                            onClick={() => setBotGender(g)}
+                                                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${botGender === g ? 'bg-slate-100 text-slate-800 border-2 border-slate-300' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+                                                        >
+                                                            {botGender === g && '✓ '} {g.charAt(0).toUpperCase() + g.slice(1)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Advanced Settings */}
+                                    <div className="space-y-3 pt-3 border-t border-slate-100">
+                                        <h4 className="text-sm font-bold text-slate-700 border-b pb-2">Advanced settings</h4>
+                                        
+                                        <div className="space-y-2">
+                                            {/* Header Item */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showHeaderMsg ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowHeaderMsg(!showHeaderMsg)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showHeaderMsg ? 'bg-brand-100 text-brand-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">⬆️</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className={`text-sm font-bold transition-colors ${showHeaderMsg ? 'text-brand-900' : 'text-slate-700'}`}>Header Message</h5>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Automatically add a message to the beginning of every response.</p>
+                                                        </div>
+                                                    </div>
+                                                    <label className="flex items-center gap-3 cursor-pointer shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <div className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${showHeaderMsg ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                                                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${showHeaderMsg ? 'translate-x-6' : ''}`} />
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={showHeaderMsg} onChange={(e) => setShowHeaderMsg(e.target.checked)} />
+                                                    </label>
+                                                </div>
+                                                {showHeaderMsg && (
+                                                    <div className="p-4 pt-0 bg-white animate-fade-in">
+                                                        <div className="mt-2 relative">
+                                                            <input type="text" value={headerMessage} onChange={(e) => setHeaderMessage(e.target.value)} placeholder="e.g. *Auto-Reply:*" className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-brand-500 focus:bg-slate-50 hover:border-slate-300 shadow-sm transition-all" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Footer Item */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showFooterMsg ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowFooterMsg(!showFooterMsg)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showFooterMsg ? 'bg-brand-100 text-brand-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">⬇️</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className={`text-sm font-bold transition-colors ${showFooterMsg ? 'text-brand-900' : 'text-slate-700'}`}>Footer Message</h5>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Automatically append a message to the end of every response.</p>
+                                                        </div>
+                                                    </div>
+                                                    <label className="flex items-center gap-3 cursor-pointer shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <div className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${showFooterMsg ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                                                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${showFooterMsg ? 'translate-x-6' : ''}`} />
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={showFooterMsg} onChange={(e) => setShowFooterMsg(e.target.checked)} />
+                                                    </label>
+                                                </div>
+                                                {showFooterMsg && (
+                                                    <div className="p-4 pt-0 bg-white animate-fade-in">
+                                                        <div className="mt-2 relative">
+                                                            <input type="text" value={footerMessage} onChange={(e) => setFooterMessage(e.target.value)} placeholder="e.g. Reply STOP to unsubscribe." className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-brand-500 focus:bg-slate-50 hover:border-slate-300 shadow-sm transition-all" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Stop Keywords */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showStopKeywords ? 'bg-white border-red-400 ring-4 ring-red-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowStopKeywords(!showStopKeywords)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showStopKeywords ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">🛑</span>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className={`text-sm font-bold transition-colors ${showStopKeywords ? 'text-red-900' : 'text-slate-700'}`}>Stop Keywords</h4>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Mute the AI automatically if the user sends these specific words.</p>
+                                                        </div>
+                                                    </div>
+                                                    <label className="flex items-center gap-3 cursor-pointer shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <div className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${showStopKeywords ? 'bg-red-500' : 'bg-slate-300'}`}>
+                                                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${showStopKeywords ? 'translate-x-6' : ''}`} />
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={showStopKeywords} onChange={(e) => setShowStopKeywords(e.target.checked)} />
+                                                    </label>
+                                                </div>
+                                                {showStopKeywords && (
+                                                    <div className="p-4 pt-0 bg-white animate-fade-in">
+                                                        <div className="mt-2 relative">
+                                                            <input type="text" value={stopKeywords} onChange={(e) => setStopKeywords(e.target.value)} placeholder="e.g. STOP, UNSUBSCRIBE, HALT (comma separated)" className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-red-500 focus:bg-slate-50 hover:border-slate-300 shadow-sm transition-all" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Max Messages Limit */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showMaxMessages ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowMaxMessages(!showMaxMessages)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showMaxMessages ? 'bg-brand-100 text-brand-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">💬</span>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className={`text-sm font-bold transition-colors ${showMaxMessages ? 'text-brand-900' : 'text-slate-700'}`}>Max Messages Limit</h4>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Stop AI after the user sends a certain number of messages.</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`w-11 h-6 rounded-full transition-colors relative ${showMaxMessages ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                                                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${showMaxMessages ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                {showMaxMessages && (
+                                                    <div className="p-4 pt-0 border-t border-slate-100 bg-white">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] uppercase tracking-wider font-bold text-slate-500 mb-0">Session Message Limit</label>
+                                                            <input 
+                                                                type="number" 
+                                                                value={maxMessages} 
+                                                                onChange={(e) => setMaxMessages(parseInt(e.target.value) || 20)} 
+                                                                min="1"
+                                                                max="100"
+                                                                className="w-24 px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-400 focus:bg-white outline-none transition-all font-bold text-sm text-slate-800 text-center"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Retry Attempt */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showRetryAttempt ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowRetryAttempt(!showRetryAttempt)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showRetryAttempt ? 'bg-brand-100 text-brand-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">🔄</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className={`text-sm font-bold transition-colors ${showRetryAttempt ? 'text-brand-900' : 'text-slate-700'}`}>Retry Attempts</h5>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Number of automatic retries if the AI API fails.</p>
+                                                        </div>
+                                                    </div>
+                                                    <label className="flex items-center gap-3 cursor-pointer shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <div className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${showRetryAttempt ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                                                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${showRetryAttempt ? 'translate-x-6' : ''}`} />
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={showRetryAttempt} onChange={(e) => setShowRetryAttempt(e.target.checked)} />
+                                                    </label>
+                                                </div>
+                                                {showRetryAttempt && (
+                                                    <div className="p-4 pt-0 bg-white animate-fade-in">
+                                                        <div className="mt-2 relative">
+                                                            <input type="number" min="0" max="5" value={retryAttempt} onChange={(e) => setRetryAttempt(e.target.value)} placeholder="e.g. 3" className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-brand-500 focus:bg-slate-50 hover:border-slate-300 shadow-sm transition-all" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Fallback Message */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${showFallbackMsg ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setShowFallbackMsg(!showFallbackMsg)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${showFallbackMsg ? 'bg-amber-100 text-amber-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">⚠️</span>
+                                                        </div>
+                                                        <div>
+                                                            <h5 className={`text-sm font-bold transition-colors ${showFallbackMsg ? 'text-amber-900' : 'text-slate-700'}`}>Fallback Message</h5>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Custom message sent when the AI encounters an unrecoverable error.</p>
+                                                        </div>
+                                                    </div>
+                                                    <label className="flex items-center gap-3 cursor-pointer shrink-0" onClick={e => e.stopPropagation()}>
+                                                        <div className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${showFallbackMsg ? 'bg-amber-500' : 'bg-slate-300'}`}>
+                                                            <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform ${showFallbackMsg ? 'translate-x-6' : ''}`} />
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={showFallbackMsg} onChange={(e) => setShowFallbackMsg(e.target.checked)} />
+                                                    </label>
+                                                </div>
+                                                {showFallbackMsg && (
+                                                    <div className="p-4 pt-0 bg-white animate-fade-in">
+                                                        <div className="mt-2 relative">
+                                                            <input type="text" value={fallbackMessage} onChange={(e) => setFallbackMessage(e.target.value)} placeholder="I'm sorry, I cannot help right now." className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-amber-500 focus:bg-slate-50 hover:border-slate-300 shadow-sm transition-all" />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
                                         </div>
                                     </div>
                                 </div>
