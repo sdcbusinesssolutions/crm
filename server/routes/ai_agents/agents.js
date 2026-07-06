@@ -137,16 +137,6 @@ router.post('/:id/chat', async (req, res) => {
         if (!apiKey) {
             return res.status(400).json({ error: 'API Key is missing. Please configure it in the agent settings.' });
         }
-        
-        // Strict Stop Keyword Interception
-        if (config.stop_keywords) {
-            const stopWords = config.stop_keywords.split(',').map(w => w.trim().toLowerCase()).filter(w => w);
-            const userMsgLower = message.toLowerCase();
-            const hasStopWord = stopWords.some(w => userMsgLower.includes(w) || userMsgLower === w);
-            if (hasStopWord) {
-                return res.json({ reply: "Conversation stopped by user." });
-            }
-        }
 
         // 2. Build System Prompt with Knowledge Base
         let finalSystemPrompt = agent.system_prompt;

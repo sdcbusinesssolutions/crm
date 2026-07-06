@@ -8,20 +8,6 @@ async function generateAIResponse(agentConfig, userMessage, context = [], knowle
     try {
         const { system_prompt, model_config, user_id } = agentConfig;
 
-        // Check for stop keywords
-        if (model_config && model_config.stop_keywords && typeof model_config.stop_keywords === 'string') {
-            const stopWords = model_config.stop_keywords.split(',').map(w => w.trim().toLowerCase()).filter(w => w);
-            const userMsgLower = userMessage.toLowerCase();
-            const hasStopWord = stopWords.some(w => userMsgLower.includes(w) || userMsgLower === w);
-            if (hasStopWord) {
-                return {
-                    success: true,
-                    reply: "Conversation stopped by user.",
-                    stopped: true
-                };
-            }
-        }
-
         // 1. Construct Messages
         const messages = [
             { role: "system", content: `${system_prompt}\n\nRELEVANT KNOWLEDGE:\n${knowledgeContext || "None"}` },
