@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { tokenService } from '../services/tokenService';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import AdDetailPanel from './AdDetailPanel';
 
 const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   const [activeAccountId, setActiveAccountId] = useState(accountId);
@@ -131,7 +132,17 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
       cpcRaw, 
       dailyBudget,
       impressions: insights.impressions || '-',
-      reach: insights.reach || '-'
+      reach: insights.reach || '-',
+      ctr: insights.ctr || '-',
+      clicks: insights.clicks || '-',
+      uniqueClicks: insights.unique_clicks || '-',
+      qualityRanking: insights.quality_ranking || 'N/A',
+      engagementRanking: insights.engagement_rate_ranking || 'N/A',
+      frequency: insights.frequency || '-',
+      inlineLinkClicks: insights.inline_link_clicks || '-',
+      thumbnailUrl: item.creative?.thumbnail_url || item.creative?.image_url || null,
+      startTime: item.start_time || item.created_time || '-',
+      stopTime: item.stop_time || '-'
     };
   };
 
@@ -235,7 +246,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
 
   const handleExportCSV = () => {
     const csvRows = [
-      ['Level', 'Name', 'Parent Campaign', 'Status', 'Leads (Chats)', 'Cost/Lead', 'Link Clicks', 'Reach', 'Impressions', 'Spent', 'Daily Budget']
+      ['Level', 'Name', 'Parent Campaign', 'Status', 'Start Date', 'End Date', 'Leads (Chats)', 'Cost/Lead', 'CTR (%)', 'Link Clicks', 'Unique Clicks', 'Reach', 'Impressions', 'Spent', 'Daily Budget', 'Quality Ranking', 'Engagement Ranking']
     ];
 
     const addRow = (item, levelName, parentCampaignName = '') => {
@@ -245,13 +256,19 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         `"${item.name.replace(/"/g, '""')}"`,
         `"${parentCampaignName.replace(/"/g, '""')}"`,
         item.status,
+        m.startTime !== '-' ? new Date(m.startTime).toISOString().split('T')[0] : 'N/A',
+        m.stopTime !== '-' ? new Date(m.stopTime).toISOString().split('T')[0] : 'Ongoing',
         m.results,
         m.cpc,
+        m.ctr,
         m.linkClicks,
+        m.uniqueClicks,
         m.reach,
         m.impressions,
         m.spend.toFixed(2),
-        m.dailyBudget || 0
+        m.dailyBudget || 0,
+        m.qualityRanking,
+        m.engagementRanking
       ]);
     };
 
@@ -364,25 +381,42 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </label>
 
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${isCampaign ? 'bg-indigo-100 text-indigo-700' : isAdSet ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-500'}`}>
-                  {isCampaign ? 'Campaign' : isAdSet ? 'AdSet' : 'Ad'}
-                </span>
-                <p className={`font-bold text-slate-800 truncate ${isCampaign ? 'text-base' : 'text-sm'}`}>{item.name}</p>
-                {ratingBadge}
-                {item.id === bestItemId && (
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm bg-brand-100 text-brand-700 border border-brand-200 ml-1">
-                    🏆 #1 Pick
-                  </span>
+              <div className="flex items-center gap-3">
+                {metrics.thumbnailUrl ? (
+                  <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-200">
+                    <img src={metrics.thumbnailUrl} alt="Ad Thumbnail" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 border border-slate-200 text-lg">
+                    🖼️
+                  </div>
                 )}
-              </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${isCampaign ? 'bg-indigo-100 text-indigo-700' : isAdSet ? 'bg-cyan-100 text-cyan-700' : 'bg-slate-100 text-slate-500'}`}>
+                      {isCampaign ? 'Campaign' : isAdSet ? 'AdSet' : 'Ad'}
+                    </span>
+                    <p className={`font-bold text-slate-800 truncate ${isCampaign ? 'text-base' : 'text-sm'}`}>{item.name}</p>
+                    {ratingBadge}
+                    {item.id === bestItemId && (
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm bg-brand-100 text-brand-700 border border-brand-200 ml-1">
+                        🏆 #1 Pick
+                      </span>
+                    )}
+                  </div>
               <div className="flex items-center gap-2 mt-1">
                 <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm ${item.status === 'ACTIVE' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-200 text-slate-600 border border-slate-300'}`}>
                   {item.status}
                 </span>
-                <span className="text-xs text-slate-400 font-mono hidden md:inline-block">{item.id}</span>
+                <span className="text-[10px] text-slate-500 font-medium">
+                  {metrics.startTime !== '-' ? new Date(metrics.startTime).toLocaleDateString() : 'N/A'} 
+                  {metrics.stopTime !== '-' ? ` - ${new Date(metrics.stopTime).toLocaleDateString()}` : ' - Ongoing'}
+                </span>
+                <span className="text-xs text-slate-400 font-mono hidden xl:inline-block ml-2">{item.id}</span>
+              </div>
               </div>
             </div>
+          </div>
           </div>
 
           <div className="flex items-center gap-4 md:gap-8 text-right flex-wrap justify-end">
@@ -404,18 +438,13 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
 
             <div className="w-16 hidden lg:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5" title="Link Clicks">Clicks</p>
-              <p className="text-sm font-semibold text-slate-700">{metrics.linkClicks || '-'}</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">CTR</p>
+              <p className="text-sm font-semibold text-slate-700">{metrics.ctr !== '-' ? `${parseFloat(metrics.ctr).toFixed(2)}%` : '-'}</p>
             </div>
 
-            <div className="w-20 hidden xl:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Reach</p>
-              <p className="text-sm font-semibold text-slate-700">{metrics.reach}</p>
-            </div>
-
-            <div className="w-20 hidden lg:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Impressions</p>
-              <p className="text-sm font-semibold text-slate-700">{metrics.impressions}</p>
+            <div className="w-16 hidden xl:block">
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5" title="Unique Clicks">U. Clicks</p>
+              <p className="text-sm font-semibold text-slate-700">{metrics.uniqueClicks || '-'}</p>
             </div>
 
             <div className="w-20 hidden lg:block">
@@ -429,6 +458,11 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
           </div>
         </div>
+
+        {/* Detailed Insights Block when expanded (For AdSets / Ads) */}
+        {isExpanded && !isCampaign && (
+          <AdDetailPanel item={item} level={isAdSet ? 'adset' : 'ad'} metrics={metrics} />
+        )}
 
         {/* Empty state when expanded but no children */}
         {viewLevel === 'hierarchy' && isExpanded && ((isCampaign && (!item.adsets?.data || item.adsets.data.length === 0)) || (isAdSet && (!item.ads?.data || item.ads.data.length === 0))) && (

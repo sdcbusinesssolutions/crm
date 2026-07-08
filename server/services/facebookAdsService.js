@@ -44,17 +44,20 @@ class FacebookAdsService {
     /**
      * Fetch Ad Insights
      */
-    static async fetchInsights(accessToken, entityId, level = 'campaign') {
+    static async fetchInsights(accessToken, entityId, level = 'campaign', timeIncrement = null, datePreset = 'last_30d') {
         try {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
-            const res = await axios.get(`${baseUrl}/${entityId}/insights`, {
-                params: {
-                    fields: 'spend,reach,impressions,actions,date_start,date_stop',
-                    level: level,
-                    access_token: accessToken
-                }
-            });
+            const params = {
+                fields: 'spend,reach,impressions,actions,date_start,date_stop,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks',
+                level: level,
+                date_preset: datePreset,
+                access_token: accessToken
+            };
+            if (timeIncrement) {
+                params.time_increment = timeIncrement;
+            }
+            const res = await axios.get(`${baseUrl}/${entityId}/insights`, { params });
             // The insights API returns an array in data.
             return res.data.data;
         } catch (error) {
@@ -72,8 +75,8 @@ class FacebookAdsService {
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
             
             // We fetch campaigns, their adsets, and ads, along with insights
-            const insightsFields = `spend,impressions,reach,actions,cpc`;
-            const fields = `id,name,status,objective,daily_budget,insights.date_preset(${datePreset}){${insightsFields}},adsets{id,name,status,daily_budget,insights.date_preset(${datePreset}){${insightsFields}},ads{id,name,status,insights.date_preset(${datePreset}){${insightsFields}}}}`;
+            const insightsFields = `spend,impressions,reach,actions,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks`;
+            const fields = `id,name,status,objective,daily_budget,start_time,stop_time,created_time,insights.date_preset(${datePreset}){${insightsFields}},adsets{id,name,status,daily_budget,start_time,stop_time,created_time,insights.date_preset(${datePreset}){${insightsFields}},ads{id,name,status,created_time,creative{thumbnail_url,image_url},insights.date_preset(${datePreset}){${insightsFields}}}}`;
             
             const res = await axios.get(`${baseUrl}/act_${adAccountId}/campaigns`, {
                 params: {
@@ -136,6 +139,7 @@ class FacebookAdsService {
         description,
         status,
         objective,
+        optimizationGoal,
         whatsappNumber,
         geoLocations,
         excludedGeoLocations,
@@ -276,7 +280,7 @@ class FacebookAdsService {
                 campaign_id: campaignId,
                 daily_budget: dailyBudget * 100, // Meta expects cents
                 billing_event: 'IMPRESSIONS',
-                optimization_goal: 'LEAD_GENERATION',
+                optimization_goal: optimizationGoal || 'CONVERSATIONS',
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
@@ -290,7 +294,7 @@ class FacebookAdsService {
                     age_max: maxAge ? parseInt(maxAge) : 65,
                     genders: gendersArray,
                     publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
-                    facebook_positions: ['feed', 'story', 'video_feeds', 'marketplace', 'search'],
+                    facebook_positions: ['feed', 'story', 'marketplace', 'search'],
                     targeting_automation: {
                         advantage_audience: advantageAudience !== undefined ? advantageAudience : 1
                     }
@@ -393,8 +397,19 @@ class FacebookAdsService {
             console.error(JSON.stringify(error.response?.data || error.message, null, 2));
             
             const errData = error.response?.data?.error;
-            const userFriendlyMsg = errData?.error_user_msg || errData?.message || 'Failed to launch ad via Meta Marketing API';
-            throw new Error(userFriendlyMsg);
+            let finalMessage = 'Failed to launch ad via Meta Marketing API.';
+            
+            if (errData) {
+                const title = errData.error_user_title || errData.type || 'Meta API Error';
+                const msg = errData.error_user_msg || errData.message || 'Unknown error occurred.';
+                const subcode = errData.error_subcode ? `(Subcode: ${errData.error_subcode})` : '';
+                
+                finalMessage = `${title}: ${msg} ${subcode}`.trim();
+            } else if (error.message) {
+                finalMessage = error.message;
+            }
+
+            throw new Error(finalMessage);
         }
     }
 }

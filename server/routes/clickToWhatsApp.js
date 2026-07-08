@@ -122,7 +122,10 @@ router.get('/insights/:level/:id', requireAuth, async (req, res) => {
 
         const accessToken = envToken || config.meta_access_token;
 
-        const insights = await FacebookAdsService.fetchInsights(accessToken, id, level);
+        const timeIncrement = req.query.timeIncrement;
+        const datePreset = req.query.datePreset || 'last_30d';
+
+        const insights = await FacebookAdsService.fetchInsights(accessToken, id, level, timeIncrement, datePreset);
 
         res.status(200).json({
             success: true,
@@ -202,6 +205,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             description,
             status,
             objective,
+            optimizationGoal,
             whatsappNumber,
             geoLocations,
             excludedGeoLocations,
@@ -254,6 +258,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             description,
             status,
             objective,
+            optimizationGoal,
             whatsappNumber,
             geoLocations,
             excludedGeoLocations,

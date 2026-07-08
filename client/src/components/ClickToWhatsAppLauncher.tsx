@@ -255,7 +255,9 @@ const ClickToWhatsAppLauncher = () => {
     description: '',
     status: 'PAUSED',
     whatsappNumber: '',
-    advantageAudience: 1
+    advantageAudience: 1,
+    objective: 'OUTCOME_SALES',
+    optimizationGoal: 'CONVERSATIONS'
   });
   
   const [loading, setLoading] = useState(false);
@@ -840,6 +842,71 @@ const ClickToWhatsAppLauncher = () => {
                       required 
                     />
                     <p className="field-hint">Max 40 characters.</p>
+                  </div>
+                </div>
+
+                {/* Row 2.5: Ad Objective + Performance Goal */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label><span className="icon">🎯</span> Campaign Objective</label>
+                    <select 
+                      name="objective" 
+                      value={formData.objective} 
+                      onChange={(e) => {
+                        const newObj = e.target.value;
+                        let newGoal = formData.optimizationGoal;
+                        if (newObj === 'OUTCOME_SALES') newGoal = 'CONVERSATIONS';
+                        else if (newObj === 'OUTCOME_TRAFFIC') newGoal = 'LINK_CLICKS';
+                        else if (newObj === 'OUTCOME_AWARENESS') newGoal = 'REACH';
+                        setFormData(prev => ({ ...prev, objective: newObj, optimizationGoal: newGoal }));
+                      }} 
+                      required 
+                      className="ctwa-select"
+                    >
+                      <option value="OUTCOME_SALES">Sales (Recommended)</option>
+                      <option value="OUTCOME_TRAFFIC">Traffic</option>
+                      <option value="OUTCOME_AWARENESS">Awareness</option>
+                    </select>
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label><span className="icon">📈</span> Performance Goal</label>
+                    <select 
+                      name="optimizationGoal" 
+                      value={formData.optimizationGoal} 
+                      onChange={handleChange} 
+                      required 
+                      className="ctwa-select"
+                    >
+                      {formData.objective === 'OUTCOME_SALES' && (
+                        <option value="CONVERSATIONS">Maximize number of conversations</option>
+                      )}
+                      {formData.objective === 'OUTCOME_TRAFFIC' && (
+                        <option value="LINK_CLICKS">Maximize number of link clicks</option>
+                      )}
+                      {formData.objective === 'OUTCOME_AWARENESS' && (
+                        <option value="REACH">Maximize number of people reached</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group" style={{ flex: '1 1 100%' }}>
+                    {formData.objective === 'OUTCOME_SALES' && formData.optimizationGoal === 'CONVERSATIONS' && (
+                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '8px', color: '#166534', fontSize: '0.85rem' }}>
+                        <strong>🔥 Best Combo for CTWA:</strong> Meta will show your ad to people most likely to have a conversation and convert. This offers the <strong>lowest Cost Per Lead (CPL)</strong> and requires <strong>no lead form terms</strong> acceptance!
+                      </div>
+                    )}
+                    {formData.objective === 'OUTCOME_TRAFFIC' && formData.optimizationGoal === 'LINK_CLICKS' && (
+                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px', borderRadius: '8px', color: '#1e40af', fontSize: '0.85rem' }}>
+                        <strong>⚡ Traffic Focus:</strong> Meta will get you the most clicks for your budget. Good for cheap traffic, but doesn't guarantee people will actually chat.
+                      </div>
+                    )}
+                    {formData.objective === 'OUTCOME_AWARENESS' && formData.optimizationGoal === 'REACH' && (
+                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', color: '#334155', fontSize: '0.85rem' }}>
+                        <strong>📢 Reach Focus:</strong> Meta will show your ad to as many unique people as possible. Good for branding and awareness, but not optimized for getting leads.
+                      </div>
+                    )}
                   </div>
                 </div>
 
