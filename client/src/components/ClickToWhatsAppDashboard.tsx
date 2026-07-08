@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ClickToWhatsAppDashboard.css';
 import ClickToWhatsAppLauncher from './ClickToWhatsAppLauncher';
+import ClickToWhatsAppAnalytics from './ClickToWhatsAppAnalytics';
 import { settingsService } from '../services/settingsService';
 import { tokenService } from '../services/tokenService';
 
@@ -25,7 +26,7 @@ interface AdAccount {
 }
 
 const ClickToWhatsAppDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'pages' | 'ads'>('pages');
+  const [activeTab, setActiveTab] = useState<'pages' | 'ads' | 'analytics'>('pages');
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,37 +50,18 @@ const ClickToWhatsAppDashboard = () => {
       const result = await res.json();
       if (res.ok && result.success) {
         setPages(result.data.pages || []);
-        
-        // Use real data if it exists, otherwise fall back to mock data for UI testing
-        if (result.data.adAccounts && result.data.adAccounts.length > 0) {
-           setAdAccounts(result.data.adAccounts);
-        } else {
-           setAdAccounts([
-             { id: '1', account_id: '853910235680563', name: 'HD Techs Admin', currency: 'USD', balance: 0 },
-             { id: '2', account_id: '1634398143758884', name: 'Epiphany Publication', currency: 'INR', balance: 0 },
-             { id: '3', account_id: '897350962172923', name: 'Cybersync Technologies Ad Account', currency: 'INR', balance: 24540 },
-             { id: '4', account_id: '913506310415028', name: 'Biproraj Personal Ad Ac', currency: 'INR', balance: 0 },
-           ]);
-        }
+        setAdAccounts(result.data.adAccounts || []);
       } else {
         if (res.status === 400 || res.status === 500) {
           alert('Error fetching accounts: ' + (result.error || 'Unknown error'));
         }
-        // For development/UI testing: Show mock data if token is missing
-        setAdAccounts([
-          { id: '1', account_id: '853910235680563', name: 'HD Techs Admin', currency: 'USD', balance: 0 },
-          { id: '2', account_id: '1634398143758884', name: 'Epiphany Publication', currency: 'INR', balance: 0 },
-          { id: '3', account_id: '897350962172923', name: 'Cybersync Technologies Ad Account', currency: 'INR', balance: 24540 },
-          { id: '4', account_id: '913506310415028', name: 'Biproraj Personal Ad Ac', currency: 'INR', balance: 0 },
-        ]);
+        setPages([]);
+        setAdAccounts([]);
       }
     } catch (err) {
       console.error("Failed to fetch pages:", err);
-      // Fallback on catch block as well
-      setAdAccounts([
-        { id: '1', account_id: '853910235680563', name: 'HD Techs Admin (Mock)', currency: 'USD', balance: 0 },
-        { id: '2', account_id: '1634398143758884', name: 'Epiphany Publication (Mock)', currency: 'INR', balance: 0 },
-      ]);
+      setPages([]);
+      setAdAccounts([]);
     } finally {
       setLoading(false);
     }
@@ -136,10 +118,13 @@ const ClickToWhatsAppDashboard = () => {
   };
 
   const handleConnectFacebook = async () => {
-    const finalAppId = appId || '1046904630557061';
-    const finalConfigId = configId || '976277771227161';
+    // Attempt to use embedded config if available, otherwise prompt user to set it up
+    if (!appId || !configId) {
+      alert("Facebook App ID or Config ID not found. Please set them up in settings.");
+      return; 
+    }
     
-    await loadFacebookSDK(finalAppId);
+    await loadFacebookSDK(appId);
     
     window.FB.login((response: any) => {
       if (response.authResponse) {
@@ -173,7 +158,7 @@ const ClickToWhatsAppDashboard = () => {
         console.log('User cancelled login or did not fully authorize.');
       }
     }, { 
-      config_id: finalConfigId,
+      config_id: configId,
       response_type: 'code',
       override_default_response_type: true,
       scope: 'ads_management,pages_show_list,pages_read_engagement,pages_manage_ads', 
@@ -216,6 +201,12 @@ const ClickToWhatsAppDashboard = () => {
               onClick={() => { setActiveTab('ads'); setSelectedAdAccount(null); setSearchTerm(''); }}
             >
               Ads
+            </button>
+            <button 
+              className={`ctwa-tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('analytics'); setSelectedAdAccount(null); setSearchTerm(''); }}
+            >
+              Analytics
             </button>
           </div>
 
@@ -491,6 +482,22 @@ const ClickToWhatsAppDashboard = () => {
             </button>
           </div>
           <ClickToWhatsAppLauncher />
+        </div>
+      )}
+
+      {activeTab === 'analytics' && (
+        <div className="animate-fade-in">
+          {adAccounts.length > 0 ? (
+            <ClickToWhatsAppAnalytics 
+              accountId={adAccounts[0].account_id} 
+              adAccounts={adAccounts}
+            />
+          ) : (
+            <div className="p-8 text-center bg-white rounded-2xl shadow-sm border border-slate-200 mt-4">
+              <div className="text-4xl mb-3">⚠️</div>
+              <p className="text-slate-500 font-medium">No ad accounts found. Please connect Facebook.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

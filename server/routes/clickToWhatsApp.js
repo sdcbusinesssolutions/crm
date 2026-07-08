@@ -63,6 +63,42 @@ router.get('/accounts', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/click-to-whatsapp/analytics/:accountId
+ * Fetches the Analytics Dashboard data for a given ad account
+ */
+router.get('/analytics/:accountId', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { accountId } = req.params;
+
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('meta_access_token')
+            .eq('user_id', userId)
+            .single();
+
+        const envToken = process.env.META_ACCESS_TOKEN;
+
+        if (!envToken && (error || !config || !config.meta_access_token)) {
+            return res.status(403).json({ error: 'Meta Access Token not found.' });
+        }
+
+        const accessToken = envToken || config.meta_access_token;
+        const datePreset = req.query.datePreset || 'last_7d';
+        const dashboardData = await FacebookAdsService.getAnalyticsDashboard(accessToken, accountId, datePreset);
+
+        res.status(200).json({
+            success: true,
+            data: dashboardData
+        });
+    } catch (error) {
+        console.error('[Fetch Analytics Dashboard Error]:', error);
+        res.status(500).json({ error: error.message || 'An error occurred while fetching analytics.' });
+    }
+});
+
+/**
  * GET /api/click-to-whatsapp/insights/:level/:id
  * Fetches analytics for a specific campaign, adset, or ad
  */
@@ -99,6 +135,45 @@ router.get('/insights/:level/:id', requireAuth, async (req, res) => {
 });
 
 /**
+ * POST /api/click-to-whatsapp/toggle-status
+ * Toggles the status of a Meta Ads Object (Campaign, AdSet, Ad)
+ */
+router.post('/toggle-status', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { objectId, status } = req.body;
+
+        if (!objectId || !status) {
+            return res.status(400).json({ error: 'objectId and status are required' });
+        }
+
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('meta_access_token')
+            .eq('user_id', userId)
+            .single();
+
+        const envToken = process.env.META_ACCESS_TOKEN;
+
+        if (!envToken && (error || !config || !config.meta_access_token)) {
+            return res.status(403).json({ error: 'Meta Access Token not found.' });
+        }
+
+        const accessToken = envToken || config.meta_access_token;
+        const result = await FacebookAdsService.toggleStatus(accessToken, objectId, status);
+
+        res.status(200).json({
+            success: true,
+            data: result
+        });
+    } catch (error) {
+        console.error('[Toggle Status API Error]:', error);
+        res.status(500).json({ error: error.message || 'An error occurred while toggling status.' });
+    }
+});
+
+/**
  * POST /api/click-to-whatsapp/launch
  * Launches a new Click to WhatsApp Ad Campaign
  */
@@ -115,6 +190,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             headline,
             primaryText,
             imageUrl,
+            mediaType,
             targetCountries,
             minAge,
             maxAge,
@@ -124,7 +200,13 @@ router.post('/launch', requireAuth, async (req, res) => {
             welcomeMessageText,
             iceBreakerText,
             description,
-            status
+            status,
+            objective,
+            whatsappNumber,
+            geoLocations,
+            excludedGeoLocations,
+            radius,
+            advantageAudience
         } = req.body;
 
         // Validation
@@ -160,6 +242,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             headline,
             primaryText,
             imageUrl,
+            mediaType,
             targetCountries,
             minAge,
             maxAge,
@@ -169,7 +252,13 @@ router.post('/launch', requireAuth, async (req, res) => {
             welcomeMessageText,
             iceBreakerText,
             description,
-            status
+            status,
+            objective,
+            whatsappNumber,
+            geoLocations,
+            excludedGeoLocations,
+            radius,
+            advantageAudience
         });
 
         res.status(200).json(result);

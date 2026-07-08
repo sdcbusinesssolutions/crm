@@ -114,11 +114,13 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
         {formData.targetCountries.split('|').filter(Boolean).map((locName: string, idx: number) => {
           const country = countryOptions.find((c: any) => c.value === locName || c.label === locName);
           if (country) {
+            const type = formData.locationTypes?.[locName] || 'include';
+            const color = type === 'exclude' ? '#DC2626' : '#25D366';
             return (
               <React.Fragment key={`preset-${idx}`}>
-                <Circle center={[country.lat, country.lng]} radius={40233} pathOptions={{ color: '#25D366', fillColor: '#25D366', fillOpacity: 0.2, weight: 2 }} />
+                <Circle center={[country.lat, country.lng]} radius={40233} pathOptions={{ color, fillColor: color, fillOpacity: type === 'exclude' ? 0.3 : 0.2, weight: 2 }} />
                 <Marker position={[country.lat, country.lng]} icon={customMarkerIcon} title={country.label}>
-                  <Popup>{country.label} (+25mi radius)</Popup>
+                  <Popup>{country.label} (+25mi radius) <b>[{type.toUpperCase()}]</b></Popup>
                 </Marker>
               </React.Fragment>
             );
@@ -128,11 +130,13 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
         {/* Dropped Pins */}
         {droppedPins.map((pin: any, idx: number) => {
           const radiusMi = formData.locationRadiuses?.[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25;
+          const type = pin.name ? (formData.locationTypes?.[pin.name] || 'include') : 'include';
+          const color = type === 'exclude' ? '#DC2626' : '#25D366';
           return (
           <React.Fragment key={`dropped-${idx}`}>
-            {radiusMi > 0 && <Circle center={[pin.lat, pin.lng]} radius={radiusMi * 1609.34} pathOptions={{ color: '#25D366', fillColor: '#25D366', fillOpacity: 0.2, weight: 2 }} />}
+            {radiusMi > 0 && <Circle center={[pin.lat, pin.lng]} radius={radiusMi * 1609.34} pathOptions={{ color, fillColor: color, fillOpacity: type === 'exclude' ? 0.3 : 0.2, weight: 2 }} />}
             <Marker position={[pin.lat, pin.lng]} icon={customMarkerIcon}>
-              <Popup>{pin.name || 'Custom Pin'} {radiusMi > 0 ? `(+${radiusMi}mi radius)` : '(Current city only)'}</Popup>
+              <Popup>{pin.name || 'Custom Pin'} {radiusMi > 0 ? `(+${radiusMi}mi radius)` : '(Current city only)'} <b>[{type.toUpperCase()}]</b></Popup>
             </Marker>
           </React.Fragment>
         )})}
@@ -145,6 +149,7 @@ const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDropped
 }, (prev, next) => 
   prev.formData.targetCountries === next.formData.targetCountries && 
   prev.formData.locationRadiuses === next.formData.locationRadiuses &&
+  prev.formData.locationTypes === next.formData.locationTypes &&
   prev.droppedPins === next.droppedPins
 );
 
@@ -224,6 +229,7 @@ function RadiusConfigurator({ locationName, radius, onChange }: { locationName: 
 
 const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
+  const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
   const totalSteps = 4;
 
   const [formData, setFormData] = useState({
@@ -234,8 +240,10 @@ const ClickToWhatsAppLauncher = () => {
     headline: 'Chat with us on WhatsApp!',
     primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
     imageUrl: '',
+    mediaType: 'image' as 'image' | 'video',
     targetCountries: '',
     locationRadiuses: {},
+    locationTypes: {} as Record<string, 'include' | 'exclude'>,
     baseCountryCode: '',
     minAge: '18',
     maxAge: '65',
@@ -245,7 +253,9 @@ const ClickToWhatsAppLauncher = () => {
     welcomeMessageText: 'Hi! I am interested in this.',
     iceBreakerText: 'I am interested!',
     description: '',
-    status: 'PAUSED'
+    status: 'PAUSED',
+    whatsappNumber: '',
+    advantageAudience: 1
   });
   
   const [loading, setLoading] = useState(false);
@@ -427,7 +437,11 @@ const ClickToWhatsAppLauncher = () => {
 
       const data = await response.json();
       if (response.ok) {
-        setFormData(prev => ({ ...prev, imageUrl: data.url }));
+        setFormData(prev => ({ 
+          ...prev, 
+          imageUrl: data.url,
+          mediaType: file.type.startsWith('video/') ? 'video' : 'image'
+        }));
       } else {
         throw new Error(data.error || 'Upload failed');
       }
@@ -456,12 +470,52 @@ const ClickToWhatsAppLauncher = () => {
     try {
       const authHeader = await tokenService.getAuthHeader();
       
+      let parsedGeo = undefined;
+      let parsedExcludedGeo = undefined;
+
+      // Automatically construct custom_locations from map pins if JSON isn't manually provided
+      if (!parsedGeo && droppedPins.length > 0) {
+        const includePins = droppedPins.filter(pin => !pin.name || formData.locationTypes[pin.name] !== 'exclude');
+        if (includePins.length > 0) {
+          parsedGeo = {
+            custom_locations: includePins.map(pin => ({
+              latitude: pin.lat,
+              longitude: pin.lng,
+              radius: (pin.name && formData.locationRadiuses[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25) || 25,
+              distance_unit: 'kilometer'
+            })),
+            location_types: ['home', 'recent']
+          };
+        }
+      }
+
+      if (!parsedExcludedGeo && droppedPins.length > 0) {
+        const excludePins = droppedPins.filter(pin => pin.name && formData.locationTypes[pin.name] === 'exclude');
+        if (excludePins.length > 0) {
+          parsedExcludedGeo = {
+            custom_locations: excludePins.map(pin => ({
+              latitude: pin.lat,
+              longitude: pin.lng,
+              radius: (formData.locationRadiuses[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25) || 25,
+              distance_unit: 'kilometer'
+            }))
+          };
+        }
+      }
+
+      const payload = {
+        ...formData,
+        geoLocations: parsedGeo,
+        excludedGeoLocations: parsedExcludedGeo
+      };
+
       const response = await fetch('/api/click-to-whatsapp/launch', {
         method: 'POST',
         headers: {
-          ...authHeader
+          ...authHeader,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -789,6 +843,21 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
                 </div>
 
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number</label>
+                    <input 
+                      type="text" 
+                      name="whatsappNumber" 
+                      placeholder="e.g. 919876543210"
+                      value={formData.whatsappNumber}
+                      onChange={handleChange}
+                      required 
+                    />
+                    <p className="field-hint">Include country code without '+'</p>
+                  </div>
+                </div>
+
                 {/* Row 3: Primary Text (left) + Ad Media & Description (right) */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
@@ -822,8 +891,12 @@ const ClickToWhatsAppLauncher = () => {
                       <div className={`media-upload-area ${formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? 'has-image' : ''}`} onClick={() => document.getElementById('ad-media-upload')?.click()}>
                         {formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? (
                           <div className="upload-preview-container" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0'}}>
-                            <img src={formData.imageUrl} alt="Ad Media" style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
-                            <span style={{fontSize: '0.8rem', fontWeight: 500, color: '#068E3E'}}>Image Selected (Click to change)</span>
+                            {formData.mediaType === 'video' ? (
+                              <video src={formData.imageUrl} controls style={{width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                            ) : (
+                              <img src={formData.imageUrl} alt="Ad Media" style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                            )}
+                            <span style={{fontSize: '0.8rem', fontWeight: 500, color: '#068E3E'}}>Media Selected (Click to change)</span>
                           </div>
                         ) : (
                           <div className="upload-placeholder-new" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -1015,23 +1088,45 @@ const ClickToWhatsAppLauncher = () => {
                             borderBottomRightRadius: idx === arr.length - 1 ? '8px' : '0',
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#25D366" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                              <select 
+                                value={formData.locationTypes?.[locName] || 'include'}
+                                onChange={(e) => {
+                                  setFormData({
+                                    ...formData,
+                                    locationTypes: {
+                                      ...formData.locationTypes,
+                                      [locName]: e.target.value as 'include' | 'exclude'
+                                    }
+                                  });
+                                }}
+                                style={{
+                                  fontSize: '0.75rem', padding: '4px 8px', borderRadius: '6px', border: 'none',
+                                  background: formData.locationTypes?.[locName] === 'exclude' ? '#FEE2E2' : '#DCFCE7',
+                                  color: formData.locationTypes?.[locName] === 'exclude' ? '#991B1B' : '#166534',
+                                  fontWeight: 600, cursor: 'pointer', outline: 'none'
+                                }}
+                              >
+                                <option value="include">Include</option>
+                                <option value="exclude">Exclude</option>
+                              </select>
                               <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#374151' }}>{locName}</span>
                             </div>
                             
-                            <RadiusConfigurator 
-                              locationName={locName} 
-                              radius={formData.locationRadiuses?.[locName] !== undefined ? formData.locationRadiuses[locName] : 25} 
-                              onChange={(newRadius) => {
-                                setFormData({
-                                  ...formData,
-                                  locationRadiuses: {
-                                    ...formData.locationRadiuses,
-                                    [locName]: newRadius
-                                  }
-                                });
-                              }}
-                            />
+                            <div style={{ opacity: formData.locationTypes?.[locName] === 'exclude' ? 0.5 : 1 }}>
+                              <RadiusConfigurator 
+                                locationName={locName} 
+                                radius={formData.locationRadiuses?.[locName] !== undefined ? formData.locationRadiuses[locName] : 25} 
+                                onChange={(newRadius) => {
+                                  setFormData({
+                                    ...formData,
+                                    locationRadiuses: {
+                                      ...formData.locationRadiuses,
+                                      [locName]: newRadius
+                                    }
+                                  });
+                                }}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1044,6 +1139,35 @@ const ClickToWhatsAppLauncher = () => {
                       droppedPins={droppedPins} 
                       setDroppedPins={setDroppedPins} 
                     />
+                  </div>
+                </div>
+
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label>Advantage+ Audience</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.advantageAudience === 1}
+                          onChange={(e) => setFormData({ ...formData, advantageAudience: e.target.checked ? 1 : 0 })}
+                          style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                        />
+                        <div style={{
+                          width: '44px', height: '24px', background: formData.advantageAudience === 1 ? '#25D366' : '#cbd5e1', 
+                          borderRadius: '12px', position: 'relative', transition: '0.3s'
+                        }}>
+                          <div style={{
+                            width: '20px', height: '20px', background: 'white', borderRadius: '50%',
+                            position: 'absolute', top: '2px', left: formData.advantageAudience === 1 ? '22px' : '2px',
+                            transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                          }} />
+                        </div>
+                      </label>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: formData.advantageAudience === 1 ? '#15803d' : '#64748b' }}>
+                        {formData.advantageAudience === 1 ? 'ON (Recommended)' : 'OFF'}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -1175,7 +1299,28 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
                     <div className="summary-item">
                       <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Locations:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.targetCountries || 'Global'}</span>
+                      <span className="summary-value" style={{fontWeight: 600}}>
+                        {formData.targetCountries ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            {formData.targetCountries.split('|').filter(Boolean).map((loc, i) => {
+                               const type = formData.locationTypes?.[loc] || 'include';
+                               return (
+                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <span style={{ 
+                                     fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px',
+                                     background: type === 'exclude' ? '#FEE2E2' : '#DCFCE7',
+                                     color: type === 'exclude' ? '#991B1B' : '#166534',
+                                     textTransform: 'uppercase', fontWeight: 700
+                                   }}>
+                                     {type}
+                                   </span>
+                                   <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>{loc}</span>
+                                 </div>
+                               );
+                            })}
+                          </div>
+                        ) : 'Global'}
+                      </span>
                     </div>
                     <div className="summary-item">
                       <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Demographics:</span>

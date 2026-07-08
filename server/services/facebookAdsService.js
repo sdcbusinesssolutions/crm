@@ -64,6 +64,55 @@ class FacebookAdsService {
     }
 
     /**
+     * Fetch complete analytics dashboard data (Campaigns, AdSets, Ads)
+     */
+    static async getAnalyticsDashboard(accessToken, adAccountId, datePreset = 'last_7d') {
+        try {
+            const apiVersion = 'v20.0';
+            const baseUrl = `https://graph.facebook.com/${apiVersion}`;
+            
+            // We fetch campaigns, their adsets, and ads, along with insights
+            const insightsFields = `spend,impressions,reach,actions,cpc`;
+            const fields = `id,name,status,objective,daily_budget,insights.date_preset(${datePreset}){${insightsFields}},adsets{id,name,status,daily_budget,insights.date_preset(${datePreset}){${insightsFields}},ads{id,name,status,insights.date_preset(${datePreset}){${insightsFields}}}}`;
+            
+            const res = await axios.get(`${baseUrl}/act_${adAccountId}/campaigns`, {
+                params: {
+                    fields: fields,
+                    access_token: accessToken,
+                    limit: 50 // Fetch recent campaigns
+                }
+            });
+            
+            return res.data.data;
+        } catch (error) {
+            console.error('Error fetching Analytics Dashboard:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.error?.message || 'Failed to fetch Analytics');
+        }
+    }
+
+    /**
+     * Toggle the status of a Meta Ads Object (Campaign, AdSet, or Ad)
+     */
+    static async toggleStatus(accessToken, objectId, status) {
+        try {
+            const apiVersion = 'v20.0';
+            const baseUrl = `https://graph.facebook.com/${apiVersion}`;
+            
+            const res = await axios.post(`${baseUrl}/${objectId}`, null, {
+                params: {
+                    status: status, // 'ACTIVE' or 'PAUSED'
+                    access_token: accessToken
+                }
+            });
+            
+            return res.data;
+        } catch (error) {
+            console.error('Error toggling status:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.error?.message || 'Failed to toggle status');
+        }
+    }
+
+    /**
      * Launch a Click to WhatsApp Ad campaign
      */
     static async launchAd({
@@ -75,6 +124,7 @@ class FacebookAdsService {
         headline,
         primaryText,
         imageUrl,
+        mediaType,
         targetCountries,
         minAge,
         maxAge,
@@ -84,52 +134,119 @@ class FacebookAdsService {
         welcomeMessageText,
         iceBreakerText,
         description,
-        status
+        status,
+        objective,
+        whatsappNumber,
+        geoLocations,
+        excludedGeoLocations,
+        radius,
+        advantageAudience
     }) {
         try {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
 
-            // Parse target countries e.g. "US, IN, GB" -> ["US", "IN", "GB"]
-            let countriesArray = targetCountries
-                ? targetCountries.split(',').map(c => c.trim().toUpperCase()).filter(c => c.length === 2)
-                : ['IN']; // Fallback
-            
-            // If the user selected a city (e.g. "Pune, Maharashtra, India"), the 2-letter filter makes it empty
-            if (countriesArray.length === 0) {
-                countriesArray = ['IN'];
+            // Dynamically resolve target locations via Meta API if raw geoLocations object is not provided
+            let final_geo_locations = geoLocations || { countries: ['IN'], location_types: ['home', 'recent'] }; // Fallback
+
+            if (!geoLocations && targetCountries) {
+                const possibleCodes = targetCountries.split(',').map(c => c.trim().toUpperCase());
+                const isAllCodes = possibleCodes.every(c => c.length === 2);
+
+                if (isAllCodes && possibleCodes.length > 0) {
+                    final_geo_locations = { countries: possibleCodes, location_types: ['home', 'recent'] };
+                } else {
+                    try {
+                        const searchQuery = targetCountries.split(',')[0].trim();
+                        const searchRes = await axios.get(`${baseUrl}/search`, {
+                            params: {
+                                type: 'adgeolocation',
+                                q: searchQuery,
+                                access_token: accessToken,
+                                limit: 1
+                            }
+                        });
+
+                        if (searchRes.data && searchRes.data.data && searchRes.data.data.length > 0) {
+                            const locationData = searchRes.data.data[0];
+                            if (locationData.type === 'city') {
+                                final_geo_locations = {
+                                    cities: [{ key: locationData.key, radius: radius || 15, distance_unit: 'kilometer' }],
+                                    location_types: ['home', 'recent']
+                                };
+                            } else if (locationData.type === 'region') {
+                                final_geo_locations = {
+                                    regions: [{ key: locationData.key }],
+                                    location_types: ['home', 'recent']
+                                };
+                            } else if (locationData.type === 'country') {
+                                final_geo_locations = {
+                                    countries: [locationData.country_code || locationData.key],
+                                    location_types: ['home', 'recent']
+                                };
+                            } else if (locationData.type === 'zip') {
+                                final_geo_locations = {
+                                    zips: [{ key: locationData.key }],
+                                    location_types: ['home', 'recent']
+                                };
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error dynamically resolving location via Meta API:', err.response?.data || err.message);
+                    }
+                }
             }
 
-            // Step 0: Download Image and Upload to Asset Library as form-data
-            const FormData = require('form-data');
-            const imageBufferRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-            
-            const form = new FormData();
-            form.append('access_token', accessToken);
-            form.append('filename', imageBufferRes.data, 'ad_image.jpg');
+            // Step 0: Handle Media Upload
+            let imageHash = null;
+            let videoId = null;
 
-            const imageRes = await axios.post(`${baseUrl}/act_${adAccountId}/adimages`, form, {
-                headers: {
-                    ...form.getHeaders()
+            if (mediaType === 'video') {
+                // Upload Video
+                console.log(`[FacebookAdsService] Uploading video to advideos...`);
+                // Meta API allows sending file_url directly for advideos
+                const videoRes = await axios.post(`${baseUrl}/act_${adAccountId}/advideos`, null, {
+                    params: {
+                        access_token: accessToken,
+                        file_url: imageUrl
+                    }
+                });
+                
+                videoId = videoRes.data.id;
+                if (!videoId) {
+                    throw new Error("Failed to retrieve video_id from Meta after uploading video URL.");
                 }
-            });
-            
-            // Meta returns: { images: { "filename": { hash: "..." } } }
-            // The filename is dynamically generated when uploading via URL, so we extract the first hash.
-            const imagesMap = imageRes.data.images || {};
-            const firstImageKey = Object.keys(imagesMap)[0];
-            const imageHash = imagesMap[firstImageKey]?.hash;
+            } else {
+                // Upload Image
+                console.log(`[FacebookAdsService] Uploading image to adimages...`);
+                const FormData = require('form-data');
+                const imageBufferRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+                
+                const form = new FormData();
+                form.append('access_token', accessToken);
+                form.append('filename', imageBufferRes.data, 'ad_image.jpg');
 
-            if (!imageHash) {
-                throw new Error("Failed to retrieve image_hash from Meta after uploading image URL.");
+                const imageRes = await axios.post(`${baseUrl}/act_${adAccountId}/adimages`, form, {
+                    headers: {
+                        ...form.getHeaders()
+                    }
+                });
+                
+                const imagesMap = imageRes.data.images || {};
+                const firstImageKey = Object.keys(imagesMap)[0];
+                imageHash = imagesMap[firstImageKey]?.hash;
+
+                if (!imageHash) {
+                    throw new Error("Failed to retrieve image_hash from Meta after uploading image URL.");
+                }
             }
 
             const campaignRes = await axios.post(`${baseUrl}/act_${adAccountId}/campaigns`, null, {
                 params: {
                     name: campaignName,
-                    objective: 'OUTCOME_ENGAGEMENT',
+                    objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
-                    special_ad_categories: '[]',
+                    special_ad_categories: '["NONE"]',
                     is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
@@ -151,8 +268,6 @@ class FacebookAdsService {
             
             if (endDate) {
                 scheduleParams.end_time = Math.floor(new Date(endDate).getTime() / 1000);
-            } else {
-                scheduleParams.end_time = scheduleParams.start_time + (25 * 60 * 60); // 25 hours from start time
             }
 
             // Step 2: Create Ad Set
@@ -161,24 +276,23 @@ class FacebookAdsService {
                 campaign_id: campaignId,
                 daily_budget: dailyBudget * 100, // Meta expects cents
                 billing_event: 'IMPRESSIONS',
-                optimization_goal: 'CONVERSATIONS',
+                optimization_goal: 'LEAD_GENERATION',
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
                     page_id: pageId
                 }),
                 targeting: JSON.stringify({
-                    geo_locations: { countries: countriesArray },
+                    geo_locations: final_geo_locations,
+                    ...(excludedGeoLocations && { excluded_geo_locations: excludedGeoLocations }),
                     device_platforms: ['mobile', 'desktop'],
                     age_min: minAge ? parseInt(minAge) : 18,
                     age_max: maxAge ? parseInt(maxAge) : 65,
                     genders: gendersArray,
-                    publisher_platforms: ['facebook', 'instagram', 'messenger'],
-                    facebook_positions: ['feed', 'story', 'marketplace'],
-                    instagram_positions: ['stream', 'story', 'reels'],
-                    messenger_positions: ['messenger_home'],
+                    publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
+                    facebook_positions: ['feed', 'story', 'video_feeds', 'marketplace', 'search'],
                     targeting_automation: {
-                        advantage_audience: 0
+                        advantage_audience: advantageAudience !== undefined ? advantageAudience : 1
                     }
                 }),
                 status: status || 'PAUSED',
@@ -211,10 +325,26 @@ class FacebookAdsService {
 
             // Step 3: Create Ad Creative
             const objectStorySpec = {
-                page_id: pageId,
-                link_data: {
+                page_id: pageId
+            };
+            
+            if (mediaType === 'video') {
+                objectStorySpec.video_data = {
+                    video_id: videoId,
+                    image_url: "https://www.facebook.com/images/ads/video_placeholder.png", 
+                    title: headline,
+                    message: primaryText,
+                    call_to_action: {
+                        type: 'WHATSAPP_MESSAGE',
+                        value: {
+                            app_destination: 'WHATSAPP'
+                        }
+                    }
+                };
+            } else {
+                objectStorySpec.link_data = {
                     image_hash: imageHash,
-                    link: 'https://api.whatsapp.com/send',
+                    link: whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://api.whatsapp.com/send',
                     name: headline,
                     message: primaryText,
                     ...(description && { description }),
@@ -225,8 +355,8 @@ class FacebookAdsService {
                         }
                     },
                     page_welcome_message: JSON.stringify(visualEditorSpec)
-                }
-            };
+                };
+            }
 
             const creativeParams = {
                 name: `${campaignName} - Creative`,
