@@ -374,15 +374,18 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <div className="w-7 h-7"></div> // spacer
             ) : null}
             
-            <label className="relative flex items-center cursor-pointer shrink-0">
-              <input 
-                type="checkbox" 
-                className="sr-only peer"
-                checked={item.status === 'ACTIVE'}
-                onChange={() => toggleStatus(item.id, item.status, isCampaign ? 'campaign' : isAdSet ? 'adset' : 'ad')}
-              />
-              <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-green-500"></div>
-            </label>
+            <div className="flex flex-col items-center shrink-0 w-12" title="Turn Ad ON (Active) or OFF (Paused)">
+              <p className="text-[9px] uppercase font-bold text-brand-600 mb-1.5 tracking-wider">Action</p>
+              <label className="relative flex items-center cursor-pointer shrink-0">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={item.status === 'ACTIVE'}
+                  onChange={() => toggleStatus(item.id, item.status, isCampaign ? 'campaign' : isAdSet ? 'adset' : 'ad')}
+                />
+                <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500 shadow-inner"></div>
+              </label>
+            </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
@@ -435,19 +438,19 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
 
             <div className="w-20">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Cost/Lead</p>
-              <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold border ${metrics.cpcRaw > 0 ? getCpcColor(metrics.cpcRaw) : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Cost/Lead</p>
+              <span className={`inline-block px-2 py-1 rounded-lg text-xs font-bold border ${metrics.cpcRaw > 0 ? getCpcColor(metrics.cpcRaw) : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                 {metrics.cpc !== '-' ? `₹${metrics.cpc}` : '-'}
               </span>
             </div>
 
             <div className="w-16 hidden lg:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">CTR</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">CTR</p>
               <p className="text-sm font-semibold text-slate-700">{metrics.ctr !== '-' ? `${parseFloat(metrics.ctr).toFixed(2)}%` : '-'}</p>
             </div>
 
             <div className="w-16 hidden xl:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5" title="Unique Clicks">U. Clicks</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5" title="Unique Clicks">U. Clicks</p>
               <p className="text-sm font-semibold text-slate-700">{metrics.uniqueClicks || '-'}</p>
             </div>
 
@@ -457,7 +460,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
 
             <div className="w-20 hidden md:block">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Total Spent</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500 mb-0.5">Total Spent</p>
               <p className="text-sm font-semibold text-slate-700">{metrics.spend ? `₹${metrics.spend.toFixed(2)}` : '-'}</p>
             </div>
 
@@ -487,7 +490,9 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
     <div className="space-y-6 animate-fade-in">
       {/* Top Controls & KPI Cards */}
       <div className="bg-white/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div 
+          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-5 px-5 mb-3 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm rounded-xl transition-all"
+        >    
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
               <span className="text-brand-600">⚡</span> WhatsApp Ads Dashboard
@@ -519,7 +524,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <select 
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value)}
-                className="appearance-none bg-white border-2 border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 font-bold shadow-sm transition-all cursor-pointer"
+                className="appearance-none bg-white border border-slate-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
               >
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>
@@ -538,25 +543,25 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-6 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/30 p-6 rounded-2xl border-2 border-indigo-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">Total Leads</p>
             <p className="text-4xl font-black text-indigo-900 tracking-tight">{totalResults}</p>
             <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">🔥</div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-6 rounded-2xl border border-emerald-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 p-6 rounded-2xl border-2 border-emerald-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Avg Cost / Lead</p>
             <p className="text-4xl font-black text-emerald-900 tracking-tight">₹{avgCpc}</p>
             <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">💰</div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-slate-50 to-slate-100/50 p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-slate-50 via-white to-slate-100/30 p-6 rounded-2xl border-2 border-slate-200 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Spend</p>
             <p className="text-4xl font-black text-slate-800 tracking-tight">₹{totalSpend.toFixed(0)}</p>
             <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">💸</div>
           </div>
 
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-amber-50 to-amber-100/50 p-6 rounded-2xl border border-amber-100 shadow-sm flex flex-col justify-center relative overflow-hidden group">
+          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-amber-50 via-white to-amber-100/30 p-6 rounded-2xl border-2 border-amber-200 shadow-md flex flex-col justify-center relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
               {viewLevel === 'campaign' ? 'Best Campaign' : 'Best AdSet'}
             </p>
@@ -648,22 +653,22 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex bg-white rounded-lg border border-slate-200 overflow-hidden text-sm">
+            <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-inner overflow-hidden text-sm font-medium">
               <button 
                 onClick={() => setViewLevel('hierarchy')}
-                className={`px-3 py-1.5 font-medium transition-colors ${viewLevel === 'hierarchy' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'hierarchy' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Tree View
               </button>
               <button 
                 onClick={() => setViewLevel('campaign')}
-                className={`px-3 py-1.5 font-medium border-l border-r border-slate-200 transition-colors ${viewLevel === 'campaign' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`px-4 py-1.5 rounded-md transition-all mx-1 ${viewLevel === 'campaign' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Campaigns Only
               </button>
               <button 
                 onClick={() => setViewLevel('adset')}
-                className={`px-3 py-1.5 font-medium transition-colors ${viewLevel === 'adset' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'adset' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 AdSets Only
               </button>
