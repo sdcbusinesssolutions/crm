@@ -14,6 +14,9 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [expandedAdSets, setExpandedAdSets] = useState(new Set());
   const [viewLevel, setViewLevel] = useState('hierarchy'); // 'hierarchy' | 'campaign' | 'adset'
+  const [activeInsightsItem, setActiveInsightsItem] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Update active account if prop changes
   useEffect(() => {
@@ -45,6 +48,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
 
   useEffect(() => {
     if (activeAccountId) {
+      setCurrentPage(1); // Reset page on new load
       fetchAnalytics();
     }
   }, [activeAccountId, datePreset]);
@@ -456,13 +460,18 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Total Spent</p>
               <p className="text-sm font-semibold text-slate-700">{metrics.spend ? `₹${metrics.spend.toFixed(2)}` : '-'}</p>
             </div>
+
+            <div className="hidden lg:block border-l border-slate-200 pl-4 ml-2">
+              <button 
+                onClick={() => setActiveInsightsItem({ item, level: isCampaign ? 'campaign' : isAdSet ? 'adset' : 'ad', metrics })}
+                className="px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-1.5 whitespace-nowrap border border-brand-500"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                Insights
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Detailed Insights Block when expanded (For AdSets / Ads) */}
-        {isExpanded && !isCampaign && (
-          <AdDetailPanel item={item} level={isAdSet ? 'adset' : 'ad'} metrics={metrics} />
-        )}
 
         {/* Empty state when expanded but no children */}
         {viewLevel === 'hierarchy' && isExpanded && ((isCampaign && (!item.adsets?.data || item.adsets.data.length === 0)) || (isAdSet && (!item.ads?.data || item.ads.data.length === 0))) && (
@@ -683,42 +692,103 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
           )}
           
-          {viewLevel === 'adset' ? (
-            allAdsets.map(adset => (
-              <React.Fragment key={adset.id}>
-                {renderRow(adset, 0, false, null)}
-              </React.Fragment>
-            ))
-          ) : (
-            processedData.map(campaign => {
-              const isCampExpanded = expandedCampaigns.has(campaign.id);
-              
-              return (
-                <React.Fragment key={campaign.id}>
-                  {/* Render Campaign Card */}
-                  {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand)}
-                  
-                  {/* Render AdSets if expanded and in hierarchy mode */}
-                  {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map(adset => {
-                    const isAdSetExpanded = expandedAdSets.has(adset.id);
+          {(() => {
+            const currentList = viewLevel === 'adset' ? allAdsets : processedData;
+            const totalPages = Math.ceil(currentList.length / itemsPerPage);
+            const paginatedList = currentList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+            return (
+              <>
+                {viewLevel === 'adset' ? (
+                  paginatedList.map((adset: any) => (
+                    <React.Fragment key={adset.id}>
+                      {renderRow(adset, 0, false, null)}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  paginatedList.map((campaign: any) => {
+                    const isCampExpanded = expandedCampaigns.has(campaign.id);
                     
                     return (
-                      <React.Fragment key={adset.id}>
-                        {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand)}
+                      <React.Fragment key={campaign.id}>
+                        {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand)}
                         
-                        {/* Render Ads if expanded */}
-                        {isAdSetExpanded && adset.ads?.data?.map(ad => (
-                          renderRow(ad, 2)
-                        ))}
+                        {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map((adset: any) => {
+                          const isAdSetExpanded = expandedAdSets.has(adset.id);
+                          
+                          return (
+                            <React.Fragment key={adset.id}>
+                              {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand)}
+                              
+                              {isAdSetExpanded && adset.ads?.data?.map((ad: any) => (
+                                renderRow(ad, 2)
+                              ))}
+                            </React.Fragment>
+                          )
+                        })}
                       </React.Fragment>
-                    )
-                  })}
-                </React.Fragment>
-              );
-            })
-          )}
+                    );
+                  })
+                )}
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100 rounded-b-xl">
+                    <span className="text-sm text-slate-500 font-medium">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, currentList.length)} of {currentList.length} Entries
+                    </span>
+                    <div className="flex gap-2">
+                      <button 
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
+
+      {/* Full-Screen Modal for Insights */}
+      {activeInsightsItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+            <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span className="text-xl">📊</span> 
+                {activeInsightsItem.item.name} 
+                <span className="text-xs font-normal text-slate-500 uppercase tracking-widest px-2 py-0.5 bg-slate-200 rounded-md">
+                  {activeInsightsItem.level}
+                </span>
+              </h2>
+              <button 
+                onClick={() => setActiveInsightsItem(null)}
+                className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="p-0 overflow-y-auto flex-1 custom-scrollbar">
+              <AdDetailPanel 
+                item={activeInsightsItem.item} 
+                level={activeInsightsItem.level} 
+                metrics={activeInsightsItem.metrics} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

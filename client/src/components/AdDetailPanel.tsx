@@ -68,31 +68,45 @@ const AdDetailPanel = ({ item, level, metrics }) => {
           {/* Top KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Impressions</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total number of times your ad was seen on a screen.">
+                Impressions <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.impressions}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Reach</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Number of unique people who saw your ad at least once.">
+                Reach <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.reach}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Frequency</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Average number of times each person saw your ad.">
+                Frequency <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.frequency !== '-' ? parseFloat(metrics.frequency).toFixed(2) : '-'}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Clicks</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total number of clicks on your ad (including anywhere on the ad card).">
+                Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.clicks}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Unique Clicks</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Number of unique people who clicked your ad.">
+                Unique Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.uniqueClicks}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Inline Link Clicks</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Clicks specifically on the 'WhatsApp' button or link.">
+                Inline Link Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.inlineLinkClicks}</p>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">CTR (%)</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Click-Through Rate: Percentage of times people saw your ad and clicked it.">
+                CTR (%) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+              </p>
               <p className="text-xl font-black text-slate-700">{metrics.ctr !== '-' ? parseFloat(metrics.ctr).toFixed(2) : '-'}</p>
             </div>
           </div>
@@ -134,22 +148,94 @@ const AdDetailPanel = ({ item, level, metrics }) => {
         </div>
       )}
 
-      {activeTab === 'insights' && (
-        <div className="grid grid-cols-2 gap-4 max-w-lg">
+      {activeTab === 'metrics' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-             <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quality Ranking</p>
-             <p className="text-sm font-bold text-slate-700 capitalize">{metrics.qualityRanking.replace(/_/g, ' ')}</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total amount of money spent on this item so far.">
+              Total Spend <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+            </p>
+            <p className="text-xl font-black text-brand-700">₹{metrics.spend ? metrics.spend.toFixed(2) : '0.00'}</p>
           </div>
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-             <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Engagement Ranking</p>
-             <p className="text-sm font-bold text-slate-700 capitalize">{metrics.engagementRanking.replace(/_/g, ' ')}</p>
+            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Average cost you paid for each click on your ad.">
+              Cost Per Click (CPC) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+            </p>
+            <p className="text-xl font-black text-slate-700">₹{metrics.clicks > 0 ? (metrics.spend / metrics.clicks).toFixed(2) : '0.00'}</p>
+          </div>
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Cost per Mille: Average cost you paid for 1,000 impressions.">
+              CPM (Cost per 1k Imp) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+            </p>
+            <p className="text-xl font-black text-slate-700">₹{metrics.impressions > 0 ? ((metrics.spend / metrics.impressions) * 1000).toFixed(2) : '0.00'}</p>
+          </div>
+          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Percentage of times people saw your ad and clicked on it.">
+              Click-Through Rate <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
+            </p>
+            <p className="text-xl font-black text-slate-700">{metrics.ctr !== '-' ? `${parseFloat(metrics.ctr).toFixed(2)}%` : '0.00%'}</p>
           </div>
         </div>
       )}
 
-      {(activeTab === 'metrics' || activeTab === 'conversions') && (
-        <div className="text-slate-500 italic text-sm p-4 bg-slate-50 rounded-xl border border-slate-100">
-          This tab is under construction. Please refer to Summary for primary metrics.
+      {activeTab === 'conversions' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-2xl p-6 relative overflow-hidden">
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Number of people who started a WhatsApp chat from this ad.">
+                  Total Leads (Chats) ℹ️
+                </p>
+                <p className="text-4xl font-black text-emerald-900">{metrics.results || 0}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Average cost to acquire one WhatsApp chat (Total Spend / Leads).">
+                  Cost Per Lead (CPL) ℹ️
+                </p>
+                <p className="text-4xl font-black text-emerald-900">{metrics.cpc !== '-' ? `₹${metrics.cpc}` : '₹0.00'}</p>
+              </div>
+              <div>
+                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Conversion Rate: Percentage of link clicks that turned into actual WhatsApp chats.">
+                  Conv. Rate (Leads / Link Clicks) ℹ️
+                </p>
+                <p className="text-4xl font-black text-emerald-900">
+                  {metrics.inlineLinkClicks > 0 && metrics.results > 0 
+                    ? `${((metrics.results / metrics.inlineLinkClicks) * 100).toFixed(1)}%` 
+                    : '0%'}
+                </p>
+              </div>
+            </div>
+            <div className="absolute -bottom-10 -right-10 text-9xl opacity-10">💬</div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'insights' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quality Ranking</p>
+              <p className="text-sm font-bold text-slate-700 capitalize">{metrics.qualityRanking.replace(/_/g, ' ')}</p>
+            </div>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Engagement Ranking</p>
+              <p className="text-sm font-bold text-slate-700 capitalize">{metrics.engagementRanking.replace(/_/g, ' ')}</p>
+            </div>
+          </div>
+          
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 text-indigo-900 shadow-sm">
+            <h4 className="font-bold text-base mb-3 flex items-center gap-2">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+              Performance Summary
+            </h4>
+            <p className="text-sm leading-relaxed">
+              {metrics.results > 0 
+                ? `This ${level} is successfully generating WhatsApp conversations at ₹${metrics.cpc} per lead. With a CTR of ${metrics.ctr !== '-' ? parseFloat(metrics.ctr).toFixed(2) : 0}%, the audience engagement is ${parseFloat(metrics.ctr) > 1.5 ? 'excellent' : 'average'}. Keep monitoring the Cost Per Lead to ensure it stays within your target margins.`
+                : metrics.spend > 0
+                  ? `You have spent ₹${metrics.spend.toFixed(2)} on this ${level} but haven't received any leads yet. Consider reviewing your ad creatives or audience targeting to improve relevance as it continues to run.`
+                  : `This ${level} is currently active but hasn't gathered enough data for a definitive performance conclusion. It has reached ${metrics.reach || 0} people so far. Allow it to run a bit longer to optimize.`
+              }
+            </p>
+          </div>
         </div>
       )}
     </div>

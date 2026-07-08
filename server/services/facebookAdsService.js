@@ -101,11 +101,8 @@ class FacebookAdsService {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
             
-            const res = await axios.post(`${baseUrl}/${objectId}`, null, {
-                params: {
-                    status: status, // 'ACTIVE' or 'PAUSED'
-                    access_token: accessToken
-                }
+            const res = await axios.post(`${baseUrl}/${objectId}`, `status=${status}&access_token=${accessToken}`, {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
             
             return res.data;
@@ -251,7 +248,6 @@ class FacebookAdsService {
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
                     special_ad_categories: '["NONE"]',
-                    is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
             });
