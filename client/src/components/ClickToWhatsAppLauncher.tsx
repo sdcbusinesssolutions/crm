@@ -232,6 +232,13 @@ const ClickToWhatsAppLauncher = () => {
   const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
   const totalSteps = 4;
 
+  const [isTargetingModalOpen, setIsTargetingModalOpen] = useState(false);
+  const [targetingSearch, setTargetingSearch] = useState('');
+  const [targetingSearchResults, setTargetingSearchResults] = useState<any[]>([]);
+  const [isSearchingTargeting, setIsSearchingTargeting] = useState(false);
+  const [targetingMode, setTargetingMode] = useState<'include' | 'exclude' | 'narrow'>('include');
+  const [searchTargetingType, setSearchTargetingType] = useState<'adinterest' | 'adbehavior'>('adinterest');
+
   const [formData, setFormData] = useState({
     adAccountId: '',
     pageId: '',
@@ -255,6 +262,7 @@ const ClickToWhatsAppLauncher = () => {
     description: '',
     status: 'PAUSED',
     whatsappNumber: '',
+    detailedTargeting: [] as { id: string, name: string, type: 'interest'|'behavior', mode: 'include'|'exclude'|'narrow' }[],
     advantageAudience: 1,
     objective: 'OUTCOME_SALES',
     optimizationGoal: 'CONVERSATIONS'
@@ -505,11 +513,42 @@ const ClickToWhatsAppLauncher = () => {
         }
       }
 
+
+      const includedInterests = formData.detailedTargeting.filter(t => t.mode === 'include' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+      const includedBehaviors = formData.detailedTargeting.filter(t => t.mode === 'include' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+      
+      const flexibleSpec = [];
+      if (includedInterests.length > 0 || includedBehaviors.length > 0) {
+        const orCondition: any = {};
+        if (includedInterests.length > 0) orCondition.interests = includedInterests;
+        if (includedBehaviors.length > 0) orCondition.behaviors = includedBehaviors;
+        flexibleSpec.push(orCondition); // Pushing as a single object creates OR logic between all of them
+      }
+      
+      // Grouping narrow tags into a SECOND object (AND logic across boxes, OR logic within box)
+      const narrowInterests = formData.detailedTargeting.filter(t => t.mode === 'narrow' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+      const narrowBehaviors = formData.detailedTargeting.filter(t => t.mode === 'narrow' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+      if (narrowInterests.length > 0 || narrowBehaviors.length > 0) {
+        const narrowCondition: any = {};
+        if (narrowInterests.length > 0) narrowCondition.interests = narrowInterests;
+        if (narrowBehaviors.length > 0) narrowCondition.behaviors = narrowBehaviors;
+        flexibleSpec.push(narrowCondition); // Pushing as a SECOND object creates AND logic with the first box!
+      }
+      
+      const excludedInterests = formData.detailedTargeting.filter(t => t.mode === 'exclude' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+      const excludedBehaviors = formData.detailedTargeting.filter(t => t.mode === 'exclude' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+      const exclusions: any = {};
+      if (excludedInterests.length > 0) exclusions.interests = excludedInterests;
+      if (excludedBehaviors.length > 0) exclusions.behaviors = excludedBehaviors;
+
       const payload = {
         ...formData,
         geoLocations: parsedGeo,
-        excludedGeoLocations: parsedExcludedGeo
+        excludedGeoLocations: parsedExcludedGeo,
+        flexibleSpec: flexibleSpec,
+        exclusions: exclusions
       };
+
 
       const response = await fetch('/api/click-to-whatsapp/launch', {
         method: 'POST',
@@ -546,6 +585,30 @@ const ClickToWhatsAppLauncher = () => {
   useEffect(() => {
     baseCountryCodeRef.current = formData.baseCountryCode;
   }, [formData.baseCountryCode]);
+
+
+  // Targeting search
+  const handleSearchTargeting = async (query: string) => {
+    if (!query) {
+      setTargetingSearchResults([]);
+      return;
+    }
+    setIsSearchingTargeting(true);
+    try {
+      const authHeader = await tokenService.getAuthHeader();
+      const response = await fetch(`/api/click-to-whatsapp/search-targeting?q=${encodeURIComponent(query)}&type=${searchTargetingType}&adAccountId=${formData.adAccountId || ''}&country=${formData.baseCountryCode || 'IN'}`, {
+        headers: authHeader
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        setTargetingSearchResults(data.data);
+      }
+    } catch (err) {
+      console.error('Targeting search error:', err);
+    } finally {
+      setIsSearchingTargeting(false);
+    }
+  };
 
   const fetchLocations = useMemo(
     () =>
@@ -845,115 +908,91 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
                 </div>
 
-                {/* Row 2.5: Ad Objective + Performance Goal */}
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group">
-                    <label><span className="icon">🎯</span> Campaign Objective</label>
-                    <select 
-                      name="objective" 
-                      value={formData.objective} 
-                      onChange={(e) => {
-                        const newObj = e.target.value;
-                        let newGoal = formData.optimizationGoal;
-                        if (newObj === 'OUTCOME_SALES') newGoal = 'CONVERSATIONS';
-                        else if (newObj === 'OUTCOME_TRAFFIC') newGoal = 'LINK_CLICKS';
-                        else if (newObj === 'OUTCOME_AWARENESS') newGoal = 'REACH';
-                        setFormData(prev => ({ ...prev, objective: newObj, optimizationGoal: newGoal }));
-                      }} 
-                      required 
-                      className="ctwa-select"
-                    >
-                      <option value="OUTCOME_SALES">Sales (Recommended)</option>
-                      <option value="OUTCOME_TRAFFIC">Traffic</option>
-                      <option value="OUTCOME_AWARENESS">Awareness</option>
-                    </select>
-                  </div>
-                  <div className="ctwa-form-group">
-                    <label><span className="icon">📈</span> Performance Goal</label>
-                    <select 
-                      name="optimizationGoal" 
-                      value={formData.optimizationGoal} 
-                      onChange={handleChange} 
-                      required 
-                      className="ctwa-select"
-                    >
-                      {formData.objective === 'OUTCOME_SALES' && (
-                        <option value="CONVERSATIONS">Maximize number of conversations</option>
-                      )}
-                      {formData.objective === 'OUTCOME_TRAFFIC' && (
-                        <option value="LINK_CLICKS">Maximize number of link clicks</option>
-                      )}
-                      {formData.objective === 'OUTCOME_AWARENESS' && (
-                        <option value="REACH">Maximize number of people reached</option>
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group" style={{ flex: '1 1 100%' }}>
-                    {formData.objective === 'OUTCOME_SALES' && formData.optimizationGoal === 'CONVERSATIONS' && (
-                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '8px', color: '#166534', fontSize: '0.85rem' }}>
-                        <strong>🔥 Best Combo for CTWA:</strong> Meta will show your ad to people most likely to have a conversation and convert. This offers the <strong>lowest Cost Per Lead (CPL)</strong> and requires <strong>no lead form terms</strong> acceptance!
-                      </div>
-                    )}
-                    {formData.objective === 'OUTCOME_TRAFFIC' && formData.optimizationGoal === 'LINK_CLICKS' && (
-                      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px', borderRadius: '8px', color: '#1e40af', fontSize: '0.85rem' }}>
-                        <strong>⚡ Traffic Focus:</strong> Meta will get you the most clicks for your budget. Good for cheap traffic, but doesn't guarantee people will actually chat.
-                      </div>
-                    )}
-                    {formData.objective === 'OUTCOME_AWARENESS' && formData.optimizationGoal === 'REACH' && (
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', color: '#334155', fontSize: '0.85rem' }}>
-                        <strong>📢 Reach Focus:</strong> Meta will show your ad to as many unique people as possible. Good for branding and awareness, but not optimized for getting leads.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number</label>
-                    <input 
-                      type="text" 
-                      name="whatsappNumber" 
-                      placeholder="e.g. 919876543210"
-                      value={formData.whatsappNumber}
-                      onChange={handleChange}
-                      required 
-                    />
-                    <p className="field-hint">Include country code without '+'</p>
-                  </div>
-                </div>
-
-                {/* Row 3: Primary Text (left) + Ad Media & Description (right) */}
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group">
-                    <label>
-                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> Primary Text
-                      <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`}>
-                        {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
-                      </span>
-                    </label>
-                    <textarea 
-                      name="primaryText" 
-                      placeholder="Get instant support and exclusive offers right in your WhatsApp inbox." 
-                      value={formData.primaryText}
-                      onChange={handleChange}
-                      maxLength={500}
-                      rows={4}
-                      required 
-                    />
-                    {/(http|www\.)/i.test(formData.primaryText) && (
-                      <p style={{color: '#dc2626', fontSize: '0.72rem', marginTop: '4px'}}>
-                        ⚠️ Avoid URLs here! The WhatsApp CTA button is your only link.
-                      </p>
-                    )}
+                {/* Merged Row 2.5 and 3 into 2-Column Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '0.75rem' }}>
+                  {/* LEFT COLUMN */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     
+                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
+                      <label><span className="icon">🎯</span> Campaign Objective</label>
+                      <select 
+                        name="objective" 
+                        value={formData.objective} 
+                        onChange={(e) => {
+                          const newObj = e.target.value;
+                          let newGoal = formData.optimizationGoal;
+                          if (newObj === 'OUTCOME_SALES') newGoal = 'CONVERSATIONS';
+                          else if (newObj === 'OUTCOME_TRAFFIC') newGoal = 'LINK_CLICKS';
+                          else if (newObj === 'OUTCOME_AWARENESS') newGoal = 'REACH';
+                          setFormData(prev => ({ ...prev, objective: newObj, optimizationGoal: newGoal }));
+                        }} 
+                        required 
+                        className="ctwa-select"
+                      >
+                        <option value="OUTCOME_SALES">Sales (Recommended)</option>
+                        <option value="OUTCOME_TRAFFIC">Traffic</option>
+                        <option value="OUTCOME_AWARENESS">Awareness</option>
+                      </select>
+                    </div>
 
-                    
+                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
+                      {formData.objective === 'OUTCOME_SALES' && formData.optimizationGoal === 'CONVERSATIONS' && (
+                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '8px', color: '#166534', fontSize: '0.85rem' }}>
+                          <strong>🔥 Best Combo for CTWA:</strong> Meta will show your ad to people most likely to have a conversation and convert. This offers the <strong>lowest Cost Per Lead (CPL)</strong> and requires <strong>no lead form terms</strong> acceptance!
+                        </div>
+                      )}
+                      {formData.objective === 'OUTCOME_TRAFFIC' && formData.optimizationGoal === 'LINK_CLICKS' && (
+                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px', borderRadius: '8px', color: '#1e40af', fontSize: '0.85rem' }}>
+                          <strong>⚡ Traffic Focus:</strong> Meta will get you the most clicks for your budget. Good for cheap traffic, but doesn't guarantee people will actually chat.
+                        </div>
+                      )}
+                      {formData.objective === 'OUTCOME_AWARENESS' && formData.optimizationGoal === 'REACH' && (
+                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', color: '#334155', fontSize: '0.85rem' }}>
+                          <strong>📢 Reach Focus:</strong> Meta will show your ad to as many unique people as possible. Good for branding and awareness, but not optimized for getting leads.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number</label>
+                      <input 
+                        type="text" 
+                        name="whatsappNumber" 
+                        placeholder="e.g. 919876543210"
+                        value={formData.whatsappNumber}
+                        onChange={handleChange}
+                        required 
+                      />
+                      <p className="field-hint">Include country code without '+'</p>
+                    </div>
+
                   </div>
-                  <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                    <div className="ctwa-form-group">
+
+                  {/* RIGHT COLUMN */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
+                      <label><span className="icon">📈</span> Performance Goal</label>
+                      <select 
+                        name="optimizationGoal" 
+                        value={formData.optimizationGoal} 
+                        onChange={handleChange} 
+                        required 
+                        className="ctwa-select"
+                      >
+                        {formData.objective === 'OUTCOME_SALES' && (
+                          <option value="CONVERSATIONS">Maximize number of conversations</option>
+                        )}
+                        {formData.objective === 'OUTCOME_TRAFFIC' && (
+                          <option value="LINK_CLICKS">Maximize number of link clicks</option>
+                        )}
+                        {formData.objective === 'OUTCOME_AWARENESS' && (
+                          <option value="REACH">Maximize number of people reached</option>
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
                       <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span> Ad Media (Image/Video)</label>
                       <div className={`media-upload-area ${formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? 'has-image' : ''}`} onClick={() => document.getElementById('ad-media-upload')?.click()}>
                         {formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? (
@@ -992,35 +1031,32 @@ const ClickToWhatsAppLauncher = () => {
                       {uploading && <p style={{color: '#25D366', fontSize: '0.72rem'}}>Uploading...</p>}
                       {uploadError && <p style={{color: '#dc2626', fontSize: '0.72rem'}}>{uploadError}</p>}
                     </div>
+
                   </div>
                 </div>
-
-                {/* Ad Description + Winning Formula */}
+                {/* Row 4: Primary Text + Ad Description */}
                 <div className="ctwa-form-row">
-                  <div className="winning-formula-box" style={{ marginBottom: 0, marginTop: 'auto', background: '#eafff0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6d5' }}>
-                    <div className="formula-text">
-                      <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563EB', fontSize: '0.8rem' }}>💡 Winning Formula:</strong>
-                      <p style={{ color: '#2563EB', fontSize: '0.75rem', fontWeight: 600, margin: '4px 0 0' }}>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
-                    </div>
-                    <div className="formula-icon-large">
-                      <svg viewBox="0 0 120 120" style={{ width: '56px', height: '56px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
-                        <circle cx="50" cy="70" r="38" fill="#22c55e"></circle>
-                        <circle cx="50" cy="70" r="26" fill="#ffffff"></circle>
-                        <circle cx="50" cy="70" r="14" fill="#22c55e"></circle>
-                        <circle cx="50" cy="70" r="6" fill="#f97316"></circle>
-                        <circle cx="50" cy="70" r="2" fill="#ea580c"></circle>
-                        <g>
-                          <line x1="50" y1="70" x2="88" y2="32" stroke="#4b5563" strokeWidth="2.5" strokeLinecap="round"></line>
-                          <polygon points="78,42 98,22 103,27 83,47" fill="#15803d" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
-                          <polygon points="78,42 98,22 93,17 73,37" fill="#22c55e" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
-                        </g>
-                        <g>
-                          <line x1="74" y1="70" x2="104" y2="50" stroke="#4b5563" strokeWidth="2.5" strokeLinecap="round"></line>
-                          <polygon points="92,58 110,46 114,52 96,64" fill="#15803d" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
-                          <polygon points="92,58 110,46 106,40 88,52" fill="#22c55e" stroke="#14532d" strokeWidth="1" strokeLinejoin="round"></polygon>
-                        </g>
-                      </svg>
-                    </div>
+                  <div className="ctwa-form-group">
+                    <label>
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> Primary Text
+                      <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`}>
+                        {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
+                      </span>
+                    </label>
+                    <textarea 
+                      name="primaryText" 
+                      placeholder="Get instant support and exclusive offers right in your WhatsApp inbox." 
+                      value={formData.primaryText}
+                      onChange={handleChange}
+                      maxLength={500}
+                      rows={4}
+                      required 
+                    />
+                    {/(http|www\.)/i.test(formData.primaryText) && (
+                      <p style={{color: '#dc2626', fontSize: '0.72rem', marginTop: '4px'}}>
+                        ⚠️ Avoid URLs here! The WhatsApp CTA button is your only link.
+                      </p>
+                    )}
                   </div>
 
                   <div className="ctwa-form-group">
@@ -1030,8 +1066,29 @@ const ClickToWhatsAppLauncher = () => {
                       placeholder="Write ad description..."
                       value={formData.description}
                       onChange={handleChange}
-                      rows={2}
+                      rows={4}
                     />
+                  </div>
+                </div>
+
+                {/* Row 5: Winning Formula Hint (Full Width) */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group" style={{ flex: '1 1 100%' }}>
+                    <div className="winning-formula-box" style={{ background: '#eafff0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6d5' }}>
+                      <div className="formula-text">
+                        <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563EB', fontSize: '0.8rem' }}>💡 Winning Formula:</strong>
+                        <p style={{ color: '#2563EB', fontSize: '0.75rem', fontWeight: 600, margin: '4px 0 0' }}>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
+                      </div>
+                      <div className="formula-icon-large">
+                        <svg viewBox="0 0 120 120" style={{ width: '40px', height: '40px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
+                          <circle cx="50" cy="70" r="38" fill="#22c55e"></circle>
+                          <circle cx="50" cy="70" r="26" fill="#ffffff"></circle>
+                          <circle cx="50" cy="70" r="14" fill="#22c55e"></circle>
+                          <circle cx="50" cy="70" r="6" fill="#f97316"></circle>
+                          <circle cx="50" cy="70" r="2" fill="#ea580c"></circle>
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1211,8 +1268,11 @@ const ClickToWhatsAppLauncher = () => {
 
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label>Advantage+ Audience</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                      Advantage+ Audience
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', background: formData.advantageAudience === 1 ? 'linear-gradient(145deg, #f0fdf4, #dcfce7)' : '#f8fafc', padding: '16px', borderRadius: '12px', border: formData.advantageAudience === 1 ? '1px solid #86efac' : '1px solid #e2e8f0', boxShadow: formData.advantageAudience === 1 ? '0 4px 12px rgba(34, 197, 94, 0.1)' : 'none', transition: 'all 0.3s ease' }}>
                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
                         <input 
                           type="checkbox" 
@@ -1221,27 +1281,85 @@ const ClickToWhatsAppLauncher = () => {
                           style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
                         />
                         <div style={{
-                          width: '44px', height: '24px', background: formData.advantageAudience === 1 ? '#25D366' : '#cbd5e1', 
-                          borderRadius: '12px', position: 'relative', transition: '0.3s'
+                          width: '50px', height: '28px', background: formData.advantageAudience === 1 ? '#16a34a' : '#cbd5e1', 
+                          borderRadius: '14px', position: 'relative', transition: '0.3s'
                         }}>
                           <div style={{
-                            width: '20px', height: '20px', background: 'white', borderRadius: '50%',
-                            position: 'absolute', top: '2px', left: formData.advantageAudience === 1 ? '22px' : '2px',
-                            transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                            width: '24px', height: '24px', background: 'white', borderRadius: '50%',
+                            position: 'absolute', top: '2px', left: formData.advantageAudience === 1 ? '24px' : '2px',
+                            transition: '0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                           }} />
                         </div>
                       </label>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: formData.advantageAudience === 1 ? '#15803d' : '#64748b' }}>
-                        {formData.advantageAudience === 1 ? 'ON (Recommended)' : 'OFF'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: formData.advantageAudience === 1 ? '#166534' : '#64748b' }}>
+                          {formData.advantageAudience === 1 ? '✨ ON (Highly Recommended)' : 'OFF (Manual Targeting)'}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: formData.advantageAudience === 1 ? '#15803d' : '#94a3b8', marginTop: '2px' }}>
+                          {formData.advantageAudience === 1 ? "Meta's AI will find the best audience for your ad automatically." : "You are manually defining your audience restrictions."}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+                      Detailed Targeting (Optional)
+                    </label>
+                    <div style={{ padding: '20px', background: 'linear-gradient(to right bottom, #ffffff, #f8fafc)', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Audience Interests & Behaviors</div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Define your ideal customer (Include, Must Also Match, Exclude)</div>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setIsTargetingModalOpen(true)}
+                          style={{ background: 'linear-gradient(to right, #2563eb, #3b82f6)', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: 'white', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s, box-shadow 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                          onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                          {formData.detailedTargeting.length > 0 ? `Edit Targets (${formData.detailedTargeting.length})` : 'Browse Targets'}
+                        </button>
+                      </div>
+                      
+                      {formData.detailedTargeting.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '12px', background: '#f1f5f9', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                          {formData.detailedTargeting.map(tag => (
+                            <div key={tag.id} style={{ 
+                              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
+                              background: tag.mode === 'include' ? 'white' : tag.mode === 'narrow' ? '#dcfce7' : '#fee2e2',
+                              color: tag.mode === 'include' ? '#334155' : tag.mode === 'narrow' ? '#166534' : '#991b1b',
+                              border: `1px solid ${tag.mode === 'include' ? '#e2e8f0' : tag.mode === 'narrow' ? '#86efac' : '#fca5a5'}`,
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}>
+                              {tag.mode === 'narrow' && <span style={{fontSize:'0.65rem', background: '#166534', color:'white', padding:'2px 4px', borderRadius:'4px'}}>AND</span>}
+                              {tag.mode === 'exclude' && <span style={{fontSize:'0.65rem', background: '#991b1b', color:'white', padding:'2px 4px', borderRadius:'4px'}}>NOT</span>}
+                              <span>{tag.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }}></div>
+                          <div style={{ fontSize: '0.8rem', color: '#64748b', fontStyle: 'italic' }}>
+                            Currently using broad targeting. Click "Browse Targets" to refine.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="ctwa-form-row">
+
+                <div className="ctwa-form-row" style={{ marginTop: '16px' }}>
                   <div className="ctwa-form-group">
-                    <label>Age Range</label>
-                    <div className="ctwa-age-range">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                      Age Range
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02) inset' }}>
                       <input 
                         type="number" 
                         name="minAge" 
@@ -1250,9 +1368,11 @@ const ClickToWhatsAppLauncher = () => {
                         value={formData.minAge}
                         onChange={handleChange}
                         required 
-                        className="age-input"
+                        style={{ flex: 1, width: '100%', padding: '10px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff', fontSize: '1rem', fontWeight: 600, color: '#0f172a', outline: 'none', transition: 'border-color 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                       />
-                      <span className="age-separator">to</span>
+                      <span style={{ padding: '0 16px', fontSize: '0.85rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>to</span>
                       <input 
                         type="number" 
                         name="maxAge" 
@@ -1261,27 +1381,44 @@ const ClickToWhatsAppLauncher = () => {
                         value={formData.maxAge}
                         onChange={handleChange}
                         required 
-                        className="age-input"
+                        style={{ flex: 1, width: '100%', padding: '10px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff', fontSize: '1rem', fontWeight: 600, color: '#0f172a', outline: 'none', transition: 'border-color 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                       />
                     </div>
                   </div>
                   <div className="ctwa-form-group">
-                    <label>Gender</label>
-                    <div className="ctwa-pill-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                      Gender
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02) inset', gap: '4px' }}>
                       <button 
                         type="button" 
-                        className={`ctwa-pill ${formData.gender === 'all' ? 'active' : ''}`}
                         onClick={() => setFormData({...formData, gender: 'all'})}
+                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === 'all' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === 'all' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
+                          color: formData.gender === 'all' ? '#ffffff' : '#64748b',
+                          boxShadow: formData.gender === 'all' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                        }}
                       >All</button>
                       <button 
                         type="button" 
-                        className={`ctwa-pill ${formData.gender === '1' ? 'active' : ''}`}
                         onClick={() => setFormData({...formData, gender: '1'})}
+                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === '1' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === '1' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
+                          color: formData.gender === '1' ? '#ffffff' : '#64748b',
+                          boxShadow: formData.gender === '1' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                        }}
                       >Men</button>
                       <button 
                         type="button" 
-                        className={`ctwa-pill ${formData.gender === '2' ? 'active' : ''}`}
                         onClick={() => setFormData({...formData, gender: '2'})}
+                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === '2' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === '2' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
+                          color: formData.gender === '2' ? '#ffffff' : '#64748b',
+                          boxShadow: formData.gender === '2' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                        }}
                       >Women</button>
                     </div>
                   </div>
@@ -1463,6 +1600,225 @@ const ClickToWhatsAppLauncher = () => {
           {adPreview}
         </div>
       </div>
+
+      {isTargetingModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#ffffff', width: '100%', maxWidth: '800px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.2)' }}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: '#eff6ff', padding: '8px', borderRadius: '10px', color: '#2563eb' }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>Detailed Targeting</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>Search and select interests, demographics or behaviors.</p>
+                </div>
+              </div>
+              <button onClick={() => setIsTargetingModalOpen(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.background='#e2e8f0'} onMouseOut={(e)=>e.currentTarget.style.background='#f1f5f9'}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: 'column', background: '#f8fafc' }}>
+              <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+                
+                {/* Search Box Area */}
+                <div style={{ background: '#ffffff', padding: '20px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+                  <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>Targeting Rule</label>
+                      <select 
+                        value={targetingMode} 
+                        onChange={(e) => setTargetingMode(e.target.value as 'include'|'exclude'|'narrow')}
+                        style={{ width: '100%', fontSize: '0.9rem', padding: '12px 14px', borderRadius: '8px', border: '2px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#1e293b', fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                      >
+                        <option value="include">Box 1: Include People Who Match (OR)</option>
+                        <option value="narrow">Box 2: And Must Also Match (AND)</option>
+                        <option value="exclude">Box 3: Exclude People (NOT)</option>
+                      </select>
+                    </div>
+                    <div style={{ width: '160px' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '6px', textTransform: 'uppercase' }}>Category</label>
+                      <select 
+                        value={searchTargetingType} 
+                        onChange={(e) => { setSearchTargetingType(e.target.value as 'adinterest'|'adbehavior'); setTargetingSearchResults([]); setTargetingSearch(''); }}
+                        style={{ width: '100%', fontSize: '0.9rem', padding: '12px 14px', borderRadius: '8px', border: '2px solid #e2e8f0', outline: 'none', background: '#f8fafc', color: '#1e293b', fontWeight: 600, cursor: 'pointer', transition: 'border-color 0.2s' }}
+                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                      >
+                        <option value="adinterest">Interests</option>
+                        <option value="adbehavior">Behaviors</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div style={{ position: 'relative' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" style={{ position: 'absolute', left: '16px', top: '14px' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input 
+                      type="text" 
+                      placeholder={searchTargetingType === 'adinterest' ? "Type to search interests (e.g. Shopping, Fitness)..." : "Type to search behaviors (e.g. Engaged Shoppers)..."}
+                      value={targetingSearch}
+                      onChange={(e) => {
+                        setTargetingSearch(e.target.value);
+                        if (e.target.value.length >= 2) {
+                          handleSearchTargeting(e.target.value);
+                        } else {
+                          setTargetingSearchResults([]);
+                        }
+                      }}
+                      style={{ width: '100%', padding: '14px 14px 14px 46px', borderRadius: '10px', border: '2px solid #cbd5e1', fontSize: '0.95rem', fontWeight: 500, outline: 'none', transition: 'all 0.2s', boxSizing: 'border-box', background: '#ffffff', color: '#0f172a', boxShadow: '0 2px 4px rgba(0,0,0,0.02) inset' }}
+                      onFocus={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.2)'; }}
+                      onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02) inset'; }}
+                    />
+                    {isSearchingTargeting && <div style={{ position: 'absolute', right: '16px', top: '16px', width: '16px', height: '16px', border: '2px solid #e2e8f0', borderTopColor: '#3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
+                    
+                    {/* Search Results Dropdown */}
+                    {targetingSearch && !isSearchingTargeting && (
+                      <div style={{ position: 'absolute', width: '100%', zIndex: 10, background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '10px', marginTop: '6px', maxHeight: '280px', overflowY: 'auto', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)' }}>
+                        {targetingSearchResults.length > 0 ? (
+                          targetingSearchResults.map((res) => (
+                            <div 
+                              key={res.id} 
+                              style={{ padding: '14px 18px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                              onClick={() => {
+                                setFormData(prev => {
+                                  if (prev.detailedTargeting.some(t => t.id === res.id)) return prev;
+                                  return { 
+                                    ...prev, 
+                                    advantageAudience: 0,
+                                    detailedTargeting: [...prev.detailedTargeting, { id: res.id, name: res.name, type: searchTargetingType === 'adinterest' ? 'interest' : 'behavior', mode: targetingMode }]
+                                  };
+                                });
+                                setTargetingSearch('');
+                                setTargetingSearchResults([]);
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}>{res.name}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                  Size: {res.audience_size_lower_bound?.toLocaleString() || 'Unknown'}
+                                </div>
+                              </div>
+                              <div style={{ background: '#eff6ff', color: '#2563eb', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                                + Add
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" style={{ margin: '0 auto 12px auto', display: 'block' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            No results found for "{targetingSearch}". Try a different keyword.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Selected Tags List grouped by mode */}
+                <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                  Your Audience Structure
+                </h4>
+                
+                {formData.detailedTargeting.length === 0 && (
+                  <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b', fontSize: '0.95rem', background: '#ffffff', borderRadius: '12px', border: '2px dashed #cbd5e1' }}>
+                    <div style={{ background: '#f1f5f9', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><path d="M12 5v14M5 12h14"></path></svg>
+                    </div>
+                    No targeting rules added yet.<br/>Search above to start building your custom audience.
+                  </div>
+                )}
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* INCLUDE BOX (OR) */}
+                  {formData.detailedTargeting.filter(t => t.mode === 'include').length > 0 && (
+                    <div style={{ background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                      <div style={{ padding: '14px 20px', background: 'linear-gradient(to right, #f1f5f9, #ffffff)', fontSize: '0.85rem', fontWeight: 700, color: '#334155', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ background: '#3b82f6', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>1</span>
+                          Include People Who Match
+                        </span>
+                        <span style={{ fontWeight: 600, color: '#3b82f6', background: '#eff6ff', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem' }}>OR Logic</span>
+                      </div>
+                      <div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {formData.detailedTargeting.filter(t => t.mode === 'include').map(tag => (
+                          <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: '#ffffff', borderRadius: '24px', border: '1px solid #cbd5e1', fontSize: '0.9rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                            <span style={{ color: '#0f172a', fontWeight: 600 }}>{tag.name}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{tag.type}</span>
+                            <button type="button" onClick={() => setFormData(prev => ({ ...prev, detailedTargeting: prev.detailedTargeting.filter(t => t.id !== tag.id) }))} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', transition: 'background 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.background='#e2e8f0'} onMouseOut={(e)=>e.currentTarget.style.background='#f1f5f9'}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* NARROW BOX (AND) */}
+                  {formData.detailedTargeting.filter(t => t.mode === 'narrow').length > 0 && (
+                    <div style={{ background: '#ffffff', border: '1px solid #86efac', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(34, 197, 94, 0.08)' }}>
+                      <div style={{ padding: '14px 20px', background: 'linear-gradient(to right, #dcfce7, #f0fdf4)', fontSize: '0.85rem', fontWeight: 700, color: '#166534', borderBottom: '1px solid #bbf7d0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ background: '#22c55e', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>2</span>
+                          And Must Also Match
+                        </span>
+                        <span style={{ fontWeight: 600, color: '#15803d', background: '#bbf7d0', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem' }}>AND Logic</span>
+                      </div>
+                      <div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {formData.detailedTargeting.filter(t => t.mode === 'narrow').map(tag => (
+                          <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: '#ffffff', borderRadius: '24px', border: '1px solid #86efac', fontSize: '0.9rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                            <span style={{ color: '#14532d', fontWeight: 600 }}>{tag.name}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#16a34a', textTransform: 'uppercase', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>{tag.type}</span>
+                            <button type="button" onClick={() => setFormData(prev => ({ ...prev, detailedTargeting: prev.detailedTargeting.filter(t => t.id !== tag.id) }))} style={{ background: '#dcfce7', border: 'none', cursor: 'pointer', color: '#16a34a', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', transition: 'background 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.background='#bbf7d0'} onMouseOut={(e)=>e.currentTarget.style.background='#dcfce7'}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* EXCLUDE BOX */}
+                  {formData.detailedTargeting.filter(t => t.mode === 'exclude').length > 0 && (
+                    <div style={{ background: '#ffffff', border: '1px solid #fca5a5', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)' }}>
+                      <div style={{ padding: '14px 20px', background: 'linear-gradient(to right, #fee2e2, #fef2f2)', fontSize: '0.85rem', fontWeight: 700, color: '#991b1b', borderBottom: '1px solid #fecaca', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ background: '#ef4444', color: 'white', width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem' }}>3</span>
+                          Exclude People Who Match
+                        </span>
+                        <span style={{ fontWeight: 600, color: '#b91c1c', background: '#fecaca', padding: '4px 10px', borderRadius: '12px', fontSize: '0.7rem' }}>NOT Logic</span>
+                      </div>
+                      <div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {formData.detailedTargeting.filter(t => t.mode === 'exclude').map(tag => (
+                          <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', background: '#ffffff', borderRadius: '24px', border: '1px solid #fca5a5', fontSize: '0.9rem', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+                            <span style={{ color: '#7f1d1d', fontWeight: 600 }}>{tag.name}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#dc2626', textTransform: 'uppercase', background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>{tag.type}</span>
+                            <button type="button" onClick={() => setFormData(prev => ({ ...prev, detailedTargeting: prev.detailedTargeting.filter(t => t.id !== tag.id) }))} style={{ background: '#fee2e2', border: 'none', cursor: 'pointer', color: '#dc2626', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0', transition: 'background 0.2s' }} onMouseOver={(e)=>e.currentTarget.style.background='#fecaca'} onMouseOut={(e)=>e.currentTarget.style.background='#fee2e2'}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+              <div style={{ padding: '20px 24px', borderTop: '1px solid #e2e8f0', background: '#ffffff', display: 'flex', justifyContent: 'flex-end', boxShadow: '0 -4px 6px -1px rgba(0,0,0,0.02)' }}>
+                <button type="button"
+                  onClick={() => setIsTargetingModalOpen(false)}
+                  style={{ background: 'linear-gradient(to right, #0f172a, #1e293b)', color: 'white', border: 'none', padding: '12px 32px', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)', transition: 'transform 0.2s' }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                >
+                  Save & Apply Audience
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -489,7 +489,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Controls & KPI Cards */}
-      <div className="bg-white/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-200 shadow-sm">
+      <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
         <div 
           className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-5 px-5 mb-3 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm rounded-xl transition-all"
         >    
@@ -546,19 +546,27 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/30 p-6 rounded-2xl border-2 border-indigo-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">Total Leads</p>
             <p className="text-4xl font-black text-indigo-900 tracking-tight">{totalResults}</p>
-            <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">🔥</div>
+            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-indigo-900" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+            </svg>
           </div>
           
           <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 p-6 rounded-2xl border-2 border-emerald-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Avg Cost / Lead</p>
             <p className="text-4xl font-black text-emerald-900 tracking-tight">₹{avgCpc}</p>
-            <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">💰</div>
+            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-emerald-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"></polyline>
+              <polyline points="16 17 22 17 22 11"></polyline>
+            </svg>
           </div>
           
           <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-slate-50 via-white to-slate-100/30 p-6 rounded-2xl border-2 border-slate-200 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Spend</p>
             <p className="text-4xl font-black text-slate-800 tracking-tight">₹{totalSpend.toFixed(0)}</p>
-            <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">💸</div>
+            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+            </svg>
           </div>
 
           <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-amber-50 via-white to-amber-100/30 p-6 rounded-2xl border-2 border-amber-200 shadow-md flex flex-col justify-center relative overflow-hidden group hover:shadow-lg transition-all">
@@ -571,7 +579,9 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 {bestItemLeads} leads @ ₹{bestItemCpc}
               </p>
             )}
-            <div className="absolute -bottom-4 -right-4 text-7xl opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110">🏆</div>
+            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-amber-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
           </div>
         </div>
         
@@ -615,7 +625,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 </ResponsiveContainer>
               </>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-white to-slate-50/50 rounded-xl relative overflow-hidden">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl relative overflow-hidden">
                 {/* Decorative background elements for empty state */}
                 <div className="absolute top-10 left-10 w-32 h-32 bg-brand-100 rounded-full blur-3xl opacity-30"></div>
                 <div className="absolute bottom-10 right-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-30"></div>
@@ -643,8 +653,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
       </div>
 
       {/* Data List */}
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
+      <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 overflow-hidden">
+        <div className="p-5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <h3 className="font-bold text-slate-700">Performance Breakdown</h3>
             <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-200">

@@ -115,33 +115,11 @@ class FacebookAdsService {
     /**
      * Launch a Click to WhatsApp Ad campaign
      */
-    static async launchAd({
-        accessToken,
-        adAccountId,
-        pageId,
-        campaignName,
-        dailyBudget,
-        headline,
-        primaryText,
-        imageUrl,
-        mediaType,
-        targetCountries,
-        minAge,
-        maxAge,
-        gender,
-        startDate,
-        endDate,
-        welcomeMessageText,
-        iceBreakerText,
-        description,
-        status,
-        objective,
-        optimizationGoal,
-        whatsappNumber,
-        geoLocations,
-        excludedGeoLocations,
-        radius,
-        advantageAudience
+    static async createCampaign(accessToken, adAccountId, { 
+        campaignName, dailyBudget, pageId, headline, primaryText, imageUrl, mediaType, 
+        targetCountries, geoLocations, excludedGeoLocations, minAge, maxAge, gender, startDate, endDate, 
+        welcomeMessageText, iceBreakerText, whatsappNumber, description, status, objective, optimizationGoal, advantageAudience,
+        flexibleSpec, exclusions, radius
     }) {
         try {
             const apiVersion = 'v20.0';
@@ -291,6 +269,8 @@ class FacebookAdsService {
                     genders: gendersArray,
                     publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
                     facebook_positions: ['feed', 'story', 'marketplace', 'search'],
+                    ...(flexibleSpec && flexibleSpec.length > 0 && { flexible_spec: flexibleSpec }),
+                    ...(exclusions && exclusions.length > 0 && { exclusions: exclusions }),
                     targeting_automation: {
                         advantage_audience: advantageAudience !== undefined ? advantageAudience : 1
                     }

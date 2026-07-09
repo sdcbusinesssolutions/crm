@@ -99,6 +99,92 @@ router.get('/analytics/:accountId', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/click-to-whatsapp/search-targeting
+ * Search Meta API for detailed targeting (interests, behaviors)
+ */
+router.get('/search-targeting', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { type, q, adAccountId, country } = req.query;
+
+        if (!q) {
+            return res.status(400).json({ error: 'q is required' });
+        }
+
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('meta_access_token')
+            .eq('user_id', userId)
+            .single();
+
+        const envToken = process.env.META_ACCESS_TOKEN;
+        if (!envToken && (error || !config || !config.meta_access_token)) {
+            return res.status(403).json({ error: 'Meta Access Token not found.' });
+        }
+
+        const accessToken = envToken || config.meta_access_token;
+        const axios = require('axios');
+        
+        let searchData = [];
+        let fallbackTriggered = false;
+        
+        try {
+            if (adAccountId) {
+                const searchRes = await axios.get(`https://graph.facebook.com/v20.0/act_${adAccountId}/targetingsearch`, {
+                    params: { q, country: country || 'IN', access_token: accessToken, limit: 30 }
+                });
+                
+                searchData = searchRes.data.data || [];
+                
+                if (type === 'adbehavior') {
+                    searchData = searchData.filter(item => item.type && item.type.toLowerCase().includes('behavior'));
+                } else if (type === 'adinterest') {
+                    searchData = searchData.filter(item => item.type && item.type.toLowerCase().includes('interest'));
+                }
+            } else {
+                fallbackTriggered = true;
+            }
+        } catch (e) {
+            const errorCode = e.response?.data?.error?.code;
+            if (errorCode === 200 || errorCode === 10 || errorCode === 190) {
+                console.warn('[Search Targeting] Primary search failed with permission/token error, using fallback:', errorCode);
+                fallbackTriggered = true;
+            } else {
+                // If it's a different error, throw it so it surfaces properly
+                throw e;
+            }
+        }
+
+        if (fallbackTriggered || searchData.length === 0) {
+            const fallbackType = type === 'adbehavior' ? 'adinterest' : (type || 'adinterest');
+            try {
+                const fallbackRes = await axios.get(`https://graph.facebook.com/v20.0/search`, {
+                    params: { type: fallbackType, q, access_token: accessToken, limit: 30 }
+                });
+                // When falling back because of an error, just populate whatever it found
+                if (fallbackTriggered) {
+                    searchData = fallbackRes.data.data || [];
+                } else if (searchData.length === 0) {
+                    // if it didn't error but just found 0 results, we also fallback just in case
+                    searchData = fallbackRes.data.data || [];
+                }
+            } catch (fallbackError) {
+                console.error('[Search Targeting] Fallback search failed:', fallbackError.response?.data || fallbackError.message);
+                if (fallbackTriggered) {
+                    throw fallbackError; // throw it if we relied on the fallback
+                }
+            }
+        }
+
+        res.status(200).json({ success: true, data: searchData });
+    } catch (error) {
+        console.error('[Search Targeting API Error]:', error.response?.data || error.message);
+        res.status(500).json({ error: error.message || 'An error occurred while searching targeting.' });
+    }
+});
+
+/**
  * GET /api/click-to-whatsapp/insights/:level/:id
  * Fetches analytics for a specific campaign, adset, or ad
  */
@@ -210,7 +296,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             geoLocations,
             excludedGeoLocations,
             radius,
-            advantageAudience
+            advantageAudience,
+            flexibleSpec,
+            exclusions
         } = req.body;
 
         // Validation
@@ -263,7 +351,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             geoLocations,
             excludedGeoLocations,
             radius,
-            advantageAudience
+            advantageAudience,
+            flexibleSpec,
+            exclusions
         });
 
         res.status(200).json(result);
