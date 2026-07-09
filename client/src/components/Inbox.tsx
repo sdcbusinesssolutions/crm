@@ -1983,8 +1983,32 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'Unassigned', 'Quick Reply'].map(f => {
+                        {['All', 'AI Chats', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
+
+                            if (f === 'AI Chats') {
+                                return (
+                                    <button
+                                        key={f}
+                                        onClick={() => window.location.href = '/?view=AI+Buddy'}
+                                        className="relative inline-flex h-7 overflow-hidden rounded-full p-[1.5px] hover:scale-105 transition-transform shadow-sm group"
+                                    >
+                                        <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#FF61D2_0%,#393BB2_50%,#FF61D2_100%)]" />
+                                        <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-white px-4 text-[11px] font-black text-slate-800 backdrop-blur-3xl gap-1.5 transition-colors group-hover:bg-slate-50">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="url(#ai-gradient)" />
+                                                <defs>
+                                                    <linearGradient id="ai-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                                        <stop stopColor="#FF61D2" />
+                                                        <stop offset="1" stopColor="#393BB2" />
+                                                    </linearGradient>
+                                                </defs>
+                                            </svg>
+                                            AI Chats
+                                        </span>
+                                    </button>
+                                );
+                            }
 
                             return (
                                 <button
