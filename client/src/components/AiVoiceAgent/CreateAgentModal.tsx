@@ -158,13 +158,18 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
             <div className="bg-white rounded-2xl w-full max-w-6xl xl:max-w-7xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-fade-in ring-1 ring-slate-900/5">
                 
                 {/* Header */}
-                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">{initialData ? 'Edit AI Agent' : 'Create AI Agent'}</h2>
-                        <p className="text-slate-500 text-sm font-medium mt-1">Configure your autonomous assistant</p>
+                <div className="px-8 py-6 border-b-2 border-orange-200 flex justify-between items-center bg-gradient-to-r from-orange-50 to-orange-100/50">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center shadow-md shadow-orange-500/30 text-white">
+                            <span className="text-2xl">🤖</span>
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-orange-950 tracking-tight">{initialData ? 'Edit AI Agent' : 'Create AI Agent'}</h2>
+                            <p className="text-orange-700 text-sm font-bold mt-1">Configure your autonomous assistant</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    <button onClick={onClose} className="p-2.5 bg-white border-2 border-orange-200 rounded-xl text-orange-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 shadow-sm transition-all">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
