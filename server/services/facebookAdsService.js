@@ -257,6 +257,7 @@ class FacebookAdsService {
                 billing_event: 'IMPRESSIONS',
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+                is_adset_budget_sharing_enabled: false,
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
                     page_id: pageId
