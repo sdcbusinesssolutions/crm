@@ -207,9 +207,9 @@
 }
 
 .ctwa-search-box input:focus {
-  border-color: #3b82f6;
+  border-color: var(--color-brand);
   background: white;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--color-brand-rgb), 0.1);
 }
 
 .ctwa-toolbar-actions {
@@ -244,7 +244,7 @@
 }
 
 .ctwa-toolbar-btn.text-green-600 {
-  color: #059669;
+  color: var(--color-brand);
 }
 
 .ctwa-toolbar-icon-btn {
@@ -429,7 +429,7 @@
 }
 
 .ctwa-toggle-switch input:checked + label {
-  background-color: #10b981;
+  background-color: var(--color-brand);
 }
 
 .ctwa-toggle-switch input:checked + label:before {
@@ -494,9 +494,9 @@
 }
 
 .ctwa-page-controls button.active {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  background: rgba(var(--color-brand-rgb), 0.1);
+  color: var(--color-brand);
+  border-color: rgba(var(--color-brand-rgb), 0.3);
 }
 
 .ctwa-page-controls button:disabled {

@@ -67,54 +67,73 @@ const AdDetailPanel = ({ item, level, metrics }) => {
         <div className="space-y-8">
           {/* Top KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total number of times your ad was seen on a screen.">
-                Impressions <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.impressions}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Number of unique people who saw your ad at least once.">
-                Reach <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.reach}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Average number of times each person saw your ad.">
-                Frequency <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.frequency !== '-' ? parseFloat(metrics.frequency).toFixed(2) : '-'}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total number of clicks on your ad (including anywhere on the ad card).">
-                Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.clicks}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Number of unique people who clicked your ad.">
-                Unique Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.uniqueClicks}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Clicks specifically on the 'WhatsApp' button or link.">
-                Inline Link Clicks <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.inlineLinkClicks}</p>
-            </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Click-Through Rate: Percentage of times people saw your ad and clicked it.">
-                CTR (%) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-              </p>
-              <p className="text-xl font-black text-slate-700">{metrics.ctr !== '-' ? parseFloat(metrics.ctr).toFixed(2) : '-'}</p>
-            </div>
+            {[
+              {
+                label: 'Impressions',
+                value: metrics.impressions,
+                title: 'Total number of times your ad was seen on a screen.',
+                icon: <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'Reach',
+                value: metrics.reach,
+                title: 'Number of unique people who saw your ad at least once.',
+                icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'Frequency',
+                value: metrics.frequency !== '-' ? parseFloat(metrics.frequency).toFixed(2) : '-',
+                title: 'Average number of times each person saw your ad.',
+                icon: <><polyline points="17 1 21 5 17 9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 11V9a4 4 0 0 1 4-4h14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><polyline points="7 23 3 19 7 15" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'Clicks',
+                value: metrics.clicks,
+                title: 'Total number of clicks on your ad (including anywhere on the ad card).',
+                icon: <><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M13 13l6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'Unique Clicks',
+                value: metrics.uniqueClicks,
+                title: 'Number of unique people who clicked your ad.',
+                icon: <><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'Link Clicks',
+                value: metrics.inlineLinkClicks,
+                title: 'Clicks specifically on the WhatsApp button or link.',
+                icon: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              },
+              {
+                label: 'CTR (%)',
+                value: metrics.ctr !== '-' ? parseFloat(metrics.ctr).toFixed(2) : '-',
+                title: 'Click-Through Rate: Percentage of times people saw your ad and clicked it.',
+                icon: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="bg-white border border-[rgba(var(--color-brand-rgb),0.3)] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[var(--color-brand)] transition-all relative">
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--color-brand)] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <svg viewBox="0 0 24 24" className="w-5 h-5">
+                      {item.icon}
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-2xl font-black text-slate-800 leading-none mb-1 truncate">{item.value}</h3>
+                    <p className="text-[10px] uppercase font-bold text-[var(--color-brand)] tracking-wider truncate">{item.label}</p>
+                  </div>
+                </div>
+                <div className="absolute top-4 right-4 cursor-help" title={item.title}>
+                  <span className="text-[9px] font-bold text-[var(--color-brand)] bg-[rgba(var(--color-brand-rgb),0.1)] px-2 py-1 rounded-full">ℹ️</span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Time Series Graph */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-4">Performance Over Time (Impressions)</h4>
-            <div className="h-64 w-full bg-slate-50 rounded-xl border border-slate-100 p-4">
+            <h4 className="text-sm font-bold text-[var(--color-brand)] mb-4">Performance Over Time (Impressions)</h4>
+            <div className="h-64 w-full bg-[rgba(var(--color-brand-rgb),0.03)] rounded-xl border border-[rgba(var(--color-brand-rgb),0.2)] p-4 shadow-sm">
               {loading ? (
                 <div className="w-full h-full flex justify-center items-center">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-brand)]"></div>
@@ -150,54 +169,73 @@ const AdDetailPanel = ({ item, level, metrics }) => {
 
       {activeTab === 'metrics' && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total amount of money spent on this item so far.">
-              Total Spend <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-            </p>
-            <p className="text-xl font-black text-[var(--color-brand)]">₹{metrics.spend ? metrics.spend.toFixed(2) : '0.00'}</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Average cost you paid for each click on your ad.">
-              Cost Per Click (CPC) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-            </p>
-            <p className="text-xl font-black text-slate-700">₹{metrics.clicks > 0 ? (metrics.spend / metrics.clicks).toFixed(2) : '0.00'}</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Cost per Mille: Average cost you paid for 1,000 impressions.">
-              CPM (Cost per 1k Imp) <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-            </p>
-            <p className="text-xl font-black text-slate-700">₹{metrics.impressions > 0 ? ((metrics.spend / metrics.impressions) * 1000).toFixed(2) : '0.00'}</p>
-          </div>
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
-            <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Percentage of times people saw your ad and clicked on it.">
-              Click-Through Rate <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
-            </p>
-            <p className="text-xl font-black text-slate-700">{metrics.ctr !== '-' ? `${parseFloat(metrics.ctr).toFixed(2)}%` : '0.00%'}</p>
-          </div>
+          {[
+            {
+              label: 'Total Spend',
+              value: '₹' + (metrics.spend ? metrics.spend.toFixed(2) : '0.00'),
+              title: 'Total amount of money spent on this item so far.',
+              icon: <><rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+            },
+            {
+              label: 'CPC',
+              value: '₹' + (metrics.clicks > 0 ? (metrics.spend / metrics.clicks).toFixed(2) : '0.00'),
+              title: 'Cost Per Click: Average cost you paid for each click.',
+              icon: <><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+            },
+            {
+              label: 'CPM (Cost per 1k)',
+              value: '₹' + (metrics.impressions > 0 ? ((metrics.spend / metrics.impressions) * 1000).toFixed(2) : '0.00'),
+              title: 'Cost per Mille: Average cost you paid for 1,000 impressions.',
+              icon: <><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+            },
+            {
+              label: 'CTR',
+              value: metrics.ctr !== '-' ? `${parseFloat(metrics.ctr).toFixed(2)}%` : '0.00%',
+              title: 'Percentage of times people saw your ad and clicked on it.',
+              icon: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
+            }
+          ].map((item, idx) => (
+            <div key={idx} className="bg-white border border-[rgba(var(--color-brand-rgb),0.3)] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[var(--color-brand)] transition-all relative">
+              <div className="flex items-center gap-4 mb-2">
+                <div className="w-11 h-11 rounded-xl bg-[var(--color-brand)] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5">
+                    {item.icon}
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-2xl font-black text-slate-800 leading-none mb-1 truncate">{item.value}</h3>
+                  <p className="text-[10px] uppercase font-bold text-[var(--color-brand)] tracking-wider truncate">{item.label}</p>
+                </div>
+              </div>
+              <div className="absolute top-4 right-4 cursor-help" title={item.title}>
+                <span className="text-[9px] font-bold text-[var(--color-brand)] bg-[rgba(var(--color-brand-rgb),0.1)] px-2 py-1 rounded-full">ℹ️</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {activeTab === 'conversions' && (
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border border-emerald-100 rounded-2xl p-6 relative overflow-hidden">
+          <div className="bg-[rgba(var(--color-brand-rgb),0.05)] border border-[rgba(var(--color-brand-rgb),0.3)] rounded-2xl p-6 relative overflow-hidden">
             <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Number of people who started a WhatsApp chat from this ad.">
+                <p className="text-xs uppercase font-bold text-[var(--color-brand)] mb-1 cursor-help" title="Number of people who started a WhatsApp chat from this ad.">
                   Total Leads (Chats) ℹ️
                 </p>
-                <p className="text-4xl font-black text-emerald-900">{metrics.results || 0}</p>
+                <p className="text-4xl font-black text-[var(--color-brand)]">{metrics.results || 0}</p>
               </div>
               <div>
-                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Average cost to acquire one WhatsApp chat (Total Spend / Leads).">
+                <p className="text-xs uppercase font-bold text-[var(--color-brand)] mb-1 cursor-help" title="Average cost to acquire one WhatsApp chat (Total Spend / Leads).">
                   Cost Per Lead (CPL) ℹ️
                 </p>
-                <p className="text-4xl font-black text-emerald-900">{metrics.cpc !== '-' ? `₹${metrics.cpc}` : '₹0.00'}</p>
+                <p className="text-4xl font-black text-[var(--color-brand)]">{metrics.cpc !== '-' ? `₹${metrics.cpc}` : '₹0.00'}</p>
               </div>
               <div>
-                <p className="text-xs uppercase font-bold text-emerald-600 mb-1 cursor-help" title="Conversion Rate: Percentage of link clicks that turned into actual WhatsApp chats.">
+                <p className="text-xs uppercase font-bold text-[var(--color-brand)] mb-1 cursor-help" title="Conversion Rate: Percentage of link clicks that turned into actual WhatsApp chats.">
                   Conv. Rate (Leads / Link Clicks) ℹ️
                 </p>
-                <p className="text-4xl font-black text-emerald-900">
+                <p className="text-4xl font-black text-[var(--color-brand)]">
                   {metrics.inlineLinkClicks > 0 && metrics.results > 0 
                     ? `${((metrics.results / metrics.inlineLinkClicks) * 100).toFixed(1)}%` 
                     : '0%'}
@@ -212,13 +250,13 @@ const AdDetailPanel = ({ item, level, metrics }) => {
       {activeTab === 'insights' && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+            <div className="bg-[rgba(var(--color-brand-rgb),0.03)] border border-[rgba(var(--color-brand-rgb),0.2)] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[rgba(var(--color-brand-rgb),0.4)] transition-all">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Quality Ranking</p>
-              <p className="text-sm font-bold text-slate-700 capitalize">{metrics.qualityRanking.replace(/_/g, ' ')}</p>
+              <p className="text-sm font-bold text-[var(--color-brand)] capitalize">{metrics.qualityRanking.replace(/_/g, ' ')}</p>
             </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
+            <div className="bg-[rgba(var(--color-brand-rgb),0.03)] border border-[rgba(var(--color-brand-rgb),0.2)] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-[rgba(var(--color-brand-rgb),0.4)] transition-all">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Engagement Ranking</p>
-              <p className="text-sm font-bold text-slate-700 capitalize">{metrics.engagementRanking.replace(/_/g, ' ')}</p>
+              <p className="text-sm font-bold text-[var(--color-brand)] capitalize">{metrics.engagementRanking.replace(/_/g, ' ')}</p>
             </div>
           </div>
           

@@ -491,9 +491,9 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Top Controls & KPI Cards */}
-      <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.06)]">
+      <div className="bg-gradient-to-br from-orange-100 via-orange-50 to-orange-100 p-8 rounded-[2rem] border-2 border-orange-300 shadow-lg shadow-orange-500/20">
         <div 
-          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-5 px-5 mb-3 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm rounded-xl transition-all"
+          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-5 px-5 mb-3 bg-white hover:bg-slate-50 border-2 border-orange-300 shadow-sm rounded-xl transition-all"
         >    
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -508,7 +508,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 <select 
                   value={activeAccountId}
                   onChange={(e) => setActiveAccountId(e.target.value)}
-                  className="appearance-none bg-white border-2 border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm transition-all cursor-pointer"
+                  className="appearance-none bg-white border-2 border-orange-300 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm transition-all cursor-pointer"
                 >
                   {adAccounts.map(acc => (
                     <option key={acc.account_id} value={acc.account_id}>
@@ -526,7 +526,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <select 
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value)}
-                className="appearance-none bg-white border border-slate-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
+                className="appearance-none bg-white border-2 border-orange-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
               >
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>
@@ -545,45 +545,62 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/30 p-6 rounded-2xl border-2 border-indigo-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
-            <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">Total Leads</p>
-            <p className="text-4xl font-black text-indigo-900 tracking-tight">{totalResults}</p>
-            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-indigo-900" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-            </svg>
+          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-indigo-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30 text-white">
+              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-indigo-900 tracking-tight">{totalResults}</p>
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mt-1">Total Leads</p>
+            </div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-emerald-50 via-white to-emerald-100/30 p-6 rounded-2xl border-2 border-emerald-100 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mb-2">Avg Cost / Lead</p>
-            <p className="text-4xl font-black text-emerald-900 tracking-tight">₹{avgCpc}</p>
-            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-emerald-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"></polyline>
-              <polyline points="16 17 22 17 22 11"></polyline>
-            </svg>
+          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-emerald-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-14 h-14 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30 text-white">
+              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-emerald-900 tracking-tight">₹{avgCpc}</p>
+              <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mt-1">Avg Cost / Lead</p>
+            </div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-slate-50 via-white to-slate-100/30 p-6 rounded-2xl border-2 border-slate-200 shadow-md relative overflow-hidden group hover:shadow-lg transition-all">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Total Spend</p>
-            <p className="text-4xl font-black text-slate-800 tracking-tight">₹{totalSpend.toFixed(0)}</p>
-            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect>
-              <line x1="2" y1="10" x2="22" y2="10"></line>
-            </svg>
+          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-slate-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-14 h-14 rounded-xl bg-slate-700 flex items-center justify-center shrink-0 shadow-lg shadow-slate-500/30 text-white">
+              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 7.28V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-2.28A2 2 0 0 0 22 15V9a2 2 0 0 0-1-1.72zM20 9v6h-7V9h7zM5 19V5h14v2h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6v2H5z"/>
+                <circle cx="16" cy="12" r="1.5"/>
+              </svg>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-slate-800 tracking-tight">₹{totalSpend.toFixed(0)}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Spend</p>
+            </div>
           </div>
 
-          <div className="col-span-1 md:col-span-1 bg-gradient-to-br from-amber-50 via-white to-amber-100/30 p-6 rounded-2xl border-2 border-amber-200 shadow-md flex flex-col justify-center relative overflow-hidden group hover:shadow-lg transition-all">
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
-              {viewLevel === 'campaign' ? 'Best Campaign' : 'Best AdSet'}
-            </p>
-            <p className="text-lg font-bold text-amber-900 truncate" title={bestItemName || 'N/A'}>{bestItemName || 'No Data Yet'}</p>
-            {bestItemName && (
-              <p className="text-xs text-amber-700 mt-1 font-medium">
-                {bestItemLeads} leads @ ₹{bestItemCpc}
+          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30 text-white">
+              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xl font-bold text-amber-900 truncate tracking-tight" title={bestItemName || 'N/A'}>
+                {bestItemName || 'No Data Yet'}
               </p>
-            )}
-            <svg className="w-24 h-24 absolute -bottom-4 -right-4 opacity-10 group-hover:opacity-20 transition-opacity transform group-hover:scale-110 text-amber-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mt-1">
+                {viewLevel === 'campaign' ? 'Best Campaign' : 'Best AdSet'}
+              </p>
+              {bestItemName && (
+                <p className="text-xs text-amber-700 mt-0.5 font-medium">
+                  {bestItemLeads} leads @ ₹{bestItemCpc}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         
@@ -593,7 +610,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             {viewLevel === 'campaign' ? 'Campaign Performance Comparison' : 'AdSet Performance Comparison'}
           </h3>
           <div className="h-64 w-full bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-center items-center">
-            {graphData.length > 0 ? (
+            {graphData.length > 0 && graphData.some(d => d.leads > 0 || d.spend > 0) ? (
               <>
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={graphData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
@@ -781,19 +798,23 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
       {activeInsightsItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-            <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
-              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span className="text-xl">📊</span> 
+            <div className="flex justify-between items-center p-5 border-b-2 border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100/50">
+              <h2 className="text-xl font-black text-orange-950 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-md shadow-orange-500/30 text-white">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z"/>
+                  </svg>
+                </div>
                 {activeInsightsItem.item.name} 
-                <span className="text-xs font-normal text-slate-500 uppercase tracking-widest px-2 py-0.5 bg-slate-200 rounded-md">
+                <span className="text-xs font-bold text-orange-700 uppercase tracking-widest px-2.5 py-1 bg-orange-200/70 border border-orange-300 rounded-lg">
                   {activeInsightsItem.level}
                 </span>
               </h2>
               <button 
                 onClick={() => setActiveInsightsItem(null)}
-                className="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors"
+                className="p-2 bg-white border-2 border-orange-200 rounded-xl text-orange-600 hover:text-red-600 hover:bg-red-50 hover:border-red-200 shadow-sm transition-all"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
             <div className="p-0 overflow-y-auto flex-1 custom-scrollbar">
