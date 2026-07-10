@@ -3,6 +3,7 @@ const router = express.Router();
 const FacebookAdsService = require('../services/facebookAdsService');
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
+const logger = require('../utils/logger');
 
 const getUserId = (req) => req.user.id;
 
@@ -356,7 +357,12 @@ router.post('/launch', requireAuth, async (req, res) => {
 
         res.status(200).json(result);
     } catch (error) {
-        console.error('[Click To WhatsApp API Error]:', error);
+        console.error('[Click To WhatsApp API Error]:', error.message ? error.message : JSON.stringify(error, null, 2));
+        logger.logMetaEvent('CLICK_TO_WHATSAPP_CREATE_CAMPAIGN_ERROR', {
+            message: error.message || 'Unknown Error',
+            stack: error.stack,
+            error_details: error.response?.data || null
+        });
         res.status(500).json({ error: error.message || 'An error occurred while launching the ad.' });
     }
 });

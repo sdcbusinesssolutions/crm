@@ -226,6 +226,7 @@ class FacebookAdsService {
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
                     special_ad_categories: '["NONE"]',
+                    is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
             });
@@ -256,7 +257,6 @@ class FacebookAdsService {
                 billing_event: 'IMPRESSIONS',
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-                is_adset_budget_sharing_enabled: 'false',
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
                     page_id: pageId
