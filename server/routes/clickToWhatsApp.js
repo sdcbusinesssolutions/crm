@@ -325,9 +325,7 @@ router.post('/launch', requireAuth, async (req, res) => {
         const accessToken = envToken || config.meta_access_token;
 
         // Launch Ad via Service
-        const result = await FacebookAdsService.launchAd({
-            accessToken,
-            adAccountId,
+        const result = await FacebookAdsService.createCampaign(accessToken, adAccountId, {
             pageId,
             campaignName,
             dailyBudget,

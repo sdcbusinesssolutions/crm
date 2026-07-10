@@ -226,6 +226,7 @@ class FacebookAdsService {
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
                     special_ad_categories: '["NONE"]',
+                    is_adset_budget_sharing_enabled: 'false',
                     access_token: accessToken
                 }
             });
