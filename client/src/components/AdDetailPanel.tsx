@@ -53,11 +53,11 @@ const AdDetailPanel = ({ item, level, metrics }) => {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm font-bold transition-all relative ${activeTab === tab.id ? 'text-brand-600' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`pb-3 text-sm font-bold transition-all relative ${activeTab === tab.id ? 'text-[var(--color-brand)]' : 'text-slate-500 hover:text-slate-700'}`}
           >
             {tab.label}
             {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-brand-600 rounded-t-full"></div>
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[var(--color-brand)] rounded-t-full"></div>
             )}
           </button>
         ))}
@@ -117,7 +117,7 @@ const AdDetailPanel = ({ item, level, metrics }) => {
             <div className="h-64 w-full bg-slate-50 rounded-xl border border-slate-100 p-4">
               {loading ? (
                 <div className="w-full h-full flex justify-center items-center">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-brand)]"></div>
                 </div>
               ) : timeSeriesData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -154,7 +154,7 @@ const AdDetailPanel = ({ item, level, metrics }) => {
             <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Total amount of money spent on this item so far.">
               Total Spend <span className="opacity-0 group-hover:opacity-50">ℹ️</span>
             </p>
-            <p className="text-xl font-black text-brand-700">₹{metrics.spend ? metrics.spend.toFixed(2) : '0.00'}</p>
+            <p className="text-xl font-black text-[var(--color-brand)]">₹{metrics.spend ? metrics.spend.toFixed(2) : '0.00'}</p>
           </div>
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
             <p className="text-[10px] uppercase font-bold text-slate-400 mb-1 flex items-center justify-between group cursor-help" title="Average cost you paid for each click on your ad.">

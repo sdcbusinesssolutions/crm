@@ -311,7 +311,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   if (loading && data.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-brand)]"></div>
       </div>
     );
   }
@@ -332,7 +332,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
     return 'text-red-700 bg-red-100 border-red-200'; // Expensive
   };
 
-  const renderRow = (item, level = 0, isExpanded = false, onToggleExpand = null) => {
+  const renderRow = (item, level = 0, isExpanded = false, onToggleExpand = null, index = 0) => {
     const metrics = extractMetrics(item);
     const paddingLeft = level * 32 + 16;
     const isCampaign = level === 0;
@@ -350,11 +350,13 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
     // Calculate progress bar width based on max results
     const progressWidth = maxResults > 0 ? Math.min(100, (metrics.results / maxResults) * 100) : 0;
 
+    const bgClass = index % 2 === 0 ? 'bg-[#f0fdf4]' : 'bg-[#ffffff]';
+
     return (
       <div 
         key={item.id} 
-        className={`group transition-all duration-200 border-b border-slate-100 hover:bg-slate-50 relative
-          ${isCampaign ? 'bg-white p-4' : isAdSet ? 'bg-slate-50/70 p-3 border-l-4 border-l-brand-400' : 'bg-slate-100/50 p-2 border-l-4 border-l-slate-300'}
+        className={`group transition-all duration-200 border-b border-slate-100 hover:bg-[#dcfce7] relative
+          ${isCampaign ? `${bgClass} p-4` : isAdSet ? `${bgClass} p-3 border-l-4 border-l-[var(--color-brand)]` : 'bg-slate-100/50 p-2 border-l-4 border-l-slate-300'}
         `}
       >
         <div className="flex items-center justify-between" style={{ paddingLeft: `${paddingLeft}px` }}>
@@ -362,7 +364,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             {viewLevel === 'hierarchy' && hasChildren ? (
               <button 
                 onClick={() => onToggleExpand && onToggleExpand(item.id)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-600 transition-colors shadow-sm"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[var(--color-brand)] transition-colors shadow-sm"
               >
                 {isExpanded ? (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -375,7 +377,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             ) : null}
             
             <div className="flex flex-col items-center shrink-0 w-12" title="Turn Ad ON (Active) or OFF (Paused)">
-              <p className="text-[9px] uppercase font-bold text-brand-600 mb-1.5 tracking-wider">Action</p>
+              <p className="text-[9px] uppercase font-bold text-[var(--color-brand)] mb-1.5 tracking-wider">Action</p>
               <label className="relative flex items-center cursor-pointer shrink-0">
                 <input 
                   type="checkbox" 
@@ -406,7 +408,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                     <p className={`font-bold text-slate-800 truncate ${isCampaign ? 'text-base' : 'text-sm'}`}>{item.name}</p>
                     {ratingBadge}
                     {item.id === bestItemId && (
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm bg-brand-100 text-brand-700 border border-brand-200 ml-1">
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md shadow-sm bg-slate-100 text-[var(--color-brand)] border border-slate-200 ml-1">
                         🏆 #1 Pick
                       </span>
                     )}
@@ -430,10 +432,10 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             <div className="w-24 md:w-32 hidden sm:block">
               <div className="text-xs font-semibold text-slate-500 mb-1 flex justify-between">
                 <span title="onsite_conversion.messaging_conversation_started_7d">Leads (Chats)</span>
-                <span className="text-brand-600 font-bold">{metrics.results || 0}</span>
+                <span className="text-[var(--color-brand)] font-bold">{metrics.results || 0}</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-brand-500 h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progressWidth}%` }}></div>
+                <div className="bg-[var(--color-brand)] h-1.5 rounded-full transition-all duration-1000" style={{ width: `${progressWidth}%` }}></div>
               </div>
             </div>
 
@@ -455,8 +457,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
 
             <div className="w-20 hidden lg:block">
-              <p className="text-[10px] uppercase font-bold text-brand-600 mb-0.5">Daily Budget</p>
-              <p className="text-sm font-bold text-brand-700">{metrics.dailyBudget ? `₹${metrics.dailyBudget}` : '-'}</p>
+              <p className="text-[10px] uppercase font-bold text-[var(--color-brand)] mb-0.5">Daily Budget</p>
+              <p className="text-sm font-bold text-[var(--color-brand)]">{metrics.dailyBudget ? `₹${metrics.dailyBudget}` : '-'}</p>
             </div>
 
             <div className="w-20 hidden md:block">
@@ -467,7 +469,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             <div className="hidden lg:block border-l border-slate-200 pl-4 ml-2">
               <button 
                 onClick={() => setActiveInsightsItem({ item, level: isCampaign ? 'campaign' : isAdSet ? 'adset' : 'ad', metrics })}
-                className="px-4 py-2 bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-1.5 whitespace-nowrap border border-brand-500"
+                className="px-4 py-2 bg-[var(--color-brand)] hover:brightness-110 text-white rounded-lg text-xs font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-1.5 whitespace-nowrap border border-[var(--color-brand)]"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                 Insights
@@ -495,7 +497,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         >    
           <div>
             <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="text-brand-600">⚡</span> WhatsApp Ads Dashboard
+              <span className="text-[var(--color-brand)]">⚡</span> WhatsApp Ads Dashboard
             </h2>
             <p className="text-sm text-slate-500 mt-1 font-medium">Track your messaging leads, costs, and campaign ROI.</p>
           </div>
@@ -506,7 +508,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 <select 
                   value={activeAccountId}
                   onChange={(e) => setActiveAccountId(e.target.value)}
-                  className="appearance-none bg-white border-2 border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 font-bold shadow-sm transition-all cursor-pointer"
+                  className="appearance-none bg-white border-2 border-slate-200 text-slate-700 py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm transition-all cursor-pointer"
                 >
                   {adAccounts.map(acc => (
                     <option key={acc.account_id} value={acc.account_id}>
@@ -524,7 +526,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <select 
                 value={datePreset}
                 onChange={(e) => setDatePreset(e.target.value)}
-                className="appearance-none bg-white border border-slate-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
+                className="appearance-none bg-white border border-slate-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
               >
                 <option value="today">Today</option>
                 <option value="yesterday">Yesterday</option>
@@ -536,7 +538,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
               </div>
             </div>
-            <button onClick={fetchAnalytics} className="p-2.5 bg-brand-50 hover:bg-brand-100 text-brand-600 rounded-xl transition-colors shadow-sm" title="Refresh Data">
+            <button onClick={fetchAnalytics} className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[var(--color-brand)] rounded-xl transition-colors shadow-sm" title="Refresh Data">
               <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             </button>
           </div>
@@ -627,7 +629,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl relative overflow-hidden">
                 {/* Decorative background elements for empty state */}
-                <div className="absolute top-10 left-10 w-32 h-32 bg-brand-100 rounded-full blur-3xl opacity-30"></div>
+                <div className="absolute top-10 left-10 w-32 h-32 bg-[var(--color-brand)] rounded-full blur-3xl opacity-30"></div>
                 <div className="absolute bottom-10 right-10 w-40 h-40 bg-indigo-100 rounded-full blur-3xl opacity-30"></div>
                 
                 <div className="relative z-10 flex flex-col items-center">
@@ -654,31 +656,31 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
 
       {/* Data List */}
       <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 overflow-hidden">
-        <div className="p-5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between flex-wrap gap-4">
+        <div className="p-5 bg-[var(--color-brand)] flex items-center justify-between flex-wrap gap-4 rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <h3 className="font-bold text-slate-700">Performance Breakdown</h3>
-            <span className="text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded-md border border-slate-200">
+            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Performance Breakdown</h3>
+            <span className="text-xs font-bold text-[var(--color-brand)] bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
               {viewLevel === 'adset' ? allAdsets.length + ' AdSets' : data.length + ' Campaigns'}
             </span>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="flex bg-slate-100 rounded-lg p-1 border border-slate-200 shadow-inner overflow-hidden text-sm font-medium">
+            <div className="flex bg-white/10 rounded-lg p-1 border border-white/20 shadow-inner overflow-hidden text-sm font-medium">
               <button 
                 onClick={() => setViewLevel('hierarchy')}
-                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'hierarchy' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'hierarchy' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
               >
                 Tree View
               </button>
               <button 
                 onClick={() => setViewLevel('campaign')}
-                className={`px-4 py-1.5 rounded-md transition-all mx-1 ${viewLevel === 'campaign' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-4 py-1.5 rounded-md transition-all mx-1 ${viewLevel === 'campaign' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
               >
                 Campaigns Only
               </button>
               <button 
                 onClick={() => setViewLevel('adset')}
-                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'adset' ? 'bg-white text-brand-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'adset' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
               >
                 AdSets Only
               </button>
@@ -686,7 +688,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             
             <button 
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-white/20 rounded-lg text-sm font-semibold text-[var(--color-brand)] hover:bg-slate-50 transition-colors shadow-sm"
             >
             <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -715,28 +717,28 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             return (
               <>
                 {viewLevel === 'adset' ? (
-                  paginatedList.map((adset: any) => (
+                  paginatedList.map((adset: any, idx: number) => (
                     <React.Fragment key={adset.id}>
-                      {renderRow(adset, 0, false, null)}
+                      {renderRow(adset, 0, false, null, idx)}
                     </React.Fragment>
                   ))
                 ) : (
-                  paginatedList.map((campaign: any) => {
+                  paginatedList.map((campaign: any, idx: number) => {
                     const isCampExpanded = expandedCampaigns.has(campaign.id);
                     
                     return (
                       <React.Fragment key={campaign.id}>
-                        {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand)}
+                        {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand, idx)}
                         
-                        {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map((adset: any) => {
+                        {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map((adset: any, adsetIdx: number) => {
                           const isAdSetExpanded = expandedAdSets.has(adset.id);
                           
                           return (
                             <React.Fragment key={adset.id}>
-                              {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand)}
+                              {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand, adsetIdx)}
                               
-                              {isAdSetExpanded && adset.ads?.data?.map((ad: any) => (
-                                renderRow(ad, 2)
+                              {isAdSetExpanded && adset.ads?.data?.map((ad: any, adIdx: number) => (
+                                renderRow(ad, 2, false, null, adIdx)
                               ))}
                             </React.Fragment>
                           )

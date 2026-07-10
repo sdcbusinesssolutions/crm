@@ -249,14 +249,14 @@ const ClickToWhatsAppDashboard = () => {
 
           {activeTab === 'ads' ? (
             <button className="ctwa-btn ctwa-btn-secondary" onClick={handleSyncPages}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon text-green-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon text-[var(--color-brand)]">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               Sync Ads
             </button>
           ) : (
             <button className="ctwa-btn ctwa-btn-secondary" onClick={handleSyncPages}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon text-green-500">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ctwa-btn-icon text-[var(--color-brand)]">
                 <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
               Sync Pages
