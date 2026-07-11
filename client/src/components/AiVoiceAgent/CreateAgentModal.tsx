@@ -240,6 +240,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800 cursor-pointer appearance-none"
                                             >
                                                 <option value="chat">💬 AI Chatbot</option>
+                                                <option value="voice">🎙️ AI Voice Agent</option>
                                             </select>
                                         </div>
                                     </div>

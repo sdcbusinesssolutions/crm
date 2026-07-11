@@ -33,6 +33,9 @@ const AiVoiceAgentView: React.FC = () => {
     const [isPlayingDemo, setIsPlayingDemo] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    // Create Modal State with Type
+    const [createType, setCreateType] = useState<'chat' | 'voice' | null>(null);
+
     const audioFiles: Record<string, string> = {
         'Admission Operation': '/assets/1007073305828481-1773854364318.mp4',
         'Ecommerce': '/assets/ecommerse.m4a',
@@ -128,6 +131,7 @@ const AiVoiceAgentView: React.FC = () => {
             setRefreshTrigger(prev => prev + 1);
             setEditingAgent(null);
             setIsCreating(false);
+            setCreateType(null);
         } catch (err: any) {
             console.error(err);
             alert('Failed to save agent: ' + (err.message || 'Unknown error'));
@@ -273,7 +277,10 @@ const AiVoiceAgentView: React.FC = () => {
 
                 {/* Dashboard Stats / Types Info (Static for now) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                    <div 
+                        onClick={() => setCreateType('voice')}
+                        className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                    >
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             <img
                                 src="/assets/cute_orange_robot_voice.png"
@@ -318,125 +325,7 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Automation & Integration Info Banner */}
-                <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 p-6 rounded-2xl mb-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent"></div>
-                    </div>
-                    
-                    <div className="flex-1 relative z-10 text-center md:text-left">
-                        <h2 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
-                            <span className="p-1.5 bg-red-500/20 rounded-lg">🛡️</span>
-                            Dependency Notice
-                        </h2>
-                        <p className="text-slate-300 text-sm leading-relaxed max-w-2xl font-medium">
-                            Please note: We provide the integration interface. <span className="text-red-400 font-bold underline">You must bring your own 3rd-party tools or website subscriptions</span> (e.g., N8N, OpenAI, or Voice APIs). We do not provide these underlying services — they must be configured independently to work within this dashboard.
-                        </p>
-                    </div>
 
-                    <div className="flex shrink-0 gap-3 relative z-10">
-                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
-                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                                <svg className="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                            </div>
-                            <span className="text-[10px] font-bold text-orange-400 tracking-tighter uppercase whitespace-nowrap">N8N External</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
-                            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-xs">🛠️</div>
-                            <span className="text-[10px] font-bold text-red-400 tracking-tighter uppercase whitespace-nowrap">User Provided</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Voice Experience Zone - Enhanced with Calling Indicators and Premium Border */}
-                <div className="bg-black text-white p-12 rounded-[3.5rem] mb-12 border-[6px] border-slate-900/80 shadow-[0_0_60px_rgba(147,51,234,0.2)] relative overflow-hidden ring-1 ring-white/5">
-                    {/* Atmospheric lighting */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
-
-                    <div className="text-center mb-12 relative z-10">
-                        <h2 className="text-4xl font-extrabold mb-4 text-white tracking-tight">Step Into The Voicebot Experience Zone</h2>
-                        <p className="text-slate-400 max-w-3xl mx-auto text-base leading-relaxed font-medium">
-                            From sales to support – experience how Smartping's GenAI Voicebot handles real conversations across sectors and languages with precision and ease.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row items-stretch gap-12 max-w-5xl mx-auto relative z-10">
-                        <div className="flex flex-col gap-4 w-full md:w-4/12">
-                            {['Admission Operation', 'Ecommerce', 'Customer Support'].map((option) => (
-                                <button
-                                    key={option}
-                                    onClick={() => setSelectedDemo(option)}
-                                    className={`px-8 py-4 rounded-full text-sm font-bold transition-all duration-300 text-center border-2 ${selectedDemo === option 
-                                        ? 'bg-purple-600 border-purple-500 text-white shadow-[0_0_25px_rgba(147,51,234,0.4)] scale-105' 
-                                        : 'bg-transparent border-white/20 text-white hover:border-white hover:bg-white/5'}`}
-                                >
-                                    {option}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Right: Interaction Panel */}
-                        <div className="flex-1 bg-slate-900/30 rounded-[2.5rem] p-10 border border-white/10 flex flex-col items-center justify-between relative overflow-hidden backdrop-blur-xl">
-                            <div className="flex items-center justify-between w-full relative z-10">
-                                {/* Professional Enterprise AI Assistant */}
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className={`w-28 h-28 rounded-full border-[3px] transition-all duration-700 flex items-center justify-center p-0.5 bg-gradient-to-b from-slate-800 to-black relative overflow-hidden ${isPlayingDemo ? 'border-purple-400 shadow-[0_0_50px_rgba(147,51,234,0.6)] scale-110' : 'border-white/20 hover:border-white/40 shadow-inner'}`}>
-                                        <div className="absolute inset-0 bg-purple-500/5 backdrop-blur-3xl"></div>
-                                        <img src="/assets/professional_calling_bot.png" alt="AI Agent" className={`w-full h-full object-cover relative z-10 transition-all duration-700 ${isPlayingDemo ? 'scale-105 saturate-100' : 'opacity-60 saturate-50'}`} />
-                                        
-                                        {isPlayingDemo && (
-                                            <div className="absolute top-0 right-0 bg-purple-600 text-white p-2 rounded-full border-2 border-black animate-pulse shadow-xl z-20">
-                                                <PhoneIcon className="w-4 h-4 relative z-10" />
-                                                <div className="absolute inset-0 bg-white/40 rounded-full animate-ping"></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-700 ${isPlayingDemo ? 'text-purple-300' : 'text-slate-500'}`}>
-                                        {isPlayingDemo ? 'VOICE CONNECTED' : 'AI ASSISTANT'}
-                                    </span>
-                                </div>
-
-                                {/* Central Action Control */}
-                                <div className="flex flex-col items-center gap-6">
-                                    <button 
-                                        onClick={handlePlayDemo}
-                                        className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative group ${isPlayingDemo ? 'bg-red-500/20 border-4 border-red-500/50 text-red-500' : 'bg-slate-100 text-black hover:bg-white'}`}
-                                    >
-                                        {isPlayingDemo ? (
-                                            <PhoneIcon className="w-12 h-12 rotate-[135deg]" />
-                                        ) : (
-                                            <MicrophoneIcon className="w-12 h-12 transition-transform group-hover:scale-110" />
-                                        )}
-                                        {isPlayingDemo && <div className="absolute -inset-6 border-2 border-purple-500/30 rounded-full animate-ping"></div>}
-                                    </button>
-                                    <span className={`text-xs font-black tracking-[0.2em] uppercase transition-all ${isPlayingDemo ? 'text-purple-400 animate-pulse' : 'text-slate-500'}`}>
-                                        {isPlayingDemo ? 'Simulation Active' : 'Tap To Experience'}
-                                    </span>
-                                </div>
-
-                                {/* Customer Portrait */}
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className={`w-28 h-28 rounded-full border-4 transition-all duration-500 overflow-hidden bg-slate-900 relative ${isPlayingDemo ? 'border-purple-500 scale-110 shadow-[0_0_30px_rgba(147,51,234,0.3)]' : 'border-white/10 opacity-40'}`}>
-                                        <img src="/assets/indian_customer_avatar.png" alt="User" className={`w-full h-full object-cover transition-all duration-700 ${isPlayingDemo ? 'grayscale-0' : 'grayscale'}`} />
-                                    </div>
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Customer</span>
-                                </div>
-                            </div>
-
-                            {/* Audio Waveform Visualization */}
-                            <div className="w-full h-16 flex items-center justify-center gap-[4px] mt-10 px-6">
-                                {[...Array(28)].map((_, i) => (
-                                    <div 
-                                        key={i}
-                                        className={`w-1 rounded-full transition-all duration-300 ${isPlayingDemo ? 'bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)] animate-audio-bar-' + ((i % 3) + 1) : 'h-1.5 bg-white/10'}`}
-                                        style={{ height: isPlayingDemo ? `${15 + Math.random() * 85}%` : '8px' }}
-                                    ></div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Agent List */}
                 {loading ? (
@@ -539,14 +428,15 @@ const AiVoiceAgentView: React.FC = () => {
                 )}
             </div>
 
-            {(isCreating || editingAgent) && (
+            {(isCreating || editingAgent || createType) && (
                 <CreateAgentModal
                     onClose={() => {
                         setIsCreating(false);
                         setEditingAgent(null);
+                        setCreateType(null);
                     }}
                     onSave={handleSave}
-                    initialData={editingAgent}
+                    initialData={editingAgent || (createType ? { type: createType } : null)}
                 />
             )}
 
@@ -557,6 +447,9 @@ const AiVoiceAgentView: React.FC = () => {
                     onClose={() => setChattingWith(null)}
                 />
             )}
+
+
+
             {/* Delete Confirmation Modal */}
             {agentToDelete && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
