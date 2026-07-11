@@ -225,7 +225,7 @@ class FacebookAdsService {
                     name: campaignName,
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
-                    special_ad_categories: '["NONE"]',
+                    special_ad_categories: '[]',
                     is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
@@ -260,7 +260,8 @@ class FacebookAdsService {
                 is_adset_budget_sharing_enabled: false,
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
-                    page_id: pageId
+                    page_id: pageId,
+                    ...(whatsappNumber && whatsappNumber.trim() !== '' && { whatsapp_phone_number: whatsappNumber.trim() })
                 }),
                 targeting: JSON.stringify({
                     geo_locations: final_geo_locations,
@@ -326,7 +327,7 @@ class FacebookAdsService {
             } else {
                 objectStorySpec.link_data = {
                     image_hash: imageHash,
-                    link: whatsappNumber ? `https://wa.me/${whatsappNumber}` : 'https://api.whatsapp.com/send',
+                    link: 'https://api.whatsapp.com/send',
                     name: headline,
                     message: primaryText,
                     ...(description && { description }),

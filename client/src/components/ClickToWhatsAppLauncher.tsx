@@ -78,7 +78,7 @@ function MapZoomToPins({ droppedPins, presetCountries }: { droppedPins: any[], p
 
 const MemoizedMap = React.memo(({ formData, setFormData, droppedPins, setDroppedPins }: any) => {
   return (
-    <div style={{ height: '350px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
+    <div style={{ height: '280px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', marginTop: '1rem', position: 'relative', zIndex: 1 }}>
       <MapContainer center={[20, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
@@ -251,22 +251,25 @@ const ClickToWhatsAppLauncher = () => {
     targetCountries: '',
     locationRadiuses: {},
     locationTypes: {} as Record<string, 'include' | 'exclude'>,
-    baseCountryCode: '',
-    minAge: '18',
-    maxAge: '65',
-    gender: 'all',
-    startDate: '',
-    endDate: '',
-    welcomeMessageText: 'Hi! I am interested in this.',
-    iceBreakerText: 'I am interested!',
+    baseCountryCode: 'IN',
+    minAge: 18,
+    maxAge: 65,
+    gender: 'ALL',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0],
+    welcomeMessageText: 'Hello! I saw your ad on Facebook.',
+    iceBreakerText: 'I would like to know more',
     description: '',
-    status: 'PAUSED',
     whatsappNumber: '',
-    detailedTargeting: [] as { id: string, name: string, type: 'interest'|'behavior', mode: 'include'|'exclude'|'narrow' }[],
+    detailedTargeting: [] as any[],
     advantageAudience: 1,
     objective: 'OUTCOME_SALES',
     optimizationGoal: 'CONVERSATIONS'
   });
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -353,6 +356,9 @@ const ClickToWhatsAppLauncher = () => {
           }
           if (result.data.pages?.length > 0) {
             setFormData(prev => ({ ...prev, pageId: result.data.pages[0].id }));
+          }
+          if (result.data.whatsappConfig?.phone_number) {
+            setFormData(prev => ({ ...prev, whatsappNumber: result.data.whatsappConfig.phone_number }));
           }
         }
       } catch (err) {
@@ -953,17 +959,16 @@ const ClickToWhatsAppLauncher = () => {
                       )}
                     </div>
 
-                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
-                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number</label>
+                    <div className="ctwa-form-group">
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number (Optional)</label>
                       <input 
                         type="text" 
                         name="whatsappNumber" 
-                        placeholder="e.g. 919876543210"
+                        placeholder="Leave blank to auto-detect from Facebook Page"
                         value={formData.whatsappNumber}
                         onChange={handleChange}
-                        required 
                       />
-                      <p className="field-hint">Include country code without '+'</p>
+                      <p className="field-hint" style={{ color: '#059669', fontWeight: 500, fontSize: '0.8rem' }}>Leave this blank to let Meta automatically use the correct linked WhatsApp number. Only type a number here if you have multiple WhatsApp numbers on a single page.</p>
                     </div>
 
                   </div>
@@ -1602,7 +1607,7 @@ const ClickToWhatsAppLauncher = () => {
       </div>
 
       {isTargetingModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '20px', paddingTop: '5vh', overflowY: 'auto' }}>
           <div style={{ background: '#ffffff', width: '100%', maxWidth: '800px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', overflow: 'hidden', border: '4px solid #00684A' }}>
             {/* Header */}
             <div style={{ padding: '20px 24px', background: 'linear-gradient(to right, #f8fafc, #ffffff)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>

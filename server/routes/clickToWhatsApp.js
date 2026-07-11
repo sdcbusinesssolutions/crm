@@ -19,7 +19,7 @@ router.get('/accounts', requireAuth, async (req, res) => {
         // Fetch User's Meta Access Token from WhatsApp Config
         const { data: config, error } = await supabase
             .from('whatsapp_config')
-            .select('meta_access_token')
+            .select('meta_access_token, phone_number, phone_number_id')
             .eq('user_id', userId)
             .single();
 
@@ -54,7 +54,11 @@ router.get('/accounts', requireAuth, async (req, res) => {
             success: true,
             data: {
                 adAccounts,
-                pages
+                pages,
+                whatsappConfig: {
+                    phone_number: config?.phone_number || '',
+                    phone_number_id: config?.phone_number_id || ''
+                }
             }
         });
     } catch (error) {

@@ -66,7 +66,7 @@ const AdDetailPanel = ({ item, level, metrics }) => {
       {activeTab === 'summary' && (
         <div className="space-y-8">
           {/* Top KPI Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex flex-wrap justify-center -mx-2">
             {[
               {
                 label: 'Impressions',
@@ -111,8 +111,9 @@ const AdDetailPanel = ({ item, level, metrics }) => {
                 icon: <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/><polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/></>
               }
             ].map((item, idx) => (
-              <div key={idx} className="bg-white border border-[rgba(var(--color-brand-rgb),0.3)] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[var(--color-brand)] transition-all relative">
-                <div className="flex items-center gap-4 mb-2">
+              <div key={idx} className="w-1/2 md:w-1/4 p-2">
+                <div className="bg-white border border-[rgba(var(--color-brand-rgb),0.3)] rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-[var(--color-brand)] transition-all relative h-full">
+                  <div className="flex items-center gap-4 mb-2">
                   <div className="w-11 h-11 rounded-xl bg-[var(--color-brand)] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
                     <svg viewBox="0 0 24 24" className="w-5 h-5">
                       {item.icon}
@@ -125,6 +126,7 @@ const AdDetailPanel = ({ item, level, metrics }) => {
                 </div>
                 <div className="absolute top-4 right-4 cursor-help" title={item.title}>
                   <span className="text-[9px] font-bold text-[var(--color-brand)] bg-[rgba(var(--color-brand-rgb),0.1)] px-2 py-1 rounded-full">ℹ️</span>
+                </div>
                 </div>
               </div>
             ))}
