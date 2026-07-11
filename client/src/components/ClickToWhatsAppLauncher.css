@@ -15,6 +15,49 @@
   box-sizing: border-box;
 }
 
+/* Custom Tooltips */
+.ctwa-tooltip-icon {
+  position: relative;
+  cursor: help;
+  color: #2563EB; /* Vibrant Blue for Importance */
+  font-size: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+.ctwa-tooltip-icon:hover {
+  color: #1D4ED8;
+}
+.ctwa-tooltip-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: pre-wrap;
+  width: max-content;
+  max-width: 250px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 1000;
+  text-align: left;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.ctwa-tooltip-icon:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Decorative BG elements */
 .ctwa-bg-element-1 {
   position: absolute;

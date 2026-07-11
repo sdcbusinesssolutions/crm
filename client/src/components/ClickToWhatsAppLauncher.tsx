@@ -400,6 +400,9 @@ const ClickToWhatsAppLauncher = () => {
       if (!formData.welcomeMessageText || formData.welcomeMessageText.length > 80) errors.push("Welcome Message must be 1-80 characters");
       if (!formData.iceBreakerText || formData.iceBreakerText.length > 80) errors.push("Ice Breaker button text must be 1-80 characters");
       if (!formData.imageUrl) errors.push("Ad Image is required");
+      if (formData.whatsappNumber && !/^\d+$/.test(formData.whatsappNumber)) {
+        errors.push("WhatsApp Number must only contain digits (no '+', spaces, or dashes)");
+      }
     } else if (step === 2) {
       if (!formData.targetCountries) errors.push("Select at least one Target Country");
       const minAge = parseInt(formData.minAge);
@@ -437,6 +440,45 @@ const ClickToWhatsAppLauncher = () => {
 
     setUploading(true);
     setUploadError('');
+
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isVideo && !isImage) {
+      setUploadError('Invalid file type. Please upload a valid image (JPG/PNG) or video (MP4/MOV).');
+      setUploading(false);
+      return;
+    }
+
+    // Meta Ad Size Limits (We restrict to 10MB for images and 50MB for videos for server stability)
+    const maxSizeMB = isVideo ? 50 : 10;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      setUploadError(`File is too large. Maximum allowed size is ${maxSizeMB}MB.`);
+      setUploading(false);
+      return;
+    }
+
+    // Check image resolution (Meta recommends 1080x1080)
+    if (isImage) {
+      try {
+        await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
+          img.onload = () => {
+            if (img.width < 600 || img.height < 600) {
+              reject(new Error(`Image resolution is too low (${img.width}x${img.height}). Meta requires at least 600x600 pixels, and recommends 1080x1080.`));
+            }
+            resolve(true);
+          };
+          img.onerror = () => reject(new Error('Invalid image file format.'));
+        });
+      } catch (err: any) {
+        setUploadError(err.message);
+        setUploading(false);
+        return;
+      }
+    }
+
     const uploadData = new FormData();
     uploadData.append('file', file);
     uploadData.append('module', 'ctwa');
@@ -901,7 +943,13 @@ const ClickToWhatsAppLauncher = () => {
                     />
                   </div>
                   <div className="ctwa-form-group">
-                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg></span> Headline</label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg></span> 
+                      Headline
+                      <span className={`char-count ${formData.headline.length >= 40 ? 'warning' : 'safe'}`} style={{ marginLeft: 'auto' }}>
+                        {formData.headline.length} / 40
+                      </span>
+                    </label>
                     <input 
                       type="text" 
                       name="headline" 
@@ -910,7 +958,6 @@ const ClickToWhatsAppLauncher = () => {
                       maxLength={40}
                       required 
                     />
-                    <p className="field-hint">Max 40 characters.</p>
                   </div>
                 </div>
 
@@ -920,7 +967,19 @@ const ClickToWhatsAppLauncher = () => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     
                     <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
-                      <label><span className="icon">🎯</span> Campaign Objective</label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="icon">🎯</span> Campaign Objective
+                        <span 
+                          className="ctwa-tooltip-icon"
+                          data-tooltip={
+                            formData.objective === 'OUTCOME_SALES' && formData.optimizationGoal === 'CONVERSATIONS' ? "🔥 Best Combo for CTWA: Meta will show your ad to people most likely to have a conversation and convert. This offers the lowest Cost Per Lead (CPL) and requires no lead form terms acceptance!" : 
+                            formData.objective === 'OUTCOME_TRAFFIC' && formData.optimizationGoal === 'LINK_CLICKS' ? "⚡ Traffic Focus: Meta will get you the most clicks for your budget. Good for cheap traffic, but doesn't guarantee people will actually chat." : 
+                            formData.objective === 'OUTCOME_AWARENESS' && formData.optimizationGoal === 'REACH' ? "📢 Reach Focus: Meta will show your ad to as many unique people as possible. Good for branding and awareness, but not optimized for getting leads." : ""
+                          }
+                        >
+                          ⓘ
+                        </span>
+                      </label>
                       <select 
                         name="objective" 
                         value={formData.objective} 
@@ -941,26 +1000,17 @@ const ClickToWhatsAppLauncher = () => {
                       </select>
                     </div>
 
-                    <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
-                      {formData.objective === 'OUTCOME_SALES' && formData.optimizationGoal === 'CONVERSATIONS' && (
-                        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '8px', color: '#166534', fontSize: '0.85rem' }}>
-                          <strong>🔥 Best Combo for CTWA:</strong> Meta will show your ad to people most likely to have a conversation and convert. This offers the <strong>lowest Cost Per Lead (CPL)</strong> and requires <strong>no lead form terms</strong> acceptance!
-                        </div>
-                      )}
-                      {formData.objective === 'OUTCOME_TRAFFIC' && formData.optimizationGoal === 'LINK_CLICKS' && (
-                        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: '12px', borderRadius: '8px', color: '#1e40af', fontSize: '0.85rem' }}>
-                          <strong>⚡ Traffic Focus:</strong> Meta will get you the most clicks for your budget. Good for cheap traffic, but doesn't guarantee people will actually chat.
-                        </div>
-                      )}
-                      {formData.objective === 'OUTCOME_AWARENESS' && formData.optimizationGoal === 'REACH' && (
-                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', color: '#334155', fontSize: '0.85rem' }}>
-                          <strong>📢 Reach Focus:</strong> Meta will show your ad to as many unique people as possible. Good for branding and awareness, but not optimized for getting leads.
-                        </div>
-                      )}
-                    </div>
-
                     <div className="ctwa-form-group">
-                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number (Optional)</label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> 
+                        WhatsApp Number (Optional)
+                        <span 
+                          className="ctwa-tooltip-icon"
+                          data-tooltip="Leave this blank to let Meta automatically use the correct linked WhatsApp number. Only type a number here if you have multiple WhatsApp numbers on a single page."
+                        >
+                          ⓘ
+                        </span>
+                      </label>
                       <input 
                         type="text" 
                         name="whatsappNumber" 
@@ -968,7 +1018,6 @@ const ClickToWhatsAppLauncher = () => {
                         value={formData.whatsappNumber}
                         onChange={handleChange}
                       />
-                      <p className="field-hint" style={{ color: '#059669', fontWeight: 500, fontSize: '0.8rem' }}>Leave this blank to let Meta automatically use the correct linked WhatsApp number. Only type a number here if you have multiple WhatsApp numbers on a single page.</p>
                     </div>
 
                   </div>
@@ -1042,9 +1091,16 @@ const ClickToWhatsAppLauncher = () => {
                 {/* Row 4: Primary Text + Ad Description */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
-                    <label>
-                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> Primary Text
-                      <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> 
+                      Primary Text
+                      <span 
+                        className="ctwa-tooltip-icon"
+                        data-tooltip="💡 Winning Formula: Hook (First 3 lines) + Pain Point + Solution + CTA"
+                      >
+                        ⓘ
+                      </span>
+                      <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`} style={{ marginLeft: 'auto' }}>
                         {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
                       </span>
                     </label>
@@ -1073,27 +1129,6 @@ const ClickToWhatsAppLauncher = () => {
                       onChange={handleChange}
                       rows={4}
                     />
-                  </div>
-                </div>
-
-                {/* Row 5: Winning Formula Hint (Full Width) */}
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group" style={{ flex: '1 1 100%' }}>
-                    <div className="winning-formula-box" style={{ background: '#eafff0', borderRadius: '12px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #c8e6d5' }}>
-                      <div className="formula-text">
-                        <strong style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563EB', fontSize: '0.8rem' }}>💡 Winning Formula:</strong>
-                        <p style={{ color: '#2563EB', fontSize: '0.75rem', fontWeight: 600, margin: '4px 0 0' }}>Hook (First 3 lines) + Pain Point + Solution + CTA</p>
-                      </div>
-                      <div className="formula-icon-large">
-                        <svg viewBox="0 0 120 120" style={{ width: '40px', height: '40px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.1))' }}>
-                          <circle cx="50" cy="70" r="38" fill="#22c55e"></circle>
-                          <circle cx="50" cy="70" r="26" fill="#ffffff"></circle>
-                          <circle cx="50" cy="70" r="14" fill="#22c55e"></circle>
-                          <circle cx="50" cy="70" r="6" fill="#f97316"></circle>
-                          <circle cx="50" cy="70" r="2" fill="#ea580c"></circle>
-                        </svg>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
