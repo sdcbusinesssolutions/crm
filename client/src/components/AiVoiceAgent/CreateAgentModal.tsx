@@ -352,15 +352,40 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                                         <div className="space-y-2 pt-2">
                                             <label className="block text-sm font-bold text-slate-700">Specific Model ID (Optional)</label>
                                             <div className="relative">
-                                                <input
-                                                    type="text"
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800"
-                                                    placeholder={provider === 'openrouter' ? 'e.g. meta-llama/llama-3-8b-instruct' : (provider === 'gemini' ? 'e.g. gemini-2.5-flash' : 'e.g. gpt-4o-mini')}
-                                                    value={modelId}
-                                                    onChange={(e) => setModelId(e.target.value)}
-                                                />
+                                                {provider === 'openrouter' ? (
+                                                    <select
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800 appearance-none"
+                                                        value={modelId || 'openai/gpt-4o-mini'}
+                                                        onChange={(e) => setModelId(e.target.value)}
+                                                    >
+                                                        <option value="openai/gpt-4o">OpenAI: GPT-4o</option>
+                                                        <option value="openai/gpt-4o-mini">OpenAI: GPT-4o Mini</option>
+                                                        <option value="openai/gpt-4.1-nano">OpenAI: GPT-4.1 Nano</option>
+                                                        <option value="openai/gpt-oss-20b:free">OpenAI: GPT-OSS 20B (Free)</option>
+                                                        <option value="google/gemini-2.5-flash">Google: Gemini 2.5 Flash</option>
+                                                        <option value="google/gemini-2.5-flash-lite">Google: Gemini 2.5 Flash Lite</option>
+                                                        <option value="anthropic/claude-3.5-sonnet">Anthropic: Claude 3.5 Sonnet</option>
+                                                        <option value="tencent/hy3:free">Tencent: Hunyuan 3 (Free)</option>
+                                                        <option value="poolside/laguna-xs-2.1:free">Poolside: Laguna XS (Free)</option>
+                                                    </select>
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800"
+                                                        placeholder={provider === 'gemini' ? 'e.g. gemini-2.5-flash' : 'e.g. gpt-4o-mini'}
+                                                        value={modelId}
+                                                        onChange={(e) => setModelId(e.target.value)}
+                                                    />
+                                                )}
+                                                {provider === 'openrouter' && (
+                                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                                                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <p className="text-xs font-medium text-slate-400">Overrides the default model (OpenRouter defaults to openai/gpt-4o)</p>
+                                            <p className="text-xs font-medium text-slate-400">
+                                                {provider === 'openrouter' ? 'Select a model. Ensure the model supports tool calling for webhooks.' : 'Overrides the default model'}
+                                            </p>
                                         </div>
                                     </div>
 

@@ -301,7 +301,10 @@ router.post('/:id/chat', async (req, res) => {
                 if (tools.length > 0) payload.tools = tools;
 
                 const headers = { 'Authorization': `Bearer ${apiKey}` };
-                if (provider === 'openrouter') headers['HTTP-Referer'] = 'http://localhost:3000';
+                if (provider === 'openrouter') {
+                    headers['HTTP-Referer'] = req.headers.origin || (req.headers.host ? `https://${req.headers.host}` : 'http://localhost:3000');
+                    headers['X-Title'] = process.env.APP_NAME || 'AI Agent';
+                }
 
                 const response = await axios.post(endpoint, payload, { headers });
                 
