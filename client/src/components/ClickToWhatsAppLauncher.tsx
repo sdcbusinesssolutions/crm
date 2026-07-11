@@ -1296,13 +1296,15 @@ const ClickToWhatsAppLauncher = () => {
                       </div>
                     )}
                     
-                    {/* Interactive Meta-style Map */}
-                    <MemoizedMap 
-                      formData={formData} 
-                      setFormData={setFormData} 
-                      droppedPins={droppedPins} 
-                      setDroppedPins={setDroppedPins} 
-                    />
+                    {/* Interactive Meta-style Map - Premium Wrapper */}
+                    <div style={{ borderRadius: '16px', overflow: 'hidden', border: '4px solid white', boxShadow: '0 12px 30px rgba(0,0,0,0.08)', position: 'relative', marginTop: '16px' }}>
+                      <MemoizedMap 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        droppedPins={droppedPins} 
+                        setDroppedPins={setDroppedPins} 
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1312,7 +1314,7 @@ const ClickToWhatsAppLauncher = () => {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
                       Advantage+ Audience
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', background: formData.advantageAudience === 1 ? 'linear-gradient(145deg, #f0fdf4, #dcfce7)' : '#f8fafc', padding: '16px', borderRadius: '12px', border: formData.advantageAudience === 1 ? '1px solid #86efac' : '1px solid #e2e8f0', boxShadow: formData.advantageAudience === 1 ? '0 4px 12px rgba(34, 197, 94, 0.1)' : 'none', transition: 'all 0.3s ease' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', background: formData.advantageAudience === 1 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#f8fafc', padding: '16px', borderRadius: '16px', border: formData.advantageAudience === 1 ? 'none' : '1px solid #e2e8f0', boxShadow: formData.advantageAudience === 1 ? '0 10px 25px rgba(16, 185, 129, 0.3)' : 'none', transition: 'all 0.3s ease' }}>
                       <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
                         <input 
                           type="checkbox" 
@@ -1321,22 +1323,22 @@ const ClickToWhatsAppLauncher = () => {
                           style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
                         />
                         <div style={{
-                          width: '50px', height: '28px', background: formData.advantageAudience === 1 ? '#16a34a' : '#cbd5e1', 
-                          borderRadius: '14px', position: 'relative', transition: '0.3s'
+                          width: '54px', height: '30px', background: formData.advantageAudience === 1 ? '#047857' : '#cbd5e1', 
+                          borderRadius: '15px', position: 'relative', transition: '0.3s', border: formData.advantageAudience === 1 ? '1px solid #34d399' : 'none'
                         }}>
                           <div style={{
-                            width: '24px', height: '24px', background: 'white', borderRadius: '50%',
-                            position: 'absolute', top: '2px', left: formData.advantageAudience === 1 ? '24px' : '2px',
-                            transition: '0.3s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            width: '26px', height: '26px', background: 'white', borderRadius: '50%',
+                            position: 'absolute', top: '1px', left: formData.advantageAudience === 1 ? '25px' : '2px',
+                            transition: '0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
                           }} />
                         </div>
                       </label>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: formData.advantageAudience === 1 ? '#166534' : '#64748b' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 800, color: formData.advantageAudience === 1 ? '#ffffff' : '#64748b', letterSpacing: '0.2px' }}>
                           {formData.advantageAudience === 1 ? '✨ ON (Highly Recommended)' : 'OFF (Manual Targeting)'}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: formData.advantageAudience === 1 ? '#15803d' : '#94a3b8', marginTop: '2px' }}>
-                          {formData.advantageAudience === 1 ? "Meta's AI will find the best audience for your ad automatically." : "You are manually defining your audience restrictions."}
+                        <span style={{ fontSize: '0.8rem', color: formData.advantageAudience === 1 ? '#d1fae5' : '#94a3b8', marginTop: '3px', fontWeight: 500 }}>
+                          {formData.advantageAudience === 1 ? "Meta's powerful AI will instantly find the perfect, highest-converting audience for your ad." : "You are manually defining your audience restrictions."}
                         </span>
                       </div>
                     </div>
@@ -1346,16 +1348,16 @@ const ClickToWhatsAppLauncher = () => {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="4"></circle></svg>
                       Detailed Targeting (Optional)
                     </label>
-                    <div style={{ padding: '20px', background: 'linear-gradient(to right bottom, #ffffff, #f8fafc)', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                    <div style={{ padding: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', borderRadius: '16px', border: '1px solid #bfdbfe', boxShadow: '0 8px 20px rgba(59, 130, 246, 0.08)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                         <div>
-                          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>Audience Interests & Behaviors</div>
-                          <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>Define your ideal customer (Include, Must Also Match, Exclude)</div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1e3a8a' }}>Audience Interests & Behaviors</div>
+                          <div style={{ fontSize: '0.85rem', color: '#3b82f6', marginTop: '4px', fontWeight: 500 }}>Define your ideal customer (Include, Must Also Match, Exclude)</div>
                         </div>
                         <button 
                           type="button" 
                           onClick={() => setIsTargetingModalOpen(true)}
-                          style={{ background: 'linear-gradient(to right, #2563eb, #3b82f6)', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: 'white', boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)', transition: 'transform 0.2s, box-shadow 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          style={{ background: 'linear-gradient(to right, #ea580c, #f97316)', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: 'white', boxShadow: '0 4px 10px rgba(234, 88, 12, 0.3)', transition: 'transform 0.2s, box-shadow 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
                           onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
                           onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                         >
@@ -1399,7 +1401,7 @@ const ClickToWhatsAppLauncher = () => {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                       Age Range
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02) inset' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '6px', borderRadius: '12px', border: '1px solid #bfdbfe', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)' }}>
                       <input 
                         type="number" 
                         name="minAge" 
@@ -1408,11 +1410,11 @@ const ClickToWhatsAppLauncher = () => {
                         value={formData.minAge}
                         onChange={handleChange}
                         required 
-                        style={{ flex: 1, width: '100%', padding: '10px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff', fontSize: '1rem', fontWeight: 600, color: '#0f172a', outline: 'none', transition: 'border-color 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                        style={{ flex: 1, width: '100%', padding: '12px', textAlign: 'center', border: '1px solid #93c5fd', borderRadius: '8px', background: '#ffffff', fontSize: '1.1rem', fontWeight: 800, color: '#1e3a8a', outline: 'none', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                        onFocus={(e) => e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.3)'}
+                        onBlur={(e) => e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'}
                       />
-                      <span style={{ padding: '0 16px', fontSize: '0.85rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>to</span>
+                      <span style={{ padding: '0 16px', fontSize: '0.9rem', fontWeight: 800, color: '#3b82f6', textTransform: 'uppercase' }}>to</span>
                       <input 
                         type="number" 
                         name="maxAge" 
@@ -1421,9 +1423,9 @@ const ClickToWhatsAppLauncher = () => {
                         value={formData.maxAge}
                         onChange={handleChange}
                         required 
-                        style={{ flex: 1, width: '100%', padding: '10px', textAlign: 'center', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#ffffff', fontSize: '1rem', fontWeight: 600, color: '#0f172a', outline: 'none', transition: 'border-color 0.2s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}
-                        onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
-                        onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                        style={{ flex: 1, width: '100%', padding: '12px', textAlign: 'center', border: '1px solid #93c5fd', borderRadius: '8px', background: '#ffffff', fontSize: '1.1rem', fontWeight: 800, color: '#1e3a8a', outline: 'none', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                        onFocus={(e) => e.target.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.3)'}
+                        onBlur={(e) => e.target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)'}
                       />
                     </div>
                   </div>
@@ -1432,32 +1434,32 @@ const ClickToWhatsAppLauncher = () => {
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                       Gender
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', padding: '6px', borderRadius: '10px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.02) inset', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', padding: '6px', borderRadius: '12px', border: '1px solid #bfdbfe', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.08)', gap: '6px' }}>
                       <button 
                         type="button" 
-                        onClick={() => setFormData({...formData, gender: 'all'})}
-                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === 'all' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
-                          background: formData.gender === 'all' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
-                          color: formData.gender === 'all' ? '#ffffff' : '#64748b',
-                          boxShadow: formData.gender === 'all' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                        onClick={() => setFormData({...formData, gender: 'ALL'})}
+                        style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: formData.gender === 'ALL' ? 800 : 600, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === 'ALL' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
+                          color: formData.gender === 'ALL' ? '#ffffff' : '#3b82f6',
+                          boxShadow: formData.gender === 'ALL' ? '0 4px 12px rgba(37, 99, 235, 0.4)' : 'none'
                         }}
                       >All</button>
                       <button 
                         type="button" 
                         onClick={() => setFormData({...formData, gender: '1'})}
-                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === '1' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
-                          background: formData.gender === '1' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
+                        style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: formData.gender === '1' ? 800 : 600, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === '1' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
                           color: formData.gender === '1' ? '#ffffff' : '#64748b',
-                          boxShadow: formData.gender === '1' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                          boxShadow: formData.gender === '1' ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none'
                         }}
                       >Men</button>
                       <button 
                         type="button" 
                         onClick={() => setFormData({...formData, gender: '2'})}
-                        style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '6px', fontSize: '0.95rem', fontWeight: formData.gender === '2' ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s',
-                          background: formData.gender === '2' ? 'linear-gradient(to right, #2563eb, #3b82f6)' : 'transparent',
+                        style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: formData.gender === '2' ? 800 : 600, cursor: 'pointer', transition: 'all 0.2s',
+                          background: formData.gender === '2' ? 'linear-gradient(135deg, #2563eb, #1d4ed8)' : 'transparent',
                           color: formData.gender === '2' ? '#ffffff' : '#64748b',
-                          boxShadow: formData.gender === '2' ? '0 4px 10px rgba(37, 99, 235, 0.2)' : 'none'
+                          boxShadow: formData.gender === '2' ? '0 4px 12px rgba(37, 99, 235, 0.3)' : 'none'
                         }}
                       >Women</button>
                     </div>

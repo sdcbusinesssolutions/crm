@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { tokenService } from '../services/tokenService';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import AdDetailPanel from './AdDetailPanel';
@@ -795,10 +796,10 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
       </div>
 
       {/* Full-Screen Modal for Insights */}
-      {activeInsightsItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-            <div className="flex justify-between items-center p-5 border-b-2 border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100/50">
+      {activeInsightsItem && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center p-4 sm:p-6 md:p-8 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto" style={{ maxHeight: '100vh' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-auto flex flex-col overflow-hidden border border-slate-200" style={{ maxHeight: 'calc(100vh - 4rem)' }}>
+            <div className="flex justify-between items-center p-5 border-b-2 border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100/50 shrink-0">
               <h2 className="text-xl font-black text-orange-950 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shadow-md shadow-orange-500/30 text-white">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -825,7 +826,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
