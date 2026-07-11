@@ -766,8 +766,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                   })
                 )}
 
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100 rounded-b-xl">
+                <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100 rounded-b-xl">
                     <span className="text-sm text-slate-500 font-medium">
                       Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, currentList.length)} of {currentList.length} Entries
                     </span>
@@ -788,7 +787,6 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                       </button>
                     </div>
                   </div>
-                )}
               </>
             );
           })()}
