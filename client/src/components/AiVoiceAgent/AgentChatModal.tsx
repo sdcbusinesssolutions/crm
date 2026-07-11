@@ -72,11 +72,13 @@ const AgentChatModal: React.FC<AgentChatModalProps> = ({ agentId, agentName, onC
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-sm bg-slate-900/60 transition-opacity">
-            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col h-[80vh] animate-fade-in ring-1 ring-slate-900/5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 backdrop-blur-md bg-slate-900/60 transition-opacity">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-[380px] shadow-2xl overflow-hidden flex flex-col h-[750px] max-h-[90vh] animate-fade-in ring-4 ring-slate-800/10 relative border-[8px] border-slate-900">
                 
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-brand-600">
+                <div className="px-5 pt-8 pb-4 border-b border-slate-100 flex justify-between items-center bg-brand-600 relative">
+                    {/* Fake Mobile Notch */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-900 rounded-b-2xl"></div>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-xl text-white">
                             🤖

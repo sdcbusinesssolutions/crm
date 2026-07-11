@@ -3,6 +3,7 @@ import { MicrophoneIcon, RobotIcon, PhoneIcon, TrashIcon, DocumentFileIcon as Do
 import { aiAgentService, Agent } from '../../services/aiAgentService';
 import CreateAgentModal from './CreateAgentModal';
 import AgentChatModal from './AgentChatModal';
+import AiAgentAnalytics from './AiAgentAnalytics';
 import { format } from 'date-fns';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
@@ -28,59 +29,11 @@ const AiVoiceAgentView: React.FC = () => {
     // Success Modal State
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    // Demo State
-    const [selectedDemo, setSelectedDemo] = useState('Admission Operation');
-    const [isPlayingDemo, setIsPlayingDemo] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-
     // Create Modal State with Type
     const [createType, setCreateType] = useState<'chat' | 'voice' | null>(null);
 
-    const audioFiles: Record<string, string> = {
-        'Admission Operation': '/assets/1007073305828481-1773854364318.mp4',
-        'Ecommerce': '/assets/ecommerse.m4a',
-        'Customer Support': '/assets/demo_support.mp3',
-    };
-
-    const handlePlayDemo = () => {
-        if (isPlayingDemo) {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-            }
-            setIsPlayingDemo(false);
-            return;
-        }
-
-        const audioSrc = audioFiles[selectedDemo];
-        if (audioSrc) {
-            const audio = new Audio(audioSrc);
-            audioRef.current = audio;
-            audio.play();
-            setIsPlayingDemo(true);
-
-            audio.onended = () => {
-                setIsPlayingDemo(false);
-            };
-        }
-    };
-
-    useEffect(() => {
-        if (audioRef.current && isPlayingDemo) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlayingDemo(false);
-        }
-    }, [selectedDemo]);
-
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = "";
-            }
-        };
-    }, []);
+    // Tab State for View Mode
+    const [activeViewTab, setActiveViewTab] = useState<'agents' | 'analytics'>('agents');
 
     useEffect(() => {
         if (canRead) {
@@ -275,8 +228,29 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Dashboard Stats / Types Info (Static for now) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Tabs */}
+                <div className="flex items-center gap-6 mb-8 border-b border-slate-200">
+                    <button 
+                        onClick={() => setActiveViewTab('agents')}
+                        className={`pb-4 font-bold text-sm transition-colors border-b-2 ${activeViewTab === 'agents' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    >
+                        Active Agents
+                    </button>
+                    <button 
+                        onClick={() => setActiveViewTab('analytics')}
+                        className={`pb-4 font-bold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeViewTab === 'analytics' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    >
+                        Analytics & Leads
+                        <span className="bg-brand-100 text-brand-700 text-[10px] px-2 py-0.5 rounded-full">New</span>
+                    </button>
+                </div>
+
+                {activeViewTab === 'analytics' ? (
+                    <AiAgentAnalytics />
+                ) : (
+                    <>
+                        {/* Dashboard Stats / Types Info (Static for now) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div 
                         onClick={() => setCreateType('voice')}
                         className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
@@ -324,8 +298,6 @@ const AiVoiceAgentView: React.FC = () => {
                         <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
                     </div>
                 </div>
-
-
 
                 {/* Agent List */}
                 {loading ? (
@@ -425,6 +397,8 @@ const AiVoiceAgentView: React.FC = () => {
                             </div>
                         ))}
                     </div>
+                )}
+                    </>
                 )}
             </div>
 

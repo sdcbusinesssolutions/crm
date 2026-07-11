@@ -12,7 +12,75 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
     // Tab 1: Identity State
     const [name, setName] = useState(initialData?.name || '');
     const [description, setDescription] = useState(initialData?.description || '');
-    const [systemPrompt, setSystemPrompt] = useState(initialData?.system_prompt || 'You are a helpful AI assistant for customer support.');
+    const defaultPrompt = `🆔 IDENTITY & ROLE
+You are TechFree AI – a smart, friendly CRM & automation assistant for TechFree.in.
+
+Your role is to:
+- Understand business pain points (missed leads, manual follow-ups).
+- Ask exactly ONE question at a time.
+- Suggest outcome-based solutions without technical jargon.
+- Guide users toward a free 1:1 demo or consultation.
+
+═══════════════════════════════════════
+🎯 GOALS & PROGRESSIVE DATA COLLECTION
+═══════════════════════════════════════
+You must collect the following 4 pieces of information from the user naturally, ONE AT A TIME:
+1. Name (CRITICAL: Ask for their name FIRST before anything else)
+2. Business Type / Problem
+3. Mobile Number
+4. Email Address
+
+Do NOT ask for all of these at once. Weave them into the conversation.
+Start with asking for their name, and once they provide it, ALWAYS address them by their name in your subsequent responses to build rapport.
+
+PACE RULE: Do not ask for a demo in the very first message. After 2 or 3 conversational exchanges where you understand their problem, actively pivot to qualifying the lead and strongly suggest booking a free demo. 
+
+═══════════════════════════════════════
+⚠️ TOOL RULE — HIGHEST PRIORITY (BOOK DEMO)
+═══════════════════════════════════════
+You have access to a custom tool named \`book_demo\`.
+
+WHEN A USER AGREES TO A DEMO OR WANTS TO BE CONTACTED:
+STEP 1: Check if you have successfully collected their Name, Mobile Number, and Email.
+STEP 2: If any of those details are missing, politely ask for the missing detail. DO NOT call the tool yet.
+STEP 3: Once you have ALL their details, call the \`book_demo\` tool IMMEDIATELY.
+STEP 4: Pass all the collected data securely INTO the tool's parameters.
+STEP 5: Read the tool result ONLY, and politely confirm that your team will contact them shortly.
+
+CRITICAL RULE: NEVER print raw JSON, code blocks, or payload data in your text response to the user. All data must be passed silently in the background via the tool function. THIS IS NON-NEGOTIABLE. DO NOT hardcode dummy data. Use the exact details the user provided.
+
+═══════════════════════════════════════
+🧠 KNOWLEDGE BASE (FAQs & DOCUMENTS)
+═══════════════════════════════════════
+Whenever a user asks a factual question (e.g., location, timings, pricing, contact details):
+1. Read the provided FAQs and Uploaded Documents in your memory.
+2. Answer using ONLY the information provided there. 
+3. Convert the answer into friendly Hinglish.
+4. If the answer is NOT in your knowledge base, politely say: "Main apni team se confirm karke aapko batata hoon." — NEVER guess.
+
+═══════════════════════════════════════
+💬 CONVERSATIONAL STYLE
+═══════════════════════════════════════
+Language  : Hinglish by default
+Tone      : Friendly, warm, human — no corporate jargon
+Emojis    : Sparingly (📊 📞 ⚡ ✅ 😊)
+Length    : Short and scannable — no long paragraphs
+Structure : 1. Clear answer
+            2. Exactly ONE follow-up question
+
+Switch language instantly if user writes in: Hindi / English / Marathi / Tamil / Telugu
+If unsupported language → politely continue in Hinglish.
+
+═══════════════════════════════════════
+✅ ALWAYS DO THIS
+═══════════════════════════════════════
+✅ Keep responses short, warm, and scannable.
+✅ Always ask for the user's Name in your very first message.
+✅ Always use the user's Name in your replies once you know it.
+✅ Ask exactly ONE follow-up question after every answer to keep the chat moving.
+✅ Focus on business outcomes (save time, make more money).
+✅ Only trigger the \`book_demo\` tool once you have their Name, Phone, and Email.`;
+    const [systemPrompt, setSystemPrompt] = useState(initialData?.system_prompt || defaultPrompt);
     const [type, setType] = useState(initialData?.type || 'chat');
     
     // Tab 2: Model & AI
@@ -20,6 +88,9 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
     const [apiKey, setApiKey] = useState(initialData?.model_config?.api_key || '');
     const [modelId, setModelId] = useState(initialData?.model_config?.model_id || '');
     const [temperature, setTemperature] = useState(initialData?.model_config?.temperature !== undefined ? initialData.model_config.temperature : 0.7);
+    const [sttProvider, setSttProvider] = useState(initialData?.model_config?.stt_provider || 'whisper');
+    const [ttsProvider, setTtsProvider] = useState(initialData?.model_config?.tts_provider || 'elevenlabs');
+    const [ttsVoice, setTtsVoice] = useState(initialData?.model_config?.tts_voice || 'rachel');
 
     // Tab 3: Knowledge State
     const [knowledgeFiles, setKnowledgeFiles] = useState<File[]>([]);
@@ -71,10 +142,67 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // Audio Demo State
+    const [selectedDemo, setSelectedDemo] = useState('Admission Operation');
+    const [isPlayingDemo, setIsPlayingDemo] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
+    const audioFiles: Record<string, string> = {
+        'Admission Operation': '/assets/1007073305828481-1773854364318.mp4',
+        'Ecommerce': '/assets/ecommerse.m4a',
+        'Customer Support': '/assets/demo_support.mp3',
+    };
+
+    const handlePlayDemo = () => {
+        if (isPlayingDemo) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+            setIsPlayingDemo(false);
+            return;
+        }
+
+        const audioSrc = audioFiles[selectedDemo];
+        if (audioSrc) {
+            const audio = new Audio(audioSrc);
+            audioRef.current = audio;
+            audio.play();
+            setIsPlayingDemo(true);
+
+            audio.onended = () => {
+                setIsPlayingDemo(false);
+            };
+        }
+    };
+
+    React.useEffect(() => {
+        if (audioRef.current && isPlayingDemo) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlayingDemo(false);
+        }
+    }, [selectedDemo]);
+
+    React.useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = "";
+            }
+        };
+    }, []);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
+            // Auto-append any typed FAQ that hasn't been added yet
+            let finalFaqs = [...faqs];
+            if (faqQuestion.trim() && faqAnswer.trim()) {
+                finalFaqs.push({ question: faqQuestion.trim(), answer: faqAnswer.trim() });
+            }
+
             await onSave({
                 name,
                 description,
@@ -86,7 +214,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                     model_id: modelId,
                     temperature,
                     knowledge_urls: knowledgeUrls,
-                    faqs: faqs,
+                    faqs: finalFaqs,
                     webhook_url: webhookUrl,
                     transfer_number: transferNumber,
                     custom_tools: customTools,
@@ -100,7 +228,10 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                     max_messages: showMaxMessages ? maxMessages : null,
                     fallback_message: showFallbackMsg ? fallbackMessage : null,
                     stop_keywords: showStopKeywords ? stopKeywords : '',
-                    retry_attempt: showRetryAttempt ? retryAttempt : ''
+                    retry_attempt: showRetryAttempt ? retryAttempt : '',
+                    stt_provider: type === 'voice' ? sttProvider : undefined,
+                    tts_provider: type === 'voice' ? ttsProvider : undefined,
+                    tts_voice: type === 'voice' ? ttsVoice : undefined
                 },
                 knowledgeFiles // processed by parent
             });
@@ -273,6 +404,79 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                                         />
                                         <p className="text-xs font-medium text-slate-400 mt-2">Define the core identity, rules, and behavioral guidelines for the agent.</p>
                                     </div>
+
+                                    {type === 'voice' && (
+                                        <div className="pt-6 border-t border-slate-100">
+                                            <div className="bg-[#0f0f13] p-8 rounded-[2rem] shadow-2xl relative overflow-hidden animate-fade-in mt-4">
+                                                <div className="text-center mb-8 relative z-10">
+                                                    <h2 className="text-2xl font-black text-white mb-2">Voicebot Experience Zone</h2>
+                                                    <p className="text-slate-400 max-w-2xl mx-auto font-medium text-sm">Experience how the Voicebot handles real conversations across sectors and languages.</p>
+                                                </div>
+
+                                                <div className="flex flex-col md:flex-row gap-8 relative z-10 max-w-5xl mx-auto">
+                                                    <div className="w-full md:w-1/3 flex flex-col gap-3">
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setSelectedDemo('Admission Operation')}
+                                                            className={`py-3 px-4 rounded-xl font-bold transition-all border text-sm ${selectedDemo === 'Admission Operation' ? 'bg-[#9333ea] border-[#9333ea] text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' : 'bg-transparent border-slate-800 text-slate-300 hover:bg-slate-800/50'}`}
+                                                        >
+                                                            Admission Operation
+                                                        </button>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setSelectedDemo('Ecommerce')}
+                                                            className={`py-3 px-4 rounded-xl font-bold transition-all border text-sm ${selectedDemo === 'Ecommerce' ? 'bg-[#9333ea] border-[#9333ea] text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' : 'bg-transparent border-slate-800 text-slate-300 hover:bg-slate-800/50'}`}
+                                                        >
+                                                            Ecommerce
+                                                        </button>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setSelectedDemo('Customer Support')}
+                                                            className={`py-3 px-4 rounded-xl font-bold transition-all border text-sm ${selectedDemo === 'Customer Support' ? 'bg-[#9333ea] border-[#9333ea] text-white shadow-[0_0_20px_rgba(147,51,234,0.3)]' : 'bg-transparent border-slate-800 text-slate-300 hover:bg-slate-800/50'}`}
+                                                        >
+                                                            Customer Support
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div className="flex-1 bg-slate-900/50 rounded-3xl border border-slate-800/50 p-6 flex items-center justify-center relative">
+                                                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1">
+                                                            {[...Array(16)].map((_, i) => (
+                                                                <div key={i} className={`w-1 h-2 rounded-full ${isPlayingDemo ? 'bg-indigo-500 animate-pulse' : 'bg-slate-700'}`} style={{ animationDelay: `${i * 0.1}s` }} />
+                                                            ))}
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-8 w-full justify-center pb-4">
+                                                            <div className="flex flex-col items-center gap-3 relative">
+                                                                <div className={`w-20 h-20 rounded-full overflow-hidden border-2 transition-colors ${isPlayingDemo ? 'border-indigo-500 shadow-[0_0_30px_rgba(99,102,241,0.5)]' : 'border-slate-700'} relative`}>
+                                                                    <img src="/assets/professional_calling_bot.png" alt="AI Assistant" className="w-full h-full object-cover" />
+                                                                </div>
+                                                                <span className="text-[9px] font-bold text-slate-500 tracking-[0.1em] uppercase">AI Assistant</span>
+                                                            </div>
+
+                                                            <button 
+                                                                type="button"
+                                                                onClick={handlePlayDemo}
+                                                                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isPlayingDemo ? 'bg-indigo-600 text-white shadow-[0_0_30px_rgba(79,70,229,0.5)] scale-110' : 'bg-white text-slate-900 hover:scale-105'}`}
+                                                            >
+                                                                {isPlayingDemo ? (
+                                                                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+                                                                ) : (
+                                                                    <svg className="w-6 h-6 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                                )}
+                                                            </button>
+
+                                                            <div className="flex flex-col items-center gap-3 relative">
+                                                                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-700 grayscale brightness-75">
+                                                                    <img src="/assets/indian_customer_avatar.png" alt="Customer" className="w-full h-full object-cover" />
+                                                                </div>
+                                                                <span className="text-[9px] font-bold text-slate-500 tracking-[0.1em] uppercase">Customer</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -409,6 +613,52 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
                                             <span>1.0 (Creative & Loose)</span>
                                         </div>
                                     </div>
+                                    
+                                    {type === 'voice' && (
+                                        <div className="space-y-6 pt-6 border-t border-slate-100">
+                                            <h3 className="text-lg font-bold text-slate-800">Voice Configuration (STT/TTS)</h3>
+                                            <div className="flex gap-6">
+                                                <div className="flex-1 space-y-2">
+                                                    <label className="block text-sm font-bold text-slate-700">Speech-to-Text (STT) Provider</label>
+                                                    <select
+                                                        value={sttProvider}
+                                                        onChange={(e) => setSttProvider(e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800 appearance-none"
+                                                    >
+                                                        <option value="whisper">OpenAI Whisper</option>
+                                                        <option value="deepgram">Deepgram (Fast)</option>
+                                                        <option value="google">Google Cloud STT</option>
+                                                    </select>
+                                                </div>
+                                                <div className="flex-1 space-y-2">
+                                                    <label className="block text-sm font-bold text-slate-700">Text-to-Speech (TTS) Provider</label>
+                                                    <select
+                                                        value={ttsProvider}
+                                                        onChange={(e) => setTtsProvider(e.target.value)}
+                                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800 appearance-none"
+                                                    >
+                                                        <option value="elevenlabs">ElevenLabs</option>
+                                                        <option value="openai">OpenAI TTS</option>
+                                                        <option value="playht">PlayHT</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="block text-sm font-bold text-slate-700">Voice Selection (TTS Voice)</label>
+                                                <select
+                                                    value={ttsVoice}
+                                                    onChange={(e) => setTtsVoice(e.target.value)}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:bg-white outline-none transition-all font-medium text-slate-800 appearance-none"
+                                                >
+                                                    <option value="rachel">Rachel (Female - ElevenLabs)</option>
+                                                    <option value="adam">Adam (Male - ElevenLabs)</option>
+                                                    <option value="alloy">Alloy (Neutral - OpenAI)</option>
+                                                    <option value="shimmer">Shimmer (Female - OpenAI)</option>
+                                                    <option value="william">William (Male - PlayHT)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

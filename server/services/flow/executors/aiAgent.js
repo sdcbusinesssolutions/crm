@@ -88,7 +88,20 @@ module.exports = {
         const options = {
             contact_phone: session.contact_phone
         };
-        const result = await AgentChatService.processChat(agent, userQuery || "Hello", chatHistory, options);
+        
+        let activeQuery = userQuery;
+        
+        // If user left query blank or it failed to resolve, use the latest user message from history
+        if (!activeQuery || activeQuery.trim() === '') {
+            const lastUserMsg = chatHistory.slice().reverse().find(m => m.role === 'user');
+            if (lastUserMsg) {
+                activeQuery = lastUserMsg.content;
+            } else {
+                activeQuery = "Hello";
+            }
+        }
+        
+        const result = await AgentChatService.processChat(agent, activeQuery, chatHistory, options);
 
         if (result.success) {
             const payload = {
