@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const axios = require('axios');
 const { supabaseAdmin } = require('../../lib/supabaseClient');
+const NodeCache = require('node-cache');
+const docCache = new NodeCache({ stdTTL: 3600 }); // Cache documents for 1 hour
 
 // 1. Create Agent
 router.post('/', async (req, res) => {
@@ -149,6 +151,35 @@ router.post('/:id/chat', async (req, res) => {
             config.faqs.forEach(faq => {
                 finalSystemPrompt += `Q: ${faq.question}\nA: ${faq.answer}\n\n`;
             });
+        }
+        
+        // Inject Document Knowledge (RAG)
+        try {
+            const { data: docs } = await supabaseAdmin.from('ai_knowledge_base').select('file_path').eq('agent_id', id);
+            if (docs && docs.length > 0) {
+                let docTextString = '';
+                for (const doc of docs) {
+                    const cacheKey = `doc_${doc.file_path}`;
+                    let cachedText = docCache.get(cacheKey);
+                    if (!cachedText) {
+                        const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+                            .from('agent_documents')
+                            .download(doc.file_path + '.txt');
+                        if (!downloadError && fileData) {
+                            cachedText = await fileData.text();
+                            docCache.set(cacheKey, cachedText);
+                        }
+                    }
+                    if (cachedText) {
+                        docTextString += cachedText + '\n\n';
+                    }
+                }
+                if (docTextString) {
+                    finalSystemPrompt += "\n\n--- UPLOADED DOCUMENTS KNOWLEDGE ---\nUse the following extracted document text to answer queries accurately. Do not mention that you read this from a document, just provide the answer:\n\n" + docTextString;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to inject document knowledge:', err);
         }
         
         // Inject Answer Formatting & Identity Rules
@@ -431,10 +462,33 @@ router.post('/:id/chat', async (req, res) => {
         res.json({ reply: aiResponseText });
 
     } catch (error) {
-        console.error('Chat Error:', error.response?.data || error.message);
+        const errorDetails = error.response?.data || error.message;
+        console.error('Chat Error:', errorDetails);
         
-        // Return a graceful fallback message instead of a raw API error
         const fallbackConfig = agentConfig || {};
+        
+        // --- NEW: Trigger Error Webhook if defined in Tools ---
+        try {
+            if (fallbackConfig.custom_tools && Array.isArray(fallbackConfig.custom_tools)) {
+                const errorTool = fallbackConfig.custom_tools.find(t => t.name === 'error_handler');
+                if (errorTool && errorTool.url) {
+                    // Send error silently in background
+                    axios.post(errorTool.url, { 
+                        error: errorDetails,
+                        agent_id: req.params.id,
+                        event: "llm_api_failure",
+                        contact_phone: "0000000000",
+                        timestamp: new Date().toISOString()
+                    })
+                    .then(() => console.log("✅ Successfully triggered error_handler webhook!"))
+                    .catch(e => console.error("Error sending to error_handler webhook:", e.message));
+                }
+            }
+        } catch (webhookErr) {
+            console.error("Failed to process error tool:", webhookErr);
+        }
+
+        // Return a graceful fallback message instead of a raw API error
         let fallbackReply = fallbackConfig.fallback_message || "I'm sorry, I'm currently experiencing high traffic and cannot answer right now. Please try again in a few minutes.";
         
         if (fallbackConfig.header_message) {
