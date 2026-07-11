@@ -115,6 +115,7 @@ router.delete('/:id', async (req, res) => {
 });
 // 6. Chat with Agent (Testing Playground)
 router.post('/:id/chat', async (req, res) => {
+    let agentConfig = {};
     try {
         const { id } = req.params;
         const user_id = req.user.id;
@@ -131,6 +132,7 @@ router.post('/:id/chat', async (req, res) => {
         if (error || !agent) throw new Error('Agent not found');
 
         const config = agent.model_config || {};
+        agentConfig = config;
         const provider = config.provider || 'openai';
         const apiKey = config.api_key;
 
@@ -286,7 +288,14 @@ router.post('/:id/chat', async (req, res) => {
                     
                     for (const toolCall of responseMessage.tool_calls) {
                         const functionName = toolCall.function.name;
-                        const functionArgs = JSON.parse(toolCall.function.arguments);
+                        let functionArgs = {};
+                        try {
+                            if (toolCall.function.arguments) {
+                                functionArgs = JSON.parse(toolCall.function.arguments);
+                            }
+                        } catch (e) {
+                            console.warn("Failed to parse tool arguments:", toolCall.function.arguments);
+                        }
                         let toolResult = '';
                         
                         let matchedCustomTool = null;
@@ -425,7 +434,7 @@ router.post('/:id/chat', async (req, res) => {
         console.error('Chat Error:', error.response?.data || error.message);
         
         // Return a graceful fallback message instead of a raw API error
-        const fallbackConfig = agent?.model_config || {};
+        const fallbackConfig = agentConfig || {};
         let fallbackReply = fallbackConfig.fallback_message || "I'm sorry, I'm currently experiencing high traffic and cannot answer right now. Please try again in a few minutes.";
         
         if (fallbackConfig.header_message) {
