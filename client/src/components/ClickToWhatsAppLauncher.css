@@ -9,7 +9,7 @@
   color: #333;
   position: relative;
   overflow: hidden;
-  zoom: 0.8;
+  zoom: 0.95;
 }
 .ctwa-container *, .ctwa-container *::before, .ctwa-container *::after {
   box-sizing: border-box;
