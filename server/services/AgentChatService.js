@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { supabaseAdmin } = require('../lib/supabaseClient');
 const NodeCache = require('node-cache');
-const docCache = new NodeCache({ stdTTL: 3600 }); // Cache documents for 1 hour
+const docCache = new NodeCache({ stdTTL: 0 }); // Cache documents indefinitely (until server restart)
 
 class AgentChatService {
     /**
@@ -61,12 +61,25 @@ class AgentChatService {
                         const cacheKey = `doc_${doc.file_path}`;
                         let cachedText = docCache.get(cacheKey);
                         if (!cachedText) {
-                            const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+                            // Using createSignedUrl + axios is 100% reliable in Node.js, avoiding the SDK's Blob parsing bugs
+                            const { data: urlData, error: urlError } = await supabaseAdmin.storage
                                 .from('agent_documents')
-                                .download(doc.file_path + '.txt');
-                            if (!downloadError && fileData) {
-                                cachedText = await fileData.text();
-                                docCache.set(cacheKey, cachedText);
+                                .createSignedUrl(doc.file_path + '.txt', 60); // 60 seconds expiry
+
+                            if (urlError) {
+                                console.error('[RAG] Failed to get signed URL for document:', doc.file_path + '.txt', urlError);
+                            } else if (urlData && urlData.signedUrl) {
+                                try {
+                                    const response = await axios.get(urlData.signedUrl);
+                                    cachedText = response.data;
+                                    // Make sure it's a string
+                                    if (typeof cachedText !== 'string') {
+                                        cachedText = JSON.stringify(cachedText);
+                                    }
+                                    docCache.set(cacheKey, cachedText);
+                                } catch (axiosErr) {
+                                    console.error('[RAG] Failed to download document via axios:', doc.file_path + '.txt', axiosErr.message);
+                                }
                             }
                         }
                         if (cachedText) {
