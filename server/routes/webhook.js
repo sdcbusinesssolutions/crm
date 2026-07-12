@@ -1315,7 +1315,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact
                 let contactId = null;
-                const { data: contactData } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
+                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).limit(1);
+                const contactData = contactDataList && contactDataList.length > 0 ? contactDataList[0] : null;
+                
                 if (contactData) {
                     contactId = contactData.id;
                     await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).eq('id', contactId);
@@ -1326,7 +1328,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // 2. Upsert Conversation
                 let conversationId = null;
-                const { data: convData } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).maybeSingle();
+                const { data: convDataList } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).limit(1);
+                const convData = convDataList && convDataList.length > 0 ? convDataList[0] : null;
+                
                 if (convData) {
                     conversationId = convData.id;
                     await supabaseAdmin.from('conversations').update({ last_message: lastMessagePreview, unread_count: (convData.unread_count || 0) + 1, updated_at: new Date(extracted.timestamp * 1000).toISOString(), contact_name: contactName !== '~' ? contactName : undefined }).eq('id', conversationId);
