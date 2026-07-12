@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { tokenService } from '../services/tokenService';
+import CustomAdsReportBuilder from './CustomAdsReportBuilder';
 
 const AdDetailPanel = ({ item, level, metrics }) => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -42,7 +43,8 @@ const AdDetailPanel = ({ item, level, metrics }) => {
     { id: 'summary', label: 'Ad Summary' },
     { id: 'metrics', label: 'Metrics' },
     { id: 'conversions', label: 'Conversions' },
-    { id: 'insights', label: 'Insights' }
+    { id: 'insights', label: 'Insights' },
+    { id: 'custom_report', label: 'Custom Report' }
   ];
 
   return (
@@ -276,6 +278,12 @@ const AdDetailPanel = ({ item, level, metrics }) => {
               }
             </p>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'custom_report' && (
+        <div className="mt-2">
+          <CustomAdsReportBuilder level={level} entityId={item.id} accountId={null} />
         </div>
       )}
     </div>

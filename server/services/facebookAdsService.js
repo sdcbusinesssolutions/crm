@@ -44,18 +44,27 @@ class FacebookAdsService {
     /**
      * Fetch Ad Insights
      */
-    static async fetchInsights(accessToken, entityId, level = 'campaign', timeIncrement = null, datePreset = 'last_30d') {
+    static async fetchInsights(accessToken, entityId, level = 'campaign', timeIncrement = null, datePreset = 'last_30d', breakdowns = null, since = null, until = null, fields = null) {
         try {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
             const params = {
-                fields: 'spend,reach,impressions,actions,date_start,date_stop,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks',
+                fields: fields || 'spend,reach,impressions,actions,date_start,date_stop,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks,campaign_name,adset_name,ad_name',
                 level: level,
-                date_preset: datePreset,
                 access_token: accessToken
             };
+            
+            if (since && until) {
+                params.time_range = JSON.stringify({ since, until });
+            } else {
+                params.date_preset = datePreset;
+            }
+            
             if (timeIncrement) {
                 params.time_increment = timeIncrement;
+            }
+            if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
+                params.breakdowns = JSON.stringify(breakdowns);
             }
             const res = await axios.get(`${baseUrl}/${entityId}/insights`, { params });
             // The insights API returns an array in data.

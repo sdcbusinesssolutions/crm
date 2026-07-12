@@ -217,8 +217,21 @@ router.get('/insights/:level/:id', requireAuth, async (req, res) => {
 
         const timeIncrement = req.query.timeIncrement;
         const datePreset = req.query.datePreset || 'last_30d';
+        const since = req.query.since;
+        const until = req.query.until;
+        const fields = req.query.fields;
+        
+        let breakdowns = null;
+        if (req.query.breakdowns) {
+            try {
+                breakdowns = JSON.parse(req.query.breakdowns);
+            } catch (e) {
+                // If it's not valid JSON, assume it's a comma separated string
+                breakdowns = req.query.breakdowns.split(',');
+            }
+        }
 
-        const insights = await FacebookAdsService.fetchInsights(accessToken, id, level, timeIncrement, datePreset);
+        const insights = await FacebookAdsService.fetchInsights(accessToken, id, level, timeIncrement, datePreset, breakdowns, since, until, fields);
 
         res.status(200).json({
             success: true,

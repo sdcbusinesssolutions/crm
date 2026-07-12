@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { tokenService } from '../services/tokenService';
 import { ComposedChart, Bar, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import AdDetailPanel from './AdDetailPanel';
+import CustomAdsReportBuilder from './CustomAdsReportBuilder';
 
 const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   const [activeAccountId, setActiveAccountId] = useState(accountId);
@@ -694,6 +695,13 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               >
                 AdSets Only
               </button>
+              <button 
+                onClick={() => setViewLevel('custom_report')}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'custom_report' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+              >
+                Custom Report Builder
+              </button>
+
             </div>
             
             <button 
