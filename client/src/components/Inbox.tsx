@@ -1078,10 +1078,24 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             assignedTo: c.assigned_to || 'Unassigned'
         }));
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const headers = ['Name', 'Phone', 'Status', 'Tags', 'Assigned To'];
+        const csvContent = [
+            headers.join(','),
+            ...exportData.map(row => 
+                [
+                    `"${(row.name || '').replace(/"/g, '""')}"`,
+                    `"${(row.phone || '').replace(/"/g, '""')}"`,
+                    `"${(row.status || '').replace(/"/g, '""')}"`,
+                    `"${(row.tags || '').replace(/"/g, '""')}"`,
+                    `"${(row.assignedTo || '').replace(/"/g, '""')}"`
+                ].join(',')
+            )
+        ].join('\n');
+
+        const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `contact_list_export_${new Date().toISOString().split('T')[0]}.json`);
+        downloadAnchorNode.setAttribute("download", `contact_list_export_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
@@ -1100,10 +1114,23 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             exportedAt: new Date().toISOString()
         };
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contactData, null, 2));
+        const headers = ['ID', 'Name', 'Phone', 'Tags', 'Status', 'Exported At'];
+        const csvContent = [
+            headers.join(','),
+            [
+                `"${(contactData.id || '').replace(/"/g, '""')}"`,
+                `"${(contactData.name || '').replace(/"/g, '""')}"`,
+                `"${(contactData.phone || '').replace(/"/g, '""')}"`,
+                `"${(contactData.tags?.join(', ') || '').replace(/"/g, '""')}"`,
+                `"${(contactData.status || '').replace(/"/g, '""')}"`,
+                `"${(contactData.exportedAt || '').replace(/"/g, '""')}"`
+            ].join(',')
+        ].join('\n');
+
+        const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `${(activeChat.contact_name || 'contact').replace(/\s+/g, '_')}_contact.json`);
+        downloadAnchorNode.setAttribute("download", `${(activeChat.contact_name || 'contact').replace(/\s+/g, '_')}_contact.csv`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
