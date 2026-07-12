@@ -1,6 +1,7 @@
+require('dotenv').config();
 const axios = require('axios');
 async function test() {
-    const accessToken = 'EAAialqCpZCtoBR4apZBo0hiPscszflZAyLBxjsHXLBtQcFzXZC3pNxfEC47oCRvvbbNBOn3CY53deNYLd1y62dEKtcQSI2TF74QGx5QfvqffmHXa9TwxPvoePvCLvbq2d0bcMDF6n6C4ius02ZBaJczZCnuJVjKsF9WimeloVoX9DSREqubOlruet6KTNcJzpYewZDZD';
+    const accessToken = process.env.META_ACCESS_TOKEN;
     const adAccountId = '4044804002323250';
     try {
         const campaignRes = await axios.post(`https://graph.facebook.com/v20.0/act_${adAccountId}/campaigns`, null, {
