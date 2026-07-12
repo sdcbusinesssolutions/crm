@@ -324,7 +324,7 @@ const AiVoiceAgentView: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
                         {agents.map((agent, index) => (
-                            <div key={agent.id} className={`group relative overflow-hidden rounded-3xl bg-white p-6 border shadow-sm transition-all duration-300 ${['border-[#5b52e5]/30 hover:border-[#5b52e5]/60 hover:shadow-[#5b52e5]/10', 'border-[#fe466a]/30 hover:border-[#fe466a]/60 hover:shadow-[#fe466a]/10', 'border-[#fa9c05]/30 hover:border-[#fa9c05]/60 hover:shadow-[#fa9c05]/10', 'border-[#00a3e0]/30 hover:border-[#00a3e0]/60 hover:shadow-[#00a3e0]/10', 'border-[#10a37f]/30 hover:border-[#10a37f]/60 hover:shadow-[#10a37f]/10'][index % 5]} hover:shadow-md`}>
+                            <div key={agent.id} className={`group relative overflow-hidden rounded-3xl bg-white p-6 border-2 shadow-sm transition-all duration-300 ${['border-[#5b52e5]/70 hover:border-[#5b52e5] hover:shadow-[#5b52e5]/20', 'border-[#fe466a]/70 hover:border-[#fe466a] hover:shadow-[#fe466a]/20', 'border-[#fa9c05]/70 hover:border-[#fa9c05] hover:shadow-[#fa9c05]/20', 'border-[#00a3e0]/70 hover:border-[#00a3e0] hover:shadow-[#00a3e0]/20', 'border-[#10a37f]/70 hover:border-[#10a37f] hover:shadow-[#10a37f]/20'][index % 5]} hover:shadow-md`}>
                                 
                                 {canWrite && (
                                     <div className="absolute top-4 right-4 flex gap-2 z-50">
@@ -364,10 +364,10 @@ const AiVoiceAgentView: React.FC = () => {
                                             agent.type === 'call' ? <PhoneIcon className="w-8 h-8 text-white" /> : 
                                             [
                                                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
-                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>,
-                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="5" y="5" rx="2" ry="2"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M9 15c.5.5 1.5.5 2.5.5s2-.5 2.5-.5"/></svg>,
-                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 4h8"/><path d="M10 8V4"/><path d="M14 8V4"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>,
-                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M12 8v-2"/><circle cx="12" cy="4" r="2"/></svg>
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 0-7 7v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a7 7 0 0 0-7-7z"/><path d="M9 12h.01M15 12h.01"/><path d="M12 16c-1.5 0-2-.5-2-.5s.5-.5 2-.5 2 .5 2 .5-.5.5-2 .5z"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8"/><path d="M8 11h.01M16 11h.01"/><path d="M9 15h6"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="5" y="5" rx="3"/><path d="M2 9h3v6H2zM19 9h3v6h-3z"/><path d="M9 11h.01M15 11h.01M10 15h4"/></svg>
                                             ][index % 5]}
                                     </div>
                                     <div>
@@ -399,8 +399,16 @@ const AiVoiceAgentView: React.FC = () => {
 
                                     {canWrite && (
                                         <div className="flex gap-3">
-                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-[14px] font-bold cursor-pointer transition-all shadow-sm ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <DocumentIcon className="w-5 h-5 text-indigo-500" />
+                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] rounded-xl text-[14px] font-bold cursor-pointer transition-all shadow-sm ${[
+                                                'bg-[#5b52e5]/10 hover:bg-[#5b52e5]/20 text-[#5b52e5] border border-[#5b52e5]/30',
+                                                'bg-[#fe466a]/10 hover:bg-[#fe466a]/20 text-[#fe466a] border border-[#fe466a]/30',
+                                                'bg-[#fa9c05]/10 hover:bg-[#fa9c05]/20 text-[#fa9c05] border border-[#fa9c05]/30',
+                                                'bg-[#00a3e0]/10 hover:bg-[#00a3e0]/20 text-[#00a3e0] border border-[#00a3e0]/30',
+                                                'bg-[#10a37f]/10 hover:bg-[#10a37f]/20 text-[#10a37f] border border-[#10a37f]/30'
+                                            ][index % 5]} ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <DocumentIcon className={`w-5 h-5 ${[
+                                                    'text-[#5b52e5]', 'text-[#fe466a]', 'text-[#fa9c05]', 'text-[#00a3e0]', 'text-[#10a37f]'
+                                                ][index % 5]}`} />
                                                 <span>{uploadingFor === agent.id ? 'Uploading...' : 'Knowledge'}</span>
                                                 <input
                                                     type="file"
@@ -411,7 +419,13 @@ const AiVoiceAgentView: React.FC = () => {
                                             </label>
                                             <button 
                                                 onClick={() => setChattingWith(agent)}
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-[14px] font-bold transition-all shadow-md shadow-brand-500/20 hover:shadow-lg hover:-translate-y-0.5"
+                                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] text-white rounded-xl text-[14px] font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${[
+                                                    'bg-[#5b52e5] hover:bg-[#5b52e5]/90 shadow-[#5b52e5]/30',
+                                                    'bg-[#fe466a] hover:bg-[#fe466a]/90 shadow-[#fe466a]/30',
+                                                    'bg-[#fa9c05] hover:bg-[#fa9c05]/90 shadow-[#fa9c05]/30',
+                                                    'bg-[#00a3e0] hover:bg-[#00a3e0]/90 shadow-[#00a3e0]/30',
+                                                    'bg-[#10a37f] hover:bg-[#10a37f]/90 shadow-[#10a37f]/30'
+                                                ][index % 5]}`}
                                             >
                                                 <span>💬 Test Chat</span>
                                             </button>
