@@ -44,6 +44,18 @@ class AgentChatService {
             // 1. Build System Prompt with Knowledge Base
             let finalSystemPrompt = agent.system_prompt;
             
+            // --- DYNAMIC TIME & GREETING INJECTION ---
+            const now = new Date();
+            // IST is UTC+5:30
+            const istHour = (now.getUTCHours() + 5 + Math.floor((now.getUTCMinutes() + 30) / 60)) % 24;
+            
+            let timeOfDay = "Morning";
+            if (istHour >= 12 && istHour < 17) timeOfDay = "Afternoon";
+            else if (istHour >= 17 || istHour < 4) timeOfDay = "Evening"; // Evening lasts until 4 AM
+            
+            finalSystemPrompt += `\n\n--- DYNAMIC CONTEXT ---\nThe current time in India is: ${now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })}. It is currently the ${timeOfDay}.`;
+            finalSystemPrompt += `\nCRITICAL FIRST MESSAGE RULE: If this is the very first message of the conversation, you MUST greet the user politely saying "Good ${timeOfDay}" and immediately ask for their name before proceeding with anything else.`;
+            
             // Inject FAQs
             if (config.faqs && config.faqs.length > 0) {
                 finalSystemPrompt += "\n\n--- KNOWLEDGE BASE (FAQs) ---\nUse the following information to answer user queries. If the answer is not here, you can use your general knowledge, but prioritize these FAQs:\n";
