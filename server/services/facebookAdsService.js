@@ -69,14 +69,35 @@ class FacebookAdsService {
     /**
      * Fetch complete analytics dashboard data (Campaigns, AdSets, Ads)
      */
-    static async getAnalyticsDashboard(accessToken, adAccountId, datePreset = 'last_7d') {
+    static async getAnalyticsDashboard(accessToken, adAccountId, datePreset = 'last_7d', since = null, until = null) {
         try {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
             
-            // We fetch campaigns, their adsets, and ads, along with insights
+            // 1. Fetch Account Details (balance, amount_spent, currency)
+            let accountData = null;
+            try {
+                const accRes = await axios.get(`${baseUrl}/act_${adAccountId}`, {
+                    params: {
+                        fields: 'amount_spent,balance,currency',
+                        access_token: accessToken
+                    }
+                });
+                accountData = accRes.data;
+            } catch (err) {
+                console.error('[FacebookAdsService] Failed to fetch account balance:', err.message);
+            }
+
+            // 2. We fetch campaigns, their adsets, and ads, along with insights
             const insightsFields = `spend,impressions,reach,actions,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks`;
-            const fields = `id,name,status,objective,daily_budget,start_time,stop_time,created_time,insights.date_preset(${datePreset}){${insightsFields}},adsets{id,name,status,daily_budget,start_time,stop_time,created_time,insights.date_preset(${datePreset}){${insightsFields}},ads{id,name,status,created_time,creative{thumbnail_url,image_url},insights.date_preset(${datePreset}){${insightsFields}}}}`;
+            
+            let insightsParam = `date_preset(${datePreset})`;
+            if (datePreset === 'custom' && since && until) {
+                // Must be passed as JSON string inside time_range parameter
+                insightsParam = `time_range({"since":"${since}","until":"${until}"})`;
+            }
+
+            const fields = `id,name,status,objective,daily_budget,start_time,stop_time,created_time,insights.${insightsParam}{${insightsFields}},adsets{id,name,status,daily_budget,start_time,stop_time,created_time,insights.${insightsParam}{${insightsFields}},ads{id,name,status,created_time,creative{thumbnail_url,image_url},insights.${insightsParam}{${insightsFields}}}}`;
             
             const res = await axios.get(`${baseUrl}/act_${adAccountId}/campaigns`, {
                 params: {
@@ -86,7 +107,30 @@ class FacebookAdsService {
                 }
             });
             
-            return res.data.data;
+            // 3. Fetch Account-level time-series insights for the time graph
+            let accountInsights = [];
+            try {
+                let params = {
+                    access_token: accessToken,
+                    fields: 'spend,actions,date_start',
+                    time_increment: 1
+                };
+                if (datePreset === 'custom' && since && until) {
+                    params.time_range = JSON.stringify({ since, until });
+                } else {
+                    params.date_preset = datePreset;
+                }
+                const tsRes = await axios.get(`${baseUrl}/act_${adAccountId}/insights`, { params });
+                accountInsights = tsRes.data.data || [];
+            } catch (err) {
+                console.error('[FacebookAdsService] Failed to fetch time-series insights:', err.response?.data || err.message);
+            }
+            
+            return {
+                campaigns: res.data.data,
+                account: accountData,
+                timeSeries: accountInsights
+            };
         } catch (error) {
             console.error('Error fetching Analytics Dashboard:', error.response?.data || error.message);
             throw new Error(error.response?.data?.error?.message || 'Failed to fetch Analytics');

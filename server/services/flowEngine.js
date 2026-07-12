@@ -320,6 +320,50 @@ class FlowEngine {
 
         console.log(`[FlowEngine] Processing message from ${contactPhone}: ${messageText} (Interaction: ${interactionId})`);
         const rpcClient = supabaseAdmin || supabase;
+        
+        // 0. Check Manual AI Assignment
+        try {
+            const { data: convData, error: convError } = await rpcClient.from('conversations')
+                .select('assigned_ai_agent_id, bot_paused_until')
+                .eq('user_id', userId)
+                .eq('contact_phone', contactPhone)
+                .maybeSingle();
+                
+            if (convError) throw convError;
+                
+            if (convData && convData.assigned_ai_agent_id) {
+                // Check if paused
+                if (convData.bot_paused_until) {
+                    const pausedUntil = new Date(convData.bot_paused_until);
+                    if (pausedUntil > new Date()) {
+                        console.log(`[FlowEngine] AI is manually paused for ${contactPhone}. Bypassing AI assignment.`);
+                        return null; 
+                    }
+                }
+            
+            console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
+            
+            const aiAgentExecutor = require('./flow/executors/aiAgent');
+            const fakeSession = { user_id: userId, contact_phone: contactPhone };
+            const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
+            
+            try {
+                const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
+                if (result && result.success && result.response) {
+                    const whatsappService = require('./whatsappService');
+                    await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                }
+                return; // Stop processing further flows
+            } catch (err) {
+                console.error('[FlowEngine] Error executing assigned AI agent:', err);
+                return;
+            }
+        }
+        } catch (dbErr) {
+            console.error('[FlowEngine] Error checking manual AI assignment (DB):', dbErr);
+            // Swallow error and fallback to standard flow
+        }
+
         const keyword = typeof messageText === 'string' ? messageText.toLowerCase().trim() : '';
 
         // 1. Check for Keywords (Priority: High)
@@ -1007,13 +1051,17 @@ class FlowEngine {
 
         // 3. Fallback: If still no edge, look for default edge or any edge
         if (!edge) {
-            // Prefer explicitly defaults first
-            edge = flow.edges.find(e => e.source === currentNodeId && e.sourceHandle === 'default');
+            const node = flow.nodes.find(n => n.id === currentNodeId);
+            
+            // Do not let 'unresponsive' timeouts fall back to the default success edge on askInput
+            if (!(node && node.type === 'askInput' && interactionId === 'unresponsive')) {
+                // Prefer explicitly defaults first
+                edge = flow.edges.find(e => e.source === currentNodeId && e.sourceHandle === 'default');
+            }
 
             // If absolutely nothing else, take whatever is connected (Legacy behavior)
             // EXCEPTION: Do not do this for logic nodes that have distinct outputs (newLead, condition, etc)
             // This prevents "Existing Contact" falling back to "New Lead" path if "Existing Contact" is unconnected.
-            const node = flow.nodes.find(n => n.id === currentNodeId);
             if (!edge && node && !['newLead', 'checkCondition', 'switch', 'askInput'].includes(node.type)) {
                 edge = flow.edges.find(e => e.source === currentNodeId);
             }

@@ -1,48 +1,48 @@
 import React, { useState } from 'react';
 
-// Mock Data for Demo
-const MOCK_LEADS = [
-    {
-        id: '1',
-        name: 'Rahul Sharma',
-        email: 'rahul.s@example.com',
-        phone: '+91 98765 43210',
-        status: 'HOT',
-        summary: 'Highly interested in the Premium Plan. Asked for a demo link and pricing details immediately.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    },
-    {
-        id: '2',
-        name: 'Priya Patel',
-        email: 'priya.design@gmail.com',
-        phone: '+91 87654 32109',
-        status: 'WARM',
-        summary: 'Looking for a CRM solution. Asked about WhatsApp API limits. Needs follow up next week.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    },
-    {
-        id: '3',
-        name: 'Amit Kumar',
-        email: 'amit.k88@yahoo.com',
-        phone: '+91 76543 21098',
-        status: 'COLD',
-        summary: 'Just browsing. Said they do not have budget right now. Sent them a link to the free resources.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    },
-    {
-        id: '4',
-        name: 'Neha Gupta',
-        email: 'neha.g@startup.in',
-        phone: '+91 99887 76655',
-        status: 'HOT',
-        summary: 'Wants to automate their lead generation immediately. Requested a callback ASAP.',
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    }
-];
+import { supabase } from '../../lib/supabase';
 
 const AiAgentAnalytics: React.FC = () => {
-    const [leads] = useState(MOCK_LEADS);
+    const [leads, setLeads] = useState<any[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
+    React.useEffect(() => {
+        const fetchLeads = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session?.user?.id) return;
+                
+                const { data, error } = await supabase
+                    .from('conversations')
+                    .select('id, contact_phone, contact_name, lead_status, lead_summary, updated_at')
+                    .eq('user_id', session.user.id)
+                    .order('updated_at', { ascending: false })
+                    .limit(50);
+                    
+                if (data && !error) {
+                    const formatted = (data as any[]).map((d: any) => ({
+                        id: d.id,
+                        name: d.contact_name || 'Unknown',
+                        email: '-',
+                        phone: d.contact_phone || 'Unknown',
+                        status: d.lead_status,
+                        summary: d.lead_summary,
+                        createdAt: d.updated_at
+                    }));
+                    setLeads(formatted);
+                }
+            } catch (err) {
+                console.error("Failed to fetch lead analytics:", err);
+            }
+        };
+        fetchLeads();
+    }, []);
 
     const stats = {
         total: leads.length,
@@ -56,6 +56,9 @@ const AiAgentAnalytics: React.FC = () => {
         lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lead.phone.includes(searchTerm)
     );
+
+    const totalPages = Math.ceil(filteredLeads.length / pageSize);
+    const paginatedLeads = filteredLeads.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -81,106 +84,59 @@ const AiAgentAnalytics: React.FC = () => {
                     </span>
                 );
             default:
-                return <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 w-max">{status}</span>;
+                return <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 w-max">{status || 'PENDING'}</span>;
         }
     };
 
     return (
         <div className="space-y-8 animate-fade-in pb-12">
             
-            {/* Premium Header Zone */}
-            <div className="relative overflow-hidden bg-slate-900 rounded-[2rem] p-8 md:p-10 shadow-2xl border border-slate-800">
-                {/* Decorative background glows */}
-                <div className="absolute top-0 left-0 w-96 h-96 bg-brand-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob"></div>
-                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-40 animate-blob animation-delay-2000"></div>
-                
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-4 shadow-lg">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-                            <span className="text-xs font-bold tracking-wider text-emerald-100 uppercase">Live AI Intelligence</span>
-                        </div>
-                        <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2 drop-shadow-md">
-                            Lead Analytics & Qualification
-                        </h2>
-                        <p className="text-slate-300 font-medium text-lg max-w-2xl">
-                            Watch your AI Agent autonomously chat, extract vital data, and accurately qualify your leads in real-time.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             {/* Premium KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 
                 {/* Total Leads */}
-                <div className="group relative bg-white p-6 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1">
-                    <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-50 rounded-full transition-transform duration-500 group-hover:scale-150 opacity-50"></div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-2xl bg-brand-100 flex items-center justify-center text-brand-600 shadow-inner">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            </div>
-                            <span className="text-slate-500 font-bold text-sm tracking-wide">Total Leads</span>
-                        </div>
-                        <div>
-                            <div className="text-5xl font-black text-slate-800 tracking-tighter">{stats.total}</div>
-                            <div className="text-emerald-500 text-sm font-bold mt-2 flex items-center gap-1 bg-emerald-50 w-max px-2 py-1 rounded-lg">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-                                Active tracking
-                            </div>
-                        </div>
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-indigo-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30 text-white">
+                        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="text-3xl font-black text-indigo-900 tracking-tight">{stats.total}</p>
+                        <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider mt-1">Total Leads</p>
                     </div>
                 </div>
 
                 {/* Hot Leads */}
-                <div className="group relative bg-gradient-to-b from-white to-red-50/30 p-6 rounded-[2rem] shadow-xl shadow-red-100/50 border border-red-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:border-red-300">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-red-100 rounded-bl-[100px] transition-transform duration-500 group-hover:scale-110 opacity-30"></div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="text-2xl drop-shadow-sm">🔥</span>
-                            <span className="text-red-600 font-extrabold text-sm tracking-widest uppercase">Hot Leads</span>
-                        </div>
-                        <div>
-                            <div className="text-5xl font-black text-red-600 tracking-tighter drop-shadow-sm">{stats.hot}</div>
-                            <div className="text-red-700/80 text-sm font-bold mt-2 flex items-center gap-1 bg-red-100/50 w-max px-2 py-1 rounded-lg">
-                                Ready to convert
-                            </div>
-                        </div>
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-rose-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-rose-500 flex items-center justify-center shrink-0 shadow-lg shadow-rose-500/30 text-white text-3xl">
+                        🔥
+                    </div>
+                    <div>
+                        <p className="text-3xl font-black text-rose-900 tracking-tight">{stats.hot}</p>
+                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">Hot Leads</p>
                     </div>
                 </div>
 
                 {/* Warm Leads */}
-                <div className="group relative bg-gradient-to-b from-white to-amber-50/30 p-6 rounded-[2rem] shadow-xl shadow-amber-100/50 border border-amber-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:border-amber-300">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-amber-100 rounded-bl-[100px] transition-transform duration-500 group-hover:scale-110 opacity-30"></div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="text-2xl drop-shadow-sm">☀️</span>
-                            <span className="text-amber-600 font-extrabold text-sm tracking-widest uppercase">Warm Leads</span>
-                        </div>
-                        <div>
-                            <div className="text-5xl font-black text-amber-600 tracking-tighter drop-shadow-sm">{stats.warm}</div>
-                            <div className="text-amber-700/80 text-sm font-bold mt-2 flex items-center gap-1 bg-amber-100/50 w-max px-2 py-1 rounded-lg">
-                                Needs follow up
-                            </div>
-                        </div>
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30 text-white text-2xl">
+                        ☀️
+                    </div>
+                    <div>
+                        <p className="text-3xl font-black text-amber-900 tracking-tight">{stats.warm}</p>
+                        <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mt-1">Warm Leads</p>
                     </div>
                 </div>
 
                 {/* Cold Leads */}
-                <div className="group relative bg-gradient-to-b from-white to-sky-50/30 p-6 rounded-[2rem] shadow-xl shadow-sky-100/50 border border-sky-100 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 hover:border-sky-300">
-                    <div className="absolute right-0 top-0 w-32 h-32 bg-sky-100 rounded-bl-[100px] transition-transform duration-500 group-hover:scale-110 opacity-30"></div>
-                    <div className="relative z-10 flex flex-col h-full justify-between">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="text-2xl drop-shadow-sm">❄️</span>
-                            <span className="text-sky-600 font-extrabold text-sm tracking-widest uppercase">Cold Leads</span>
-                        </div>
-                        <div>
-                            <div className="text-5xl font-black text-sky-600 tracking-tighter drop-shadow-sm">{stats.cold}</div>
-                            <div className="text-sky-700/80 text-sm font-bold mt-2 flex items-center gap-1 bg-sky-100/50 w-max px-2 py-1 rounded-lg">
-                                Low interest
-                            </div>
-                        </div>
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-sky-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-sky-500 flex items-center justify-center shrink-0 shadow-lg shadow-sky-500/30 text-white text-2xl">
+                        ❄️
+                    </div>
+                    <div>
+                        <p className="text-3xl font-black text-sky-900 tracking-tight">{stats.cold}</p>
+                        <p className="text-xs font-bold text-sky-600 uppercase tracking-wider mt-1">Cold Leads</p>
                     </div>
                 </div>
 
@@ -215,16 +171,16 @@ const AiAgentAnalytics: React.FC = () => {
                 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse min-w-[900px]">
-                        <thead>
-                            <tr className="bg-slate-900 text-slate-300 text-[11px] uppercase tracking-[0.25em] font-black">
-                                <th className="px-8 py-6 rounded-tl-lg">Profile</th>
-                                <th className="px-8 py-6">Contact Info</th>
-                                <th className="px-8 py-6">Qualification</th>
-                                <th className="px-8 py-6 w-2/5 rounded-tr-lg">AI Conversation Summary</th>
+                        <thead className="bg-brand-600 text-white shadow-md">
+                            <tr className="text-xs uppercase tracking-wider font-black">
+                                <th className="px-8 py-5 text-left text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap rounded-tl-lg">Profile</th>
+                                <th className="px-8 py-5 text-left text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Contact Info</th>
+                                <th className="px-8 py-5 text-left text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap">Qualification</th>
+                                <th className="px-8 py-5 text-left text-white drop-shadow-sm !bg-brand-600 whitespace-nowrap w-2/5 rounded-tr-lg">AI Conversation Summary</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm bg-white">
-                            {filteredLeads.map((lead) => (
+                            {paginatedLeads.map((lead) => (
                                 <tr key={lead.id} className="hover:bg-brand-50/30 transition-all duration-300 group">
                                     <td className="px-8 py-6 align-top">
                                         <div className="flex items-start gap-4">
@@ -282,6 +238,31 @@ const AiAgentAnalytics: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <div className="text-sm font-medium text-slate-500">
+                            Showing <span className="font-bold text-slate-800">{((currentPage - 1) * pageSize) + 1}</span> to <span className="font-bold text-slate-800">{Math.min(currentPage * pageSize, filteredLeads.length)}</span> of <span className="font-bold text-slate-800">{filteredLeads.length}</span> leads
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            >
+                                Previous
+                            </button>
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 hover:text-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

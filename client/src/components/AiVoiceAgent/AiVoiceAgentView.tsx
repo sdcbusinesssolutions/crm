@@ -170,6 +170,11 @@ const AiVoiceAgentView: React.FC = () => {
             }
         }
     };
+    const handleCopyEmbed = (agentId: string) => {
+        const snippet = `<script src="${window.location.origin}/widget.js" async defer></script>\n<agent-widget id="${agentId}"></agent-widget>`;
+        navigator.clipboard.writeText(snippet);
+        alert('Widget embed code copied to clipboard! You can paste this into your website HTML.');
+    };
 
     if (!canRead) {
         return (
@@ -185,7 +190,7 @@ const AiVoiceAgentView: React.FC = () => {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-slate-50 p-8 overflow-y-auto">
-            <div className="max-w-6xl mx-auto w-full">
+            <div className="max-w-[1800px] mx-auto w-full">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <div className="flex items-center gap-2">
@@ -253,7 +258,7 @@ const AiVoiceAgentView: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div 
                         onClick={() => setCreateType('voice')}
-                        className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                        className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
                     >
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             <img
@@ -268,7 +273,7 @@ const AiVoiceAgentView: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             {/* 3rd Party Badge */}
                             <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 z-20">
@@ -286,7 +291,7 @@ const AiVoiceAgentView: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             <img
                                 src="/assets/cute_orange_robot_task.png"
@@ -325,15 +330,22 @@ const AiVoiceAgentView: React.FC = () => {
                                     <div className="absolute top-4 right-4 flex gap-2 z-50">
                                         <button
                                             onClick={() => setEditingAgent(agent)}
-                                            className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-50 hover:border-brand-200 rounded-xl transition-colors bg-slate-50 border border-slate-200 shadow-sm flex items-center justify-center"
+                                            className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-100 bg-brand-50 border border-brand-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
                                             title="Edit Agent"
                                         >
                                             <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                         </button>
+                                        <button
+                                            onClick={() => handleCopyEmbed(agent.id)}
+                                            className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 bg-indigo-50 border border-indigo-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
+                                            title="Copy Embed Code"
+                                        >
+                                            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                                        </button>
                                         {canDelete && (
                                             <button
                                                 onClick={() => setAgentToDelete(agent)}
-                                                className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 rounded-xl transition-colors bg-slate-50 border border-slate-200 shadow-sm flex items-center justify-center"
+                                                className="p-2 text-red-500 hover:text-red-600 hover:bg-red-100 bg-red-50 border border-red-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
                                                 title="Delete Agent"
                                             >
                                                 <TrashIcon className="w-[18px] h-[18px]" />
@@ -352,9 +364,9 @@ const AiVoiceAgentView: React.FC = () => {
                                             agent.type === 'call' ? <PhoneIcon className="w-8 h-8" /> : <RobotIcon className="w-8 h-8" />}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-900 text-[22px] tracking-tight mb-1">{agent.name}</h3>
+                                        <h3 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-indigo-500 to-purple-600 text-[22px] tracking-tight mb-1">{agent.name}</h3>
                                         <div className="flex items-center gap-2">
-                                            <span className="w-[7px] h-[7px] rounded-full bg-[#10a37f]"></span>
+                                            <span className="w-[7px] h-[7px] rounded-full bg-brand-500"></span>
                                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{agent.type} Agent</span>
                                         </div>
                                     </div>
@@ -375,8 +387,8 @@ const AiVoiceAgentView: React.FC = () => {
 
                                     {canWrite && (
                                         <div className="flex gap-3">
-                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-white hover:bg-slate-50 text-[#334155] border border-slate-200/80 rounded-xl text-[14px] font-semibold cursor-pointer transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <DocumentIcon className="w-5 h-5 text-slate-400" />
+                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-brand-50/50 hover:bg-brand-50 text-brand-700 border border-brand-100 rounded-xl text-[14px] font-bold cursor-pointer transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <DocumentIcon className="w-5 h-5 text-brand-500" />
                                                 <span>{uploadingFor === agent.id ? 'Uploading...' : 'Knowledge'}</span>
                                                 <input
                                                     type="file"
@@ -387,7 +399,7 @@ const AiVoiceAgentView: React.FC = () => {
                                             </label>
                                             <button 
                                                 onClick={() => setChattingWith(agent)}
-                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-[#10a37f] hover:bg-[#0e906f] text-white rounded-xl text-[14px] font-semibold transition-colors"
+                                                className="flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-[14px] font-bold transition-all shadow-md shadow-brand-500/20 hover:shadow-lg hover:-translate-y-0.5"
                                             >
                                                 <span>💬 Test Chat</span>
                                             </button>

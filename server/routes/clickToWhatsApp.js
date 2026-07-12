@@ -91,7 +91,9 @@ router.get('/analytics/:accountId', requireAuth, async (req, res) => {
 
         const accessToken = envToken || config.meta_access_token;
         const datePreset = req.query.datePreset || 'last_7d';
-        const dashboardData = await FacebookAdsService.getAnalyticsDashboard(accessToken, accountId, datePreset);
+        const since = req.query.since;
+        const until = req.query.until;
+        const dashboardData = await FacebookAdsService.getAnalyticsDashboard(accessToken, accountId, datePreset, since, until);
 
         res.status(200).json({
             success: true,

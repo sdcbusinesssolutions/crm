@@ -442,6 +442,70 @@ class AgentChatService {
             
             return { success: false, reply: fallbackReply, error: errorDetails };
         }
+    } // End of processChat
+
+    /**
+     * Analyze the conversation to score the lead and generate a summary.
+     * This is designed to be run asynchronously in the background.
+     */
+    async analyzeLead(agent, conversationId, history, userMessage, aiResponse) {
+        try {
+            const config = agent.model_config || {};
+            const provider = config.provider || 'openai';
+            let apiKey = config.api_key;
+            
+            if (!apiKey && agent.user_id && provider === 'openai') {
+                apiKey = process.env.OPENAI_API_KEY;
+            }
+
+            if (!apiKey || provider !== 'openai') return; // Currently only supporting OpenAI for analysis
+
+            // Prepare conversation transcript
+            let transcript = history.map(h => `${h.role === 'user' ? 'Lead' : 'AI'}: ${h.content}`).join('\n');
+            transcript += `\nLead: ${userMessage}\nAI: ${aiResponse}`;
+
+            const systemPrompt = `You are a Lead Scoring AI. Analyze the conversation transcript and return a JSON object with:
+- "status": exactly one of "HOT", "WARM", "COLD", or "JUNK".
+- "summary": A concise 1-2 sentence summary of the lead's intent and qualification.
+
+Rules for status:
+- HOT: Very interested, ready to buy, requested pricing, demo, or immediate contact.
+- WARM: Interested but has questions, exploring options, not ready immediately.
+- COLD: Just browsing, not a fit, unresponsive, or explicitly said no.
+- JUNK: Spam, nonsensical, or wrong number.
+
+Return ONLY valid JSON format.`;
+
+            const payload = {
+                model: 'gpt-4o-mini', // Fast and cheap for analysis
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: transcript }
+                ],
+                response_format: { type: 'json_object' },
+                temperature: 0.1
+            };
+
+            const response = await axios.post('https://api.openai.com/v1/chat/completions', payload, {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+
+            if (response.data.choices && response.data.choices[0]) {
+                const analysisResult = JSON.parse(response.data.choices[0].message.content);
+                
+                if (analysisResult.status && analysisResult.summary) {
+                    await supabaseAdmin
+                        .from('conversations')
+                        .update({
+                            lead_status: analysisResult.status,
+                            lead_summary: analysisResult.summary
+                        })
+                        .eq('id', conversationId);
+                }
+            }
+        } catch (error) {
+            console.error('[AgentChatService] Lead analysis failed:', error.message);
+        }
     }
 }
 

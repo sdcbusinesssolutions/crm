@@ -12,74 +12,7 @@ const CreateAgentModal: React.FC<CreateAgentModalProps> = ({ onClose, onSave, in
     // Tab 1: Identity State
     const [name, setName] = useState(initialData?.name || '');
     const [description, setDescription] = useState(initialData?.description || '');
-    const defaultPrompt = `🆔 IDENTITY & ROLE
-You are TechFree AI – a smart, friendly CRM & automation assistant for TechFree.in.
-
-Your role is to:
-- Understand business pain points (missed leads, manual follow-ups).
-- Ask exactly ONE question at a time.
-- Suggest outcome-based solutions without technical jargon.
-- Guide users toward a free 1:1 demo or consultation.
-
-═══════════════════════════════════════
-🎯 GOALS & PROGRESSIVE DATA COLLECTION
-═══════════════════════════════════════
-You must collect the following 4 pieces of information from the user naturally, ONE AT A TIME:
-1. Name (CRITICAL: Ask for their name FIRST before anything else)
-2. Business Type / Problem
-3. Mobile Number
-4. Email Address
-
-Do NOT ask for all of these at once. Weave them into the conversation.
-Start with asking for their name, and once they provide it, ALWAYS address them by their name in your subsequent responses to build rapport.
-
-PACE RULE: Do not ask for a demo in the very first message. After 2 or 3 conversational exchanges where you understand their problem, actively pivot to qualifying the lead and strongly suggest booking a free demo. 
-
-═══════════════════════════════════════
-⚠️ TOOL RULE — HIGHEST PRIORITY (BOOK DEMO)
-═══════════════════════════════════════
-You have access to a custom tool named \`book_demo\`.
-
-WHEN A USER AGREES TO A DEMO OR WANTS TO BE CONTACTED:
-STEP 1: Check if you have successfully collected their Name, Mobile Number, and Email.
-STEP 2: If any of those details are missing, politely ask for the missing detail. DO NOT call the tool yet.
-STEP 3: Once you have ALL their details, call the \`book_demo\` tool IMMEDIATELY.
-STEP 4: Pass all the collected data securely INTO the tool's parameters.
-STEP 5: Read the tool result ONLY, and politely confirm that your team will contact them shortly.
-
-CRITICAL RULE: NEVER print raw JSON, code blocks, or payload data in your text response to the user. All data must be passed silently in the background via the tool function. THIS IS NON-NEGOTIABLE. DO NOT hardcode dummy data. Use the exact details the user provided.
-
-═══════════════════════════════════════
-🧠 KNOWLEDGE BASE (FAQs & DOCUMENTS)
-═══════════════════════════════════════
-Whenever a user asks a factual question (e.g., location, timings, pricing, contact details):
-1. Read the provided FAQs and Uploaded Documents in your memory.
-2. Answer using ONLY the information provided there. 
-3. Convert the answer into friendly Hinglish.
-4. If the answer is NOT in your knowledge base, politely say: "Main apni team se confirm karke aapko batata hoon." — NEVER guess.
-
-═══════════════════════════════════════
-💬 CONVERSATIONAL STYLE
-═══════════════════════════════════════
-Language  : Hinglish by default
-Tone      : Friendly, warm, human — no corporate jargon
-Emojis    : Sparingly (📊 📞 ⚡ ✅ 😊)
-Length    : Short and scannable — no long paragraphs
-Structure : 1. Clear answer
-            2. Exactly ONE follow-up question
-
-Switch language instantly if user writes in: Hindi / English / Marathi / Tamil / Telugu
-If unsupported language → politely continue in Hinglish.
-
-═══════════════════════════════════════
-✅ ALWAYS DO THIS
-═══════════════════════════════════════
-✅ Keep responses short, warm, and scannable.
-✅ Always ask for the user's Name in your very first message.
-✅ Always use the user's Name in your replies once you know it.
-✅ Ask exactly ONE follow-up question after every answer to keep the chat moving.
-✅ Focus on business outcomes (save time, make more money).
-✅ Only trigger the \`book_demo\` tool once you have their Name, Phone, and Email.`;
+    const defaultPrompt = '';
     const [systemPrompt, setSystemPrompt] = useState(initialData?.system_prompt || defaultPrompt);
     const [type, setType] = useState(initialData?.type || 'chat');
     
@@ -106,6 +39,11 @@ If unsupported language → politely continue in Hinglish.
     const [botGender, setBotGender] = useState(initialData?.model_config?.bot_gender || 'neutral');
     const [showMaxMessages, setShowMaxMessages] = useState(initialData?.model_config?.max_messages !== undefined && initialData?.model_config?.max_messages !== null);
     const [maxMessages, setMaxMessages] = useState(initialData?.model_config?.max_messages || 20);
+    const [contextLimit, setContextLimit] = useState(initialData?.model_config?.context_limit || 10);
+    const [enableWorkingHours, setEnableWorkingHours] = useState(initialData?.model_config?.working_hours?.enabled || false);
+    const [whStart, setWhStart] = useState(initialData?.model_config?.working_hours?.start || '09:00');
+    const [whEnd, setWhEnd] = useState(initialData?.model_config?.working_hours?.end || '18:00');
+    const [oooMessage, setOooMessage] = useState(initialData?.model_config?.working_hours?.ooo_message || 'We are currently offline. Please leave a message and we will get back to you during our working hours.');
     const [useEmojis, setUseEmojis] = useState(initialData?.model_config?.use_emojis !== undefined ? initialData.model_config.use_emojis : true);
     const [useBulletPoints, setUseBulletPoints] = useState(initialData?.model_config?.use_bullet_points !== undefined ? initialData.model_config.use_bullet_points : true);
     const [headerMessage, setHeaderMessage] = useState(initialData?.model_config?.header_message || '');
@@ -226,6 +164,14 @@ If unsupported language → politely continue in Hinglish.
                     header_message: showHeaderMsg ? headerMessage : '',
                     footer_message: showFooterMsg ? footerMessage : '',
                     max_messages: showMaxMessages ? maxMessages : null,
+                    context_limit: contextLimit,
+                    working_hours: {
+                        enabled: enableWorkingHours,
+                        start: whStart,
+                        end: whEnd,
+                        timezone: 'Asia/Kolkata',
+                        ooo_message: oooMessage
+                    },
                     fallback_message: showFallbackMsg ? fallbackMessage : null,
                     stop_keywords: showStopKeywords ? stopKeywords : '',
                     retry_attempt: showRetryAttempt ? retryAttempt : '',
@@ -1118,6 +1064,79 @@ If unsupported language → politely continue in Hinglish.
                                                                 min="1"
                                                                 max="100"
                                                                 className="w-24 px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-400 focus:bg-white outline-none transition-all font-bold text-sm text-slate-800 text-center"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Context Limit */}
+                                            <div className="rounded-xl border bg-slate-50 border-slate-200 overflow-hidden">
+                                                <div className="p-4 flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+                                                            <span className="text-lg">🧠</span>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="text-sm font-bold text-slate-700">Context Memory Limit</h4>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Number of previous messages the AI remembers.</p>
+                                                        </div>
+                                                    </div>
+                                                    <input 
+                                                        type="number" 
+                                                        value={contextLimit} 
+                                                        onChange={(e) => setContextLimit(parseInt(e.target.value) || 10)} 
+                                                        min="1"
+                                                        max="50"
+                                                        className="w-24 px-3 py-2 bg-white border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-brand-500/20 focus:border-brand-400 outline-none font-bold text-sm text-slate-800 text-center"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Working Hours */}
+                                            <div className={`rounded-xl border transition-all overflow-hidden ${enableWorkingHours ? 'bg-white border-brand-400 ring-4 ring-brand-500/10 shadow-md' : 'bg-slate-50 border-slate-200 hover:border-slate-300'}`}>
+                                                <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setEnableWorkingHours(!enableWorkingHours)}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${enableWorkingHours ? 'bg-brand-100 text-brand-600' : 'bg-slate-200 text-slate-500'}`}>
+                                                            <span className="text-lg">🕒</span>
+                                                        </div>
+                                                        <div>
+                                                            <h4 className={`text-sm font-bold transition-colors ${enableWorkingHours ? 'text-brand-900' : 'text-slate-700'}`}>Working Hours (IST)</h4>
+                                                            <p className="text-[11px] text-slate-500 mt-0.5 font-medium">Restrict AI responses to business hours.</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className={`w-11 h-6 rounded-full transition-colors relative ${enableWorkingHours ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                                                        <div className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${enableWorkingHours ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                {enableWorkingHours && (
+                                                    <div className="p-4 pt-0 border-t border-slate-100 bg-white grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <label className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-2">Start Time</label>
+                                                            <input 
+                                                                type="time" 
+                                                                value={whStart} 
+                                                                onChange={(e) => setWhStart(e.target.value)} 
+                                                                className="w-full px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-brand-400 outline-none font-bold text-sm"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-2">End Time</label>
+                                                            <input 
+                                                                type="time" 
+                                                                value={whEnd} 
+                                                                onChange={(e) => setWhEnd(e.target.value)} 
+                                                                className="w-full px-3 py-2 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-brand-400 outline-none font-bold text-sm"
+                                                            />
+                                                        </div>
+                                                        <div className="col-span-2 mt-2">
+                                                            <label className="text-[11px] uppercase tracking-wider font-bold text-slate-500 block mb-2">Out of Office Message</label>
+                                                            <textarea 
+                                                                value={oooMessage} 
+                                                                onChange={(e) => setOooMessage(e.target.value)} 
+                                                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl focus:border-brand-400 outline-none font-medium text-sm text-slate-800"
+                                                                rows={2}
                                                             />
                                                         </div>
                                                     </div>

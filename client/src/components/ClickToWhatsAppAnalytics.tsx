@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { tokenService } from '../services/tokenService';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { ComposedChart, Bar, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import AdDetailPanel from './AdDetailPanel';
 
 const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
@@ -10,6 +10,16 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [datePreset, setDatePreset] = useState('last_7d');
+  const [customSince, setCustomSince] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 14);
+    return d.toISOString().split('T')[0];
+  });
+  const [customUntil, setCustomUntil] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [accountData, setAccountData] = useState<any>(null);
+  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
   
   // Track expanded rows. Using a Set for efficient lookup.
   const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
@@ -30,13 +40,26 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
     try {
       setLoading(true);
       const authHeader = await tokenService.getAuthHeader();
-      const response = await fetch(`/api/click-to-whatsapp/analytics/${activeAccountId}?datePreset=${datePreset}`, {
+      
+      let queryParams = `?datePreset=${datePreset}`;
+      if (datePreset === 'custom') {
+        queryParams += `&since=${customSince}&until=${customUntil}`;
+      }
+      
+      const response = await fetch(`/api/click-to-whatsapp/analytics/${activeAccountId}${queryParams}`, {
         headers: { ...authHeader }
       });
       const result = await response.json();
       
       if (result.success) {
-        setData(result.data);
+        if (result.data && result.data.campaigns) {
+          setData(result.data.campaigns);
+          setAccountData(result.data.account);
+          setTimeSeriesData(result.data.timeSeries || []);
+        } else {
+          setData(result.data);
+          setTimeSeriesData([]);
+        }
       } else {
         setError(result.error);
       }
@@ -52,7 +75,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
       setCurrentPage(1); // Reset page on new load
       fetchAnalytics();
     }
-  }, [activeAccountId, datePreset]);
+  }, [activeAccountId, datePreset, customSince, customUntil]);
 
   const toggleStatus = async (objectId, currentStatus, type) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
@@ -523,21 +546,41 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               </div>
             )}
             
-            <div className="relative">
-              <select 
-                value={datePreset}
-                onChange={(e) => setDatePreset(e.target.value)}
-                className="appearance-none bg-white border-2 border-orange-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
-              >
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="last_7d">Last 7 Days</option>
-                <option value="this_month">This Month</option>
-                <option value="lifetime">Lifetime</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <select 
+                  value={datePreset}
+                  onChange={(e) => setDatePreset(e.target.value)}
+                  className="appearance-none bg-white border-2 border-orange-300 text-slate-700 py-2.5 pl-4 pr-10 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-bold shadow-sm hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  <option value="today">Today</option>
+                  <option value="yesterday">Yesterday</option>
+                  <option value="last_7d">Last 7 Days</option>
+                  <option value="this_month">This Month</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
+
+              {datePreset === 'custom' && (
+                <div className="flex items-center gap-2 ml-1 animate-fade-in">
+                  <input
+                    type="date"
+                    value={customSince}
+                    onChange={(e) => setCustomSince(e.target.value)}
+                    className="border-2 border-slate-200 text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-semibold shadow-sm text-sm h-[44px]"
+                  />
+                  <span className="text-slate-400 font-bold">to</span>
+                  <input
+                    type="date"
+                    value={customUntil}
+                    onChange={(e) => setCustomUntil(e.target.value)}
+                    className="border-2 border-slate-200 text-slate-700 py-2 px-3 rounded-xl focus:outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)] font-semibold shadow-sm text-sm h-[44px]"
+                  />
+                </div>
+              )}
             </div>
             <button onClick={fetchAnalytics} className="p-2.5 bg-slate-50 hover:bg-slate-100 text-[var(--color-brand)] rounded-xl transition-colors shadow-sm" title="Refresh Data">
               <svg className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -545,8 +588,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-indigo-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-indigo-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
             <div className="w-14 h-14 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30 text-white">
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
@@ -558,7 +601,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-emerald-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-emerald-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
             <div className="w-14 h-14 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30 text-white">
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
@@ -570,7 +613,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
           </div>
           
-          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-slate-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-slate-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
             <div className="w-14 h-14 rounded-xl bg-slate-700 flex items-center justify-center shrink-0 shadow-lg shadow-slate-500/30 text-white">
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M21 7.28V5c0-1.1-.9-2-2-2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-2.28A2 2 0 0 0 22 15V9a2 2 0 0 0-1-1.72zM20 9v6h-7V9h7zM5 19V5h14v2h-6c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h6v2H5z"/>
@@ -583,7 +626,21 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
             </div>
           </div>
 
-          <div className="col-span-1 md:col-span-1 bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+          <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-rose-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="w-14 h-14 rounded-xl bg-rose-500 flex items-center justify-center shrink-0 shadow-lg shadow-rose-500/30 text-white">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-3xl font-black text-rose-900 tracking-tight">
+                {accountData && accountData.balance ? `₹${(parseFloat(accountData.balance) / 100).toFixed(2)}` : '₹0.00'}
+              </p>
+              <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">Due Balance</p>
+            </div>
+          </div>
+          
+          <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-amber-300 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
             <div className="w-14 h-14 rounded-xl bg-amber-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/30 text-white">
               <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
@@ -605,45 +662,269 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           </div>
         </div>
         
-        {/* Graph Section */}
-        <div className="mt-8 pt-8 border-t border-slate-100">
-          <h3 className="text-sm font-bold text-slate-700 mb-4 uppercase tracking-wider">
-            {viewLevel === 'campaign' ? 'Campaign Performance Comparison' : 'AdSet Performance Comparison'}
-          </h3>
-          <div className="h-64 w-full bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-center items-center">
+        {/* Time Series Graph Section */}
+        <div className="mt-10 pt-10 border-t border-slate-100 relative group">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 rounded-3xl -z-10"></div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-base font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
+              <span className="p-1.5 bg-blue-100 text-blue-600 rounded-lg">📈</span>
+              Performance Over Time
+            </h3>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden" style={{ height: '450px' }}>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+            
+            {timeSeriesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={timeSeriesData.map(d => {
+                  const actions = d.actions || [];
+                  const leads = actions.find(a => a.action_type === 'onsite_conversion.messaging_conversation_started_7d')?.value || 
+                                actions.find(a => a.action_type === 'leads')?.value || 
+                                actions.find(a => a.action_type === 'link_click')?.value || 0;
+                  // Formatting date to a readable string like '12 Jul'
+                  const dateObj = new Date(d.date_start);
+                  const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                  return {
+                    name: dateStr,
+                    spend: parseFloat(d.spend || 0),
+                    leads: parseInt(leads)
+                  };
+                })} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
+                  <defs>
+                    <linearGradient id="timeColorCost" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="timeColorLeads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0.8}/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                  
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#64748b', fontSize: 12, fontWeight: 600}} 
+                    dy={15}
+                  />
+                  
+                  <YAxis 
+                    yAxisId="left" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#64748b', fontSize: 11, fontWeight: 600}} 
+                    dx={-10}
+                    tickFormatter={(value) => value}
+                  />
+                  
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#64748b', fontSize: 11, fontWeight: 600}} 
+                    dx={10}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  
+                  <RechartsTooltip 
+                    cursor={{fill: '#f8fafc', opacity: 0.8}} 
+                    contentStyle={{
+                      borderRadius: '16px', 
+                      border: '1px solid rgba(255,255,255,0.9)', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.1)', 
+                      padding: '16px 20px',
+                    }}
+                    formatter={(value, name) => [
+                      <span className="font-bold text-slate-800 text-base">{name === 'spend' ? `₹${Number(value).toFixed(2)}` : value}</span>, 
+                      <span className="text-slate-500 font-semibold tracking-wide uppercase text-[10px] ml-2">{name === 'spend' ? 'Total Spent' : 'Total Leads'}</span>
+                    ]}
+                    labelStyle={{fontWeight: '800', color: '#0f172a', marginBottom: '12px', fontSize: '15px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px'}}
+                  />
+                  
+                  <Legend 
+                    wrapperStyle={{paddingTop: '30px', fontSize: '13px', fontWeight: 700, color: '#475569'}} 
+                    iconType="circle"
+                    iconSize={10}
+                  />
+                  
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="leads" 
+                    name="Leads" 
+                    fill="url(#timeColorLeads)"
+                    radius={[8, 8, 8, 8]} 
+                    maxBarSize={48} 
+                    animationDuration={1500} 
+                    animationEasing="ease-out"
+                  />
+                  
+                  <Area 
+                    yAxisId="right" 
+                    type="monotone" 
+                    dataKey="spend" 
+                    name="Total Spent" 
+                    stroke="#8b5cf6" 
+                    fill="url(#timeColorCost)"
+                    strokeWidth={4} 
+                    dot={{ r: 5, strokeWidth: 3, fill: '#fff', stroke: '#8b5cf6' }} 
+                    activeDot={{ r: 8, strokeWidth: 0, fill: '#8b5cf6' }} 
+                    animationDuration={2000}
+                    animationEasing="ease-in-out"
+                    connectNulls={true}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center opacity-70">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <p className="text-lg font-bold text-slate-700">No Time-Series Data</p>
+                <p className="text-sm text-slate-500 max-w-md text-center mt-2 font-medium">Select a broader date range to see day-by-day performance trends over time.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* AdSet Comparison Graph Section */}
+        <div className="mt-10 pt-10 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-base font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                </svg>
+              </div>
+              {viewLevel === 'campaign' ? 'Campaign Performance Comparison' : 'AdSet Performance Comparison'}
+            </h3>
+          </div>
+          
+          <div className="h-[450px] w-full bg-white rounded-3xl p-6 shadow-2xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden group">
+            {/* Decorative ambient background */}
+            <div className="absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-br from-indigo-400/20 via-purple-400/20 to-pink-400/20 rounded-full blur-3xl opacity-60 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none"></div>
+            
             {graphData.length > 0 && graphData.some(d => d.leads > 0 || d.spend > 0) ? (
-              <>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={graphData} margin={{ top: 20, right: 20, left: 0, bottom: 20 }}>
-                    <defs>
-                      <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#818CF8" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#818CF8" stopOpacity={0.2}/>
-                      </linearGradient>
-                      <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.1"/>
-                      </filter>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B', fontWeight: 600 }} dy={10} />
-                    <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748B' }} tickFormatter={(val) => `₹${val}`} />
-                    <RechartsTooltip 
-                      cursor={{fill: '#F8FAFC'}} 
-                      contentStyle={{borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '12px'}}
-                      formatter={(value, name) => [name === 'cpc' ? `₹${value}` : value, name === 'cpc' ? 'Cost/Lead' : 'Leads']}
-                      labelStyle={{fontWeight: 'bold', color: '#1E293B', marginBottom: '8px'}}
-                    />
-                    <Legend wrapperStyle={{paddingTop: '20px', fontSize: '12px', fontWeight: 600, color: '#475569'}} />
-                    <Bar yAxisId="left" dataKey="leads" name="Leads" radius={[6, 6, 0, 0]} maxBarSize={40} filter="url(#shadow)">
-                      {graphData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.cpcRaw > expensiveThreshold ? '#FCA5A5' : entry.cpcRaw <= excellentThreshold ? '#34D399' : '#818CF8'} />
-                      ))}
-                    </Bar>
-                    <Line yAxisId="right" type="monotone" dataKey="cpc" name="Cost/Lead" stroke="#F59E0B" strokeWidth={3} dot={{ r: 4, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 6, strokeWidth: 0, fill: '#F59E0B' }} />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={graphData} margin={{ top: 30, right: 30, left: 10, bottom: 20 }}>
+                  <defs>
+                    <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.4}/>
+                    </linearGradient>
+                    <linearGradient id="colorLeadsGood" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#059669" stopOpacity={0.4}/>
+                    </linearGradient>
+                    <linearGradient id="colorLeadsBad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0.4}/>
+                    </linearGradient>
+                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="4" result="blur" />
+                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                    </filter>
+                    <filter id="barShadow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.15"/>
+                    </filter>
+                    <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
+                  
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.8} />
+                  
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={{ stroke: '#cbd5e1', strokeWidth: 2 }} 
+                    tickLine={false} 
+                    tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} 
+                    dy={16} 
+                    padding={{ left: 20, right: 20 }}
+                  />
+                  <YAxis 
+                    yAxisId="left" 
+                    orientation="left" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 13, fill: '#94a3b8', fontWeight: 500 }} 
+                    dx={-10}
+                    allowDecimals={false}
+                  />
+                  <YAxis 
+                    yAxisId="right" 
+                    orientation="right" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 13, fill: '#f59e0b', fontWeight: 700 }} 
+                    tickFormatter={(val) => `₹${val}`} 
+                    dx={10}
+                  />
+                  
+                  <RechartsTooltip 
+                    cursor={{fill: '#f8fafc', opacity: 0.8}} 
+                    contentStyle={{
+                      borderRadius: '16px', 
+                      border: '1px solid rgba(255,255,255,0.9)', 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.1)', 
+                      padding: '16px 20px',
+                    }}
+                    formatter={(value, name) => [
+                      <span className="font-bold text-slate-800 text-base">{name === 'spend' ? `₹${Number(value).toFixed(2)}` : value}</span>, 
+                      <span className="text-slate-500 font-semibold tracking-wide uppercase text-[10px] ml-2">{name === 'spend' ? 'Total Spent' : 'Total Leads'}</span>
+                    ]}
+                    labelStyle={{fontWeight: '800', color: '#0f172a', marginBottom: '12px', fontSize: '15px', borderBottom: '2px solid #f1f5f9', paddingBottom: '10px'}}
+                  />
+                  
+                  <Legend 
+                    wrapperStyle={{paddingTop: '30px', fontSize: '13px', fontWeight: 700, color: '#475569'}} 
+                    iconType="circle"
+                    iconSize={10}
+                  />
+                  
+                  <Bar 
+                    yAxisId="left" 
+                    dataKey="leads" 
+                    name="Leads" 
+                    radius={[8, 8, 8, 8]} 
+                    maxBarSize={48} 
+                    filter="url(#barShadow)" 
+                    animationDuration={1500} 
+                    animationEasing="ease-out"
+                  >
+                    {graphData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={`url(#${entry.cpcRaw > expensiveThreshold ? 'colorLeadsBad' : entry.cpcRaw <= excellentThreshold ? 'colorLeadsGood' : 'colorLeads'})`} 
+                      />
+                    ))}
+                  </Bar>
+                  
+                  <Area 
+                    yAxisId="right" 
+                    type="monotone" 
+                    dataKey="spend" 
+                    name="Total Spent" 
+                    stroke="#f59e0b" 
+                    fill="url(#colorCost)"
+                    strokeWidth={4} 
+                    dot={{ r: 5, strokeWidth: 3, fill: '#fff', stroke: '#f59e0b' }} 
+                    activeDot={{ r: 8, strokeWidth: 0, fill: '#f59e0b', filter: 'url(#glow)' }} 
+                    animationDuration={2000}
+                    animationEasing="ease-in-out"
+                    connectNulls={true}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl relative overflow-hidden">
                 {/* Decorative background elements for empty state */}
