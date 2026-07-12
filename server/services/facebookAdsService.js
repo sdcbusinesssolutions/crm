@@ -48,26 +48,30 @@ class FacebookAdsService {
         try {
             const apiVersion = 'v20.0';
             const baseUrl = `https://graph.facebook.com/${apiVersion}`;
+            const requestedFields = fields || 'spend,reach,impressions,results,date_start,date_stop,cost_per_result,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks,campaign_name,adset_name,ad_name';
+            
             const params = {
-                fields: fields || 'spend,reach,impressions,actions,date_start,date_stop,cpc,ctr,clicks,unique_clicks,quality_ranking,engagement_rate_ranking,frequency,inline_link_clicks,campaign_name,adset_name,ad_name',
+                fields: requestedFields,
                 level: level,
                 access_token: accessToken
             };
             
             if (since && until) {
                 params.time_range = JSON.stringify({ since, until });
-            } else {
+            } else if (datePreset) {
                 params.date_preset = datePreset;
             }
             
             if (timeIncrement) {
                 params.time_increment = timeIncrement;
             }
+            
             if (breakdowns && Array.isArray(breakdowns) && breakdowns.length > 0) {
                 params.breakdowns = JSON.stringify(breakdowns);
             }
+            
+            console.log('DEBUG: Fetching insights with params:', JSON.stringify(params, null, 2));
             const res = await axios.get(`${baseUrl}/${entityId}/insights`, { params });
-            // The insights API returns an array in data.
             return res.data.data;
         } catch (error) {
             console.error('Error fetching Insights:', error.response?.data || error.message);

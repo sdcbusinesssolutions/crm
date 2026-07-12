@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import { tokenService } from '../services/tokenService';
 import CustomAdsReportBuilder from './CustomAdsReportBuilder';
 
@@ -144,22 +144,17 @@ const AdDetailPanel = ({ item, level, metrics }) => {
                 </div>
               ) : timeSeriesData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={timeSeriesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={timeSeriesData} margin={{ top: 30, right: 30, left: -10, bottom: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} padding={{ left: 50, right: 50 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} domain={[0, dataMax => Math.max(10, Math.ceil(dataMax * 1.2))]} />
                     <RechartsTooltip 
                       contentStyle={{borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
                       labelStyle={{fontWeight: 'bold', color: '#334155'}}
+                      cursor={{fill: 'rgba(245,158,11,0.05)'}}
                     />
-                    <Area type="monotone" dataKey="impressions" stroke="#F59E0B" strokeWidth={3} fillOpacity={1} fill="url(#colorImp)" />
-                  </AreaChart>
+                    <Bar dataKey="impressions" fill="#F59E0B" radius={[6, 6, 0, 0]} maxBarSize={80} />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="w-full h-full flex justify-center items-center text-slate-400 text-sm font-medium">

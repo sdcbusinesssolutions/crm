@@ -257,7 +257,7 @@ const AiVoiceAgentView: React.FC = () => {
                         {/* Dashboard Stats / Types Info (Static for now) */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div 
-                        onClick={() => setCreateType('voice')}
+                        onClick={() => window.open('https://techfree.in/#agent', '_blank')}
                         className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
                     >
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">

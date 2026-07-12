@@ -18,22 +18,29 @@ const BREAKDOWNS = [
 ];
 
 const METRICS = [
-  { id: 'spend', label: 'Amount spent', color: '#60a5fa' }, // blue-400
-  { id: 'reach', label: 'Reach', color: '#a78bfa' }, // violet-400
-  { id: 'impressions', label: 'Impressions', color: '#2dd4bf' }, // teal-400
-  { id: 'cpc', label: 'Cost per lead', color: '#f87171' }, // red-400
-  { id: 'results', label: 'Leads', color: '#facc15' } // yellow-400
+  { id: 'spend', label: 'Amount spent', color: '#60a5fa' },
+  { id: 'impressions', label: 'Impressions', color: '#2dd4bf' },
+  { id: 'reach', label: 'Reach', color: '#a78bfa' },
+  { id: 'frequency', label: 'Frequency', color: '#fb923c' },
+  { id: 'inline_link_clicks', label: 'Link clicks', color: '#facc15' },
+  { id: 'cpc', label: 'CPC (cost per link click)', color: '#f87171' },
+  { id: 'cpm', label: 'CPM (cost per 1,000 impressions)', color: '#c084fc' },
+  { id: 'ctr', label: 'CTR (all)', color: '#38bdf8' }
 ];
 
 const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null }) => {
-  const [selectedBreakdowns, setSelectedBreakdowns] = useState<string[]>(['campaign.name', 'platform_position']);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['spend']);
+  const [selectedBreakdowns, setSelectedBreakdowns] = useState<string[]>(['campaign.name', 'age']);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['spend', 'reach', 'impressions']);
   
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const [datePreset, setDatePreset] = useState('maximum');
+  
+  const [sortMetric, setSortMetric] = useState<string>('spend');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [barGroupCount, setBarGroupCount] = useState<number>(6);
 
   const handleBreakdownToggle = (id: string) => {
     setSelectedBreakdowns(prev => {
@@ -60,6 +67,9 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
 
   useEffect(() => {
     const fetchReport = async () => {
+      setLoading(true);
+      setError(null);
+      setData([]);
       const targetId = entityId || accountId;
       if (!targetId) return;
       if (selectedMetrics.length === 0) return;
@@ -74,12 +84,8 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
         else if (selectedBreakdowns.includes('adset.name')) apiLevel = 'adset';
         else if (selectedBreakdowns.includes('campaign.name') && apiLevel === 'account') apiLevel = 'campaign';
         
-        // Build fields list based on selected metrics to avoid API conflicts
-        const needsActions = selectedMetrics.includes('results') || selectedMetrics.includes('cpc') || selectedMetrics.includes('leads');
-        let requestedFields = 'spend,reach,impressions,date_start,date_stop,campaign_name,adset_name,ad_name';
-        if (needsActions) {
-           requestedFields += ',actions,cpc,ctr,clicks,unique_clicks';
-        }
+        // Build fields list based on selected metrics
+        let requestedFields = 'spend,reach,impressions,date_start,date_stop,campaign_name,adset_name,ad_name,frequency,inline_link_clicks,cpc,cpm,ctr';
         
         let url = `/api/click-to-whatsapp/insights/${apiLevel}/${targetId}?datePreset=${datePreset}&fields=${requestedFields}`;
         
@@ -117,29 +123,25 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
              }
           });
 
-          const actions = row.actions || [];
-          const convAction = actions.find((a: any) => a.action_type.includes('messaging'));
-          const results = convAction ? parseInt(convAction.value) : 0;
           const spend = parseFloat(row.spend || 0);
+          const impressions = parseInt(row.impressions || 0);
           
           return {
             id: Math.random().toString(),
             label: labelParts.length > 0 ? labelParts.join(', ') : `${level} Total`,
             spend: spend,
             reach: parseInt(row.reach || 0),
-            impressions: parseInt(row.impressions || 0),
-            results: results,
-            cpc: results > 0 ? (spend / results) : 0,
+            impressions: impressions,
+            frequency: parseFloat(row.frequency || 0),
+            inline_link_clicks: parseInt(row.inline_link_clicks || 0),
+            cpc: parseFloat(row.cpc || 0),
+            cpm: parseFloat(row.cpm || 0),
+            ctr: parseFloat(row.ctr || 0),
             ...row // keep raw for table
           };
         });
         
-        // Sort by first selected metric descending if date is not selected
-        if (!selectedBreakdowns.includes('date') && selectedMetrics.length > 0) {
-           const primaryMetric = selectedMetrics[0];
-           processed.sort((a, b) => b[primaryMetric] - a[primaryMetric]);
-        }
-
+        // We do sorting dynamically during render based on sortMetric and sortDirection
         setData(processed);
       } catch (err: any) {
         setError(err.message);
@@ -162,7 +164,7 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
           <div>
             <h2 className="text-xl font-bold text-slate-800">Custom Bar Chart</h2>
             <p className="text-sm text-slate-500">
-              Showing {data.length} breakdown segments
+              Showing {Math.min(data.length, barGroupCount)} of {data.length} breakdown segments
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -206,7 +208,25 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
               {/* Dynamic Grouped Bar Chart */}
               <div className="bg-white p-6 rounded-xl border border-slate-200 mb-6 shadow-sm" style={{ height: '400px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.slice(0, 15)} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                  <BarChart 
+                    data={[...data].sort((a, b) => {
+                       let aVal = a[sortMetric];
+                       let bVal = b[sortMetric];
+                       if (aVal === undefined) aVal = '';
+                       if (bVal === undefined) bVal = '';
+                       
+                       if (typeof aVal === 'number' && typeof bVal === 'number') {
+                         return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+                       }
+                       
+                       const aStr = String(aVal);
+                       const bStr = String(bVal);
+                       return sortDirection === 'desc' 
+                         ? bStr.localeCompare(aStr) 
+                         : aStr.localeCompare(bStr);
+                    }).slice(0, barGroupCount)} 
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                     <XAxis 
                       dataKey="label" 
@@ -249,25 +269,35 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
               {/* Data Table */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
                         {selectedBreakdowns.map(bId => {
                            const bDef = BREAKDOWNS.find(b => b.id === bId);
-                           return <th key={bId} className="px-6 py-3 font-semibold text-slate-700">{bDef?.label || bId}</th>
+                           return <th key={bId} className="px-6 py-4 font-bold text-slate-700 text-xs uppercase tracking-wider">{bDef?.label || bId}</th>
                         })}
-                        {selectedBreakdowns.length === 0 && (
-                          <th className="px-6 py-3 font-semibold text-slate-700">Segment</th>
-                        )}
                         {selectedMetrics.map(mId => {
                            const mDef = METRICS.find(m => m.id === mId);
-                           return <th key={mId} className="px-6 py-3 font-semibold text-slate-700 text-right">{mDef?.label || mId}</th>
+                           return <th key={mId} className="px-6 py-4 font-bold text-slate-700 text-xs uppercase tracking-wider text-right">{mDef?.label || mId}</th>
                         })}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {data.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
+                      {[...data].sort((a, b) => {
+                         let aVal = a[sortMetric];
+                         let bVal = b[sortMetric];
+                         if (aVal === undefined) aVal = '';
+                         if (bVal === undefined) bVal = '';
+                         if (typeof aVal === 'number' && typeof bVal === 'number') {
+                           return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
+                         }
+                         const aStr = String(aVal);
+                         const bStr = String(bVal);
+                         return sortDirection === 'desc' 
+                           ? bStr.localeCompare(aStr) 
+                           : aStr.localeCompare(bStr);
+                      }).map((row, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50 transition-colors">
                           {selectedBreakdowns.map(bId => {
                              let val = '';
                              if (bId === 'date') val = row.date_start;
@@ -347,6 +377,67 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
                  </span>
                </label>
              ))}
+          </div>
+
+
+          <h4 className="font-bold text-slate-700 mb-3 text-sm flex items-center justify-between pt-4 border-t border-slate-200 mt-6">
+            Format
+          </h4>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">Bar group sorting</label>
+              <select 
+                className="w-full border border-slate-300 rounded-md text-sm py-1.5 px-3 bg-white mb-2"
+                value={sortMetric}
+                onChange={(e) => setSortMetric(e.target.value)}
+              >
+                <optgroup label="Breakdowns">
+                  {selectedBreakdowns.map(bId => {
+                     const bDef = BREAKDOWNS.find(b => b.id === bId);
+                     return <option key={bId} value={bId}>{bDef?.label || bId}</option>
+                  })}
+                </optgroup>
+                <optgroup label="Metrics">
+                  {selectedMetrics.map(mId => {
+                     const mDef = METRICS.find(m => m.id === mId);
+                     return <option key={mId} value={mId}>{mDef?.label || mId}</option>
+                  })}
+                </optgroup>
+              </select>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  type="button"
+                  className={`flex-1 py-1 text-xs font-medium border ${sortDirection === 'asc' ? 'bg-slate-100 text-slate-800 border-slate-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'} rounded-l-md`}
+                  onClick={() => setSortDirection('asc')}
+                >
+                  Ascending
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 py-1 text-xs font-medium border-y border-r ${sortDirection === 'desc' ? 'bg-slate-100 text-slate-800 border-slate-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'} rounded-r-md`}
+                  onClick={() => setSortDirection('desc')}
+                >
+                  Descending
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1">
+                Bar group count
+                <span className="cursor-help text-slate-400" title="Number of bar groups to show on chart">ℹ️</span>
+              </label>
+              <select 
+                className="w-full border border-slate-300 rounded-md text-sm py-1.5 px-3 bg-white"
+                value={barGroupCount}
+                onChange={(e) => setBarGroupCount(parseInt(e.target.value) || 1)}
+              >
+                {[3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
         </div>
