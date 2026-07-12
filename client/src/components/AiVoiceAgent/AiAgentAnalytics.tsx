@@ -26,15 +26,17 @@ const AiAgentAnalytics: React.FC = () => {
                     .limit(50);
                     
                 if (data && !error) {
-                    const formatted = (data as any[]).map((d: any) => ({
-                        id: d.id,
-                        name: d.contact_name || 'Unknown',
-                        email: '-',
-                        phone: d.contact_phone || 'Unknown',
-                        status: d.lead_status,
-                        summary: d.lead_summary,
-                        createdAt: d.updated_at
-                    }));
+                    const formatted = (data as any[])
+                        .filter((d: any) => d.lead_summary && d.lead_summary.trim() !== '')
+                        .map((d: any) => ({
+                            id: d.id,
+                            name: d.contact_name || 'Unknown',
+                            email: '-',
+                            phone: d.contact_phone || 'Unknown',
+                            status: d.lead_status,
+                            summary: d.lead_summary,
+                            createdAt: d.updated_at
+                        }));
                     setLeads(formatted);
                 }
             } catch (err) {
@@ -219,7 +221,7 @@ const AiAgentAnalytics: React.FC = () => {
                                             <div className="absolute -top-4 -left-3 bg-gradient-to-br from-brand-500 to-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white transform -rotate-12">
                                                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/></svg>
                                             </div>
-                                            {lead.summary}
+                                            {lead.summary || <span className="text-slate-400 italic">Conversation in progress...</span>}
                                         </div>
                                     </td>
                                 </tr>

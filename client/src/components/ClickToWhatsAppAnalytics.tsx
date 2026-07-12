@@ -693,8 +693,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 })} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
                   <defs>
                     <linearGradient id="timeColorCost" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#9333ea" stopOpacity={0.6}/>
                     </linearGradient>
                     <linearGradient id="timeColorLeads" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#3b82f6" stopOpacity={1}/>
@@ -761,23 +761,21 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                     fill="url(#timeColorLeads)"
                     radius={[8, 8, 8, 8]} 
                     maxBarSize={48} 
+                    minPointSize={5}
                     animationDuration={1500} 
                     animationEasing="ease-out"
                   />
                   
-                  <Area 
+                  <Bar 
                     yAxisId="right" 
-                    type="monotone" 
                     dataKey="spend" 
                     name="Total Spent" 
-                    stroke="#8b5cf6" 
                     fill="url(#timeColorCost)"
-                    strokeWidth={4} 
-                    dot={{ r: 5, strokeWidth: 3, fill: '#fff', stroke: '#8b5cf6' }} 
-                    activeDot={{ r: 8, strokeWidth: 0, fill: '#8b5cf6' }} 
+                    radius={[8, 8, 8, 8]} 
+                    maxBarSize={48} 
+                    minPointSize={5}
                     animationDuration={2000}
                     animationEasing="ease-in-out"
-                    connectNulls={true}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
@@ -834,8 +832,8 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                       <feDropShadow dx="0" dy="6" stdDeviation="6" floodColor="#000000" floodOpacity="0.15"/>
                     </filter>
                     <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.9}/>
+                      <stop offset="95%" stopColor="#d97706" stopOpacity={0.6}/>
                     </linearGradient>
                   </defs>
                   
@@ -897,6 +895,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                     name="Leads" 
                     radius={[8, 8, 8, 8]} 
                     maxBarSize={48} 
+                    minPointSize={5}
                     filter="url(#barShadow)" 
                     animationDuration={1500} 
                     animationEasing="ease-out"
@@ -909,19 +908,16 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                     ))}
                   </Bar>
                   
-                  <Area 
+                  <Bar 
                     yAxisId="right" 
-                    type="monotone" 
                     dataKey="spend" 
                     name="Total Spent" 
-                    stroke="#f59e0b" 
                     fill="url(#colorCost)"
-                    strokeWidth={4} 
-                    dot={{ r: 5, strokeWidth: 3, fill: '#fff', stroke: '#f59e0b' }} 
-                    activeDot={{ r: 8, strokeWidth: 0, fill: '#f59e0b', filter: 'url(#glow)' }} 
+                    radius={[8, 8, 8, 8]} 
+                    maxBarSize={48} 
+                    minPointSize={5}
                     animationDuration={2000}
                     animationEasing="ease-in-out"
-                    connectNulls={true}
                   />
                 </ComposedChart>
               </ResponsiveContainer>
