@@ -103,7 +103,11 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
         const result = await response.json();
         
         if (!response.ok) {
-          throw new Error(result.error || 'Failed to fetch custom report data.');
+          let errorMsg = result.error || 'Failed to fetch custom report data.';
+          if (errorMsg.includes('combination of data breakdown columns') || errorMsg.includes('is invalid')) {
+             errorMsg = 'Meta does not allow combining these specific data breakdowns. Please try selecting a different combination (e.g., Age & Gender, or Placement & Device).';
+          }
+          throw new Error(errorMsg);
         }
 
         // Process data
@@ -127,6 +131,7 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
           const impressions = parseInt(row.impressions || 0);
           
           return {
+            ...row, // raw data for table
             id: Math.random().toString(),
             label: labelParts.length > 0 ? labelParts.join(', ') : `${level} Total`,
             spend: spend,
@@ -136,8 +141,7 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
             inline_link_clicks: parseInt(row.inline_link_clicks || 0),
             cpc: parseFloat(row.cpc || 0),
             cpm: parseFloat(row.cpm || 0),
-            ctr: parseFloat(row.ctr || 0),
-            ...row // keep raw for table
+            ctr: parseFloat(row.ctr || 0)
           };
         });
         
@@ -341,20 +345,26 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
           </h4>
           
           <div className="space-y-2 mb-6 border border-slate-200 rounded-lg p-3 max-h-64 overflow-y-auto custom-scrollbar">
-             {BREAKDOWNS.map(breakdown => (
-               <label key={breakdown.id} className="flex items-center gap-3 group cursor-pointer">
-                 <input 
-                   type="checkbox" 
-                   className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                   checked={selectedBreakdowns.includes(breakdown.id)}
-                   onChange={() => handleBreakdownToggle(breakdown.id)}
-                   disabled={!selectedBreakdowns.includes(breakdown.id) && selectedBreakdowns.length >= 2}
-                 />
-                 <span className="text-sm text-slate-700 group-hover:text-slate-900 select-none">
-                   {breakdown.label}
-                 </span>
-               </label>
-             ))}
+             {BREAKDOWNS.map(breakdown => {
+               const isMetaBreakdown = (bId: string) => !['campaign.name', 'adset.name', 'ad.name', 'date'].includes(bId);
+               const selectedMetaBreakdownsCount = selectedBreakdowns.filter(isMetaBreakdown).length;
+               const isLimitReached = !selectedBreakdowns.includes(breakdown.id) && isMetaBreakdown(breakdown.id) && selectedMetaBreakdownsCount >= 2;
+               
+               return (
+                 <label key={breakdown.id} className={`flex items-center gap-3 group ${isLimitReached ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                   <input 
+                     type="checkbox" 
+                     className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 disabled:opacity-50"
+                     checked={selectedBreakdowns.includes(breakdown.id)}
+                     onChange={() => handleBreakdownToggle(breakdown.id)}
+                     disabled={isLimitReached}
+                   />
+                   <span className="text-sm text-slate-700 group-hover:text-slate-900 select-none">
+                     {breakdown.label}
+                   </span>
+                 </label>
+               );
+             })}
           </div>
 
           <h4 className="font-bold text-slate-700 mb-3 text-sm flex items-center justify-between pt-4 border-t border-slate-200">

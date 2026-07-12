@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { tokenService } from '../services/tokenService';
 import CustomAdsReportBuilder from './CustomAdsReportBuilder';
 
-const AdDetailPanel = ({ item, level, metrics }) => {
+const AdDetailPanel = ({ item, level, metrics, datePreset = 'last_30d', customSince = '', customUntil = '' }) => {
   const [activeTab, setActiveTab] = useState('summary');
   const [timeSeriesData, setTimeSeriesData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -13,8 +13,13 @@ const AdDetailPanel = ({ item, level, metrics }) => {
       try {
         setLoading(true);
         const authHeader = await tokenService.getAuthHeader();
-        // Fetch daily insights (timeIncrement=1)
-        const response = await fetch(`/api/click-to-whatsapp/insights/${level}/${item.id}?timeIncrement=1`, {
+        
+        let url = `/api/click-to-whatsapp/insights/${level}/${item.id}?timeIncrement=1&datePreset=${datePreset}`;
+        if (datePreset === 'custom') {
+            url += `&since=${customSince}&until=${customUntil}`;
+        }
+        
+        const response = await fetch(url, {
           headers: { ...authHeader }
         });
         const result = await response.json();

@@ -1109,6 +1109,9 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
                 item={activeInsightsItem.item} 
                 level={activeInsightsItem.level} 
                 metrics={activeInsightsItem.metrics} 
+                datePreset={datePreset}
+                customSince={customSince}
+                customUntil={customUntil}
               />
             </div>
           </div>
