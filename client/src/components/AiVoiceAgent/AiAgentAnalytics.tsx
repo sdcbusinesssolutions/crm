@@ -20,21 +20,21 @@ const AiAgentAnalytics: React.FC = () => {
                 
                 const { data, error } = await supabase
                     .from('conversations')
-                    .select('id, contact_phone, contact_name, lead_status, lead_summary, updated_at')
+                    .select('id, contact_phone, contact_name, lead_status, lead_summary, updated_at, assigned_ai_agent_id')
                     .eq('user_id', session.user.id)
+                    .not('assigned_ai_agent_id', 'is', null)
                     .order('updated_at', { ascending: false })
                     .limit(50);
                     
                 if (data && !error) {
                     const formatted = (data as any[])
-                        .filter((d: any) => d.lead_summary && d.lead_summary.trim() !== '')
                         .map((d: any) => ({
                             id: d.id,
                             name: d.contact_name || 'Unknown',
                             email: '-',
                             phone: d.contact_phone || 'Unknown',
-                            status: d.lead_status,
-                            summary: d.lead_summary,
+                            status: d.lead_status || 'PENDING',
+                            summary: d.lead_summary || 'No summary extracted yet. Waiting for more context...',
                             createdAt: d.updated_at
                         }));
                     setLeads(formatted);
