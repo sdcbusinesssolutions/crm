@@ -323,8 +323,8 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-                        {agents.map(agent => (
-                            <div key={agent.id} className="group relative overflow-hidden rounded-3xl bg-white p-6 border border-[#00684A] shadow-sm transition-all duration-300">
+                        {agents.map((agent, index) => (
+                            <div key={agent.id} className={`group relative overflow-hidden rounded-3xl bg-white p-6 border shadow-sm transition-all duration-300 ${['border-[#5b52e5]/30 hover:border-[#5b52e5]/60 hover:shadow-[#5b52e5]/10', 'border-[#fe466a]/30 hover:border-[#fe466a]/60 hover:shadow-[#fe466a]/10', 'border-[#fa9c05]/30 hover:border-[#fa9c05]/60 hover:shadow-[#fa9c05]/10', 'border-[#00a3e0]/30 hover:border-[#00a3e0]/60 hover:shadow-[#00a3e0]/10', 'border-[#10a37f]/30 hover:border-[#10a37f]/60 hover:shadow-[#10a37f]/10'][index % 5]} hover:shadow-md`}>
                                 
                                 {canWrite && (
                                     <div className="absolute top-4 right-4 flex gap-2 z-50">
@@ -356,12 +356,19 @@ const AiVoiceAgentView: React.FC = () => {
 
                                 <div className="flex items-center gap-5 mb-5 relative z-10">
                                     <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center ${
-                                        agent.type === 'voice' ? 'bg-[#ebf5ff] text-blue-600' :
-                                        agent.type === 'call' ? 'bg-[#e6fcf5] text-emerald-600' : 
-                                        'bg-[#f8edff] text-[#9333ea]'
+                                        agent.type === 'voice' ? 'bg-[#5b52e5] shadow-lg shadow-[#5b52e5]/40' :
+                                        agent.type === 'call' ? 'bg-[#fe466a] shadow-lg shadow-[#fe466a]/40' : 
+                                        ['bg-[#5b52e5] shadow-lg shadow-[#5b52e5]/40', 'bg-[#fe466a] shadow-lg shadow-[#fe466a]/40', 'bg-[#fa9c05] shadow-lg shadow-[#fa9c05]/40', 'bg-[#00a3e0] shadow-lg shadow-[#00a3e0]/40', 'bg-[#10a37f] shadow-lg shadow-[#10a37f]/40'][index % 5]
                                     }`}>
-                                        {agent.type === 'voice' ? <MicrophoneIcon className="w-8 h-8" /> :
-                                            agent.type === 'call' ? <PhoneIcon className="w-8 h-8" /> : <RobotIcon className="w-8 h-8" />}
+                                        {agent.type === 'voice' ? <MicrophoneIcon className="w-8 h-8 text-white" /> :
+                                            agent.type === 'call' ? <PhoneIcon className="w-8 h-8 text-white" /> : 
+                                            [
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="5" y="5" rx="2" ry="2"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M9 15c.5.5 1.5.5 2.5.5s2-.5 2.5-.5"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 4h8"/><path d="M10 8V4"/><path d="M14 8V4"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M12 8v-2"/><circle cx="12" cy="4" r="2"/></svg>
+                                            ][index % 5]}
                                     </div>
                                     <div>
                                         <h3 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-indigo-500 to-purple-600 text-[22px] tracking-tight mb-1">{agent.name}</h3>
@@ -372,13 +379,18 @@ const AiVoiceAgentView: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <p className="text-[13px] text-slate-500/90 mb-8 line-clamp-2 h-10 font-medium leading-[1.6] relative z-10 pr-4">
-                                    {agent.description || 'No description provided.'}
-                                </p>
+                                <div className="mb-8 p-3.5 rounded-xl bg-gradient-to-r from-brand-50/80 to-indigo-50/80 border border-brand-100/50 relative z-10 shadow-sm">
+                                    <p className="text-[13.5px] text-slate-700 font-medium leading-[1.6] line-clamp-2">
+                                        {agent.description || 'No description provided.'}
+                                    </p>
+                                </div>
 
                                 <div className="border-t border-slate-100/70 pt-5 relative z-10">
                                     <div className="flex justify-between items-center text-[12px] text-slate-400/90 mb-5 font-medium">
-                                        <span>Created {format(new Date(agent.created_at), 'MMM d, yyyy')}</span>
+                                        <div className="flex items-center gap-1.5 text-brand-700 bg-brand-50 px-2.5 py-1 rounded-lg font-bold text-[11px] uppercase tracking-wide border border-brand-200 shadow-sm">
+                                            <svg className="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <span>{format(new Date(agent.created_at), 'MMM d, yyyy')}</span>
+                                        </div>
                                         <span className="font-mono bg-[#f8fafc] px-2 py-[3px] rounded-md flex items-center gap-1.5 text-slate-500">
                                             <span className="uppercase text-[10px] tracking-wider text-slate-400">ID:</span>
                                             <span className="font-semibold text-slate-700">{agent.id.slice(0, 8)}...</span>
@@ -387,8 +399,8 @@ const AiVoiceAgentView: React.FC = () => {
 
                                     {canWrite && (
                                         <div className="flex gap-3">
-                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-brand-50/50 hover:bg-brand-50 text-brand-700 border border-brand-100 rounded-xl text-[14px] font-bold cursor-pointer transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <DocumentIcon className="w-5 h-5 text-brand-500" />
+                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-[14px] font-bold cursor-pointer transition-all shadow-sm ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <DocumentIcon className="w-5 h-5 text-indigo-500" />
                                                 <span>{uploadingFor === agent.id ? 'Uploading...' : 'Knowledge'}</span>
                                                 <input
                                                     type="file"
