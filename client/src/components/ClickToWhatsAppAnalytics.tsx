@@ -662,8 +662,132 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           </div>
         </div>
         
+      </div>
+
+      {/* Data List */}
+      <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 overflow-hidden">
+        <div className="p-5 bg-[var(--color-brand)] flex items-center justify-between flex-wrap gap-4 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Performance Breakdown</h3>
+            <span className="text-xs font-bold text-[var(--color-brand)] bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
+              {viewLevel === 'adset' ? allAdsets.length + ' AdSets' : data.length + ' Campaigns'}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex bg-white/10 rounded-lg p-1 border border-white/20 shadow-inner overflow-hidden text-sm font-medium">
+              <button 
+                onClick={() => setViewLevel('hierarchy')}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'hierarchy' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+              >
+                Tree View
+              </button>
+              <button 
+                onClick={() => setViewLevel('campaign')}
+                className={`px-4 py-1.5 rounded-md transition-all mx-1 ${viewLevel === 'campaign' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+              >
+                Campaigns Only
+              </button>
+              <button 
+                onClick={() => setViewLevel('adset')}
+                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'adset' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
+              >
+                AdSets Only
+              </button>
+            </div>
+            
+            <button 
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-white/20 rounded-lg text-sm font-semibold text-[var(--color-brand)] hover:bg-slate-50 transition-colors shadow-sm"
+            >
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Export CSV
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col">
+          {processedData.length === 0 && !loading && (
+            <div className="p-12 text-center">
+              <div className="text-3xl mb-2">📊</div>
+              <p>No {viewLevel === 'campaign' ? 'Campaigns' : 'AdSets'} found.</p>
+              <p className="text-xs mt-1">Graph will appear here once you create {viewLevel === 'campaign' ? 'Campaigns' : 'AdSets'}.</p>
+            </div>
+          )}
+          
+          {(() => {
+            const currentList = viewLevel === 'adset' ? allAdsets : processedData;
+            const totalPages = Math.ceil(currentList.length / itemsPerPage);
+            const paginatedList = currentList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+            return (
+              <>
+                {viewLevel === 'adset' ? (
+                  paginatedList.map((adset: any, idx: number) => (
+                    <React.Fragment key={adset.id}>
+                      {renderRow(adset, 0, false, null, idx)}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  paginatedList.map((campaign: any, idx: number) => {
+                    const isCampExpanded = expandedCampaigns.has(campaign.id);
+                    
+                    return (
+                      <React.Fragment key={campaign.id}>
+                        {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand, idx)}
+                        
+                        {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map((adset: any, adsetIdx: number) => {
+                          const isAdSetExpanded = expandedAdSets.has(adset.id);
+                          
+                          return (
+                            <React.Fragment key={adset.id}>
+                              {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand, adsetIdx)}
+                              
+                              {isAdSetExpanded && adset.ads?.data?.map((ad: any, adIdx: number) => (
+                                renderRow(ad, 2, false, null, adIdx)
+                              ))}
+                            </React.Fragment>
+                          )
+                        })}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+
+                <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100 rounded-b-xl">
+                    <span className="text-sm text-slate-500 font-medium">
+                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, currentList.length)} of {currentList.length} Entries
+                    </span>
+                    <div className="flex gap-2">
+                      <button 
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <button 
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-br from-orange-100 via-orange-50 to-orange-100 p-8 rounded-[2rem] border-2 border-orange-300 shadow-lg shadow-orange-500/20">
         {/* Time Series Graph Section */}
-        <div className="mt-10 pt-10 border-t border-slate-100 relative group">
+        <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 rounded-3xl -z-10"></div>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-base font-black text-slate-800 uppercase tracking-wide flex items-center gap-2">
@@ -946,127 +1070,6 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
               <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-[#FCA5A5]"></div> Expensive CPC ({'>'} ₹{expensiveThreshold.toFixed(1)})</div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Data List */}
-      <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-slate-200 overflow-hidden">
-        <div className="p-5 bg-[var(--color-brand)] flex items-center justify-between flex-wrap gap-4 rounded-t-2xl">
-          <div className="flex items-center gap-3">
-            <h3 className="font-bold text-white uppercase tracking-wider text-sm">Performance Breakdown</h3>
-            <span className="text-xs font-bold text-[var(--color-brand)] bg-white px-2 py-1 rounded-md border border-slate-200 shadow-sm">
-              {viewLevel === 'adset' ? allAdsets.length + ' AdSets' : data.length + ' Campaigns'}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <div className="flex bg-white/10 rounded-lg p-1 border border-white/20 shadow-inner overflow-hidden text-sm font-medium">
-              <button 
-                onClick={() => setViewLevel('hierarchy')}
-                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'hierarchy' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-              >
-                Tree View
-              </button>
-              <button 
-                onClick={() => setViewLevel('campaign')}
-                className={`px-4 py-1.5 rounded-md transition-all mx-1 ${viewLevel === 'campaign' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-              >
-                Campaigns Only
-              </button>
-              <button 
-                onClick={() => setViewLevel('adset')}
-                className={`px-4 py-1.5 rounded-md transition-all ${viewLevel === 'adset' ? 'bg-white text-[var(--color-brand)] shadow-sm' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-              >
-                AdSets Only
-              </button>
-            </div>
-            
-            <button 
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-white/20 rounded-lg text-sm font-semibold text-[var(--color-brand)] hover:bg-slate-50 transition-colors shadow-sm"
-            >
-            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Export CSV
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex flex-col">
-          {processedData.length === 0 && !loading && (
-            <div className="p-12 text-center">
-              <div className="text-3xl mb-2">📊</div>
-              <p>No {viewLevel === 'campaign' ? 'Campaigns' : 'AdSets'} found.</p>
-              <p className="text-xs mt-1">Graph will appear here once you create {viewLevel === 'campaign' ? 'Campaigns' : 'AdSets'}.</p>
-            </div>
-          )}
-          
-          {(() => {
-            const currentList = viewLevel === 'adset' ? allAdsets : processedData;
-            const totalPages = Math.ceil(currentList.length / itemsPerPage);
-            const paginatedList = currentList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-            return (
-              <>
-                {viewLevel === 'adset' ? (
-                  paginatedList.map((adset: any, idx: number) => (
-                    <React.Fragment key={adset.id}>
-                      {renderRow(adset, 0, false, null, idx)}
-                    </React.Fragment>
-                  ))
-                ) : (
-                  paginatedList.map((campaign: any, idx: number) => {
-                    const isCampExpanded = expandedCampaigns.has(campaign.id);
-                    
-                    return (
-                      <React.Fragment key={campaign.id}>
-                        {renderRow(campaign, 0, isCampExpanded, toggleCampaignExpand, idx)}
-                        
-                        {viewLevel === 'hierarchy' && isCampExpanded && campaign.adsets?.data?.map((adset: any, adsetIdx: number) => {
-                          const isAdSetExpanded = expandedAdSets.has(adset.id);
-                          
-                          return (
-                            <React.Fragment key={adset.id}>
-                              {renderRow(adset, 1, isAdSetExpanded, toggleAdSetExpand, adsetIdx)}
-                              
-                              {isAdSetExpanded && adset.ads?.data?.map((ad: any, adIdx: number) => (
-                                renderRow(ad, 2, false, null, adIdx)
-                              ))}
-                            </React.Fragment>
-                          )
-                        })}
-                      </React.Fragment>
-                    );
-                  })
-                )}
-
-                <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-slate-100 rounded-b-xl">
-                    <span className="text-sm text-slate-500 font-medium">
-                      Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, currentList.length)} of {currentList.length} Entries
-                    </span>
-                    <div className="flex gap-2">
-                      <button 
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button 
-                        disabled={currentPage >= totalPages}
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-              </>
-            );
-          })()}
         </div>
       </div>
 
