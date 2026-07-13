@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPipelines, getPipelineStages, moveLeadToStage, updateLead, createLead, getLeads, getLead } from '../../../services/lead-management-api';
 import Modal from '../../../components/Modal';
 import { Pipeline, PipelineStage, Lead } from '../../../types/lead-management';
-import { BriefcaseIcon, ChevronRightIcon, CheckIcon, PlusIcon } from '../../../components/icons';
+import { BriefcaseIcon, ChevronRightIcon, CheckIcon, PlusIcon, SearchIcon, ChevronDownIcon } from '../../../components/icons';
 
 let globalPipelinesPromise: Promise<Pipeline[]> | null = null;
 let globalStagesPromises: Record<string, Promise<PipelineStage[]>> = {};
@@ -21,6 +21,8 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
     const [stagesCache, setStagesCache] = useState<Record<string, PipelineStage[]>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     useEffect(() => {
         const loadInitialData = async () => {
@@ -66,6 +68,10 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                 setActiveAssignments(assignments);
                 if (assignments.length > 0 && !selectedPipelineId && !isOpen) {
                     setSelectedPipelineId(assignments[0].pipelineId);
+                }
+                
+                if (!selectedPipelineId && assignments.length === 0) {
+                    setIsDropdownOpen(true);
                 }
 
                 // Pre-load stages for any active assignments so badges render correctly
@@ -233,90 +239,130 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                 title="Pipeline Assignment"
                 size="md"
             >
-                <div className="space-y-6 py-2 max-h-[65vh] overflow-y-auto pr-2">
-                    {/* Pipeline Selection */}
-                    <div>
-                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 px-1">
-                            Select Pipeline
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {isLoading ? (
-                                <div className="text-center py-4 text-slate-400 text-sm animate-pulse col-span-2">Loading pipelines...</div>
-                            ) : pipelines.length === 0 ? (
-                                <div className="text-center py-4 text-slate-400 text-sm italic col-span-2">No pipelines found.</div>
-                            ) : (
-                                pipelines.map(p => {
-                                    const isAlreadyAssigned = activeAssignments.some(a => a.pipelineId === p.id);
-                                    return (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => setSelectedPipelineId(p.id)}
-                                            className={`flex items-center justify-between p-2 rounded-xl border-2 transition-all ${
-                                                selectedPipelineId === p.id 
-                                                    ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/[0.03] shadow-sm' 
-                                                    : 'border-slate-100 hover:border-slate-200 bg-slate-50/30'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 shrink-0 rounded-md bg-white border border-slate-200 flex items-center justify-center text-[var(--color-brand)] shadow-sm">
-                                                    <BriefcaseIcon className="w-3 h-3" />
-                                                </div>
-                                                <div className="flex flex-col items-start overflow-hidden">
-                                                    <span className={`text-xs font-bold truncate w-full text-left ${selectedPipelineId === p.id ? 'text-slate-900' : 'text-slate-600'}`}>
-                                                        {p.name}
-                                                    </span>
-                                                    {isAlreadyAssigned && (
-                                                        <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide">
-                                                            Already Assigned
-                                                        </span>
-                                                    )}
+                <div className="flex flex-col max-h-[65vh] overflow-hidden bg-slate-50/30">
+                    <div className="overflow-y-auto p-4 space-y-6">
+                        {/* Pipeline Selection */}
+                        <div className="flex flex-col gap-2 relative">
+                            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider px-1">
+                                Select Pipeline
+                            </label>
+                            
+                            <button
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                className={`flex items-center justify-between p-3.5 rounded-2xl border-2 transition-all duration-300 w-full bg-white shadow-sm hover:shadow-md ${
+                                    isDropdownOpen ? 'border-[var(--color-brand)] ring-4 ring-[var(--color-brand)]/10' : 'border-slate-200 hover:border-slate-300'
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-[var(--color-brand)]/10 text-[var(--color-brand)] flex items-center justify-center">
+                                        <BriefcaseIcon className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-800">
+                                        {selectedPipelineId 
+                                            ? (pipelines.find(p => p.id === selectedPipelineId)?.name || 'Unknown Pipeline') 
+                                            : 'Choose a pipeline...'}
+                                    </span>
+                                </div>
+                                <ChevronDownIcon className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            {isDropdownOpen && (
+                                <div className="animate-in slide-in-from-top-2 fade-in duration-200 flex flex-col gap-2 mt-1">
+                                    {isLoading ? (
+                                        <div className="text-center py-6 text-slate-400 text-sm animate-pulse bg-white rounded-2xl border border-slate-100">Loading pipelines...</div>
+                                    ) : pipelines.length === 0 ? (
+                                        <div className="text-center py-6 text-slate-400 text-sm italic bg-white rounded-2xl border border-slate-100">No pipelines found.</div>
+                                    ) : (
+                                        <div className="bg-white border-2 border-slate-100 rounded-2xl shadow-lg overflow-hidden flex flex-col max-h-[40vh]">
+                                            <div className="p-3 border-b border-slate-50 bg-slate-50/50 sticky top-0 z-10">
+                                                <div className="relative">
+                                                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search pipelines..."
+                                                        value={searchQuery}
+                                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                                        className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)] focus:border-transparent transition-all shadow-inner"
+                                                    />
                                                 </div>
                                             </div>
-                                            {selectedPipelineId === p.id && (
-                                                <div className="w-4 h-4 shrink-0 rounded-full bg-[var(--color-brand)] flex items-center justify-center ml-1">
-                                                    <CheckIcon className="w-2.5 h-2.5 text-white" />
-                                                </div>
-                                            )}
-                                        </button>
-                                    );
-                                })
+                                            <div className="overflow-y-auto p-2 flex flex-col gap-1">
+                                                {pipelines.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => {
+                                                    const isAlreadyAssigned = activeAssignments.some(a => a.pipelineId === p.id);
+                                                    const isSelected = selectedPipelineId === p.id;
+                                                    
+                                                    return (
+                                                        <button
+                                                            key={p.id}
+                                                            onClick={() => {
+                                                                setSelectedPipelineId(p.id);
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className={`relative flex items-center justify-between p-2.5 rounded-xl transition-all duration-200 group ${
+                                                                isSelected 
+                                                                    ? 'bg-[var(--color-brand)]/10 text-[var(--color-brand)]' 
+                                                                    : 'hover:bg-slate-50 bg-white'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`w-2 h-2 rounded-full ${isAlreadyAssigned ? 'bg-emerald-500' : 'bg-slate-200 group-hover:bg-slate-300'}`} />
+                                                                <span className={`text-sm font-bold tracking-tight ${isSelected ? 'text-[var(--color-brand)]' : 'text-slate-700'}`}>
+                                                                    {p.name}
+                                                                </span>
+                                                            </div>
+                                                            {isAlreadyAssigned && (
+                                                                <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
+                                                                    <CheckIcon className="w-3 h-3 text-emerald-600" />
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
-                    </div>
 
-                    {/* Stage Selection */}
-                    {selectedPipelineId && (
-                        <div className="animate-in fade-in slide-in-from-top-2">
-                            <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3 px-1">
-                                Select Stage
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {(stagesCache[selectedPipelineId] || []).map(s => {
-                                    const isActiveStage = activeAssignments.some(a => a.pipelineId === selectedPipelineId && a.stageId === s.id);
-                                    return (
-                                        <button
-                                            key={s.id}
-                                            onClick={() => handleStageSelect(s.id)}
-                                            disabled={isSaving}
-                                            className={`flex flex-col items-start p-3 rounded-xl border-2 transition-all group ${
-                                                isActiveStage 
-                                                    ? 'border-emerald-500 bg-emerald-50/50' 
-                                                    : 'border-slate-100 hover:border-slate-200 bg-slate-50/30'
-                                            }`}
-                                        >
-                                            <div 
-                                                className="w-full h-1.5 rounded-full mb-2 opacity-60 group-hover:opacity-100 transition-opacity" 
-                                                style={{ backgroundColor: s.color || '#3b82f6' }}
-                                            />
-                                            <span className={`text-xs font-bold ${isActiveStage ? 'text-emerald-700' : 'text-slate-600'}`}>
-                                                {s.name}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
+                        {/* Stage Selection */}
+                        {selectedPipelineId && !isDropdownOpen && (
+                            <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                                <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3 px-1">
+                                    Select Stage
+                                </label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {(stagesCache[selectedPipelineId] || []).map(s => {
+                                        const isActiveStage = activeAssignments.some(a => a.pipelineId === selectedPipelineId && a.stageId === s.id);
+                                        return (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => handleStageSelect(s.id)}
+                                                disabled={isSaving}
+                                                className={`flex flex-col items-start p-3.5 rounded-2xl border-2 transition-all duration-300 group overflow-hidden relative ${
+                                                    isActiveStage 
+                                                        ? 'border-emerald-500 bg-emerald-50/80 shadow-md' 
+                                                        : 'border-white hover:border-slate-200 bg-white hover:shadow-md hover:-translate-y-[1px] shadow-sm'
+                                                }`}
+                                            >
+                                                {isActiveStage && (
+                                                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                                                )}
+                                                <div 
+                                                    className="w-full h-1.5 rounded-full mb-3 shadow-inner transition-transform duration-300 group-hover:scale-y-125" 
+                                                    style={{ backgroundColor: s.color || '#3b82f6' }}
+                                                />
+                                                <span className={`text-sm font-bold tracking-tight ${isActiveStage ? 'text-emerald-800' : 'text-slate-700'}`}>
+                                                    {s.name}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {isSaving && (
                         <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center rounded-2xl z-10">
