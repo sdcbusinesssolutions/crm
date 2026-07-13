@@ -11,8 +11,46 @@ const multer = require('multer');
 const getUserId = (req) => req.user.id;
 
 // ==========================================
-// 1. Get Conversations (Paginated)
+// 1. Fetch Conversations with optional Search/Filters
 // ==========================================
+router.post('/conversations', requirePermission('Inbox', 'read_write'), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { contactPhone } = req.body;
+        
+        const cleanPhone = contactPhone.replace(/\D/g, '');
+
+        const { data: existing } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('contact_phone', cleanPhone)
+            .single();
+
+        if (existing) {
+            return res.json(existing);
+        }
+
+        const { data: newConv, error } = await supabase
+            .from('conversations')
+            .insert({
+                user_id: userId,
+                contact_phone: cleanPhone,
+                status: 'open',
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(newConv);
+    } catch (error) {
+        console.error('Error creating conversation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);

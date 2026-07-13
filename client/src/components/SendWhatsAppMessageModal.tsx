@@ -312,15 +312,68 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         }
     };
 
-    const handleSendQuickReply = (reply: Flow) => {
+    const handleSendQuickReply = async (reply: Flow) => {
         setIsQuickReplyOpen(false);
         setMessageInput('');
+        if (isSendingRef.current) return;
         
+        const cleanPhone = contactPhone.replace(/\D/g, '');
+        let targetConversationId = conversation?.id;
+
+        isSendingRef.current = true;
         const firstNode = reply.nodes?.[0];
-        if (!firstNode) return;
-        
-        let text = firstNode.data?.message || firstNode.data?.body || firstNode.data?.caption || '';
-        setMessageInput(text);
+        const tempId = `temp-${Date.now()}`;
+
+        // Optimistic UI for text-based quick replies
+        if (firstNode?.type === 'textMessage') {
+            const msg: Message = {
+                id: tempId,
+                conversation_id: targetConversationId || 'temp',
+                text: firstNode.data.message || firstNode.data.body || '',
+                direction: 'out',
+                type: 'text',
+                status: 'sending',
+                created_at: new Date().toISOString()
+            } as any;
+            setMessages(prev => [...prev, msg]);
+            setTimeout(scrollToBottom, 100);
+        }
+
+        try {
+            if (!targetConversationId) {
+                const newConv = await inboxService.createConversation(cleanPhone);
+                if (newConv) {
+                    targetConversationId = newConv.id;
+                    setConversation(newConv);
+                } else {
+                    throw new Error("Could not create conversation");
+                }
+            }
+
+            const success = await quickReplyService.sendQuickReply(reply.id, cleanPhone);
+            if (success) {
+                // If it was a text message, the backend would have sent it. We can optionally fetch to refresh,
+                // but the standard Inbox just relies on optimistic UI and polling. 
+                // We will manually update the status of the optimistic message here for immediate feedback.
+                if (firstNode?.type === 'textMessage') {
+                    setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'sent' as any } : m));
+                } else {
+                    // For non-text quick replies, fetch the latest messages so it shows up
+                    setTimeout(async () => {
+                        const msgs = await inboxService.getMessages(targetConversationId as string);
+                        setMessages(msgs);
+                        scrollToBottom();
+                    }, 1000);
+                }
+            } else {
+                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' as any } : m));
+            }
+        } catch (error) {
+            console.error("Error sending quick reply:", error);
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' as any } : m));
+        } finally {
+            isSendingRef.current = false;
+        }
     };
 
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -655,18 +708,60 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             )}
 
                                             {/* Text Content */}
-                                            {msg.text && (
+                                            {msg.type !== 'interactive' && msg.text && (
                                                 <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>
                                             )}
+                                            {msg.type === 'interactive' && msg.text && (() => {
+                                                try {
+                                                    const interactive = JSON.parse(msg.text);
+                                                    return (
+                                                        <div className="flex flex-col gap-2 min-w-[200px]">
+                                                            {interactive.body?.text && (
+                                                                <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
+                                                                    {interactive.body.text}
+                                                                </div>
+                                                            )}
+                                                            {interactive.footer?.text && (
+                                                                <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wide">
+                                                                    {interactive.footer.text}
+                                                                </div>
+                                                            )}
+                                                            {interactive.action?.buttons && (
+                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                    {interactive.action.buttons.map((btn: any, i: number) => (
+                                                                        <div key={i} className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center cursor-default">
+                                                                            {btn.reply?.title || 'Button'}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                            {interactive.action?.sections && (
+                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                    <div className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center flex items-center justify-center gap-2 cursor-default">
+                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                                                        </svg>
+                                                                        {interactive.action.button || 'View List'}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                } catch (e) {
+                                                    return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
+                                                }
+                                            })()}
 
                                             {/* Metadata */}
                                             <div className="flex items-center justify-end gap-1.5 mt-1.5 -mb-0.5">
                                                 <span className="text-[11px] text-slate-400 font-medium">{formatTime(msg.created_at)}</span>
                                                 {isOutbound && (
-                                                    <span className={`${msg.status === 'read' ? 'text-blue-500' : 'text-slate-400'}`}>
-                                                        {msg.status === 'sending' ? <ClockIcon className="w-3.5 h-3.5" /> : 
-                                                         msg.status === 'sent' || msg.status === 'delivered' ? <CheckIcon className="w-3.5 h-3.5" /> : 
-                                                         msg.status === 'read' ? <DoubleCheckIcon className="w-3.5 h-3.5" /> : null}
+                                                    <span className="flex items-center">
+                                                        {msg.status === 'sending' && <ClockIcon className="w-3.5 h-3.5 text-slate-400" />}
+                                                        {msg.status === 'sent' && <CheckIcon className="w-3.5 h-3.5 text-slate-400" />}
+                                                        {msg.status === 'delivered' && <DoubleCheckIcon className="w-3.5 h-3.5 text-slate-400" />}
+                                                        {msg.status === 'read' && <DoubleCheckIcon className="w-3.5 h-3.5 text-blue-500" />}
+                                                        {msg.status === 'failed' && <ClockIcon className="w-3.5 h-3.5 text-red-500" />}
                                                     </span>
                                                 )}
                                             </div>

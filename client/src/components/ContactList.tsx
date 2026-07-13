@@ -1306,7 +1306,6 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                     <PipelineAssignment 
                                                         leadId={undefined} 
                                                         contact={contact} 
-                                                        onAssignmentComplete={() => loadContacts()}
                                                     />
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black min-w-[200px]">

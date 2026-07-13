@@ -12,19 +12,19 @@ export interface Tag {
 
 export const tagService = {
     async getTags(): Promise<Tag[]> {
-        const { data: tags, error } = await supabase
-            .from('tags')
-            .select('*')
-            .order('name', { ascending: true });
-
-        if (error) throw error;
-
-        // Optional: Get counts (could be slow if many contacts)
-        // For now, simpler to just list tags. 
-        // A more performant way to get counts would be a separate RPC or keeping a counter.
-        // We will mock count or fetch it if needed.
-
-        return tags || [];
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers = {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${session?.access_token || ''}`
+            };
+            const res = await fetch('/api/tags', { headers });
+            if (!res.ok) throw new Error('Failed to fetch tags');
+            return await res.json();
+        } catch (e) {
+            console.error("Error fetching tags", e);
+            return [];
+        }
     },
 
     async saveTag(tag: Partial<Tag>): Promise<Tag> {

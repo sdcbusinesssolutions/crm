@@ -4,6 +4,9 @@ import Modal from '../../../components/Modal';
 import { Pipeline, PipelineStage, Lead } from '../../../types/lead-management';
 import { BriefcaseIcon, ChevronRightIcon, CheckIcon, PlusIcon } from '../../../components/icons';
 
+let globalPipelinesPromise: Promise<Pipeline[]> | null = null;
+let globalStagesPromises: Record<string, Promise<PipelineStage[]>> = {};
+
 interface PipelineAssignmentProps {
     leadId?: string;
     contact: any; // Can be a Lead or a Contact
@@ -23,7 +26,13 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
         const loadInitialData = async () => {
             try {
                 // Load pipelines right away so badges can render pipeline names
-                const pData = await getPipelines();
+                if (!globalPipelinesPromise) {
+                    globalPipelinesPromise = getPipelines().catch(err => {
+                        globalPipelinesPromise = null; // Clear cache on error so it can retry
+                        throw err;
+                    });
+                }
+                const pData = await globalPipelinesPromise;
                 setPipelines(pData);
                 
                 const assignments: { leadId: string, pipelineId: string, stageId: string }[] = [];
@@ -63,14 +72,20 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                 const newStagesCache = { ...stagesCache };
                 let cacheChanged = false;
                 for (const a of assignments) {
-                    if (!newStagesCache[a.pipelineId]) {
-                        try {
-                            const sData = await getPipelineStages(a.pipelineId);
+                    if (!globalStagesPromises[a.pipelineId]) {
+                        globalStagesPromises[a.pipelineId] = getPipelineStages(a.pipelineId).catch(err => {
+                            delete globalStagesPromises[a.pipelineId]; // Clear cache on error
+                            throw err;
+                        });
+                    }
+                    try {
+                        const sData = await globalStagesPromises[a.pipelineId];
+                        if (newStagesCache[a.pipelineId] !== sData) {
                             newStagesCache[a.pipelineId] = sData;
                             cacheChanged = true;
-                        } catch (e) {
-                            console.error("Failed to load stages for pipeline", a.pipelineId, e);
                         }
+                    } catch (e) {
+                        console.error("Failed to load stages for pipeline", a.pipelineId, e);
                     }
                 }
                 if (cacheChanged) {
@@ -87,7 +102,13 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
 
     useEffect(() => {
         if (selectedPipelineId && !stagesCache[selectedPipelineId]) {
-            getPipelineStages(selectedPipelineId).then(sData => {
+            if (!globalStagesPromises[selectedPipelineId]) {
+                globalStagesPromises[selectedPipelineId] = getPipelineStages(selectedPipelineId).catch(err => {
+                    delete globalStagesPromises[selectedPipelineId];
+                    throw err;
+                });
+            }
+            globalStagesPromises[selectedPipelineId].then(sData => {
                 setStagesCache(prev => ({ ...prev, [selectedPipelineId]: sData }));
             }).catch(console.error);
         }
