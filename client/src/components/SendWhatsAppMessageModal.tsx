@@ -508,24 +508,23 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
             >
                 {/* Header */}
                 <div className="px-5 py-4 bg-[#00684a] text-white flex items-center justify-between shrink-0">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-6 flex-1 min-w-0">
+                        <div className="flex items-center gap-3 shrink-0">
                             <div className="w-11 h-11 bg-white/20 rounded-full flex items-center justify-center shrink-0">
                                 <span className="font-bold text-lg">{contactName ? contactName.charAt(0).toUpperCase() : '#'}</span>
                             </div>
-                            <div>
-                                <h3 className="font-bold text-base">{contactName || contactPhone}</h3>
-                                <p className="text-sm text-white/80">{contactPhone}</p>
+                            <div className="min-w-0">
+                                <h3 className="font-bold text-base truncate max-w-[200px]">{contactName || contactPhone}</h3>
+                                <p className="text-sm text-white/80 truncate max-w-[200px]">{contactPhone}</p>
                             </div>
                         </div>
                         
                         {/* Tags */}
-                        {conversation && (
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {conversation.tags?.map(tag => (
+                        <div className="flex items-center gap-2 overflow-x-auto min-w-0 flex-nowrap scrollbar-hide">
+                            {conversation?.tags?.map(tag => (
                                     <div
                                         key={tag}
-                                        className="group/tag flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold border transition-colors relative"
+                                        className="group/tag flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold border transition-colors relative shrink-0 whitespace-nowrap"
                                         style={{
                                             backgroundColor: tagColorMap[tag] ? `${tagColorMap[tag]}30` : 'rgba(255,255,255,0.1)',
                                             color: '#fff',
@@ -539,7 +538,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                 <div className="relative">
                                     <button
                                         onClick={() => setIsTagInputOpen(!isTagInputOpen)}
-                                        className="px-2 py-1 rounded-md text-[10px] font-bold bg-white/10 border border-dashed border-white/30 text-white/80 hover:bg-white/20 transition-colors flex items-center gap-1"
+                                        className="px-2 py-1 rounded-md text-[10px] font-bold bg-white/10 border border-dashed border-white/30 text-white/80 hover:bg-white/20 transition-colors flex items-center gap-1 shrink-0 whitespace-nowrap"
                                     >
                                         <PlusIcon className="w-3 h-3" /> Add Tag
                                     </button>
@@ -582,11 +581,44 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                     )}
                                 </div>
                             </div>
-                        )}
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors self-start">
-                        <CloseIcon className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-3 self-start">
+                        {(() => {
+                            let isWindowOpen = false;
+                            let hours = 0;
+                            let minutes = 0;
+
+                            if (messages && messages.length > 0) {
+                                const lastIncoming = [...messages].reverse().find(m => m.direction === 'in' || (m.direction as string) === 'inbound');
+                                if (lastIncoming) {
+                                    const lastTime = new Date(lastIncoming.created_at).getTime();
+                                    const now = Date.now();
+                                    const windowDuration = 24 * 60 * 60 * 1000;
+                                    const diff = (lastTime + windowDuration) - now;
+                                    isWindowOpen = diff > 0;
+                                    hours = Math.floor(diff / (1000 * 60 * 60));
+                                    minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                                }
+                            }
+
+                            return (
+                                <div className={`
+                                    flex w-9 h-9 rounded-full flex-col items-center justify-center text-[10px] font-bold border shrink-0 transition-colors
+                                    ${isWindowOpen ? 'bg-white/10 text-white border-white/30 shadow-inner' : 'bg-amber-500/20 text-amber-300 border-amber-400/50'}
+                                `} title={isWindowOpen ? `Customer Service Window: ${hours}h ${minutes}m left` : "Customer Service Session Expired"}>
+                                    {isWindowOpen ? (
+                                        <div className="flex flex-col items-center -space-y-0.5 mt-[1px]">
+                                            {hours > 0 && <span>{hours}h</span>}
+                                            <span>{minutes}m</span>
+                                        </div>
+                                    ) : <ClockIcon className="w-5 h-5" />}
+                                </div>
+                            );
+                        })()}
+                        <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-colors">
+                            <CloseIcon className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Chat Area */}
