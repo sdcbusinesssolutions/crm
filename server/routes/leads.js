@@ -42,6 +42,10 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
             query = query.eq('status', status);
         }
 
+        if (req.query.exactPhone) {
+            query = query.eq('phone', req.query.exactPhone.replace(/,/g, ''));
+        }
+
         // Search Support
         if (req.query.search) {
             const s = req.query.search.replace(/,/g, '');

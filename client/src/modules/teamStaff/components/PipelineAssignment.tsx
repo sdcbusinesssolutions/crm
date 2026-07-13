@@ -48,7 +48,7 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                     }
                 } else if (contact.phone || contact.contact_phone) {
                     const phoneToSearch = contact.phone || contact.contact_phone;
-                    const leads: any = await getLeads(undefined, undefined, 1, 100, { search: phoneToSearch });
+                    const leads: any = await getLeads(undefined, undefined, 1, 100, { exactPhone: phoneToSearch });
                     const leadsData = leads?.data || leads || [];
                     if (Array.isArray(leadsData)) {
                         for (const l of leadsData) {

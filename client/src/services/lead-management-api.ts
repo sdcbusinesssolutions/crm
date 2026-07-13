@@ -215,6 +215,7 @@ export const getLeads = async (pipelineId?: string, stageId?: string, page: numb
         params.append('limit', limit.toString());
 
         if (filters) {
+            if (filters.exactPhone) params.append('exactPhone', filters.exactPhone);
             if (filters.search) params.append('search', filters.search);
             if (filters.sortBy) params.append('sortBy', filters.sortBy);
             if (filters.quickFilter && filters.quickFilter !== 'all') params.append('quickFilter', filters.quickFilter);
