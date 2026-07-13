@@ -5,6 +5,8 @@ import { contactGroupService } from '../services/contactGroupService';
 import { inputFieldService } from '../services/inputFieldService';
 import { Contact, ContactGroup, InputField } from '../types';
 import { tagService, Tag } from '../services/tagService';
+import { getPipelines, getPipelineStages, updateLead, createLead, getLeads } from '../services/lead-management-api';
+import { Pipeline, PipelineStage } from '../types/lead-management';
 import {
     PlusIcon, EditIcon, TrashIcon, SearchIcon, UploadIcon, DownloadIcon,
     CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon, CalendarIcon, EyeIcon, EyeOffIcon
@@ -99,6 +101,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
     // Delete Modal State
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'single' | 'bulk'; id?: string; count?: number }>({ isOpen: false, type: 'single' });
+
+    // Pipeline State in Modal
+    const [modalPipelines, setModalPipelines] = useState<Pipeline[]>([]);
+    const [modalStages, setModalStages] = useState<PipelineStage[]>([]);
+    const [modalPipelineId, setModalPipelineId] = useState<string>('');
+    const [modalStageId, setModalStageId] = useState<string>('');
+    const [existingLeadsForModal, setExistingLeadsForModal] = useState<any[]>([]);
+    const [isPipelineLoading, setIsPipelineLoading] = useState(false);
 
     // Inline Creation State
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
@@ -234,6 +244,54 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
     const [countrySearchTerm, setCountrySearchTerm] = useState('');
 
+    useEffect(() => {
+        if (isModalOpen) {
+            const loadPipelinesData = async () => {
+                setIsPipelineLoading(true);
+                try {
+                    const pData = await getPipelines();
+                    setModalPipelines(pData);
+                    
+                    if (editingContact && editingContact.phone) {
+                        const leadsRes: any = await getLeads(undefined, undefined, 1, 100, { search: editingContact.phone });
+                        const leadsData = leadsRes?.data || leadsRes || [];
+                        if (Array.isArray(leadsData) && leadsData.length > 0) {
+                            setExistingLeadsForModal(leadsData);
+                            // Set initial selection to the first pipeline if none selected
+                            if (!modalPipelineId && leadsData[0].pipeline_id) {
+                                setModalPipelineId(leadsData[0].pipeline_id);
+                                setModalStageId(leadsData[0].stage_id);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading pipelines', e);
+                } finally {
+                    setIsPipelineLoading(false);
+                }
+            };
+            loadPipelinesData();
+        } else {
+            setModalPipelineId('');
+            setModalStageId('');
+            setExistingLeadsForModal([]);
+            setModalStages([]);
+        }
+    }, [isModalOpen, editingContact]);
+
+    useEffect(() => {
+        if (modalPipelineId) {
+            getPipelineStages(modalPipelineId).then(setModalStages).catch(console.error);
+            // Auto-select stage if this pipeline is already assigned
+            const existingLead = existingLeadsForModal.find(l => l.pipeline_id === modalPipelineId);
+            if (existingLead && existingLead.stage_id) {
+                setModalStageId(existingLead.stage_id);
+            }
+        } else {
+            setModalStages([]);
+        }
+    }, [modalPipelineId, existingLeadsForModal]);
+
     const handleOpenModal = (contact?: Contact) => {
         if (contact) {
             setEditingContact(contact);
@@ -318,9 +376,39 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             groupIds: formData.groupIds || [],
             customData: formData.customData || {}
         };
-        await contactService.saveContact(newContact);
-        await loadContacts();
-        setIsModalOpen(false);
+        try {
+            await contactService.saveContact(newContact);
+
+            // Save Lead Pipeline/Stage
+            if (modalPipelineId && modalStageId) {
+                const existingLead = existingLeadsForModal.find(l => l.pipeline_id === modalPipelineId);
+                if (existingLead) {
+                    await updateLead(existingLead.id, {
+                        pipeline_id: modalPipelineId,
+                        stage_id: modalStageId,
+                        name: newContact.name,
+                        email: newContact.email || '',
+                        phone: newContact.phone
+                    });
+                } else {
+                    await createLead({
+                        name: newContact.name,
+                        email: newContact.email || '',
+                        phone: newContact.phone,
+                        pipeline_id: modalPipelineId,
+                        stage_id: modalStageId,
+                        source: ((newContact.source || 'manual').toLowerCase() as any)
+                    });
+                }
+            }
+
+            setToast({ type: 'success', title: 'Success', message: 'Contact saved successfully!' });
+            await loadContacts();
+            setIsModalOpen(false);
+        } catch (error: any) {
+            console.error("Failed to save contact or assign lead to pipeline", error);
+            setToast({ type: 'error', title: 'Error', message: error.message || 'Failed to save contact. Please try again.' });
+        }
     };
 
     const handleDelete = (id: string) => {
@@ -1090,9 +1178,10 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Phone</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Email</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Created</th>
-                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Lead Status</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Tags</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Groups</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Pipeline</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Assigned To</th>
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
@@ -1164,6 +1253,13 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                             <span className="px-1.5 py-0.5 text-[10px] font-bold text-slate-400 bg-slate-100 rounded-md">+{contact.groupIds!.length - 2}</span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="px-6 py-4 border-b !border-black min-w-[150px]">
+                                                    <PipelineAssignment 
+                                                        leadId={undefined} 
+                                                        contact={contact} 
+                                                        onAssignmentComplete={() => loadContacts()}
+                                                    />
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black min-w-[200px]">
                                                     <LeadAssignment 
@@ -1366,8 +1462,6 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 onChange={e => {
                                                     const val = e.target.value.replace(/\D/g, ''); // Only allow digits
                                                     setLocalPhone(val);
-                                                    // Update formData immediately for preview/state consistency, though final save uses combined
-                                                    // We'll construct full phone on save, but keeping formData in sync helps if needed elsewhere
                                                     setFormData({ ...formData, phone: val });
                                                 }}
                                             />
@@ -1376,6 +1470,35 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                     </div>
                                     <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label><input type="email" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div></div></div>
                                 <div className="h-px bg-slate-200 w-full"></div>
+                                
+                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><BriefcaseIcon className="w-4 h-4" /> Pipeline Assignment</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pipeline</label>
+                                            <div className="relative">
+                                                <select disabled={isPipelineLoading} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={modalPipelineId} onChange={e => { setModalPipelineId(e.target.value); setModalStageId(''); }}>
+                                                    <option value="">{isPipelineLoading ? 'Loading...' : 'Select Pipeline...'}</option>
+                                                    {modalPipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div>
+                                            </div>
+                                        </div>
+                                        {modalPipelineId && (
+                                            <div className="animate-in fade-in slide-in-from-top-2">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Stage</label>
+                                                <div className="relative">
+                                                    <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={modalStageId} onChange={e => setModalStageId(e.target.value)}>
+                                                        <option value="">Select Stage...</option>
+                                                        {modalStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                    </select>
+                                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="h-px bg-slate-200 w-full"></div>
+
                                 <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Organization</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5"><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label><div className="relative"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })}>{['New', 'Contacted', 'Qualified', 'Converted', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="e.g. Website, Referral" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} /></div></div>
                                     <div className="space-y-5">
                                         <div><div className="flex justify-between items-center mb-2"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Groups</label>{!isCreatingGroup && (<button type="button" onClick={() => { setIsCreatingGroup(true); setNewGroupName(''); }} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 hover:bg-brand-50 px-2 py-1 rounded transition-colors"><PlusIcon className="w-3 h-3" /> New Group</button>)}</div>
