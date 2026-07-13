@@ -15,6 +15,7 @@ export interface FollowUp {
     contacts?: {
         name: string;
         phone: string;
+        email?: string;
         drip_enrollments?: Array<{
             id: string;
             status: string;

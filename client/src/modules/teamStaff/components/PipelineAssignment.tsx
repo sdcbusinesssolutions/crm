@@ -212,17 +212,17 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                 title="Pipeline Assignment"
                 size="md"
             >
-                <div className="space-y-6 py-2">
+                <div className="space-y-6 py-2 max-h-[65vh] overflow-y-auto pr-2">
                     {/* Pipeline Selection */}
                     <div>
-                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3 px-1">
+                        <label className="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 px-1">
                             Select Pipeline
                         </label>
-                        <div className="grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
                             {isLoading ? (
-                                <div className="text-center py-4 text-slate-400 text-sm animate-pulse">Loading pipelines...</div>
+                                <div className="text-center py-4 text-slate-400 text-sm animate-pulse col-span-2">Loading pipelines...</div>
                             ) : pipelines.length === 0 ? (
-                                <div className="text-center py-4 text-slate-400 text-sm italic">No pipelines found.</div>
+                                <div className="text-center py-4 text-slate-400 text-sm italic col-span-2">No pipelines found.</div>
                             ) : (
                                 pipelines.map(p => {
                                     const isAlreadyAssigned = activeAssignments.some(a => a.pipelineId === p.id);
@@ -230,30 +230,30 @@ const PipelineAssignment: React.FC<PipelineAssignmentProps> = ({ leadId, contact
                                         <button
                                             key={p.id}
                                             onClick={() => setSelectedPipelineId(p.id)}
-                                            className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                            className={`flex items-center justify-between p-2 rounded-xl border-2 transition-all ${
                                                 selectedPipelineId === p.id 
                                                     ? 'border-[var(--color-brand)] bg-[var(--color-brand)]/[0.03] shadow-sm' 
                                                     : 'border-slate-100 hover:border-slate-200 bg-slate-50/30'
                                             }`}
                                         >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[var(--color-brand)] shadow-sm">
-                                                    <BriefcaseIcon className="w-4 h-4" />
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 shrink-0 rounded-md bg-white border border-slate-200 flex items-center justify-center text-[var(--color-brand)] shadow-sm">
+                                                    <BriefcaseIcon className="w-3 h-3" />
                                                 </div>
-                                                <div className="flex flex-col items-start">
-                                                    <span className={`text-sm font-bold ${selectedPipelineId === p.id ? 'text-slate-900' : 'text-slate-600'}`}>
+                                                <div className="flex flex-col items-start overflow-hidden">
+                                                    <span className={`text-xs font-bold truncate w-full text-left ${selectedPipelineId === p.id ? 'text-slate-900' : 'text-slate-600'}`}>
                                                         {p.name}
                                                     </span>
                                                     {isAlreadyAssigned && (
-                                                        <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wide">
+                                                        <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-wide">
                                                             Already Assigned
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                             {selectedPipelineId === p.id && (
-                                                <div className="w-5 h-5 rounded-full bg-[var(--color-brand)] flex items-center justify-center">
-                                                    <CheckIcon className="w-3 h-3 text-white" />
+                                                <div className="w-4 h-4 shrink-0 rounded-full bg-[var(--color-brand)] flex items-center justify-center ml-1">
+                                                    <CheckIcon className="w-2.5 h-2.5 text-white" />
                                                 </div>
                                             )}
                                         </button>
