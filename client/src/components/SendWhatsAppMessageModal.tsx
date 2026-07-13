@@ -171,7 +171,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
             setIsLoading(true);
             try {
                 const qrs = await quickReplyService.getQuickReplies();
-                setQuickReplies(qrs.filter((f: any) => f.status === 'Active' || f.status === 'active'));
+                setQuickReplies(qrs);
 
                 const cleanPhone = contactPhone.replace(/\D/g, '');
                 const result = await inboxService.getConversations(1, 10, cleanPhone);
@@ -180,7 +180,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                 if (match) {
                     setConversation(match);
                     const msgs = await inboxService.getMessages(match.id);
-                    setMessages(msgs.reverse());
+                    setMessages(msgs);
                     setTimeout(() => scrollToBottom(), 100);
                 } else {
                     setConversation(null);
@@ -219,40 +219,13 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         if (!messageInput.trim() || isSendingRef.current) return;
         
         let targetConversationId = conversation?.id;
-
-        if (!targetConversationId) {
-            try {
-                const token = tokenService.getAccessToken();
-                const cleanPhone = contactPhone.length === 10 ? `91${contactPhone}` : contactPhone;
-                
-                const response = await fetch('/api/clickToWhatsApp/send-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ to: cleanPhone, type: 'text', text: { body: messageInput.trim() } })
-                });
-
-                if (response.ok) {
-                    setMessageInput('');
-                    const result = await inboxService.getConversations(1, 1, cleanPhone);
-                    if (result.length > 0) {
-                        setConversation(result[0]);
-                        const msgs = await inboxService.getMessages(result[0].id);
-                        setMessages(msgs.reverse());
-                        scrollToBottom();
-                    }
-                }
-                return;
-            } catch (err) {
-                console.error("Direct send failed", err);
-                return;
-            }
-        }
+        const cleanPhone = contactPhone.replace(/\D/g, '');
 
         isSendingRef.current = true;
         const tempId = 'temp-' + Date.now();
         const newMessage: Message = {
             id: tempId,
-            conversation_id: targetConversationId,
+            conversation_id: targetConversationId || 'temp',
             direction: 'out' as any,
             type: 'text',
             text: messageInput.trim(),
@@ -265,6 +238,16 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         setTimeout(scrollToBottom, 100);
 
         try {
+            if (!targetConversationId) {
+                const newConv = await inboxService.createConversation(cleanPhone);
+                if (newConv) {
+                    targetConversationId = newConv.id;
+                    setConversation(newConv);
+                } else {
+                    throw new Error("Could not create conversation");
+                }
+            }
+
             const sent = await inboxService.sendMessage(targetConversationId, { type: 'text', text: newMessage.text });
             if (sent) {
                 setMessages(prev => prev.map(m => m.id === tempId ? sent : m));
@@ -282,7 +265,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         setIsTemplateModalOpen(false);
         if (isSendingRef.current) return;
         
-        const cleanPhone = contactPhone.length === 10 ? `91${contactPhone}` : contactPhone;
+        const cleanPhone = contactPhone.replace(/\D/g, '');
         let targetConversationId = conversation?.id;
 
         isSendingRef.current = true;
@@ -300,33 +283,25 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         setTimeout(scrollToBottom, 100);
 
         try {
-            const token = tokenService.getAccessToken();
-            const payload = {
-                to: cleanPhone,
-                type: 'template',
-                template: {
-                    name: template.name,
-                    language: template.language || { code: 'en' },
-                    components: template.components 
+            if (!targetConversationId) {
+                const newConv = await inboxService.createConversation(cleanPhone);
+                if (newConv) {
+                    targetConversationId = newConv.id;
+                    setConversation(newConv);
+                } else {
+                    throw new Error("Could not create conversation");
                 }
-            };
+            }
 
-            const response = await fetch('/api/clickToWhatsApp/send-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
+            const { text, ...metaPayload } = template;
+            const sent = await inboxService.sendMessage(targetConversationId, {
+                type: 'template',
+                template: metaPayload,
+                text: text
             });
 
-            if (response.ok) {
-                setTimeout(async () => {
-                    const result = await inboxService.getConversations(1, 1, cleanPhone);
-                    if (result.length > 0) {
-                        setConversation(result[0]);
-                        const msgs = await inboxService.getMessages(result[0].id);
-                        setMessages(msgs.reverse());
-                        scrollToBottom();
-                    }
-                }, 1500);
+            if (sent) {
+                setMessages(prev => prev.map(m => m.id === tempId ? sent : m));
             } else {
                 setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' as any } : m));
             }
@@ -603,15 +578,16 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
 
                             return (
                                 <div className={`
-                                    flex w-9 h-9 rounded-full flex-col items-center justify-center text-[10px] font-bold border shrink-0 transition-colors
-                                    ${isWindowOpen ? 'bg-white/10 text-white border-white/30 shadow-inner' : 'bg-amber-500/20 text-amber-300 border-amber-400/50'}
+                                    flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold border shrink-0 transition-colors shadow-sm
+                                    ${isWindowOpen ? (hours < 2 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100') : 'bg-amber-500 text-white border-amber-600'}
                                 `} title={isWindowOpen ? `Customer Service Window: ${hours}h ${minutes}m left` : "Customer Service Session Expired"}>
-                                    {isWindowOpen ? (
-                                        <div className="flex flex-col items-center -space-y-0.5 mt-[1px]">
-                                            {hours > 0 && <span>{hours}h</span>}
-                                            <span>{minutes}m</span>
-                                        </div>
-                                    ) : <ClockIcon className="w-5 h-5" />}
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                    <span className="tracking-wide whitespace-nowrap">
+                                        {isWindowOpen ? `${hours}h ${minutes}m` : 'Expired'}
+                                    </span>
                                 </div>
                             );
                         })()}
