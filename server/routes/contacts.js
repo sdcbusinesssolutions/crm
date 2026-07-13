@@ -110,6 +110,14 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
     const chunkSize = 1000; // Efficient chunk size (Matches Supabase default MAX_ROWS)
     let hasMore = true;
 
+    // Fetch pipeline dictionaries for mapping
+    const { data: allPipelines } = await supabaseAdmin.from('pipelines').select('id, name').eq('user_id', userId);
+    const { data: allStages } = await supabaseAdmin.from('pipeline_stages').select('id, name').eq('user_id', userId);
+    const pipelineMap = {};
+    (allPipelines || []).forEach(p => pipelineMap[p.id] = p.name);
+    const stageMap = {};
+    (allStages || []).forEach(s => stageMap[s.id] = s.name);
+
     while (hasMore) {
       const from = pageIndex * chunkSize;
       const to = from + chunkSize - 1;
@@ -151,7 +159,30 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       if (error) throw error;
 
       if (chunk && chunk.length > 0) {
-        allContacts = allContacts.concat(chunk);
+        // Fetch leads for this chunk to get pipeline assignments
+        const chunkPhones = chunk.map(c => c.phone).filter(Boolean);
+        let leadsByPhone = {};
+        if (chunkPhones.length > 0) {
+          const { data: chunkLeads } = await supabaseAdmin
+            .from('leads')
+            .select('phone, pipeline_id, stage_id')
+            .eq('user_id', userId)
+            .in('phone', chunkPhones);
+            
+          (chunkLeads || []).forEach(lead => {
+            if (!leadsByPhone[lead.phone]) leadsByPhone[lead.phone] = [];
+            const pName = pipelineMap[lead.pipeline_id] || 'Unknown';
+            const sName = stageMap[lead.stage_id] || 'Unknown';
+            leadsByPhone[lead.phone].push(`${pName} (${sName})`);
+          });
+        }
+
+        const enhancedChunk = chunk.map(c => ({
+          ...c,
+          pipelines_string: leadsByPhone[c.phone] ? leadsByPhone[c.phone].join(' | ') : ''
+        }));
+
+        allContacts = allContacts.concat(enhancedChunk);
         if (chunk.length < chunkSize) hasMore = false;
         else pageIndex++;
       } else {
@@ -172,6 +203,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       tags: c.tags || [],
       groupIds: c.group_ids || [],
       customData: c.custom_data || {},
+      pipelines_string: c.pipelines_string,
       createdAt: c.created_at
     }));
 
@@ -610,6 +642,62 @@ router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req
     const error = null;
 
     console.log(`✅ Import Complete. Stats:`, stats);
+
+    // --- PIPELINES / LEADS IMPORT ---
+    try {
+      const leadsToInsert = [];
+      const pipelinesMap = {};
+      contacts.forEach(c => {
+        if (c.importPipelines && c.importPipelines.length > 0) {
+          pipelinesMap[c.phone] = c.importPipelines;
+        }
+      });
+      
+      const phonesWithPipelines = Object.keys(pipelinesMap);
+      if (phonesWithPipelines.length > 0) {
+        // Fetch existing leads for these phones to avoid duplicating the exact same pipeline assignment
+        const { data: existingLeads } = await supabaseAdmin
+          .from('leads')
+          .select('phone, pipeline_id, stage_id')
+          .eq('user_id', user.id)
+          .in('phone', phonesWithPipelines);
+          
+        const existingLeadsSet = new Set();
+        (existingLeads || []).forEach(l => existingLeadsSet.add(`${l.phone}-${l.pipeline_id}`));
+
+        for (const phone of phonesWithPipelines) {
+          const contact = chunkedResults.find(c => c.phone === phone);
+          const name = contact ? contact.name : 'Unknown';
+          const email = contact ? contact.email : '';
+          const company = contact && contact.custom_data ? contact.custom_data.company : '';
+          const source = contact ? contact.source : 'Import';
+
+          pipelinesMap[phone].forEach(p => {
+            if (!existingLeadsSet.has(`${phone}-${p.pipelineId}`)) {
+              leadsToInsert.push({
+                user_id: user.id,
+                name: name,
+                phone: phone,
+                email: email,
+                company: company,
+                pipeline_id: p.pipelineId,
+                stage_id: p.stageId,
+                source: source,
+                status: 'active'
+              });
+              // avoid duplicate insertions in the same chunk
+              existingLeadsSet.add(`${phone}-${p.pipelineId}`);
+            }
+          });
+        }
+        
+        if (leadsToInsert.length > 0) {
+          await supabaseAdmin.from('leads').insert(leadsToInsert);
+        }
+      }
+    } catch (leadErr) {
+      console.error('[Bulk Import] Leads/Pipelines insertion failed:', leadErr.message);
+    }
 
 
 

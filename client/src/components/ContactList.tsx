@@ -677,6 +677,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     Status: c.status,
                     Tags: (c.tags || []).join(', '),
                     Groups: groupNames,
+                    Pipelines: (c as any).pipelines_string || '',
                     Source: c.source || ''
                 };
 
@@ -715,18 +716,24 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             skipEmptyLines: true,
             complete: async (results) => {
                 setIsLoading(true);
-                const importedContacts: Partial<Contact>[] = [];
+                const importedContacts: any[] = [];
 
                 try {
                     // 1. Refresh Metadata
                     let currentGroups = await contactGroupService.getGroups();
                     let currentFields = await inputFieldService.getInputs();
+                    let currentPipelines = await getPipelines();
+                    let currentStages: Record<string, any[]> = {};
+                    for (const p of currentPipelines) {
+                        currentStages[p.id] = await getPipelineStages(p.id);
+                    }
+
                     setAvailableGroups(currentGroups);
                     setCustomInputFields(currentFields);
 
                     // 2. Identify Custom Columns
                     const headers = results.meta.fields || [];
-                    const standardHeaders = ['name', 'phone', 'email', 'status', 'tags', 'groups', 'source'];
+                    const standardHeaders = ['name', 'phone', 'email', 'status', 'tags', 'groups', 'pipelines', 'source'];
                     const customHeaders = headers.filter(h => !standardHeaders.includes(h.toLowerCase()));
 
                     // 3. Auto-create missing Custom Fields
@@ -797,6 +804,33 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             }
                         }
 
+                        // Handle Pipelines
+                        const pipelinesStr = row.Pipelines || row.pipelines || '';
+                        const importPipelines: { pipelineId: string, stageId: string }[] = [];
+
+                        if (pipelinesStr) {
+                            const entries = pipelinesStr.split('|').flatMap((n: string) => n.split(',')).map((n: string) => n.trim()).filter(Boolean);
+                            for (const entry of entries) {
+                                // Match: "Pipeline Name (Stage Name)" or just "Pipeline Name"
+                                const match = entry.match(/^(.+?)(?:\s*\((.+?)\))?$/);
+                                if (match) {
+                                    const pName = match[1].trim();
+                                    const sName = match[2] ? match[2].trim() : null;
+
+                                    const pipeline = currentPipelines.find((p: any) => p.name.toLowerCase() === pName.toLowerCase());
+                                    if (pipeline) {
+                                        const pStages = currentStages[pipeline.id] || [];
+                                        let stage = sName ? pStages.find((s: any) => s.name.toLowerCase() === sName.toLowerCase()) : pStages[0];
+                                        if (!stage && pStages.length > 0) stage = pStages[0];
+
+                                        if (stage) {
+                                            importPipelines.push({ pipelineId: pipeline.id, stageId: stage.id });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Handle Custom Data
                         const customData: Record<string, any> = {};
                         customHeaders.forEach(header => {
@@ -813,8 +847,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             tags: row.Tags ? row.Tags.split(',').map((t: string) => t.trim()) : [],
                             groupIds: groupIds,
                             customData: customData,
+                            importPipelines: importPipelines,
                             source: 'Import'
-                        });
+                        } as any);
                     }
 
                     console.log('📋 Parsed contacts from CSV:', importedContacts.length);
