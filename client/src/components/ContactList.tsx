@@ -822,6 +822,46 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
 
                     </div>
+
+                    {/* Group Filter */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <UsersIcon className="w-4 h-4" />
+                        </div>
+                        <select
+                            value={selectedGroupFilter || ''}
+                            onChange={(e) => { setSelectedGroupFilter(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-9 pr-8 py-2 w-full sm:w-40 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">All Groups</option>
+                            {availableGroups.map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
+
+                    {/* Tag Filter */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <BadgeIcon className="w-4 h-4" />
+                        </div>
+                        <select
+                            value={selectedTagFilter || ''}
+                            onChange={(e) => { setSelectedTagFilter(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-9 pr-8 py-2 w-full sm:w-36 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">All Tags</option>
+                            {availableTags.map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                     
                     {/* Proper Date Range Picker UI */}
                     <div className="flex items-center gap-2 p-1.5 bg-[var(--color-brand)]/[0.03] rounded-2xl border border-[var(--color-brand)]/20 shadow-inner">
