@@ -806,7 +806,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         <>
         <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3 flex-1 lg:max-w-4xl">
+                <div className="flex flex-wrap items-center gap-3 flex-1 xl:flex-nowrap lg:max-w-none">
                     {/* Compact Search Bar */}
                     <div className="relative group w-full sm:w-64">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[var(--color-brand)] transition-colors">
