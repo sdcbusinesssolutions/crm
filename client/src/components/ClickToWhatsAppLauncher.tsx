@@ -371,7 +371,12 @@ const ClickToWhatsAppLauncher = () => {
   }, []);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+    
+    if (name === 'whatsappNumber') {
+      value = value.replace(/\D/g, ''); // Remove + and any other non-digits
+    }
+    
     setFormData(prev => ({ ...prev, [name]: value }));
   }, []);
 
