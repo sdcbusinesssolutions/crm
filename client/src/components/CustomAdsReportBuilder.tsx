@@ -7,7 +7,6 @@ const BREAKDOWNS = [
   { id: 'adset.name', label: 'Ad set name' },
   { id: 'ad.name', label: 'Ad name' },
   { id: 'age', label: 'Age' },
-  { id: 'platform_position', label: 'Placement' },
   { id: 'gender', label: 'Gender' },
   { id: 'call_to_action_asset', label: 'Call to action' },
   { id: 'region', label: 'Region' },
@@ -28,9 +27,9 @@ const METRICS = [
   { id: 'ctr', label: 'CTR (all)', color: '#38bdf8' }
 ];
 
-const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null }) => {
-  const [selectedBreakdowns, setSelectedBreakdowns] = useState<string[]>(['campaign.name', 'age']);
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(['spend', 'reach', 'impressions']);
+const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null, initialBreakdowns = ['campaign.name', 'age'], initialMetrics = ['spend', 'reach', 'impressions'] }) => {
+  const [selectedBreakdowns, setSelectedBreakdowns] = useState<string[]>(initialBreakdowns);
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>(initialMetrics);
   
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any[]>([]);
@@ -44,6 +43,38 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
 
   const handleBreakdownToggle = (id: string) => {
     setSelectedBreakdowns(prev => {
+      const allowedWithGeography = ['campaign.name', 'adset.name', 'ad.name', 'date', 'region', 'country'];
+      const allowedWithPlatform = ['campaign.name', 'adset.name', 'ad.name', 'date', 'publisher_platform', 'device_platform'];
+      
+      const isPlatformGroup = (b: string) => ['publisher_platform', 'device_platform'].includes(b);
+      const isGeographyGroup = (b: string) => ['country', 'region'].includes(b);
+      
+      if (isGeographyGroup(id)) {
+        if (prev.includes(id)) {
+          return prev.filter(b => b !== id);
+        } else {
+          return [...prev.filter(b => allowedWithGeography.includes(b)), id];
+        }
+      }
+
+      if (isPlatformGroup(id)) {
+        if (prev.includes(id)) {
+          return prev.filter(b => b !== id);
+        } else {
+          return [...prev.filter(b => allowedWithPlatform.includes(b)), id];
+        }
+      }
+
+      // If Geography is selected, prevent selecting incompatible breakdowns
+      if (prev.some(isGeographyGroup) && !allowedWithGeography.includes(id)) {
+        return prev;
+      }
+
+      // If any platform group is selected, prevent incompatible breakdowns
+      if (prev.some(isPlatformGroup) && !allowedWithPlatform.includes(id)) {
+        return prev;
+      }
+
       if (prev.includes(id)) {
         return prev.filter(b => b !== id);
       } else {
@@ -348,16 +379,34 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
              {BREAKDOWNS.map(breakdown => {
                const isMetaBreakdown = (bId: string) => !['campaign.name', 'adset.name', 'ad.name', 'date'].includes(bId);
                const selectedMetaBreakdownsCount = selectedBreakdowns.filter(isMetaBreakdown).length;
-               const isLimitReached = !selectedBreakdowns.includes(breakdown.id) && isMetaBreakdown(breakdown.id) && selectedMetaBreakdownsCount >= 2;
+               
+               const isGeographyGroup = (b: string) => ['country', 'region'].includes(b);
+               const hasGeographyGroupSelected = selectedBreakdowns.some(isGeographyGroup);
+               const allowedWithGeography = ['campaign.name', 'adset.name', 'ad.name', 'date', 'region', 'country'];
+               
+               const isPlatformGroup = (b: string) => ['publisher_platform', 'device_platform'].includes(b);
+               const hasPlatformGroupSelected = selectedBreakdowns.some(isPlatformGroup);
+               const allowedWithPlatform = ['campaign.name', 'adset.name', 'ad.name', 'date', 'publisher_platform', 'device_platform'];
+               
+               let isLimitReached = !selectedBreakdowns.includes(breakdown.id) && isMetaBreakdown(breakdown.id) && selectedMetaBreakdownsCount >= 2;
+               let isDisabled = isLimitReached;
+               
+               if (hasGeographyGroupSelected && !allowedWithGeography.includes(breakdown.id)) {
+                 isDisabled = true;
+               }
+               
+               if (hasPlatformGroupSelected && !allowedWithPlatform.includes(breakdown.id)) {
+                 isDisabled = true;
+               }
                
                return (
-                 <label key={breakdown.id} className={`flex items-center gap-3 group ${isLimitReached ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                 <label key={breakdown.id} className={`flex items-center gap-3 group ${isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                    <input 
                      type="checkbox" 
                      className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 disabled:opacity-50"
                      checked={selectedBreakdowns.includes(breakdown.id)}
                      onChange={() => handleBreakdownToggle(breakdown.id)}
-                     disabled={isLimitReached}
+                     disabled={isDisabled}
                    />
                    <span className="text-sm text-slate-700 group-hover:text-slate-900 select-none">
                      {breakdown.label}
@@ -366,6 +415,13 @@ const CustomAdsReportBuilder = ({ accountId, level = 'account', entityId = null 
                );
              })}
           </div>
+          
+          {(selectedBreakdowns.some(b => ['country', 'region'].includes(b)) || selectedBreakdowns.some(b => ['publisher_platform', 'device_platform'].includes(b))) && (
+            <div className="mb-4 bg-amber-50 text-amber-700 text-xs p-3 rounded-lg border border-amber-200">
+              <span className="font-bold block mb-1">⚠️ Note on Breakdown Compatibility:</span>
+              Meta restricts combining certain demographic/placement breakdowns. Incompatible options are automatically disabled.
+            </div>
+          )}
 
           <h4 className="font-bold text-slate-700 mb-3 text-sm flex items-center justify-between pt-4 border-t border-slate-200">
             Metrics

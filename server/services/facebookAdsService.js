@@ -145,8 +145,24 @@ class FacebookAdsService {
                 timeSeries: accountInsights
             };
         } catch (error) {
-            console.error('Error fetching Analytics Dashboard:', error.response?.data || error.message);
-            throw new Error(error.response?.data?.error?.message || 'Failed to fetch Analytics');
+            const metaError = error.response?.data?.error;
+            let errorMsg = metaError?.message || error.message || 'Failed to fetch Analytics';
+            
+            if (metaError) {
+                const details = [];
+                if (metaError.error_user_title) details.push(metaError.error_user_title);
+                if (metaError.error_user_msg) details.push(metaError.error_user_msg);
+                if (metaError.type) details.push(`Type: ${metaError.type}`);
+                if (metaError.code) details.push(`Code: ${metaError.code}`);
+                if (metaError.error_subcode) details.push(`Subcode: ${metaError.error_subcode}`);
+                
+                if (details.length > 0) {
+                    errorMsg = `${errorMsg} (${details.join(' | ')})`;
+                }
+            }
+            
+            console.error('Error fetching Analytics Dashboard:', metaError || error.message);
+            throw new Error(errorMsg);
         }
     }
 

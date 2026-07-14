@@ -728,6 +728,14 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
           )}
           
           {(() => {
+            if (viewLevel === 'custom_report') {
+              return (
+                <div className="p-4 bg-slate-50 border-t border-slate-200 min-h-[600px]">
+                  <CustomAdsReportBuilder accountId={activeAccountId} />
+                </div>
+              );
+            }
+
             const currentList = viewLevel === 'adset' ? allAdsets : processedData;
             const totalPages = Math.ceil(currentList.length / itemsPerPage);
             const paginatedList = currentList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
