@@ -9,6 +9,7 @@ import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Circle }
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import './ClickToWhatsAppLauncher.css';
+import BulkDuplicateTable from './BulkDuplicateTable';
 
 const countryOptions = [
   { value: 'US', label: 'United States', lat: 37.0902, lng: -95.7129 },
@@ -228,9 +229,10 @@ function RadiusConfigurator({ locationName, radius, onChange }: { locationName: 
 }
 
 const ClickToWhatsAppLauncher = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [aiPromptText, setAiPromptText] = useState('');
   const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const [isTargetingModalOpen, setIsTargetingModalOpen] = useState(false);
   const [targetingSearch, setTargetingSearch] = useState('');
@@ -243,10 +245,11 @@ const ClickToWhatsAppLauncher = () => {
     adAccountId: '',
     pageId: '',
     campaignName: '',
+    budgetOptimization: 'CBO' as 'CBO' | 'ABO',
     dailyBudget: '',
     headline: 'Chat with us on WhatsApp!',
     primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
-    imageUrl: '',
+    mediaUrls: [] as string[],
     mediaType: 'image' as 'image' | 'video',
     targetCountries: '',
     locationRadiuses: {},
@@ -283,6 +286,7 @@ const ClickToWhatsAppLauncher = () => {
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [droppedPins, setDroppedPins] = useState<{lat: number, lng: number, name?: string}[]>([]);
+  const [bulkRows, setBulkRows] = useState<any[]>([]);
 
   // Synchronize droppedPins with formData.targetCountries (add missing, remove deleted)
   useEffect(() => {
@@ -404,7 +408,8 @@ const ClickToWhatsAppLauncher = () => {
       if (formData.description && formData.description.length > 255) errors.push("Description must be under 255 characters");
       if (!formData.welcomeMessageText || formData.welcomeMessageText.length > 80) errors.push("Welcome Message must be 1-80 characters");
       if (!formData.iceBreakerText || formData.iceBreakerText.length > 80) errors.push("Ice Breaker button text must be 1-80 characters");
-      if (!formData.imageUrl) errors.push("Ad Image is required");
+      if (!formData.headline) errors.push("Headline is required");
+      if (!formData.mediaUrls || formData.mediaUrls.length === 0) errors.push("At least one Ad Image/Video is required");
       if (formData.whatsappNumber && !/^\d+$/.test(formData.whatsappNumber)) {
         errors.push("WhatsApp Number must only contain digits (no '+', spaces, or dashes)");
       }
@@ -502,7 +507,7 @@ const ClickToWhatsAppLauncher = () => {
       if (response.ok) {
         setFormData(prev => ({ 
           ...prev, 
-          imageUrl: data.url,
+          mediaUrls: [...(prev.mediaUrls || []), data.url],
           mediaType: file.type.startsWith('video/') ? 'video' : 'image'
         }));
       } else {
@@ -599,7 +604,8 @@ const ClickToWhatsAppLauncher = () => {
         geoLocations: parsedGeo,
         excludedGeoLocations: parsedExcludedGeo,
         flexibleSpec: flexibleSpec,
-        exclusions: exclusions
+        exclusions: exclusions,
+        duplicates: bulkRows
       };
 
 
@@ -742,7 +748,7 @@ const ClickToWhatsAppLauncher = () => {
   );
 
   const renderStepIndicator = useCallback(() => {
-    const stepLabels = ['DETAILS', 'AUDIENCE', 'INVESTMENT', 'OVERVIEW'];
+    const stepLabels = ['DETAILS', 'AUDIENCE', 'INVESTMENT', 'OVERVIEW', 'BULK SETUP'];
     return (
       <div className="ctwa-stepper">
         {stepLabels.map((label, index) => {
@@ -799,11 +805,11 @@ const ClickToWhatsAppLauncher = () => {
       </div>
       
       <div className="preview-media">
-        {formData.imageUrl ? (
-          formData.imageUrl.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
-            <video src={formData.imageUrl} autoPlay muted loop playsInline />
+        {formData.mediaUrls && formData.mediaUrls.length > 0 ? (
+          formData.mediaUrls[0].match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
+            <video src={formData.mediaUrls[0]} autoPlay muted loop playsInline />
           ) : (
-            <img src={formData.imageUrl} alt="Ad Creative" />
+            <img src={formData.mediaUrls[0]} alt="Ad Creative" />
           )
         ) : (
           <img src="/mock-ad.png" alt="Ad Creative" />
@@ -818,7 +824,7 @@ const ClickToWhatsAppLauncher = () => {
         <button className="preview-cta">Send WhatsApp Message</button>
       </div>
     </div>
-  ), [formData.pageId, pages, formData.primaryText, formData.imageUrl, formData.headline]);
+  ), [formData.pageId, pages, formData.primaryText, formData.mediaUrls, formData.headline]);
 
   return (
     <div className="ctwa-container">
@@ -1052,28 +1058,38 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
 
                     <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
-                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span> Ad Media (Image/Video)</label>
-                      <div className={`media-upload-area ${formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? 'has-image' : ''}`} onClick={() => document.getElementById('ad-media-upload')?.click()}>
-                        {formData.imageUrl && formData.imageUrl !== '/header-banner.png' ? (
-                          <div className="upload-preview-container" style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '10px 0'}}>
-                            {formData.mediaType === 'video' ? (
-                              <video src={formData.imageUrl} controls style={{width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
-                            ) : (
-                              <img src={formData.imageUrl} alt="Ad Media" style={{width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                      <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span> Ad Media</label>
+                      <div className={`media-upload-area ${formData.mediaUrls && formData.mediaUrls.length > 0 ? 'has-image' : ''}`}>
+                        {formData.mediaUrls && formData.mediaUrls.length > 0 ? (
+                          <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap', padding: '16px'}}>
+                            {formData.mediaUrls.map((url, i) => (
+                              <div key={i} style={{position: 'relative', width: '80px', height: '80px'}}>
+                                {url.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
+                                  <video src={url} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                                ) : (
+                                  <img src={url} alt={`Ad Media ${i}`} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                                )}
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({...formData, mediaUrls: formData.mediaUrls.filter((_, idx) => idx !== i)}); }} style={{position: 'absolute', top: '-6px', right: '-6px', background: '#dc2626', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>&times;</button>
+                              </div>
+                            ))}
+                            {formData.mediaUrls.length < 4 && (
+                              <div onClick={() => document.getElementById('ad-media-upload')?.click()} style={{width: '80px', height: '80px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#f8fafc', transition: 'all 0.2s'}}>
+                                <span style={{fontSize: '24px', color: '#94a3b8', lineHeight: 1}}>+</span>
+                                <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 500}}>Add ({4 - formData.mediaUrls.length})</span>
+                              </div>
                             )}
-                            <span style={{fontSize: '0.8rem', fontWeight: 500, color: '#068E3E'}}>Media Selected (Click to change)</span>
                           </div>
                         ) : (
-                          <div className="upload-placeholder-new" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div className="upload-placeholder-new" style={{ display: 'flex', alignItems: 'center', gap: '15px' }} onClick={() => document.getElementById('ad-media-upload')?.click()}>
                             <div className="upload-icon-box" style={{ background: '#eafff0', padding: '12px', borderRadius: '12px' }}>
                               <svg viewBox="0 0 24 24" fill="#068E3E" style={{ width: '28px', height: '28px' }}><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
                             </div>
                             <div className="upload-text-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
-                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Image or Video</span>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Images or Videos (Up to 4)</span>
                               <span style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>Recommended: 1:1 aspect ratio<br/>at least 1080 × 1080 pixels.</span>
                               <button type="button" className="ctwa-upload-btn-mini" style={{ background: '#068E3E', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                                Upload
+                                Browse Files
                               </button>
                             </div>
                           </div>
@@ -1476,17 +1492,48 @@ const ClickToWhatsAppLauncher = () => {
             {currentStep === 3 && (
               <div className="ctwa-step-content">
                 <div className="ctwa-form-group">
-                  <label>Daily Budget</label>
-                  <div className="ctwa-budget-wrapper">
+                  <label className="ctwa-label">
+                    <span className="step-number">2</span>
+                    Budget Optimization
+                  </label>
+                  <p style={{ color: '#64748b', fontSize: '13px', margin: '-4px 0 12px 0' }}>
+                    How should Meta distribute your budget across Ad Sets?
+                  </p>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                    <div 
+                      onClick={() => setFormData({...formData, budgetOptimization: 'CBO'})}
+                      style={{ padding: '16px', border: `2px solid ${formData.budgetOptimization === 'CBO' ? '#25D366' : '#e2e8f0'}`, borderRadius: '8px', cursor: 'pointer', background: formData.budgetOptimization === 'CBO' ? '#f0fdf4' : 'white' }}
+                    >
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>Advantage+ Campaign Budget (CBO)</h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Set one budget for the whole campaign. Meta automatically finds the best-performing Ad Sets.</p>
+                    </div>
+                    
+                    <div 
+                      onClick={() => setFormData({...formData, budgetOptimization: 'ABO'})}
+                      style={{ padding: '16px', border: `2px solid ${formData.budgetOptimization === 'ABO' ? '#25D366' : '#e2e8f0'}`, borderRadius: '8px', cursor: 'pointer', background: formData.budgetOptimization === 'ABO' ? '#f0fdf4' : 'white' }}
+                    >
+                      <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>Ad Set Budget (ABO)</h4>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Set a strict daily budget for each individual Ad Set separately.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="ctwa-form-group">
+                  <label className="ctwa-label">
+                    <span className="step-number">3</span>
+                    {formData.budgetOptimization === 'CBO' ? 'Campaign Daily Budget' : 'Default Ad Set Daily Budget'}
+                  </label>
+                  <div className="budget-input-wrapper">
+                    <span className="currency-symbol">{currencySymbolMap[currencyCode] || '$'}</span>
                     <input 
                       type="number" 
+                      className="ctwa-input with-icon"
+                      placeholder="e.g. 500" 
                       name="dailyBudget" 
-                      min="1"
-                      step="0.01"
                       value={formData.dailyBudget}
                       onChange={handleChange}
                       required 
-                      className="budget-input"
                     />
                   </div>
                   <div className="ctwa-budget-presets">
@@ -1592,6 +1639,16 @@ const ClickToWhatsAppLauncher = () => {
                     </ul>
                   </div>
                 )}
+              </div>
+            )}
+
+            {currentStep === 5 && (
+              <div className="ctwa-step-content">
+                <BulkDuplicateTable
+                  baseFormData={formData}
+                  budgetOptimization={formData.budgetOptimization}
+                  onRowsChange={(rows) => setBulkRows(rows)}
+                />
               </div>
             )}
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const FacebookAdsService = require('../services/facebookAdsService');
+const CampaignAIService = require('../services/CampaignAIService');
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 const logger = require('../utils/logger');
@@ -318,7 +319,8 @@ router.post('/launch', requireAuth, async (req, res) => {
             radius,
             advantageAudience,
             flexibleSpec,
-            exclusions
+            exclusions,
+            duplicates
         } = req.body;
 
         // Validation
@@ -344,8 +346,8 @@ router.post('/launch', requireAuth, async (req, res) => {
 
         const accessToken = envToken || config.meta_access_token;
 
-        // Launch Ad via Service
-        const result = await FacebookAdsService.createCampaign(accessToken, adAccountId, {
+        // Launch Ad via Service (now using Bulk mode)
+        const result = await FacebookAdsService.createBulkCampaign(accessToken, adAccountId, {
             pageId,
             campaignName,
             dailyBudget,
@@ -372,7 +374,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             advantageAudience,
             flexibleSpec,
             exclusions
-        });
+        }, duplicates);
 
         res.status(200).json(result);
     } catch (error) {
@@ -487,6 +489,28 @@ router.post('/auth', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('[Click To WhatsApp Auth Error]:', error);
         res.status(500).json({ error: error.message || 'An error occurred while connecting Facebook account.' });
+    }
+});
+
+/**
+ * POST /api/click-to-whatsapp/generate-bulk-ai
+ * Generates bulk adset variations using AI (ChatGPT/OpenRouter/Gemini)
+ */
+router.post('/generate-bulk-ai', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { baseConfig, prompt } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt is required.' });
+        }
+
+        const adSets = await CampaignAIService.generateBulkRows(userId, baseConfig, prompt);
+
+        res.status(200).json({ success: true, data: adSets });
+    } catch (error) {
+        console.error('[Generate Bulk AI Error]:', error);
+        res.status(500).json({ error: error.message || 'Failed to generate variations using AI.' });
     }
 });
 
