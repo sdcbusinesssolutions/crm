@@ -623,28 +623,28 @@ const ClickToWhatsAppLauncher = () => {
     const errors: string[] = [];
     if (step === 1) {
       if (!formData.campaignName) errors.push("Campaign Name is required");
+      if (formData.budgetOptimization === 'CBO') {
+        const budget = parseFloat(formData.dailyBudget);
+        if (isNaN(budget) || budget <= 0) errors.push("Campaign Daily budget must be greater than 0");
+      }
+    } else if (step === 2) {
+      if (!formData.targetCountries) errors.push("Select at least one Target Country");
+      const minAge = formData.minAge;
+      const maxAge = formData.maxAge;
+      if (minAge < 13 || maxAge > 65 || minAge > maxAge) errors.push("Valid age range is 13 to 65, and min age must be less than or equal to max age");
+      if (formData.budgetOptimization === 'ABO') {
+        const budget = parseFloat(formData.dailyBudget);
+        if (isNaN(budget) || budget <= 0) errors.push("Ad Set Daily budget must be greater than 0");
+      }
+    } else if (step === 3) {
       if (!formData.headline || formData.headline.length > 40) errors.push("Headline must be 1-40 characters");
       if (!formData.primaryText || formData.primaryText.length > 500) errors.push("Primary text must be 1-500 characters");
       if (formData.description && formData.description.length > 255) errors.push("Description must be under 255 characters");
       if (!formData.welcomeMessageText || formData.welcomeMessageText.length > 80) errors.push("Welcome Message must be 1-80 characters");
       if (!formData.iceBreakerText || formData.iceBreakerText.length > 80) errors.push("Ice Breaker button text must be 1-80 characters");
-      if (!formData.headline) errors.push("Headline is required");
       if (!formData.mediaUrls || formData.mediaUrls.length === 0) errors.push("At least one Ad Image/Video is required");
       if (formData.whatsappNumber && !/^\d+$/.test(formData.whatsappNumber)) {
         errors.push("WhatsApp Number must only contain digits (no '+', spaces, or dashes)");
-      }
-    } else if (step === 2) {
-      if (!formData.targetCountries) errors.push("Select at least one Target Country");
-      const minAge = parseInt(formData.minAge);
-      const maxAge = parseInt(formData.maxAge);
-      if (minAge < 13 || maxAge > 65 || minAge > maxAge) errors.push("Valid age range is 13 to 65, and min age must be less than or equal to max age");
-    } else if (step === 3) {
-      const budget = parseFloat(formData.dailyBudget);
-      if (isNaN(budget) || budget <= 0) errors.push("Daily budget must be greater than 0");
-      if (formData.startDate && formData.endDate) {
-        if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-          errors.push("End date must be after start date");
-        }
       }
     }
     
@@ -1114,7 +1114,7 @@ const ClickToWhatsAppLauncher = () => {
 
             const selectedId = currentStep === 1 ? 'campaign' 
               : currentStep === 4 ? 'review'
-              : (currentStep === 2 || currentStep === 3) ? selectedAdSetId 
+              : currentStep === 2 ? selectedAdSetId 
               : selectedAdId;
 
             return (
@@ -1940,7 +1940,20 @@ const ClickToWhatsAppLauncher = () => {
                   budgetOptimization: formData.budgetOptimization,
                   dailyBudget: Number(formData.dailyBudget) || 0,
                   adSets: adSets
-                }} />
+                }} 
+                selectedAdId={selectedAdId}
+                onPreviewAd={(adSetId, adId) => {
+                  const adSet = adSets.find(s => s.id === adSetId);
+                  if (adSet) {
+                    const ad = adSet.ads.find(a => a.id === adId);
+                    if (ad) {
+                      setSelectedAdSetId(adSetId);
+                      setSelectedAdId(adId);
+                      loadAdSetIntoForm(adSet, ad);
+                    }
+                  }
+                }}
+                />
               </div>
             )}
 
