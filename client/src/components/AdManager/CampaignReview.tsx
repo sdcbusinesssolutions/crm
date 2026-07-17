@@ -35,7 +35,7 @@ export default function CampaignReview({ campaign, onPreviewAd, selectedAdId }: 
           </div>
         </div>
         <p style={{ margin: '8px 0 0', fontSize: '0.9rem', color: '#64748b' }}>
-          Review your campaign structure below. You are launching <strong>{campaign.adSets.length}</strong> Ad Set(s) with a total of <strong>{campaign.adSets.reduce((acc, s) => acc + s.ads.length, 0)}</strong> Ad(s). Click on any Ad to preview it on the right.
+          Review your campaign structure below. You are launching <strong style={{ color: '#ea580c', fontSize: '1.05em' }}>{campaign.adSets.length}</strong> Ad Set(s) with a total of <strong style={{ color: '#ea580c', fontSize: '1.05em' }}>{campaign.adSets.reduce((acc, s) => acc + s.ads.length, 0)}</strong> Ad(s). Click on any Ad to preview it on the right.
         </p>
       </div>
 
@@ -58,7 +58,7 @@ export default function CampaignReview({ campaign, onPreviewAd, selectedAdId }: 
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
                 <span style={{ fontSize: '1.1rem' }}>👥</span>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b', fontWeight: 700 }}>{adSet.name}</h3>
+                <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#046B2F', fontWeight: 800 }}>{adSet.name}</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 {isCollapsed && <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>{adSet.ads.length} Ad(s)</span>}
