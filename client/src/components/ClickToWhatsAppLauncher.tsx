@@ -234,7 +234,7 @@ const ClickToWhatsAppLauncher = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [aiPromptText, setAiPromptText] = useState('');
   const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
-  const totalSteps = 5;
+  const totalSteps = 4;
 
   const [isTargetingModalOpen, setIsTargetingModalOpen] = useState(false);
   const [targetingSearch, setTargetingSearch] = useState('');
@@ -344,6 +344,7 @@ const ClickToWhatsAppLauncher = () => {
         maxAge: formData.maxAge,
         gender: formData.gender,
         advantagePlacements: formData.advantageAudience === 1,
+        budget: formData.budgetOptimization === 'ABO' ? Number(formData.dailyBudget) : s.budget,
         ads: updatedAds
       };
     }));
@@ -363,6 +364,7 @@ const ClickToWhatsAppLauncher = () => {
       minAge: adSet.minAge,
       maxAge: adSet.maxAge,
       gender: adSet.gender,
+      dailyBudget: prev.budgetOptimization === 'ABO' && adSet.budget ? String(adSet.budget) : prev.dailyBudget
     }));
   }, []);
 
@@ -452,7 +454,7 @@ const ClickToWhatsAppLauncher = () => {
     setSelectedAdSetId(adSetId);
     setSelectedAdId(newAdId);
     setFormData(prev => ({ ...prev, adName: `Ad ${(adSets.find(s => s.id === adSetId)?.ads.length || 0) + 1}` }));
-    setCurrentStep(4); // Navigate to ad creative step
+    setCurrentStep(3); // Navigate to ad creative step
   }, [adSets, formData]);
 
   const handleDuplicateAd = useCallback((adSetId: string, adId: string) => {
@@ -479,7 +481,7 @@ const ClickToWhatsAppLauncher = () => {
       primaryText: newAd.primaryText,
       headline: newAd.headline
     }));
-    setCurrentStep(4);
+    setCurrentStep(3);
   }, [adSets]);
 
   const handleDeleteAd = useCallback((adSetId: string, adId: string) => {
@@ -1143,7 +1145,7 @@ const ClickToWhatsAppLauncher = () => {
                             break;
                           }
                         }
-                        setCurrentStep(4);
+                        setCurrentStep(3);
                       }
                     }}
                     onAddAdSet={handleAddAdSet}
@@ -1335,6 +1337,39 @@ const ClickToWhatsAppLauncher = () => {
                         )}
                       </select>
                     </div>
+
+                    <div className="ctwa-form-group" style={{ marginBottom: 0, marginTop: '16px' }}>
+                      <label><span className="icon">💰</span> Budget Optimization</label>
+                      <select 
+                        name="budgetOptimization" 
+                        value={formData.budgetOptimization} 
+                        onChange={handleChange} 
+                        required 
+                        className="ctwa-select"
+                      >
+                        <option value="CBO">Advantage+ Campaign Budget (CBO)</option>
+                        <option value="ABO">Ad Set Budget (ABO)</option>
+                      </select>
+                    </div>
+
+                    {formData.budgetOptimization === 'CBO' && (
+                      <div className="ctwa-form-group" style={{ marginBottom: 0, marginTop: '16px' }}>
+                        <label><span className="icon">💸</span> Campaign Daily Budget</label>
+                        <div className="budget-input-wrapper" style={{position: 'relative'}}>
+                          <span style={{position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: '#64748b'}}>₹</span>
+                          <input 
+                            type="number" 
+                            name="dailyBudget" 
+                            placeholder="e.g. 500" 
+                            value={formData.dailyBudget}
+                            onChange={handleChange}
+                            required 
+                            style={{ width: '100%', padding: '12px 16px 12px 32px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '1rem' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               </div>
@@ -1680,95 +1715,31 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
                   </div>
                 </div>
+                
+                {formData.budgetOptimization === 'ABO' && (
+                  <div className="ctwa-form-row" style={{ marginTop: '16px' }}>
+                    <div className="ctwa-form-group">
+                      <label><span className="icon">💸</span> Ad Set Daily Budget</label>
+                      <div className="budget-input-wrapper" style={{position: 'relative'}}>
+                        <span style={{position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: '#64748b'}}>₹</span>
+                        <input 
+                          type="number" 
+                          name="dailyBudget" 
+                          placeholder="e.g. 500" 
+                          value={formData.dailyBudget}
+                          onChange={handleChange}
+                          required 
+                          style={{ width: '100%', padding: '12px 16px 12px 32px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '1rem' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
               </div>
             )}
 
             {currentStep === 3 && (
-              <div className="ctwa-step-content">
-                <div className="ctwa-form-group">
-                  <label className="ctwa-label">
-                    <span className="step-number">2</span>
-                    Budget Optimization
-                  </label>
-                  <p style={{ color: '#64748b', fontSize: '13px', margin: '-4px 0 12px 0' }}>
-                    How should Meta distribute your budget across Ad Sets?
-                  </p>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                    <div 
-                      onClick={() => setFormData({...formData, budgetOptimization: 'CBO'})}
-                      style={{ padding: '16px', border: `2px solid ${formData.budgetOptimization === 'CBO' ? '#25D366' : '#e2e8f0'}`, borderRadius: '8px', cursor: 'pointer', background: formData.budgetOptimization === 'CBO' ? '#f0fdf4' : 'white' }}
-                    >
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>Advantage+ Campaign Budget (CBO)</h4>
-                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Set one budget for the whole campaign. Meta automatically finds the best-performing Ad Sets.</p>
-                    </div>
-                    
-                    <div 
-                      onClick={() => setFormData({...formData, budgetOptimization: 'ABO'})}
-                      style={{ padding: '16px', border: `2px solid ${formData.budgetOptimization === 'ABO' ? '#25D366' : '#e2e8f0'}`, borderRadius: '8px', cursor: 'pointer', background: formData.budgetOptimization === 'ABO' ? '#f0fdf4' : 'white' }}
-                    >
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#1e293b' }}>Ad Set Budget (ABO)</h4>
-                      <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Set a strict daily budget for each individual Ad Set separately.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="ctwa-form-group">
-                  <label className="ctwa-label">
-                    <span className="step-number">3</span>
-                    {formData.budgetOptimization === 'CBO' ? 'Campaign Daily Budget' : 'Default Ad Set Daily Budget'}
-                  </label>
-                  <div className="budget-input-wrapper">
-                    <span className="currency-symbol">{currencySymbolMap[currencyCode] || '$'}</span>
-                    <input 
-                      type="number" 
-                      className="ctwa-input with-icon"
-                      placeholder="e.g. 500" 
-                      name="dailyBudget" 
-                      value={formData.dailyBudget}
-                      onChange={handleChange}
-                      required 
-                    />
-                  </div>
-                  <div className="ctwa-budget-presets">
-                    {[10, 20, 50, 100].map(amount => (
-                      <button
-                        key={amount}
-                        type="button"
-                        className={`budget-preset ${Number(formData.dailyBudget) === amount ? 'active' : ''}`}
-                        onClick={() => setFormData({...formData, dailyBudget: amount.toString()})}
-                      >
-                        {amount}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="ctwa-form-row">
-                  <div className="ctwa-form-group">
-                    <label>Start Date (Optional)</label>
-                    <input 
-                      type="datetime-local" 
-                      name="startDate" 
-                      value={formData.startDate}
-                      onChange={handleChange}
-                      className="ctwa-date-input"
-                    />
-                  </div>
-                  <div className="ctwa-form-group">
-                    <label>End Date (Optional)</label>
-                    <input 
-                      type="datetime-local" 
-                      name="endDate" 
-                      value={formData.endDate}
-                      onChange={handleChange}
-                      className="ctwa-date-input"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 4 && (
               <div className="ctwa-step-content">
                 <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', borderRadius: '10px', borderLeft: '4px solid #f97316' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>🎨 Ad Creative</div>
@@ -1955,7 +1926,7 @@ const ClickToWhatsAppLauncher = () => {
               </div>
             )}
 
-            {currentStep === 5 && (
+            {currentStep === 4 && (
               <div className="ctwa-step-content">
                 <BulkDuplicateTable
                   baseFormData={formData}
