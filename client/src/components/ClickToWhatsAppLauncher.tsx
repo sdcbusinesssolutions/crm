@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Circle }
 import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import './ClickToWhatsAppLauncher.css';
-import BulkDuplicateTable from './BulkDuplicateTable';
+import CampaignReview from './AdManager/CampaignReview';
 import SidebarTreeView from './AdManager/SidebarTreeView';
 import { CampaignTree, AdSetTree, AdTree } from './AdManager/AdCampaignBuilder';
 
@@ -1113,6 +1113,7 @@ const ClickToWhatsAppLauncher = () => {
             };
 
             const selectedId = currentStep === 1 ? 'campaign' 
+              : currentStep === 4 ? 'review'
               : (currentStep === 2 || currentStep === 3) ? selectedAdSetId 
               : selectedAdId;
 
@@ -1146,6 +1147,8 @@ const ClickToWhatsAppLauncher = () => {
                           }
                         }
                         setCurrentStep(3);
+                      } else if (type === 'REVIEW') {
+                        setCurrentStep(4);
                       }
                     }}
                     onAddAdSet={handleAddAdSet}
@@ -1927,12 +1930,17 @@ const ClickToWhatsAppLauncher = () => {
             )}
 
             {currentStep === 4 && (
-              <div className="ctwa-step-content">
-                <BulkDuplicateTable
-                  baseFormData={formData}
-                  budgetOptimization={formData.budgetOptimization}
-                  onRowsChange={(rows) => setBulkRows(rows)}
-                />
+              <div className="ctwa-step-content" style={{ background: 'transparent', boxShadow: 'none', padding: 0 }}>
+                {/* Re-construct the campaign tree with full ad data */}
+                <CampaignReview campaign={{
+                  id: 'campaign',
+                  type: 'CAMPAIGN',
+                  name: formData.campaignName || 'New Campaign',
+                  objective: formData.objective,
+                  budgetOptimization: formData.budgetOptimization,
+                  dailyBudget: Number(formData.dailyBudget) || 0,
+                  adSets: adSets
+                }} />
               </div>
             )}
 

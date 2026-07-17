@@ -4,7 +4,7 @@ import { CampaignTree } from './AdCampaignBuilder';
 interface SidebarTreeViewProps {
   campaign: CampaignTree;
   selectedNodeId: string;
-  onSelectNode: (id: string, type: 'CAMPAIGN' | 'AD_SET' | 'AD') => void;
+  onSelectNode: (id: string, type: 'CAMPAIGN' | 'AD_SET' | 'AD' | 'REVIEW') => void;
   onAddAdSet: () => void;
   onAddAd?: (adSetId: string) => void;
   onDuplicateNode?: (id: string) => void;
@@ -356,6 +356,42 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
             <Plus s={10} /> Add Ad Set
           </button>
         </div>
+
+        {/* ══ REVIEW & LAUNCH NODE ══════════════════════════════════════════════ */}
+        <div
+          className="stv-row"
+          onClick={() => onSelectNode('review', 'REVIEW')}
+          style={{
+            background: selectedNodeId === 'review' ? '#fff7ed' : 'transparent',
+            border: selectedNodeId === 'review' ? '1px solid #fed7aa' : '1px solid transparent',
+            padding: '0 8px 0 0',
+            marginTop: '16px',
+            marginBottom: '2px',
+          }}
+        >
+          <Stripe color={selectedNodeId === 'review' ? '#f97316' : 'transparent'} />
+
+          <div style={{
+            width: '32px', height: '32px', flexShrink: 0, margin: '6px 8px 6px 10px',
+            borderRadius: '8px',
+            background: selectedNodeId === 'review' ? 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)' : '#f8fafc',
+            boxShadow: selectedNodeId === 'review' ? '0 2px 8px rgba(234,88,12,0.3)' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: selectedNodeId === 'review' ? 'none' : '1.5px solid #e2e8f0',
+          }}>
+            <span style={{ fontSize: '14px' }}>🚀</span>
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0, paddingRight: '4px' }}>
+            <div style={{ fontSize: '13.5px', fontWeight: 700, color: selectedNodeId === 'review' ? '#431407' : '#1e293b', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Review & Launch
+            </div>
+            <div style={{ fontSize: '10px', fontWeight: 600, color: selectedNodeId === 'review' ? '#ea580c' : '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Final Step
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
