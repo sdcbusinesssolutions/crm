@@ -10,6 +10,8 @@ import 'leaflet/dist/leaflet.css';
 import * as L from 'leaflet';
 import './ClickToWhatsAppLauncher.css';
 import BulkDuplicateTable from './BulkDuplicateTable';
+import SidebarTreeView from './AdManager/SidebarTreeView';
+import { CampaignTree, AdSetTree, AdTree } from './AdManager/AdCampaignBuilder';
 
 const countryOptions = [
   { value: 'US', label: 'United States', lat: 37.0902, lng: -95.7129 },
@@ -245,6 +247,9 @@ const ClickToWhatsAppLauncher = () => {
     adAccountId: '',
     pageId: '',
     campaignName: '',
+    adSetName: '',
+    adName: '',
+    status: 'PAUSED',
     budgetOptimization: 'CBO' as 'CBO' | 'ABO',
     dailyBudget: '',
     headline: 'Chat with us on WhatsApp!',
@@ -287,6 +292,219 @@ const ClickToWhatsAppLauncher = () => {
   const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
   const [droppedPins, setDroppedPins] = useState<{lat: number, lng: number, name?: string}[]>([]);
   const [bulkRows, setBulkRows] = useState<any[]>([]);
+
+  // ===== Multi Ad Set / Ad State =====
+  const [adSets, setAdSets] = useState<AdSetTree[]>([{
+    id: 'adset-initial',
+    type: 'AD_SET',
+    name: formData.adSetName || 'New Ad Set',
+    budget: 0,
+    targetCountries: '',
+    minAge: 18,
+    maxAge: 65,
+    gender: 'ALL',
+    advantagePlacements: true,
+    publisherPlatforms: [],
+    ads: [{
+      id: 'ad-initial',
+      type: 'AD',
+      name: formData.adName || 'New Ad',
+      mediaUrls: [],
+      primaryText: formData.primaryText,
+      headline: formData.headline
+    }]
+  }]);
+  const [selectedAdSetId, setSelectedAdSetId] = useState('adset-initial');
+  const [selectedAdId, setSelectedAdId] = useState('ad-initial');
+
+  // Keep adSet name in sync with formData.adSetName for the selected ad set
+  const selectedAdSet = adSets.find(s => s.id === selectedAdSetId);
+  const selectedAd = selectedAdSet?.ads.find(a => a.id === selectedAdId);
+
+  // Sync formData adSetName/adName changes into the adSets tree
+  useEffect(() => {
+    if (!selectedAdSetId) return;
+    setAdSets(prev => prev.map(s => {
+      if (s.id !== selectedAdSetId) return s;
+      const updatedAds = s.ads.map(a => {
+        if (a.id !== selectedAdId) return a;
+        return {
+          ...a,
+          name: formData.adName || a.name,
+          mediaUrls: formData.mediaUrls || a.mediaUrls,
+          primaryText: formData.primaryText,
+          headline: formData.headline
+        };
+      });
+      return {
+        ...s,
+        name: formData.adSetName || s.name,
+        targetCountries: formData.targetCountries,
+        minAge: formData.minAge,
+        maxAge: formData.maxAge,
+        gender: formData.gender,
+        advantagePlacements: formData.advantageAudience === 1,
+        ads: updatedAds
+      };
+    }));
+  }, [formData.adSetName, formData.adName, formData.mediaUrls, formData.primaryText, formData.headline, formData.targetCountries, formData.minAge, formData.maxAge, formData.gender, formData.advantageAudience]);
+
+  // When selecting a different ad set or ad, load its data into formData
+  const loadAdSetIntoForm = useCallback((adSet: AdSetTree, ad?: AdTree) => {
+    const targetAd = ad || adSet.ads[0];
+    setFormData(prev => ({
+      ...prev,
+      adSetName: adSet.name,
+      adName: targetAd?.name || 'New Ad',
+      mediaUrls: targetAd?.mediaUrls || [],
+      primaryText: targetAd?.primaryText || prev.primaryText,
+      headline: targetAd?.headline || prev.headline,
+      targetCountries: adSet.targetCountries || prev.targetCountries,
+      minAge: adSet.minAge,
+      maxAge: adSet.maxAge,
+      gender: adSet.gender,
+    }));
+  }, []);
+
+  // === Ad Set Handlers ===
+  const handleAddAdSet = useCallback(() => {
+    const newId = `adset-${Date.now()}`;
+    const newAdId = `ad-${Date.now()}`;
+    const newAdSet: AdSetTree = {
+      id: newId,
+      type: 'AD_SET',
+      name: `Ad Set ${adSets.length + 1}`,
+      budget: 0,
+      targetCountries: formData.targetCountries,
+      minAge: formData.minAge,
+      maxAge: formData.maxAge,
+      gender: formData.gender,
+      advantagePlacements: formData.advantageAudience === 1,
+      publisherPlatforms: [],
+      ads: [{
+        id: newAdId,
+        type: 'AD',
+        name: 'New Ad',
+        mediaUrls: formData.mediaUrls || [],
+        primaryText: formData.primaryText,
+        headline: formData.headline
+      }]
+    };
+    setAdSets(prev => [...prev, newAdSet]);
+    setSelectedAdSetId(newId);
+    setSelectedAdId(newAdId);
+    loadAdSetIntoForm(newAdSet);
+    setCurrentStep(2); // Navigate to ad set step
+  }, [adSets.length, formData, loadAdSetIntoForm]);
+
+  const handleDuplicateAdSet = useCallback((id: string) => {
+    const adSetToCopy = adSets.find(s => s.id === id);
+    if (!adSetToCopy) return;
+    const newId = `adset-${Date.now()}`;
+    const newAdSet: AdSetTree = {
+      ...adSetToCopy,
+      id: newId,
+      name: `${adSetToCopy.name} (copy)`,
+      ads: adSetToCopy.ads.map(ad => ({
+        ...ad,
+        id: `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      }))
+    };
+    setAdSets(prev => [...prev, newAdSet]);
+    setSelectedAdSetId(newId);
+    setSelectedAdId(newAdSet.ads[0]?.id || '');
+    loadAdSetIntoForm(newAdSet);
+    setCurrentStep(2);
+  }, [adSets, loadAdSetIntoForm]);
+
+  const handleDeleteAdSet = useCallback((id: string) => {
+    if (adSets.length <= 1) {
+      alert('You must have at least one Ad Set.');
+      return;
+    }
+    const newAdSets = adSets.filter(s => s.id !== id);
+    setAdSets(newAdSets);
+    if (selectedAdSetId === id) {
+      const fallback = newAdSets[0];
+      setSelectedAdSetId(fallback.id);
+      setSelectedAdId(fallback.ads[0]?.id || '');
+      loadAdSetIntoForm(fallback);
+    }
+  }, [adSets, selectedAdSetId, loadAdSetIntoForm]);
+
+  // === Ad Handlers ===
+  const handleAddAd = useCallback((adSetId: string) => {
+    const newAdId = `ad-${Date.now()}`;
+    setAdSets(prev => prev.map(s => {
+      if (s.id !== adSetId) return s;
+      return {
+        ...s,
+        ads: [...s.ads, {
+          id: newAdId,
+          type: 'AD' as const,
+          name: `Ad ${s.ads.length + 1}`,
+          mediaUrls: formData.mediaUrls || [],
+          primaryText: formData.primaryText,
+          headline: formData.headline
+        }]
+      };
+    }));
+    setSelectedAdSetId(adSetId);
+    setSelectedAdId(newAdId);
+    setFormData(prev => ({ ...prev, adName: `Ad ${(adSets.find(s => s.id === adSetId)?.ads.length || 0) + 1}` }));
+    setCurrentStep(4); // Navigate to ad creative step
+  }, [adSets, formData]);
+
+  const handleDuplicateAd = useCallback((adSetId: string, adId: string) => {
+    const adSet = adSets.find(s => s.id === adSetId);
+    if (!adSet) return;
+    const adToCopy = adSet.ads.find(a => a.id === adId);
+    if (!adToCopy) return;
+    const newAdId = `ad-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newAd: AdTree = {
+      ...adToCopy,
+      id: newAdId,
+      name: `${adToCopy.name} (copy)`
+    };
+    setAdSets(prev => prev.map(s => {
+      if (s.id !== adSetId) return s;
+      return { ...s, ads: [...s.ads, newAd] };
+    }));
+    setSelectedAdSetId(adSetId);
+    setSelectedAdId(newAdId);
+    setFormData(prev => ({
+      ...prev,
+      adName: newAd.name,
+      mediaUrls: newAd.mediaUrls,
+      primaryText: newAd.primaryText,
+      headline: newAd.headline
+    }));
+    setCurrentStep(4);
+  }, [adSets]);
+
+  const handleDeleteAd = useCallback((adSetId: string, adId: string) => {
+    const adSet = adSets.find(s => s.id === adSetId);
+    if (!adSet || adSet.ads.length <= 1) {
+      alert('Each Ad Set must have at least one Ad.');
+      return;
+    }
+    const newAds = adSet.ads.filter(a => a.id !== adId);
+    setAdSets(prev => prev.map(s => {
+      if (s.id !== adSetId) return s;
+      return { ...s, ads: newAds };
+    }));
+    if (selectedAdId === adId) {
+      const fallbackAd = newAds[0];
+      setSelectedAdId(fallbackAd.id);
+      setFormData(prev => ({
+        ...prev,
+        adName: fallbackAd.name,
+        mediaUrls: fallbackAd.mediaUrls,
+        primaryText: fallbackAd.primaryText,
+        headline: fallbackAd.headline
+      }));
+    }
+  }, [adSets, selectedAdId]);
 
   // Synchronize droppedPins with formData.targetCountries (add missing, remove deleted)
   useEffect(() => {
@@ -605,7 +823,8 @@ const ClickToWhatsAppLauncher = () => {
         excludedGeoLocations: parsedExcludedGeo,
         flexibleSpec: flexibleSpec,
         exclusions: exclusions,
-        duplicates: bulkRows
+        duplicates: bulkRows,
+        adSets: adSets
       };
 
 
@@ -879,21 +1098,81 @@ const ClickToWhatsAppLauncher = () => {
       </div>
 
       <div className="ctwa-layout-wrapper">
-        <div className="ctwa-form-column">
-          <div className="ctwa-card ctwa-form-card">
-          {formErrors.length > 0 && (
-            <div className="ctwa-error" style={{ marginBottom: '1.5rem', marginTop: '0' }}>
-              <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-                {formErrors.map((err, i) => <li key={i}>{err}</li>)}
-              </ul>
-            </div>
-          )}
+          {/* Map currentStep to selected node id */}
+          {(() => {
+            const campaign: CampaignTree = {
+              id: 'campaign',
+              type: 'CAMPAIGN',
+              name: formData.campaignName || 'New Campaign',
+              objective: formData.objective,
+              budgetOptimization: formData.budgetOptimization,
+              dailyBudget: Number(formData.dailyBudget) || 0,
+              adSets: adSets
+            };
 
-          {renderStepIndicator()}
+            const selectedId = currentStep === 1 ? 'campaign' 
+              : (currentStep === 2 || currentStep === 3) ? selectedAdSetId 
+              : selectedAdId;
 
-          <form onSubmit={handleSubmit} className="ctwa-form">
+            return (
+              <div style={{ display: 'flex', width: '100%', gap: '20px' }}>
+                {/* Left Sidebar */}
+                <div style={{ width: '280px', flexShrink: 0 }}>
+                  <SidebarTreeView 
+                    campaign={campaign}
+                    selectedNodeId={selectedId}
+                    onSelectNode={(id, type) => {
+                      if (type === 'CAMPAIGN') {
+                        setCurrentStep(1);
+                      } else if (type === 'AD_SET') {
+                        const adSet = adSets.find(s => s.id === id);
+                        if (adSet) {
+                          setSelectedAdSetId(id);
+                          setSelectedAdId(adSet.ads[0]?.id || '');
+                          loadAdSetIntoForm(adSet);
+                        }
+                        setCurrentStep(2);
+                      } else if (type === 'AD') {
+                        // Find which ad set owns this ad
+                        for (const adSet of adSets) {
+                          const ad = adSet.ads.find(a => a.id === id);
+                          if (ad) {
+                            setSelectedAdSetId(adSet.id);
+                            setSelectedAdId(id);
+                            loadAdSetIntoForm(adSet, ad);
+                            break;
+                          }
+                        }
+                        setCurrentStep(4);
+                      }
+                    }}
+                    onAddAdSet={handleAddAdSet}
+                    onAddAd={handleAddAd}
+                    onDuplicateAdSet={handleDuplicateAdSet}
+                    onDeleteAdSet={handleDeleteAdSet}
+                    onDuplicateAd={handleDuplicateAd}
+                    onDeleteAd={handleDeleteAd}
+                  />
+                </div>
+                
+                {/* Right Content Form Area */}
+                <div style={{ flexGrow: 1, minWidth: 0 }}>
+
+
+                <form onSubmit={handleSubmit} className="ctwa-form">
+                  {formErrors.length > 0 && (
+                    <div className="ctwa-error" style={{ marginBottom: '1.5rem', marginTop: '0' }}>
+                      <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                        {formErrors.map((err, i) => <li key={i}>{err}</li>)}
+                      </ul>
+                    </div>
+                  )}
             {currentStep === 1 && (
               <div className="ctwa-step-content">
+                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', borderRadius: '10px', borderLeft: '4px solid #3b82f6' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', letterSpacing: '0.08em', textTransform: 'uppercase' }}>📋 Campaign</div>
+                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Set your campaign name, objective, and ad account.</div>
+                </div>
                 {/* Row 1: Ad Account + Facebook Page */}
                 <div className="ctwa-form-row">
                   <div className="ctwa-form-group">
@@ -1188,9 +1467,49 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 2 && (
               <div className="ctwa-step-content">
+                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', borderRadius: '10px', borderLeft: '4px solid #22c55e' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>👥 Ad Set</div>
+                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Define your audience, budget, and targeting for this Ad Set.</div>
+                </div>
+                {/* Ad Set Name */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label><span className="icon">👥</span> Ad Set Name</label>
+                    <input 
+                      type="text" 
+                      name="adSetName" 
+                      placeholder="e.g. India - 25-45 - Women"
+                      value={formData.adSetName}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="none" stroke="none" style={{ width: '18px', height: '18px', marginLeft: '2px', marginRight: '2px' }}><circle cx="12" cy="12" r="12" fill="#1877F2" /><path d="M15.36 12l-.54-3.52h-2.99V6.21c0-.97.48-1.91 2-1.91h1.55V1.31s-1.41-.24-2.75-.24c-2.82 0-4.65 1.71-4.65 4.79v2.66H5.43V12h2.55v8.52h3.84V12h3.54z" fill="white" /></svg></span> Facebook Page</label>
+                    {accountsLoading ? (
+                       <div style={{height: '40px', background: '#f3f4f6', borderRadius: '10px'}}></div>
+                    ) : pages.length > 0 ? (
+                      <select name="pageId" value={formData.pageId} onChange={handleChange} required className="ctwa-select">
+                        {pages.map(page => (
+                          <option key={page.id} value={page.id}>{page.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input 
+                        type="text" 
+                        name="pageId" 
+                        placeholder="No pages found. Enter ID manually" 
+                        value={formData.pageId}
+                        onChange={handleChange}
+                        required 
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="ctwa-form-row" style={{ gridTemplateColumns: '1fr' }}>
                   <div className="ctwa-form-group" style={{ marginBottom: '1rem' }}>
-                    <label>1. Select Primary Country (Optional, for higher accuracy)</label>
+                    <label>Target Location — Select Primary Country (Optional)</label>
                     <Select
                       options={countryOptions}
                       placeholder="Select a country to narrow down search..."
@@ -1576,59 +1895,178 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 4 && (
               <div className="ctwa-step-content">
-                <div className="ctwa-summary">
-                  <h3 style={{marginTop: 0}}>Campaign Overview</h3>
-                  <div className="summary-grid">
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Campaign Name:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.campaignName}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Ad Account:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.adAccountId}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Page ID:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.pageId}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Daily Budget:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.dailyBudget}</span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Locations:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>
-                        {formData.targetCountries ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                            {formData.targetCountries.split('|').filter(Boolean).map((loc, i) => {
-                               const type = formData.locationTypes?.[loc] || 'include';
-                               return (
-                                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                   <span style={{ 
-                                     fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px',
-                                     background: type === 'exclude' ? '#FEE2E2' : '#DCFCE7',
-                                     color: type === 'exclude' ? '#991B1B' : '#166534',
-                                     textTransform: 'uppercase', fontWeight: 700
-                                   }}>
-                                     {type}
-                                   </span>
-                                   <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>{loc}</span>
-                                 </div>
-                               );
-                            })}
-                          </div>
-                        ) : 'Global'}
+                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', borderRadius: '10px', borderLeft: '4px solid #f97316' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>🎨 Ad Creative</div>
+                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Design your ad — upload media, write your message, and set the status.</div>
+                </div>
+
+                {/* Ad Name */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label><span className="icon">🏷️</span> Ad Name</label>
+                    <input 
+                      type="text" 
+                      name="adName" 
+                      placeholder="e.g. Summer Sale Ad - Creative 1"
+                      value={formData.adName}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label><span className="icon">⚡</span> Ad Status</label>
+                    <select name="status" value={formData.status} onChange={handleChange} required className="ctwa-select">
+                      <option value="PAUSED">Paused (Draft)</option>
+                      <option value="ACTIVE">Active (Publish Immediately)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Headline */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 4v3h5.5v12h3V7H19V4H5z"/></svg></span> 
+                      Headline
+                      <span className={`char-count ${formData.headline.length >= 40 ? 'warning' : 'safe'}`} style={{ marginLeft: 'auto' }}>
+                        {formData.headline.length} / 40
                       </span>
-                    </div>
-                    <div className="summary-item">
-                      <span className="summary-label" style={{fontSize: '0.75rem', color: '#6b7280'}}>Demographics:</span>
-                      <span className="summary-value" style={{fontWeight: 600}}>{formData.minAge}-{formData.maxAge} yrs, {formData.gender === 'all' ? 'All Genders' : formData.gender === '1' ? 'Men' : 'Women'}</span>
-                    </div>
+                    </label>
+                    <input 
+                      type="text" 
+                      name="headline" 
+                      value={formData.headline}
+                      onChange={handleChange}
+                      maxLength={40}
+                      required 
+                    />
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg></span> WhatsApp Welcome Message</label>
+                    <input 
+                      type="text" 
+                      name="welcomeMessageText" 
+                      value={formData.welcomeMessageText}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                </div>
+
+                {/* Ad Media */}
+                <div className="ctwa-form-group" style={{ marginBottom: 0 }}>
+                  <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></span> Ad Media</label>
+                  <div className={`media-upload-area ${formData.mediaUrls && formData.mediaUrls.length > 0 ? 'has-image' : ''}`}>
+                    {formData.mediaUrls && formData.mediaUrls.length > 0 ? (
+                      <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap', padding: '16px'}}>
+                        {formData.mediaUrls.map((url, i) => (
+                          <div key={i} style={{position: 'relative', width: '80px', height: '80px'}}>
+                            {url.match(/\.(mp4|webm|ogg|mov)(?:[\?#].*)?$/i) ? (
+                              <video src={url} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                            ) : (
+                              <img src={url} alt={`Ad Media ${i}`} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e5e7eb'}} />
+                            )}
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({...formData, mediaUrls: formData.mediaUrls.filter((_, idx) => idx !== i)}); }} style={{position: 'absolute', top: '-6px', right: '-6px', background: '#dc2626', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>&times;</button>
+                          </div>
+                        ))}
+                        {formData.mediaUrls.length < 4 && (
+                          <div onClick={() => document.getElementById('ad-media-upload')?.click()} style={{width: '80px', height: '80px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#f8fafc', transition: 'all 0.2s'}}>
+                            <span style={{fontSize: '24px', color: '#94a3b8', lineHeight: 1}}>+</span>
+                            <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 500}}>Add ({4 - formData.mediaUrls.length})</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="upload-placeholder-new" style={{ display: 'flex', alignItems: 'center', gap: '15px' }} onClick={() => document.getElementById('ad-media-upload')?.click()}>
+                        <div className="upload-icon-box" style={{ background: '#eafff0', padding: '12px', borderRadius: '12px' }}>
+                          <svg viewBox="0 0 24 24" fill="#068E3E" style={{ width: '28px', height: '28px' }}><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                        </div>
+                        <div className="upload-text-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Images or Videos (Up to 4)</span>
+                          <span style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>Recommended: 1:1 aspect ratio<br/>at least 1080 × 1080 pixels.</span>
+                          <button type="button" className="ctwa-upload-btn-mini" style={{ background: '#068E3E', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Browse Files
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <input
+                      id="ad-media-upload"
+                      type="file"
+                      accept="image/*,video/*"
+                      style={{ display: 'none' }}
+                      onChange={handleFileUpload}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  {uploading && <p style={{color: '#25D366', fontSize: '0.72rem'}}>Uploading...</p>}
+                  {uploadError && <p style={{color: '#dc2626', fontSize: '0.72rem'}}>{uploadError}</p>}
+                </div>
+
+                {/* Primary Text + Description */}
+                <div className="ctwa-form-row" style={{ marginTop: '16px' }}>
+                  <div className="ctwa-form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></span> 
+                      Primary Text
+                      <span className={`char-count ${formData.primaryText.length > 125 ? 'warning' : 'safe'}`} style={{ marginLeft: 'auto' }}>
+                        {formData.primaryText.length} / 500 {formData.primaryText.length > 125 ? '(See More added)' : '(Safe Zone)'}
+                      </span>
+                    </label>
+                    <textarea 
+                      name="primaryText" 
+                      placeholder="Get instant support and exclusive offers right in your WhatsApp inbox." 
+                      value={formData.primaryText}
+                      onChange={handleChange}
+                      maxLength={500}
+                      rows={4}
+                      required 
+                    />
+                    {/(http|www\.)/i.test(formData.primaryText) && (
+                      <p style={{color: '#dc2626', fontSize: '0.72rem', marginTop: '4px'}}>
+                        ⚠️ Avoid URLs here! The WhatsApp CTA button is your only link.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span> Ad Description (Optional)</label>
+                    <textarea 
+                      name="description" 
+                      placeholder="Write ad description..."
+                      value={formData.description}
+                      onChange={handleChange}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+
+                {/* Ice Breaker */}
+                <div className="ctwa-form-row">
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-5 9h-2V9h2v2zm-4 0H9V9h2v2zm-4 0H5V9h2v2z"/></svg></span> Ice Breaker Button Text</label>
+                    <input 
+                      type="text" 
+                      name="iceBreakerText" 
+                      value={formData.iceBreakerText}
+                      onChange={handleChange}
+                      required 
+                    />
+                  </div>
+                  <div className="ctwa-form-group">
+                    <label><span className="icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.6 14c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.5.1-.2.2-.7.8-.8 1-.1.2-.3.2-.5.1-.2-.1-1.1-.4-2.1-1.3-.8-.7-1.3-1.5-1.5-1.8-.2-.2 0-.3.1-.4.1-.1.2-.2.3-.3.1-.1.2-.2.2-.4 0-.1 0-.3-.1-.4-.1-.2-.6-1.5-.9-2-.2-.5-.5-.4-.7-.4h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.6s1.1 3 1.3 3.3c.2.3 2.2 3.4 5.3 4.7 2.1.9 2.9 1 3.9.9 1 0 3.2-1.3 3.6-2.5.4-1.2.4-2.2.3-2.5-.2-.1-.4-.2-.7-.3z"/></svg></span> WhatsApp Number (Optional)</label>
+                    <input 
+                      type="text" 
+                      name="whatsappNumber" 
+                      placeholder="Leave blank to auto-detect"
+                      value={formData.whatsappNumber}
+                      onChange={handleChange}
+                    />
                   </div>
                 </div>
 
                 {error && <div className="ctwa-error" style={{color: 'red', marginTop: '1rem'}}>{error}</div>}
-                
                 {successData && (
                   <div className="ctwa-success" style={{background: '#dcfce7', padding: '1rem', borderRadius: '8px', marginTop: '1rem'}}>
                     <h4 style={{color: '#166534', margin: '0 0 0.5rem 0'}}>Ad Launched Successfully!</h4>
@@ -1696,9 +2134,10 @@ const ClickToWhatsAppLauncher = () => {
               )}
             </div>
           </form>
+          </div>
         </div>
-
-        </div>
+        );
+        })()}
 
         <div className="ctwa-right-panel">
           {adPreview}

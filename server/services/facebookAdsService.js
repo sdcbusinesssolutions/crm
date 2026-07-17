@@ -192,7 +192,7 @@ class FacebookAdsService {
         campaignName, dailyBudget, pageId, headline, primaryText, imageUrl, mediaType, 
         targetCountries, geoLocations, excludedGeoLocations, minAge, maxAge, gender, startDate, endDate, 
         welcomeMessageText, iceBreakerText, whatsappNumber, description, status, objective, optimizationGoal, advantageAudience,
-        flexibleSpec, exclusions, radius
+        flexibleSpec, exclusions, radius, advantagePlacements, publisherPlatforms
     }) {
         try {
             const apiVersion = 'v20.0';
@@ -343,8 +343,10 @@ class FacebookAdsService {
                     age_min: minAge ? parseInt(minAge) : 18,
                     age_max: maxAge ? parseInt(maxAge) : 65,
                     genders: gendersArray,
-                    publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
-                    facebook_positions: ['feed', 'story', 'marketplace', 'search'],
+                    ...(!advantagePlacements && publisherPlatforms ? { publisher_platforms: publisherPlatforms } : {
+                        publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
+                        facebook_positions: ['feed', 'story', 'marketplace', 'search']
+                    }),
                     ...(flexibleSpec && flexibleSpec.length > 0 && { flexible_spec: flexibleSpec }),
                     ...(exclusions && exclusions.length > 0 && { exclusions: exclusions }),
                     targeting_automation: {
@@ -631,8 +633,10 @@ class FacebookAdsService {
                         age_max: maxAge,
                         genders: gendersArray,
                         ...(flexible_spec.length > 0 && { flexible_spec }),
-                        publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
-                        facebook_positions: ['feed', 'story', 'marketplace', 'search'],
+                        ...(!baseConfig.advantagePlacements && baseConfig.publisherPlatforms ? { publisher_platforms: baseConfig.publisherPlatforms } : {
+                            publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
+                            facebook_positions: ['feed', 'story', 'marketplace', 'search']
+                        }),
                         targeting_automation: { advantage_audience: 1 }
                     }),
                     status: status || 'PAUSED',

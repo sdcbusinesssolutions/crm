@@ -320,7 +320,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             advantageAudience,
             flexibleSpec,
             exclusions,
-            duplicates
+            duplicates,
+            advantagePlacements,
+            publisherPlatforms
         } = req.body;
 
         // Validation
@@ -373,7 +375,9 @@ router.post('/launch', requireAuth, async (req, res) => {
             radius,
             advantageAudience,
             flexibleSpec,
-            exclusions
+            exclusions,
+            advantagePlacements,
+            publisherPlatforms
         }, duplicates);
 
         res.status(200).json(result);

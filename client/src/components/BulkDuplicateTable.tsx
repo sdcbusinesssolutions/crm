@@ -160,8 +160,8 @@ export default function BulkDuplicateTable({ baseFormData, budgetOptimization = 
              headers: { 'Authorization': authHeader.Authorization || '' }
           });
           const data = await response.json();
-          if (response.ok && data.data && data.data.data) {
-            const options = data.data.data.map((item: any) => ({
+          if (response.ok && data.success && data.data) {
+            const options = data.data.map((item: any) => ({
               label: item.name,
               value: item.name,
               audienceSize: item.audience_size_upper_bound
@@ -374,6 +374,16 @@ export default function BulkDuplicateTable({ baseFormData, budgetOptimization = 
                   placeholder="Search detailed targeting (e.g. Digital marketing, Real estate)..."
                   value={(selectedRow.detailedTargeting || '').split(',').filter(Boolean).map(l => ({ label: l.trim(), value: l.trim() }))}
                   onChange={(newVals: any) => setSelectedRow({...selectedRow, detailedTargeting: newVals ? newVals.map((v: any) => v.value).join(', ') : ''})}
+                  formatOptionLabel={({ label, audienceSize, __isNew__ }: any) => (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500, color: '#1c1e21' }}>{label}</span>
+                      {!__isNew__ && audienceSize && (
+                        <span style={{ fontSize: '11px', color: '#606770' }}>
+                          Size: {Number(audienceSize).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   styles={{ control: (base) => ({ ...base, minHeight: '38px', borderRadius: '6px', borderColor: '#cbd5e1' }) }}
                 />
               </div>

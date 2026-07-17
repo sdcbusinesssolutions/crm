@@ -129,21 +129,18 @@
 
 /* ═══════════ LAYOUT ═══════════ */
 .ctwa-layout-wrapper {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
   gap: 1.25rem;
   position: relative;
   z-index: 10;
-  align-items: start;
-  max-width: 1250px;
+  align-items: flex-start;
+  max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
 }
-@media (min-width: 1024px) {
+@media (max-width: 1024px) {
   .ctwa-layout-wrapper {
-    grid-template-columns: 2.2fr 1fr;
-  }
-  .ctwa-right-panel {
-    margin-top: 60px; /* Align with Facebook Page field */
+    flex-direction: column;
   }
 }
 
