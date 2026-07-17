@@ -33,41 +33,41 @@ const CSS = `
 /* ── Icons ────────────────────────────────────────────────────────────────── */
 const ChevRight = ({ open }: { open: boolean }) => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-    style={{ display:'block', transition:'transform 0.2s ease', transform: open ? 'rotate(90deg)' : 'rotate(0)' }}>
-    <polyline points="9 18 15 12 9 6"/>
+    style={{ display: 'block', transition: 'transform 0.2s ease', transform: open ? 'rotate(90deg)' : 'rotate(0)' }}>
+    <polyline points="9 18 15 12 9 6" />
   </svg>
 );
 const Plus = ({ s = 12 }: { s?: number }) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 const Copy = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
 const Trash = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/>
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 const IcoCampaign = ({ active }: { active: boolean }) => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={active ? '#4f46e5' : '#94a3b8'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? 'white' : '#94a3b8'} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
   </svg>
 );
 const IcoAdSet = ({ active }: { active: boolean }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={active ? '#059669' : '#94a3b8'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={active ? 'white' : '#94a3b8'} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
 const IcoAd = ({ active }: { active: boolean }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={active ? '#f97316' : '#94a3b8'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2"/>
-    <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={active ? 'white' : '#94a3b8'} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
   </svg>
 );
 
@@ -80,9 +80,9 @@ const ActBtn = ({ onClick, title, color, bg, children }: {
   <button
     className="stv-act-btn"
     onClick={onClick} title={title}
-    style={{ color: '#64748b', background: '#eef2f7' }}
+    style={{ color: '#046B2F', background: '#e8f5ed' }}
     onMouseEnter={e => { e.currentTarget.style.background = bg; e.currentTarget.style.color = color; }}
-    onMouseLeave={e => { e.currentTarget.style.background = '#eef2f7'; e.currentTarget.style.color = '#64748b'; }}
+    onMouseLeave={e => { e.currentTarget.style.background = '#e8f5ed'; e.currentTarget.style.color = '#046B2F'; }}
   >
     {children}
   </button>
@@ -109,7 +109,7 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
       width: '100%',
       fontFamily: "'Inter', -apple-system, sans-serif",
       background: '#ffffff',
-      border: '1px solid #e2e8f0',
+      border: '1.5px solid #046B2F',
       borderRadius: '12px',
       boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
       display: 'flex', flexDirection: 'column',
@@ -133,8 +133,8 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
             flexShrink: 0, boxShadow: '0 2px 8px rgba(37,211,102,0.3)',
           }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
           <div>
@@ -180,9 +180,10 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
           <div style={{
             width: '32px', height: '32px', flexShrink: 0, margin: '6px 8px 6px 10px',
             borderRadius: '8px',
-            background: campSel ? '#eef2ff' : '#f1f5f9',
+            background: campSel ? 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)' : '#f1f5f9',
+            boxShadow: campSel ? '0 2px 8px rgba(79,70,229,0.3)' : 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: campSel ? '1.5px solid #c7d2fe' : '1.5px solid #e2e8f0',
+            border: campSel ? 'none' : '1.5px solid #e2e8f0',
           }}>
             <IcoCampaign active={campSel} />
           </div>
@@ -236,9 +237,10 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
                     style={{
                       width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0,
                       margin: '5px 8px 5px 4px',
-                      background: sel ? '#dcfce7' : '#f0fdf4',
+                      background: sel ? 'linear-gradient(135deg, #10b981 0%, #047857 100%)' : '#f1f5f9',
+                      boxShadow: sel ? '0 2px 6px rgba(16,185,129,0.3)' : 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      border: sel ? '1.5px solid #86efac' : '1.5px solid #d1fae5',
+                      border: sel ? 'none' : '1.5px solid #e2e8f0',
                     }}>
                     <IcoAdSet active={sel} />
                   </div>
@@ -266,7 +268,7 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
                   {/* Actions (hover-reveal) */}
                   <div className="stv-acts" onClick={e => e.stopPropagation()}>
                     {onAddAd && (
-                      <ActBtn onClick={() => onAddAd(adSet.id)} title="Add Ad" color="#059669" bg="#dcfce7"><Plus s={11}/></ActBtn>
+                      <ActBtn onClick={() => onAddAd(adSet.id)} title="Add Ad" color="#059669" bg="#dcfce7"><Plus s={11} /></ActBtn>
                     )}
                     {onDuplicateAdSet && (
                       <ActBtn onClick={() => onDuplicateAdSet(adSet.id)} title="Duplicate" color="#4f46e5" bg="#eef2ff"><Copy /></ActBtn>
@@ -300,9 +302,10 @@ const SidebarTreeView: React.FC<SidebarTreeViewProps> = ({
                             style={{
                               width: '26px', height: '26px', borderRadius: '7px', flexShrink: 0,
                               margin: '5px 8px 5px 10px',
-                              background: adSel ? '#ffedd5' : '#fafafa',
+                              background: adSel ? 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)' : '#fafafa',
+                              boxShadow: adSel ? '0 2px 6px rgba(249,115,22,0.3)' : 'none',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              border: adSel ? '1.5px solid #fdba74' : '1.5px solid #e2e8f0',
+                              border: adSel ? 'none' : '1.5px solid #e2e8f0',
                             }}>
                             <IcoAd active={adSel} />
                           </div>
