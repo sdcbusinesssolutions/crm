@@ -231,7 +231,7 @@ function RadiusConfigurator({ locationName, radius, onChange }: { locationName: 
 }
 
 const ClickToWhatsAppLauncher = () => {
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(1);
   const [aiPromptText, setAiPromptText] = useState('');
   const [showAdvancedLocation, setShowAdvancedLocation] = useState(false);
   const totalSteps = 5;
@@ -1117,7 +1117,7 @@ const ClickToWhatsAppLauncher = () => {
             return (
               <div style={{ display: 'flex', width: '100%', gap: '20px' }}>
                 {/* Left Sidebar */}
-                <div style={{ width: '280px', flexShrink: 0 }}>
+                <div style={{ width: '350px', flexShrink: 0 }}>
                   <SidebarTreeView 
                     campaign={campaign}
                     selectedNodeId={selectedId}
