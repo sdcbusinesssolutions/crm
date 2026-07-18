@@ -401,7 +401,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         stage_id: modalStageId,
                         name: newContact.name,
                         email: newContact.email || '',
-                        phone: newContact.phone
+                        phone: newContact.phone,
+                        tags: newContact.tags || []
                     });
                 } else {
                     await createLead({
@@ -410,7 +411,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         phone: newContact.phone,
                         pipeline_id: modalPipelineId,
                         stage_id: modalStageId,
-                        source: ((newContact.source || 'manual').toLowerCase() as any)
+                        source: ((newContact.source || 'manual').toLowerCase() as any),
+                        tags: newContact.tags || []
                     });
                 }
             }
