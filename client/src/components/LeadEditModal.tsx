@@ -15,6 +15,7 @@ import {
     getLead
 } from '../services/lead-management-api';
 import { followUpService } from '../services/followUpService';
+import { reminderManager } from '../utils/reminderManager';
 import { Lead, Pipeline, PipelineStage } from '../types/lead-management';
 import { TrashIcon } from './icons';
 
@@ -44,6 +45,10 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
     const [addToGeneralFollowUps, setAddToGeneralFollowUps] = useState(false);
     const [newAppointment, setNewAppointment] = useState({ title: '', start_time: '', end_time: '', description: '' });
     const [newCallLog, setNewCallLog] = useState({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
+
+    const [showLocalReminder, setShowLocalReminder] = useState(false);
+    const [localReminderTime, setLocalReminderTime] = useState('');
+    const [localReminderMessage, setLocalReminderMessage] = useState('');
 
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
     const [stages, setStages] = useState<PipelineStage[]>([]);
@@ -278,22 +283,77 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 size="3xl"
                 scrollable={true}
                 footer={
-                    <div className="flex justify-end w-full gap-2">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-[var(--color-text)] opacity-70 hover:opacity-100 hover:bg-[var(--color-bg)] rounded-lg transition-all"
-                        >
-                            Cancel
-                        </button>
-                        {canWrite && (
-                            <button
-                                onClick={handleSaveLead}
-                                disabled={leadLoading}
-                                className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity"
-                            >
-                                {leadLoading ? 'Saving...' : 'UPDATE'}
-                            </button>
+                    <div className="flex flex-col w-full gap-2">
+                        {showLocalReminder && (
+                            <div className="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg w-full mb-2">
+                                <h4 className="font-bold text-sm text-blue-800">Set Custom Local Reminder (Browser Only)</h4>
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="e.g. Call back regarding pricing"
+                                        className="flex-1 px-3 py-2 text-sm border rounded bg-white text-black"
+                                        value={localReminderMessage}
+                                        onChange={e => setLocalReminderMessage(e.target.value)}
+                                    />
+                                    <input 
+                                        type="datetime-local" 
+                                        className="px-3 py-2 text-sm border rounded bg-white text-black"
+                                        value={localReminderTime}
+                                        onChange={e => setLocalReminderTime(e.target.value)}
+                                    />
+                                    <button 
+                                        onClick={() => {
+                                            if (!localReminderTime || !localReminderMessage) {
+                                                setToast({ type: 'error', title: 'Error', message: 'Please enter message and time.' });
+                                                return;
+                                            }
+                                            const targetTime = new Date(localReminderTime).getTime();
+                                            const adjustedTime = new Date(targetTime + 15 * 60000);
+                                            reminderManager.addReminder({
+                                                id: `local-${editingLead.id}-${Date.now()}`,
+                                                title: `Reminder: ${editingLead.name || 'Contact'}`,
+                                                subtitle: localReminderMessage,
+                                                scheduledAt: adjustedTime,
+                                                data: { contactId: editingLead.id },
+                                                persistLocally: true,
+                                                onAction: () => {}
+                                            });
+                                            setShowLocalReminder(false);
+                                            setLocalReminderMessage('');
+                                            setLocalReminderTime('');
+                                            setToast({ type: 'success', title: 'Reminder Set', message: 'Local reminder scheduled!' });
+                                        }}
+                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700"
+                                    >Save</button>
+                                </div>
+                            </div>
                         )}
+                        <div className="flex justify-between w-full">
+                            <button
+                                onClick={() => setShowLocalReminder(!showLocalReminder)}
+                                className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all flex items-center gap-2"
+                            >
+                                <span>⏰</span> Custom Local Reminder
+                            </button>
+                            
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2 text-[var(--color-text)] opacity-70 hover:opacity-100 hover:bg-[var(--color-bg)] rounded-lg transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                {canWrite && (
+                                    <button
+                                        onClick={handleSaveLead}
+                                        disabled={leadLoading}
+                                        className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity"
+                                    >
+                                        {leadLoading ? 'Saving...' : 'UPDATE'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 }
             >

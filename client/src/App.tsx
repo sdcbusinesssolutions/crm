@@ -54,6 +54,8 @@ import StaffLogin from './modules/teamStaff/pages/StaffLogin';
 import ContactGroups from './components/ContactGroups';
 import ClickToWhatsAppDashboard from './components/ClickToWhatsAppDashboard';
 import CampaignAnalytics from './components/CampaignAnalytics';
+import ReminderNotification from './components/ReminderNotification';
+import FollowUpGlobalSync from './components/FollowUpGlobalSync';
 
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
@@ -825,6 +827,8 @@ const MainApp: React.FC = () => {
     return (
         <div className="flex h-screen w-screen overflow-hidden">
             <ImpersonationBanner />
+            <ReminderNotification />
+            <FollowUpGlobalSync />
             <Sidebar
                 activeItem={activeMenuItem}
                 onNavigate={handleMenuNavigation}
