@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { followUpService } from '../services/followUpService';
+import { getLead } from '../services/lead-management-api';
 import { reminderManager } from '../utils/reminderManager';
 import LeadEditModal from './LeadEditModal';
 import { supabase } from '../lib/supabase';
@@ -15,15 +16,20 @@ export const FollowUpGlobalSync: React.FC = () => {
                 
                 tasks.forEach(task => {
                     if (task.scheduled_at) {
+                        const contactPhone = task.contacts?.phone ? ` (${task.contacts.phone})` : '';
                         reminderManager.addReminder({
                             id: task.id,
                             title: task.title,
-                            subtitle: `Contact: ${task.contacts?.name || 'Unknown'}`,
+                            subtitle: task.description ? `📝 ${task.description}\n👤 Contact: ${task.contacts?.name || 'Unknown'}${contactPhone}` : `👤 Contact: ${task.contacts?.name || 'Unknown'}${contactPhone}`,
                             scheduledAt: new Date(task.scheduled_at),
-                            data: { contactId: task.contact_id },
+                            data: { contactId: task.contact_id, description: task.description },
                             onAction: (data) => {
-                                setSelectedLeadId(data.contactId);
-                                setIsLeadEditModalOpen(true);
+                                if (data.contactId) {
+                                    setSelectedLeadId(data.contactId);
+                                    setIsLeadEditModalOpen(true);
+                                } else {
+                                    alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
+                                }
                             }
                         });
                     }
@@ -48,18 +54,43 @@ export const FollowUpGlobalSync: React.FC = () => {
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                         const task = payload.new as any;
                         if (task.status === 'PENDING' && task.scheduled_at) {
-                            reminderManager.addReminder({
-                                id: task.id,
-                                title: task.title,
-                                // Note: we won't have nested 'contacts' joined data in the raw payload, 
-                                // but we can still show a generic subtitle or just the title.
-                                subtitle: `Contact ID: ${task.contact_id}`, 
-                                scheduledAt: new Date(task.scheduled_at),
-                                data: { contactId: task.contact_id },
-                                onAction: (data) => {
-                                    setSelectedLeadId(data.contactId);
-                                    setIsLeadEditModalOpen(true);
-                                }
+                            // Fetch contact name for realtime event
+                            getLead(task.contact_id).then(leadData => {
+                                const contactName = (leadData as any)?.contacts?.name || (leadData as any)?.contacts?.whatsapp_name || leadData?.name || 'Unknown';
+                                const contactPhone = (leadData as any)?.contacts?.phone || leadData?.phone || '';
+                                const phoneStr = contactPhone ? ` (${contactPhone})` : '';
+                                reminderManager.addReminder({
+                                    id: task.id,
+                                    title: task.title,
+                                    subtitle: task.description ? `📝 ${task.description}\n👤 Contact: ${contactName}${phoneStr}` : `👤 Contact: ${contactName}${phoneStr}`, 
+                                    scheduledAt: new Date(task.scheduled_at),
+                                    data: { contactId: task.contact_id, description: task.description },
+                                    onAction: (data) => {
+                                        if (data.contactId) {
+                                            setSelectedLeadId(data.contactId);
+                                            setIsLeadEditModalOpen(true);
+                                        } else {
+                                            alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
+                                        }
+                                    }
+                                });
+                            }).catch(() => {
+                                // Fallback if fetch fails
+                                reminderManager.addReminder({
+                                    id: task.id,
+                                    title: task.title,
+                                    subtitle: task.description ? `📝 ${task.description}` : `👤 Contact ID: ${task.contact_id}`, 
+                                    scheduledAt: new Date(task.scheduled_at),
+                                    data: { contactId: task.contact_id, description: task.description },
+                                    onAction: (data) => {
+                                        if (data.contactId) {
+                                            setSelectedLeadId(data.contactId);
+                                            setIsLeadEditModalOpen(true);
+                                        } else {
+                                            alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
+                                        }
+                                    }
+                                });
                             });
                         } else if (task.status !== 'PENDING') {
                             // If it was marked completed/cancelled, remove the reminder

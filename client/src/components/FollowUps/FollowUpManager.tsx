@@ -78,7 +78,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 getTasks()
             ]);
 
-            const normalizedFollowUps: UnifiedTask[] = followUpData.map(f => ({
+            const filteredFollowUpData = followUpData.filter(f => !(f.title || '').startsWith('[QUICK_ALARM]'));
+
+            const normalizedFollowUps: UnifiedTask[] = filteredFollowUpData.map(f => ({
                 ...f,
                 source: 'follow_up'
             }));

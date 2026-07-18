@@ -1,13 +1,34 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { reminderManager, ReminderConfig } from '../utils/reminderManager';
+import { followUpService } from '../services/followUpService';
 
 export const ReminderNotification: React.FC = () => {
     const [activeReminders, setActiveReminders] = useState<ReminderConfig[]>([]);
 
     useEffect(() => {
+        // Request desktop notification permission on load
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            Notification.requestPermission();
+        }
+
         const handleReminderFired = (event: Event) => {
             const customEvent = event as CustomEvent<{ reminder: ReminderConfig }>;
             const reminder = customEvent.detail.reminder;
+            
+            // Fire desktop notification if user is on another tab
+            if ('Notification' in window && Notification.permission === 'granted') {
+                if (document.hidden || !document.hasFocus()) {
+                    const notification = new Notification('⏰ ' + reminder.title, {
+                        body: reminder.subtitle || 'You have a new reminder in your CRM',
+                        requireInteraction: true
+                    });
+                    
+                    notification.onclick = () => {
+                        window.focus();
+                        notification.close();
+                    };
+                }
+            }
             
             setActiveReminders(prev => {
                 if (prev.find(r => r.id === reminder.id)) return prev;
@@ -19,9 +40,16 @@ export const ReminderNotification: React.FC = () => {
         return () => window.removeEventListener('reminder-fired', handleReminderFired);
     }, []);
 
-    const handleDismiss = (id: string) => {
+    const handleDismiss = async (id: string) => {
         reminderManager.dismissReminder(id);
         setActiveReminders(prev => prev.filter(r => r.id !== id));
+        
+        // Mark as completed in the database so it doesn't come back on refresh
+        try {
+            await followUpService.updateFollowUp(id, { status: 'COMPLETED' });
+        } catch (err) {
+            console.error('Failed to mark follow-up as completed', err);
+        }
     };
 
     const handleAction = (reminder: ReminderConfig) => {
@@ -67,7 +95,7 @@ export const ReminderNotification: React.FC = () => {
                     <div className="p-4">
                         <h3 className="font-bold text-slate-800 mb-1">{reminder.title}</h3>
                         {reminder.subtitle && (
-                            <p className="text-sm text-slate-500 mb-4">{reminder.subtitle}</p>
+                            <p className="text-sm text-slate-500 mb-4 whitespace-pre-line">{reminder.subtitle}</p>
                         )}
                         <div className="flex gap-2 mt-4">
                             {reminder.onAction && (

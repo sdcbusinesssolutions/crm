@@ -86,7 +86,9 @@ class ReminderManager {
         const scheduledTime = config.scheduledAt.getTime();
         
         // When should the alarm fire? (e.g. 15 mins before scheduledTime)
-        const fireTime = scheduledTime - this.ADVANCE_NOTICE_MS;
+        // If it's a Quick Alarm, fire exactly at the time, not 15 mins before.
+        const advanceNotice = (config.title && config.title.startsWith('[QUICK_ALARM]')) ? 0 : this.ADVANCE_NOTICE_MS;
+        const fireTime = scheduledTime - advanceNotice;
         const delayMs = fireTime - now;
 
         if (delayMs > 0) {

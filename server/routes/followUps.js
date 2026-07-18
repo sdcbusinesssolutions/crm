@@ -60,15 +60,34 @@ router.post('/', requirePermission('Follow-up', 'read_write'), async (req, res) 
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_id, title, description, scheduled_at, priority, type, timezone, recurrence_rule } = req.body;
         
-        if (!contact_id) {
+        let resolved_contact_id = contact_id;
+        
+        if (!resolved_contact_id) {
             return res.status(400).json({ error: 'Contact ID is required' });
+        }
+
+        // AUTO-CORRECT: If the frontend passed a lead_id instead of a contact_id, resolve it
+        const { data: contactCheck } = await supabase.from('contacts').select('id').eq('id', resolved_contact_id).maybeSingle();
+        if (!contactCheck) {
+            // Check if it's a lead
+            const { data: lead } = await supabase.from('leads').select('phone').eq('id', resolved_contact_id).maybeSingle();
+            if (lead && lead.phone) {
+                const { data: realContact } = await supabase.from('contacts').select('id').eq('phone', lead.phone).maybeSingle();
+                if (realContact) {
+                    resolved_contact_id = realContact.id;
+                } else {
+                    return res.status(400).json({ error: 'Lead has no associated contact to attach follow-up to.' });
+                }
+            } else {
+                 return res.status(400).json({ error: 'Contact not found.' });
+            }
         }
 
         const { data, error } = await supabase
             .from('follow_ups')
             .insert({
                 user_id: req.user.id,
-                contact_id,
+                contact_id: resolved_contact_id,
                 title,
                 description,
                 scheduled_at,
@@ -95,6 +114,18 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
         const supabase = await getAuthenticatedSupabase(req);
         const { title, description, scheduled_at, status, priority, type, contact_id, recurrence_rule } = req.body;
 
+        let resolved_contact_id = contact_id;
+        if (resolved_contact_id) {
+            const { data: contactCheck } = await supabase.from('contacts').select('id').eq('id', resolved_contact_id).maybeSingle();
+            if (!contactCheck) {
+                const { data: lead } = await supabase.from('leads').select('phone').eq('id', resolved_contact_id).maybeSingle();
+                if (lead && lead.phone) {
+                    const { data: realContact } = await supabase.from('contacts').select('id').eq('phone', lead.phone).maybeSingle();
+                    if (realContact) resolved_contact_id = realContact.id;
+                }
+            }
+        }
+
         const updates = {};
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
@@ -102,7 +133,7 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
         if (status !== undefined) updates.status = status;
         if (priority !== undefined) updates.priority = priority;
         if (type !== undefined) updates.type = type;
-        if (contact_id !== undefined) updates.contact_id = contact_id;
+        if (resolved_contact_id !== undefined) updates.contact_id = resolved_contact_id;
         if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule;
         updates.updated_at = new Date();
 

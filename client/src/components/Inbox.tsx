@@ -17,6 +17,7 @@ import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
+import Toast from './Toast';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { getStaffList, getLeads, createLead, getLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
@@ -25,6 +26,7 @@ import { contactService } from '../services/contactService';
 import { tokenService } from '../services/tokenService';
 import { aiAgentService, Agent } from '../services/aiAgentService';
 import { reminderManager } from '../utils/reminderManager';
+import { followUpService } from '../services/followUpService';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -97,6 +99,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const isAtBottomRef = useRef(true);
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState<string | null>(null);
+
+    // Toast State
+    const [toastConfig, setToastConfig] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
 
     // --- CACHE OPTIMIZATION: Memory Buffer for Recent Conversations ---
     // Stores the last 100 messages for recently visited chats to make switching instant.
@@ -2974,25 +2979,52 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                     Cancel
                                                 </button>
                                                 <button 
-                                                    onClick={() => {
-                                                        if (localReminderTime) {
-                                                            const targetTime = new Date(localReminderTime).getTime();
-                                                            const adjustedTime = new Date(targetTime + 15 * 60000); // offset the 15min early trigger
-                                                            reminderManager.addReminder({
-                                                                id: `local-${activeLeadId || activeChat.contact_phone}-${Date.now()}`,
-                                                                title: `Reminder: ${activeChat.contact_name || 'Contact'}`,
-                                                                subtitle: localReminderMessage,
-                                                                scheduledAt: adjustedTime,
-                                                                data: { contactId: activeLeadId },
-                                                                persistLocally: true,
-                                                                onAction: () => {}
+                                                    onClick={async () => {
+                                                        if (!activeLeadId) {
+                                                            setToastConfig({
+                                                                type: 'error',
+                                                                title: 'Cannot Set Alarm',
+                                                                message: 'Please click "Enable Team Assignment" above to register this contact before setting an alarm.'
                                                             });
-                                                            setShowLocalReminder(false);
-                                                            setLocalReminderMessage('');
-                                                            setLocalReminderTime('');
-                                                            alert('Local reminder saved successfully! (Browser session only)');
+                                                            return;
+                                                        }
+                                                        if (localReminderTime) {
+                                                            // Ask for desktop notification permission right when they set the alarm
+                                                            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                                                                Notification.requestPermission();
+                                                            }
+
+                                                            try {
+                                                                const targetTime = new Date(localReminderTime).getTime();
+                                                                await followUpService.createFollowUp({
+                                                                    contact_id: activeLeadId,
+                                                                    title: `[QUICK_ALARM] Reminder: ${activeChat.contact_name || 'Contact'}`,
+                                                                    description: localReminderMessage,
+                                                                    scheduled_at: new Date(targetTime).toISOString(),
+                                                                    type: 'TASK'
+                                                                });
+                                                                setShowLocalReminder(false);
+                                                                setLocalReminderMessage('');
+                                                                setLocalReminderTime('');
+                                                                setToastConfig({
+                                                                    type: 'success',
+                                                                    title: 'Alarm Set',
+                                                                    message: 'Local reminder saved successfully to cloud!'
+                                                                });
+                                                            } catch (err) {
+                                                                console.error('Failed to create quick alarm', err);
+                                                                setToastConfig({
+                                                                    type: 'error',
+                                                                    title: 'Error',
+                                                                    message: 'Failed to save reminder'
+                                                                });
+                                                            }
                                                         } else {
-                                                            alert('Please select a time');
+                                                            setToastConfig({
+                                                                type: 'warning',
+                                                                title: 'Time Required',
+                                                                message: 'Please select a time'
+                                                            });
                                                         }
                                                     }}
                                                     className="flex-1 py-1.5 text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 rounded transition-colors shadow-sm"
@@ -3152,7 +3184,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 onClose={() => setIsTemplateModalOpen(false)}
                 onSend={handleSendTemplate}
             />
+            {toastConfig && (
+                <Toast
+                    type={toastConfig.type}
+                    title={toastConfig.title}
+                    message={toastConfig.message}
+                    onClose={() => setToastConfig(null)}
+                />
+            )}
         </div>
     );
 };
+
 export default Inbox;

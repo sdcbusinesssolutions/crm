@@ -302,26 +302,28 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                         onChange={e => setLocalReminderTime(e.target.value)}
                                     />
                                     <button 
-                                        onClick={() => {
+                                        onClick={async () => {
                                             if (!localReminderTime || !localReminderMessage) {
                                                 setToast({ type: 'error', title: 'Error', message: 'Please enter message and time.' });
                                                 return;
                                             }
-                                            const targetTime = new Date(localReminderTime).getTime();
-                                            const adjustedTime = new Date(targetTime + 15 * 60000);
-                                            reminderManager.addReminder({
-                                                id: `local-${editingLead.id}-${Date.now()}`,
-                                                title: `Reminder: ${editingLead.name || 'Contact'}`,
-                                                subtitle: localReminderMessage,
-                                                scheduledAt: adjustedTime,
-                                                data: { contactId: editingLead.id },
-                                                persistLocally: true,
-                                                onAction: () => {}
-                                            });
-                                            setShowLocalReminder(false);
-                                            setLocalReminderMessage('');
-                                            setLocalReminderTime('');
-                                            setToast({ type: 'success', title: 'Reminder Set', message: 'Local reminder scheduled!' });
+                                            try {
+                                                const targetTime = new Date(localReminderTime).getTime();
+                                                await followUpService.createFollowUp({
+                                                    contact_id: editingLead.id,
+                                                    title: `[QUICK_ALARM] Reminder: ${editingLead.name || 'Contact'}`,
+                                                    description: localReminderMessage,
+                                                    scheduled_at: new Date(targetTime).toISOString(),
+                                                    type: 'TASK'
+                                                });
+                                                setShowLocalReminder(false);
+                                                setLocalReminderMessage('');
+                                                setLocalReminderTime('');
+                                                setToast({ type: 'success', title: 'Reminder Set', message: 'Local reminder scheduled!' });
+                                            } catch (err) {
+                                                console.error('Failed to create quick alarm', err);
+                                                setToast({ type: 'error', title: 'Error', message: 'Failed to save reminder' });
+                                            }
                                         }}
                                         className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700"
                                     >Save</button>

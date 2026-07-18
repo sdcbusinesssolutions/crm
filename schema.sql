@@ -10032,3 +10032,10 @@ END $$;
 -- GIN index for fast array containment search on assigned staff
 CREATE INDEX IF NOT EXISTS idx_leads_assigned_staff_ids ON "public"."leads" USING gin ("assigned_staff_ids");
 
+-- Add missing performance indexes
+CREATE INDEX IF NOT EXISTS "idx_leads_phone" ON "public"."leads" USING "btree" ("phone");
+CREATE INDEX IF NOT EXISTS "idx_messages_conversation_id_created_at" ON "public"."messages" USING "btree" ("conversation_id", "created_at" DESC);
+CREATE INDEX IF NOT EXISTS "idx_conversations_user_updated" ON "public"."conversations" USING "btree" ("user_id", "updated_at" DESC);
+
+-- Enable Supabase Realtime for follow_ups
+ALTER PUBLICATION supabase_realtime ADD TABLE "public"."follow_ups";
