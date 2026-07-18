@@ -24,6 +24,7 @@ import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 import { contactService } from '../services/contactService';
 import { tokenService } from '../services/tokenService';
 import { aiAgentService, Agent } from '../services/aiAgentService';
+import { reminderManager } from '../utils/reminderManager';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -112,6 +113,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [contactNotes, setContactNotes] = useState('');
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [aiAgents, setAiAgents] = useState<Agent[]>([]);
+    
+    // Reminder state
+    const [showLocalReminder, setShowLocalReminder] = useState(false);
+    const [localReminderTime, setLocalReminderTime] = useState('');
+    const [localReminderMessage, setLocalReminderMessage] = useState('');
     const activeChat = useMemo(() =>
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
@@ -2933,6 +2939,69 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             <DownloadIcon className="w-4 h-4" /> <span>Export</span>
                                         </button>
                                     </div>
+                                    
+                                    <button 
+                                        onClick={() => setShowLocalReminder(!showLocalReminder)}
+                                        className="w-full flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
+                                    >
+                                        <ClockIcon className="w-4 h-4" /> <span>⏰ Custom Local Reminder</span>
+                                    </button>
+
+                                    {showLocalReminder && (
+                                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2 animate-fade-in shadow-sm relative z-50">
+                                            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                                                Browser Local Alarm
+                                            </p>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Reminder message (e.g. Call back)"
+                                                value={localReminderMessage}
+                                                onChange={(e) => setLocalReminderMessage(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <input 
+                                                type="datetime-local" 
+                                                value={localReminderTime}
+                                                onChange={(e) => setLocalReminderTime(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <div className="flex gap-2 mt-1">
+                                                <button 
+                                                    onClick={() => setShowLocalReminder(false)}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-amber-100 rounded transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        if (localReminderTime) {
+                                                            const targetTime = new Date(localReminderTime).getTime();
+                                                            const adjustedTime = new Date(targetTime + 15 * 60000); // offset the 15min early trigger
+                                                            reminderManager.addReminder({
+                                                                id: `local-${activeLeadId || activeChat.contact_phone}-${Date.now()}`,
+                                                                title: `Reminder: ${activeChat.contact_name || 'Contact'}`,
+                                                                subtitle: localReminderMessage,
+                                                                scheduledAt: adjustedTime,
+                                                                data: { contactId: activeLeadId },
+                                                                persistLocally: true,
+                                                                onAction: () => {}
+                                                            });
+                                                            setShowLocalReminder(false);
+                                                            setLocalReminderMessage('');
+                                                            setLocalReminderTime('');
+                                                            alert('Local reminder saved successfully! (Browser session only)');
+                                                        } else {
+                                                            alert('Please select a time');
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 rounded transition-colors shadow-sm"
+                                                >
+                                                    Save Alarm
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-3 relative z-40">
