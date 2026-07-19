@@ -2949,14 +2949,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         onClick={() => setShowLocalReminder(!showLocalReminder)}
                                         className="w-full flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
                                     >
-                                        <ClockIcon className="w-4 h-4" /> <span>⏰ Custom Local Reminder</span>
+                                        <ClockIcon className="w-4 h-4" /> <span>⏰ Custom Reminder</span>
                                     </button>
 
                                     {showLocalReminder && (
                                         <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2 animate-fade-in shadow-sm relative z-50">
                                             <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
-                                                Browser Local Alarm
+                                                Custom Reminder
                                             </p>
                                             <input 
                                                 type="text" 
@@ -3008,8 +3008,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                                 setLocalReminderTime('');
                                                                 setToastConfig({
                                                                     type: 'success',
-                                                                    title: 'Alarm Set',
-                                                                    message: 'Local reminder saved successfully to cloud!'
+                                                                    title: 'Reminder Set',
+                                                                    message: 'Reminder saved successfully!'
                                                                 });
                                                             } catch (err) {
                                                                 console.error('Failed to create quick alarm', err);

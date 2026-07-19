@@ -98,20 +98,8 @@ export const ReminderNotification: React.FC = () => {
                             <p className="text-sm text-slate-500 mb-4 whitespace-pre-line">{reminder.subtitle}</p>
                         )}
                         <div className="flex gap-2 mt-4">
-                            {reminder.onAction && (
-                                <button 
-                                    onClick={() => handleAction(reminder)}
-                                    className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm"
-                                >
-                                    View / Action
-                                </button>
-                            )}
-                            <button 
-                                onClick={() => handleSnooze(reminder)}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-lg text-sm transition-colors"
-                            >
-                                Snooze (10m)
-                            </button>
+
+
                         </div>
                     </div>
                 </div>
