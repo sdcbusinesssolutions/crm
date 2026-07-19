@@ -1294,7 +1294,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                                     let flowName = (flowId === 'unknown_flow') ? 'Unknown Form' : 'Flow ' + flowId;
                                     if (flowId !== 'unknown_flow') {
-                                        const { data: flowData } = await supabaseAdmin.from('whatsapp_flows').select('name').eq('id', flowId).maybeSingle();
+                                        const { data: flowData } = await supabaseAdmin.from('flows').select('name').eq('id', flowId).maybeSingle();
                                         if (flowData) flowName = flowData.name;
                                     }
 
