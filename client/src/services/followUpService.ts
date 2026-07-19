@@ -12,6 +12,8 @@ export interface FollowUp {
     type: 'CALL' | 'EMAIL' | 'WHATSAPP' | 'MEETING' | 'TASK';
     recurrence_rule?: any;
     created_at: string;
+    created_by_staff_id?: string;
+    created_by_name?: string;
     contacts?: {
         name: string;
         phone: string;

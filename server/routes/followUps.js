@@ -47,6 +47,61 @@ router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
         const { data, error } = await query;
 
         if (error) throw error;
+        
+        // --- RESOLVE CREATOR NAMES ---
+        // Collect staff IDs from created_by_staff_id, and owner IDs from user_id if no staff ID is present.
+        const staffIds = [...new Set(data.map(f => f.created_by_staff_id).filter(Boolean))];
+        const ownerIds = [...new Set(data.map(f => !f.created_by_staff_id ? f.user_id : null).filter(Boolean))];
+        
+        if (staffIds.length > 0 || ownerIds.length > 0) {
+            const { supabaseAdmin } = require('../lib/supabaseClient');
+            if (supabaseAdmin) {
+                const memberMap = {};
+                
+                // 1. Fetch Staff Names
+                if (staffIds.length > 0) {
+                    const { data: teamStaff } = await supabaseAdmin.from('team_staff').select('id, name').in('id', staffIds);
+                    if (teamStaff) teamStaff.forEach(ts => memberMap[`staff_${ts.id}`] = ts.name);
+                }
+
+                // 2. Fetch Owner/Agent Names (Fallback)
+                if (ownerIds.length > 0) {
+                    const { data: teamStaffOwners } = await supabaseAdmin.from('team_staff').select('tenant_id, name').in('tenant_id', ownerIds);
+                    if (teamStaffOwners) teamStaffOwners.forEach(ts => memberMap[`user_${ts.tenant_id}`] = ts.name);
+                    
+                    const { data: teamMembers } = await supabaseAdmin.from('team_members').select('user_id, first_name, last_name').in('user_id', ownerIds);
+                    if (teamMembers) {
+                        teamMembers.forEach(tm => {
+                            if (!memberMap[`user_${tm.user_id}`]) memberMap[`user_${tm.user_id}`] = `${tm.first_name || ''} ${tm.last_name || ''}`.trim();
+                        });
+                    }
+                    
+                    const { data: profiles } = await supabaseAdmin.from('profiles').select('id, email').in('id', ownerIds);
+                    if (profiles) {
+                        profiles.forEach(p => {
+                            if (!memberMap[`user_${p.id}`]) memberMap[`user_${p.id}`] = p.email;
+                        });
+                    }
+                }
+
+                data.forEach(f => {
+                    let name = null;
+                    if (f.created_by_staff_id) {
+                        name = memberMap[`staff_${f.created_by_staff_id}`];
+                        if (name && f.created_by_staff_id === req.user.staffId) {
+                             name = name + ' (You)';
+                        }
+                    } else {
+                        name = memberMap[`user_${f.user_id}`];
+                        if (!name && f.user_id === req.user.id) {
+                            name = req.user.user_metadata?.name || req.user.user_metadata?.full_name || req.user.email || req.user.phone || 'Owner';
+                        }
+                    }
+                    f.created_by_name = name || 'System';
+                });
+            }
+        }
+        
         res.json(data);
     } catch (err) {
         console.error('Error fetching follow-ups:', err);
@@ -83,20 +138,26 @@ router.post('/', requirePermission('Follow-up', 'read_write'), async (req, res) 
             }
         }
 
+        const insertData = {
+            user_id: req.user.id,
+            contact_id: resolved_contact_id,
+            title,
+            description,
+            scheduled_at,
+            priority: priority || 'MEDIUM',
+            type: type || 'TASK',
+            timezone: timezone || 'UTC',
+            recurrence_rule,
+            status: 'PENDING'
+        };
+
+        if (req.user.isStaff && req.user.staffId) {
+            insertData.created_by_staff_id = req.user.staffId;
+        }
+
         const { data, error } = await supabase
             .from('follow_ups')
-            .insert({
-                user_id: req.user.id,
-                contact_id: resolved_contact_id,
-                title,
-                description,
-                scheduled_at,
-                priority: priority || 'MEDIUM',
-                type: type || 'TASK',
-                timezone: timezone || 'UTC',
-                recurrence_rule,
-                status: 'PENDING'
-            })
+            .insert(insertData)
             .select()
             .single();
 

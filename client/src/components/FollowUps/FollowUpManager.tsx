@@ -465,6 +465,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                 )}
                                             </div>
                                             <div className="text-xs text-slate-500 line-clamp-1">{item.description || 'No description'}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                Created by: <span className="font-semibold text-slate-500">{item.created_by_name || 'System'}</span> at {format(parseISO(item.created_at), 'MMM d, yyyy h:mm a')}
+                                            </div>
                                             {item.recurrence_rule && (
                                                 <div className="text-[10px] text-green-600 font-bold flex items-center gap-1 mt-1 uppercase">
                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>

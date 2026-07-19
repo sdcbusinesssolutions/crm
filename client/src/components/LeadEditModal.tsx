@@ -204,7 +204,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 description: newTask.description,
                 due_date: newTask.due_date
             });
-            
+
             if (addToGeneralFollowUps) {
                 try {
                     await followUpService.createFollowUp({
@@ -221,7 +221,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                     // Non-fatal error
                 }
             }
-            
+
             const updatedTasks = await getTasks(editingLead.id);
             setTasks(updatedTasks);
             setNewTask({ title: '', description: '', due_date: '' });
@@ -286,22 +286,22 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                     <div className="flex flex-col w-full gap-2">
                         {showLocalReminder && (
                             <div className="flex flex-col gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg w-full mb-2">
-                                <h4 className="font-bold text-sm text-blue-800">Set Custom Local Reminder (Browser Only)</h4>
+                                <h4 className="font-bold text-sm text-blue-800">Set Custom Reminder</h4>
                                 <div className="flex flex-col sm:flex-row gap-2">
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="e.g. Call back regarding pricing"
                                         className="flex-1 px-3 py-2 text-sm border rounded bg-white text-black"
                                         value={localReminderMessage}
                                         onChange={e => setLocalReminderMessage(e.target.value)}
                                     />
-                                    <input 
-                                        type="datetime-local" 
+                                    <input
+                                        type="datetime-local"
                                         className="px-3 py-2 text-sm border rounded bg-white text-black"
                                         value={localReminderTime}
                                         onChange={e => setLocalReminderTime(e.target.value)}
                                     />
-                                    <button 
+                                    <button
                                         onClick={async () => {
                                             if (!localReminderTime || !localReminderMessage) {
                                                 setToast({ type: 'error', title: 'Error', message: 'Please enter message and time.' });
@@ -319,7 +319,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                                 setShowLocalReminder(false);
                                                 setLocalReminderMessage('');
                                                 setLocalReminderTime('');
-                                                setToast({ type: 'success', title: 'Reminder Set', message: 'Local reminder scheduled!' });
+                                                setToast({ type: 'success', title: 'Reminder Set', message: 'reminder scheduled!' });
                                             } catch (err) {
                                                 console.error('Failed to create quick alarm', err);
                                                 setToast({ type: 'error', title: 'Error', message: 'Failed to save reminder' });
@@ -335,9 +335,9 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                 onClick={() => setShowLocalReminder(!showLocalReminder)}
                                 className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all flex items-center gap-2"
                             >
-                                <span>⏰</span> Custom Local Reminder
+                                <span>⏰</span> Custom Reminder
                             </button>
-                            
+
                             <div className="flex gap-2">
                                 <button
                                     onClick={onClose}
@@ -608,8 +608,8 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                         <div key={log.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
                                             <div className="flex justify-between items-center mb-1">
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${log.call_type === 'inbound' ? 'bg-green-100 text-green-700' :
-                                                        log.call_type === 'outbound' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-red-100 text-red-700'
+                                                    log.call_type === 'outbound' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-red-100 text-red-700'
                                                     }`}>
                                                     {log.call_type.toUpperCase()}
                                                 </span>
