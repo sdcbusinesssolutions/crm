@@ -111,6 +111,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [quickReplies, setQuickReplies] = useState<Flow[]>([]);
     const [isQuickReplyOpen, setIsQuickReplyOpen] = useState(false);
     const [quickReplySearch, setQuickReplySearch] = useState('');
+    const [isOptedOut, setIsOptedOut] = useState(false);
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
@@ -243,8 +244,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
                     if (res?.data && res.data.length > 0) {
                         setContactNotes(res.data[0].customData?.notes || '');
+                        setIsOptedOut(res.data[0].customData?.opted_out === true);
                     } else {
                         setContactNotes('');
+                        setIsOptedOut(false);
                     }
                 } catch (e) {
                     console.error("Failed to load notes", e);
@@ -254,6 +257,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             loadNotes();
         } else {
             setContactNotes('');
+            setIsOptedOut(false);
         }
     }, [activeChat?.contact_phone]);
 
@@ -2527,6 +2531,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 </div>
                             </div>
                         </header>
+
+                        {/* Opted Out Alert Banner */}
+                        {isOptedOut && (
+                            <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-center shadow-sm relative z-20 w-full animate-fade-in shrink-0">
+                                <span className="text-red-700 text-xs md:text-sm font-bold flex items-center gap-2 text-center">
+                                    <span className="text-base">🛑</span> This user has opted out. Messaging is paused.
+                                </span>
+                            </div>
+                        )}
 
                         {/* Messages Area */}
                         <div

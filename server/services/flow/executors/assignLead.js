@@ -80,8 +80,9 @@ class AssignLeadExecutor {
                     .from('leads')
                     .select('assigned_staff_ids')
                     .eq('user_id', userId)
-                    .order('created_at', { ascending: false })
-                    .limit(5);
+                    .not('assigned_staff_ids', 'is', null)
+                    .order('updated_at', { ascending: false })
+                    .limit(20);
 
                 // Find the last staff assigned from the list
                 let lastAssignedId = null;

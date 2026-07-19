@@ -1141,6 +1141,22 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
         const accessToken = config?.meta_access_token;
         console.log(`Access Token found: ${!!accessToken}`);
 
+        // 3.5 Fetch Custom Opt-in / Opt-out Keywords
+        let customOptOutKeywords = ['stop', 'unsubscribe', 'cancel', 'optout'];
+        let customOptInKeywords = ['start', 'subscribe', 'resume', 'optin'];
+        try {
+            if (userId) {
+                const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+                if (userData && userData.user && userData.user.user_metadata && userData.user.user_metadata.notificationSettings) {
+                    const ns = userData.user.user_metadata.notificationSettings;
+                    if (ns.opt_out_keywords) customOptOutKeywords = ns.opt_out_keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                    if (ns.opt_in_keywords) customOptInKeywords = ns.opt_in_keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                }
+            }
+        } catch (keywordErr) {
+            console.error('Error fetching custom keywords:', keywordErr);
+        }
+
         // 4. Process each message
         for (const message of messages) {
             try {
@@ -1197,14 +1213,35 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // Determine DB Text Content
                 let dbMessageText = extracted.text || extracted.caption;
+                let cleanTextContent = extracted.text || extracted.caption || '';
+                
                 if (!dbMessageText && extracted.type === 'interactive' && extracted.raw?.interactive) {
                     dbMessageText = JSON.stringify(extracted.raw.interactive);
+                    if (extracted.interactive?.subtype === 'button_reply' || extracted.interactive?.subtype === 'list_reply') {
+                        cleanTextContent = extracted.interactive.title;
+                    }
                 } else if (!dbMessageText && extracted.type === 'button' && extracted.button?.text) {
                     dbMessageText = extracted.button.text;
+                    cleanTextContent = extracted.button.text;
                 } else if (!dbMessageText && extracted.type === 'location') {
                     const locName = extracted.location?.name;
                     const locAddr = extracted.location?.address;
                     dbMessageText = [locName, locAddr].filter(Boolean).join(', ') || null;
+                    cleanTextContent = dbMessageText || '';
+                }
+
+                // --- OPT-IN / OPT-OUT LOGIC ---
+                let isOptOut = false;
+                let isOptIn = false;
+                if (cleanTextContent && typeof cleanTextContent === 'string') {
+                    const t = cleanTextContent.trim().toLowerCase();
+                    if (customOptOutKeywords.includes(t)) {
+                        isOptOut = true;
+                        console.log(`[Webhook] Opt-out keyword detected from ${contactPhone}`);
+                    } else if (customOptInKeywords.includes(t)) {
+                        isOptIn = true;
+                        console.log(`[Webhook] Opt-in keyword detected from ${contactPhone}`);
+                    }
                 }
 
                 // Determine Preview Text
@@ -1299,14 +1336,18 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // If NOT media, we can trigger flow concurrently with DB writes (only if not stale!)
                 if (!isMedia && inputPayload && !isStale) {
-                    // Normalize payload
-                    if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
-                    if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
+                    if (isOptOut) {
+                        console.log(`[Webhook] Opted out. Skipping flow processing for ${contactPhone}`);
+                    } else {
+                        // Normalize payload
+                        if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
+                        if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
 
-                    console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
+                        console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
 
-                    flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id))
-                        .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
+                        flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id))
+                            .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
+                    }
                 }
 
                 // --- DRIP CAMPAIGN STOP ON REPLY ---
@@ -1315,15 +1356,30 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact
                 let contactId = null;
-                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).limit(1);
+                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id, custom_data').eq('user_id', userId).eq('phone', contactPhone).limit(1);
                 const contactData = contactDataList && contactDataList.length > 0 ? contactDataList[0] : null;
                 
+                let contactCustomData = contactData ? (contactData.custom_data || {}) : {};
+                if (isOptOut) contactCustomData.opted_out = true;
+                if (isOptIn) contactCustomData.opted_out = false;
+
                 if (contactData) {
                     contactId = contactData.id;
-                    await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).eq('id', contactId);
+                    await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active', custom_data: contactCustomData }).eq('id', contactId);
                 } else {
-                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ user_id: userId, phone: contactPhone, name: contactName, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).select().single();
+                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ user_id: userId, phone: contactPhone, name: contactName, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active', custom_data: contactCustomData }).select().single();
                     contactId = newContact?.id;
+                }
+
+                // 1.5 Update Lead custom_fields if opted_out changes
+                if (isOptOut || isOptIn) {
+                    const { data: leadData } = await supabaseAdmin.from('leads').select('id, custom_fields').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
+                    if (leadData) {
+                        let leadCustomFields = leadData.custom_fields || {};
+                        if (isOptOut) leadCustomFields.opted_out = true;
+                        if (isOptIn) leadCustomFields.opted_out = false;
+                        await supabaseAdmin.from('leads').update({ custom_fields: leadCustomFields }).eq('id', leadData.id);
+                    }
                 }
 
                 // 2. Upsert Conversation
@@ -1381,7 +1437,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 }).eq('id', savedMessageId);
 
                                 // 2. Trigger Flow Engine (NOW WITH URL)
-                                if (inputPayload && !isStale) {
+                                if (inputPayload && !isStale && !isOptOut) {
                                     inputPayload.url = mediaData.url;
                                     inputPayload.mime_type = mediaData.mime_type || null;
                                     inputPayload.filename = extracted.filename || mediaData.filename || null;
@@ -1394,7 +1450,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             } else {
                                 console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
                                 // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
-                                if (inputPayload && !isStale) {
+                                if (inputPayload && !isStale && !isOptOut) {
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id));
                                 }
                             }
