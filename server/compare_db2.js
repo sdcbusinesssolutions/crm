@@ -6,10 +6,10 @@ async function run() {
     const clickube = createClient(clickubeUrl, clickubeKey);
     
     const { data: msgs, error: msgError } = await clickube
-        .from('conversations')
-        .select('*')
-        .eq('user_id', '6869c6b0-1bb3-44ac-8f85-9ae9e87718f2');
+        .from('messages')
+        .select('created_at, conversation_id, text, type, direction')
+        .ilike('text', 'ok');
         
-    console.log("Found conversations:", msgs?.length);
+    console.log("Found ok:", msgs?.length);
 }
 run();

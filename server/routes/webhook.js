@@ -1356,29 +1356,47 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact
                 let contactId = null;
-                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id, custom_data').eq('user_id', userId).eq('phone', contactPhone).limit(1);
-                const contactData = contactDataList && contactDataList.length > 0 ? contactDataList[0] : null;
+                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id, custom_data').eq('user_id', userId).eq('phone', contactPhone);
                 
-                let contactCustomData = contactData ? (contactData.custom_data || {}) : {};
-                if (isOptOut) contactCustomData.opted_out = true;
-                if (isOptIn) contactCustomData.opted_out = false;
-
-                if (contactData) {
-                    contactId = contactData.id;
-                    await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active', custom_data: contactCustomData }).eq('id', contactId);
+                if (contactDataList && contactDataList.length > 0) {
+                    contactId = contactDataList[0].id;
+                    // Update all duplicates to ensure UI always sees the updated status
+                    for (const c of contactDataList) {
+                        let cData = c.custom_data || {};
+                        if (isOptOut) cData.opted_out = true;
+                        if (isOptIn) cData.opted_out = false;
+                        await supabaseAdmin.from('contacts').update({ 
+                            name: contactName !== '~' ? contactName : undefined, 
+                            last_active: new Date(extracted.timestamp * 1000).toISOString(), 
+                            status: 'active', 
+                            custom_data: cData 
+                        }).eq('id', c.id);
+                    }
                 } else {
-                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ user_id: userId, phone: contactPhone, name: contactName, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active', custom_data: contactCustomData }).select().single();
+                    let contactCustomData = {};
+                    if (isOptOut) contactCustomData.opted_out = true;
+                    if (isOptIn) contactCustomData.opted_out = false;
+                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ 
+                        user_id: userId, 
+                        phone: contactPhone, 
+                        name: contactName, 
+                        last_active: new Date(extracted.timestamp * 1000).toISOString(), 
+                        status: 'active', 
+                        custom_data: contactCustomData 
+                    }).select().single();
                     contactId = newContact?.id;
                 }
 
                 // 1.5 Update Lead custom_fields if opted_out changes
                 if (isOptOut || isOptIn) {
-                    const { data: leadData } = await supabaseAdmin.from('leads').select('id, custom_fields').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
-                    if (leadData) {
-                        let leadCustomFields = leadData.custom_fields || {};
-                        if (isOptOut) leadCustomFields.opted_out = true;
-                        if (isOptIn) leadCustomFields.opted_out = false;
-                        await supabaseAdmin.from('leads').update({ custom_fields: leadCustomFields }).eq('id', leadData.id);
+                    const { data: leadDataList } = await supabaseAdmin.from('leads').select('id, custom_fields').eq('user_id', userId).eq('phone', contactPhone);
+                    if (leadDataList && leadDataList.length > 0) {
+                        for (const leadData of leadDataList) {
+                            let leadCustomFields = leadData.custom_fields || {};
+                            if (isOptOut) leadCustomFields.opted_out = true;
+                            if (isOptIn) leadCustomFields.opted_out = false;
+                            await supabaseAdmin.from('leads').update({ custom_fields: leadCustomFields }).eq('id', leadData.id);
+                        }
                     }
                 }
 
