@@ -328,6 +328,25 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // 2. Prepare Content for WhatsApp Service
         let content = {};
         if (type === 'template') {
+            // Explicitly check for WhatsApp Templates permission to send templates
+            if (req.staff && req.staff.permissions) {
+                const permissions = req.staff.permissions;
+                const cleanName = (name) => name.replace(/[\s+]/g, '').toLowerCase();
+                const targetClean = cleanName('WhatsApp Templates');
+                let hasTemplateAccess = false;
+                for (const key of Object.keys(permissions)) {
+                    if (cleanName(key) === targetClean) {
+                        const level = permissions[key];
+                        if (['read', 'read_write', 'all_access'].includes(level)) {
+                            hasTemplateAccess = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasTemplateAccess) {
+                    return res.status(403).json({ error: 'Forbidden', message: 'You need WhatsApp Templates access to send templates.' });
+                }
+            }
             content = req.body.template;
         } else if (type === 'text') {
             content = { body: text };

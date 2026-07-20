@@ -49,14 +49,22 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('whatsapp_templates')
-                .select('*')
-                .eq('status', 'APPROVED')
-                .order('name', { ascending: true });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
 
-            if (error) throw error;
-            setTemplates(data || []);
+            const response = await fetch('/api/whatsapp/templates', {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch templates');
+
+            const result = await response.json();
+            const approvedTemplates = (result.data || []).filter((t: any) => t.status === 'APPROVED');
+            
+            // Sort templates by name ascending
+            approvedTemplates.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+            
+            setTemplates(approvedTemplates);
         } catch (error) {
             console.error('Error fetching templates:', error);
         } finally {
