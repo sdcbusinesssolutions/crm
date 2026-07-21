@@ -66,7 +66,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         stageIds: [] as string[],
         sortBy: 'created_at_desc',
         quickFilter: 'all', // 'all', 'hot', 'cold', 'high_value'
-        viewType: 'Pipeline'
+        viewType: 'Pipeline',
+        fromDate: '',
+        toDate: ''
     });
     const [isNumberMasked, setIsNumberMasked] = useState(true);
 
@@ -584,93 +586,109 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     // Export Leads to CSV
-    const handleExportLeads = () => {
-        if (!filteredBoardData) return;
+    const handleExportLeads = async () => {
+        if (!selectedPipelineId) return;
 
-        // Collect all leads from filtered columns
-        const allLeads: Lead[] = [];
-        filteredBoardData.columns.forEach(col => {
-            col.leads.forEach(lead => {
-                allLeads.push({
-                    ...lead,
-                    stage_name: col.stage.name
-                } as any);
-            });
-        });
+        try {
+            setToast({ type: 'info', title: 'Exporting...', message: 'Fetching all leads for export.' });
+            
+            // Fetch all leads matching filters (using a large limit to grab everything)
+            const exportStageId = filters.stageIds && filters.stageIds.length > 0 ? filters.stageIds[0] : undefined;
+            const allLeads = await getLeads(selectedPipelineId, exportStageId, 1, 10000, filters);
 
-        if (allLeads.length === 0) {
-            setToast({
-                type: 'warning',
-                title: 'No Leads',
-                message: 'No leads to export with current filters.'
-            });
-            return;
-        }
+            if (!allLeads || allLeads.length === 0) {
+                setToast({
+                    type: 'warning',
+                    title: 'No Leads',
+                    message: 'No leads to export with current filters.'
+                });
+                return;
+            }
 
-        // Create CSV content
-        const headers = [
-            'Name',
-            'Email',
-            'Phone',
-            'Company',
-            'Stage',
-            'Value',
-            'Status',
-            'Source',
-            'Created At',
-            'Last Contact'
-        ];
+            // Map stage IDs to stage names using current boardData
+            const stageMap: Record<string, string> = {};
+            if (boardData) {
+                boardData.columns.forEach(col => {
+                    stageMap[col.stage.id] = col.stage.name;
+                });
+            }
 
-        const csvRows = [headers.join(',')];
+            const exportLeads = allLeads.map(lead => ({
+                ...lead,
+                stage_name: lead.stage_id ? (stageMap[lead.stage_id] || 'Unknown Stage') : 'No Stage'
+            }));
 
-        allLeads.forEach(lead => {
-            const row = [
-                `"${(lead.name || '').replace(/"/g, '""')}"`,
-                `"${(lead.email || '').replace(/"/g, '""')}"`,
-                `"${(formatPhone(lead.phone) || '').replace(/"/g, '""')}"`,
-                `"${(lead.company || '').replace(/"/g, '""')}"`,
-                `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
-                lead.estimated_value || 0,
-                `"${(lead.status || '').replace(/"/g, '""')}"`,
-                `"${(lead.source || '').replace(/"/g, '""')}"`,
-                `"${lead.created_at ? new Date(lead.created_at).toLocaleString() : ''}"`,
-                `"${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleString() : ''}"`
+            // Create CSV content
+            const headers = [
+                'Name',
+                'Email',
+                'Phone',
+                'Company',
+                'Stage',
+                'Value',
+                'Status',
+                'Source',
+                'Created At',
+                'Last Contact'
             ];
-            csvRows.push(row.join(','));
-        });
 
-        const csvContent = csvRows.join('\n');
+            const csvRows = [headers.join(',')];
 
-        // Create download link
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
+            exportLeads.forEach(lead => {
+                const row = [
+                    `"${(lead.name || '').replace(/"/g, '""')}"`,
+                    `"${(lead.email || '').replace(/"/g, '""')}"`,
+                    `"${(formatPhone(lead.phone) || '').replace(/"/g, '""')}"`,
+                    `"${(lead.company || '').replace(/"/g, '""')}"`,
+                    `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
+                    lead.estimated_value || 0,
+                    `"${(lead.status || '').replace(/"/g, '""')}"`,
+                    `"${(lead.source || '').replace(/"/g, '""')}"`,
+                    `"${lead.created_at ? new Date(lead.created_at).toLocaleString() : ''}"`,
+                    `"${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleString() : ''}"`
+                ];
+                csvRows.push(row.join(','));
+            });
 
-        // Generate filename with filters info
-        let filename = 'leads';
-        if (filters.stageIds.length > 0) {
-            filename += '_filtered_stages';
+            const csvContent = csvRows.join('\n');
+
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            // Generate filename with filters info
+            let filename = 'leads';
+            if (filters.stageIds.length > 0) {
+                filename += '_filtered_stages';
+            }
+            if (filters.search) {
+                filename += '_search';
+            }
+            if (filters.quickFilter !== 'all') {
+                filename += `_${filters.quickFilter}`;
+            }
+            if (filters.fromDate || filters.toDate) {
+                filename += '_by_date';
+            }
+            filename += `_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setToast({
+                type: 'success',
+                title: 'Export Successful',
+                message: `Exported ${allLeads.length} lead(s) to CSV.`
+            });
+        } catch (error) {
+            console.error("Export failed:", error);
+            setToast({ type: 'error', title: 'Export Failed', message: 'Could not export leads.' });
         }
-        if (filters.search) {
-            filename += '_search';
-        }
-        if (filters.quickFilter !== 'all') {
-            filename += `_${filters.quickFilter}`;
-        }
-        filename += `_${new Date().toISOString().split('T')[0]}.csv`;
-
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setToast({
-            type: 'success',
-            title: 'Export Successful',
-            message: `Exported ${allLeads.length} lead(s) to CSV.`
-        });
     };
 
     // Scroll Sync Logic
@@ -798,6 +816,46 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     )}
                                 </div>
                             </div>
+                            
+                            {/* Date Filter - Top Row */}
+                            <div className="hidden md:flex items-center gap-2 ml-2 bg-white rounded-xl border border-[var(--color-brand)]/20 shadow-sm px-2 overflow-hidden hover:border-[var(--color-brand)]/60 transition-all focus-within:ring-1 focus-within:ring-[var(--color-brand)] focus-within:border-[var(--color-brand)]">
+                                <input
+                                    type="date"
+                                    value={filters.fromDate}
+                                    onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
+                                    className="py-1.5 text-[13px] outline-none bg-transparent text-[var(--color-brand)] font-medium cursor-pointer"
+                                    title="From Date"
+                                />
+                                <span className="text-xs text-[var(--color-brand)]/50 font-medium">to</span>
+                                <input
+                                    type="date"
+                                    value={filters.toDate}
+                                    onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
+                                    className="py-1.5 text-[13px] outline-none bg-transparent text-[var(--color-brand)] font-medium cursor-pointer"
+                                    title="To Date"
+                                />
+                                </div>
+
+
+                            {/* Stage Filters Dropdown */}
+                            <div className="relative ml-2">
+                                <select
+                                    value={filters.stageIds.length === 1 ? filters.stageIds[0] : ''}
+                                    onChange={(e) => setFilters({ ...filters, stageIds: e.target.value ? [e.target.value] : [] })}
+                                    className={`border rounded-xl pl-2.5 pr-7 py-1.5 text-[13px] focus:ring-1 outline-none transition-all appearance-none cursor-pointer shadow-sm font-medium ${filters.stageIds.length > 0
+                                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                                        : 'bg-white text-[var(--color-brand)] border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] focus:ring-[var(--color-brand)] hover:border-[var(--color-brand)]/60'
+                                        }`}
+                                >
+                                    <option value="">All Stages</option>
+                                    {boardData?.columns.map(col => (
+                                        <option key={col.stage.id} value={col.stage.id}>
+                                            {col.stage.name} ({col.total_count})
+                                        </option>
+                                    ))}
+                                </select>
+                                <svg className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.stageIds.length > 0 ? 'text-white' : 'text-[var(--color-brand)]/70'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
                         </div>
 
                         <div className="flex items-center justify-between w-full md:w-auto gap-2">
@@ -840,22 +898,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     <svg className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.quickFilter !== 'all' ? 'text-white' : 'text-[var(--color-brand)]/70'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
 
-                                {/* Filters Toggle Button - Icon Only */}
-                                <button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className={`p-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center shadow-sm ${showFilters
-                                        ? 'bg-[var(--color-brand)] text-white'
-                                        : 'bg-white border border-[var(--color-brand)]/20 text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'
-                                        }`}
-                                    title="Filter by Stage"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                                    {filters.stageIds.length > 0 && (
-                                        <span className="ml-1 bg-[var(--color-brand)] text-white px-1 h-3.5 flex items-center justify-center rounded-full text-[9px] font-bold">
-                                            {filters.stageIds.length}
-                                        </span>
-                                    )}
-                                </button>
+                                {/* Filters Toggle Button (Removed because filters are always inline now) */}
 
                                 {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
                                     <button
@@ -902,53 +945,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                         </div>
                     </div>
 
-                    {/* Stage Filters - Collapsible */}
-                    {showFilters && (
-                        <div className="p-4 md:p-5 bg-[var(--color-surface)] border-b md:border md:border-t-0 border-[var(--color-border)] md:rounded-b-2xl shadow-sm animate-in fade-in slide-in-from-top-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mr-2">Stage:</span>
-                                <button
-                                    onClick={() => setFilters({ ...filters, stageIds: [] })}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.stageIds.length === 0
-                                        ? 'bg-[var(--color-brand)] text-white'
-                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
-                                        }`}
-                                >
-                                    All Stages
-                                </button>
-                                {boardData?.columns.map(col => (
-                                    <button
-                                        key={col.stage.id}
-                                        onClick={() => {
-                                            const newStageIds = filters.stageIds.includes(col.stage.id)
-                                                ? filters.stageIds.filter(id => id !== col.stage.id)
-                                                : [...filters.stageIds, col.stage.id];
-                                            setFilters({ ...filters, stageIds: newStageIds });
-                                        }}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${filters.stageIds.includes(col.stage.id)
-                                            ? 'bg-[var(--color-brand)] text-white'
-                                            : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
-                                            }`}
-                                    >
-                                        <span className={`w-2 h-2 rounded-full ${filters.stageIds.includes(col.stage.id) ? 'bg-white' : ''}`} style={{ backgroundColor: filters.stageIds.includes(col.stage.id) ? undefined : col.stage.color }}></span>
-                                        {col.stage.name}
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${filters.stageIds.includes(col.stage.id) ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                            {col.total_count}
-                                        </span>
-                                    </button>
-                                ))}
-                                {(filters.search || filters.stageIds.length > 0 || filters.quickFilter !== 'all') && (
-                                    <button
-                                        onClick={() => setFilters({ search: '', stageIds: [], sortBy: 'created_at_desc', quickFilter: 'all', viewType: 'Pipeline' })}
-                                        className="ml-auto text-xs text-[var(--color-brand)] hover:underline font-medium flex items-center gap-1"
-                                    >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        Clear all
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    {/* Stage Filters moved inline */}
                 </div>
             </div>
 

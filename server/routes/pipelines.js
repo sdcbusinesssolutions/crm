@@ -353,6 +353,15 @@ router.get('/:id/kanban', requirePermission('Pipelines', 'read'), async (req, re
                 query = query.lt('created_at', d.toISOString());
             }
 
+            if (req.query.fromDate) {
+                query = query.gte('created_at', new Date(req.query.fromDate).toISOString());
+            }
+            if (req.query.toDate) {
+                const toD = new Date(req.query.toDate);
+                toD.setHours(23, 59, 59, 999);
+                query = query.lte('created_at', toD.toISOString());
+            }
+
             // Sorting
             const sortBy = req.query.sortBy || 'created_at_desc';
             if (sortBy === 'created_at_asc') {

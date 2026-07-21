@@ -23,7 +23,7 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
 
         let query = supabase
             .from('leads')
-            .select('*', { count: 'exact' })
+            .select('*')
             .eq('user_id', req.user.id);
 
         if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -65,6 +65,15 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
             const d = new Date();
             d.setDate(d.getDate() - 30);
             query = query.lt('created_at', d.toISOString());
+        }
+
+        if (req.query.fromDate) {
+            query = query.gte('created_at', new Date(req.query.fromDate).toISOString());
+        }
+        if (req.query.toDate) {
+            const toD = new Date(req.query.toDate);
+            toD.setHours(23, 59, 59, 999);
+            query = query.lte('created_at', toD.toISOString());
         }
 
         // Sorting
