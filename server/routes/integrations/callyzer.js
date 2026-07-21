@@ -127,48 +127,68 @@ router.get('/history', async (req, res) => {
         const callTo = Math.floor(Date.now() / 1000);
         const callFrom = callTo - (30 * 24 * 60 * 60);
 
-        // 3. Make request with native client_numbers filter
+        // 3. Make paginated requests with native client_numbers filter
         const callyzerUrl = `${baseUrl.replace(/\/+$/, '')}/api/v2.2/call-log/history`;
         const target10 = phoneNumber.slice(-10);
         
-        const response = await fetch(callyzerUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                call_from: callFrom,
-                call_to: callTo,
-                call_types: ["Incoming", "Outgoing", "Missed", "Rejected"],
-                call_method: "PhoneCall",
-                call_mode: "Voice",
-                client_numbers: [target10] // API expects exactly 10 digits
-            })
-        });
+        let allLogs = [];
+        let page = 1;
+        let hasMore = true;
 
-        if (!response.ok) {
-            throw new Error(`Callyzer API error: ${response.statusText}`);
+        while (hasMore && page <= 10) { // Safety limit of 10 pages (1000 calls per contact in 30 days)
+            const response = await fetch(callyzerUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    call_from: callFrom,
+                    call_to: callTo,
+                    call_types: ["Incoming", "Outgoing", "Missed", "Rejected"],
+                    call_method: "PhoneCall",
+                    call_mode: "Voice",
+                    client_numbers: [target10], // API expects exactly 10 digits
+                    page: page
+                })
+            });
+
+            if (!response.ok) {
+                if (response.status === 429) {
+                    console.warn(`Callyzer rate limited at page ${page} for contact ${target10}`);
+                    break;
+                }
+                throw new Error(`Callyzer API error: ${response.statusText}`);
+            }
+
+            const resultData = await response.json();
+            
+            if (resultData && Array.isArray(resultData.result)) {
+                allLogs = allLogs.concat(resultData.result);
+                if (resultData.result.length < 100) {
+                    hasMore = false;
+                } else {
+                    page++;
+                    if (page <= 10) await new Promise(r => setTimeout(r, 500)); // Rate limit buffer
+                }
+            } else {
+                hasMore = false;
+            }
         }
-
-        const resultData = await response.json();
         
         // 4. Map the logs for the client
-        let filteredLogs = [];
-        if (resultData && Array.isArray(resultData.result)) {
-            filteredLogs = resultData.result.map(call => ({
-                id: call.id,
-                employee: call.emp_name || 'Unknown',
-                client_name: call.client_name || 'Unknown',
-                client_number: call.client_number,
-                call_type: call.call_type,
-                duration_seconds: call.duration,
-                call_date: call.call_date,
-                call_time: call.call_time,
-                call_method: call.call_method,
-                call_recording_url: call.call_recording_url || ''
-            }));
-        }
+        let filteredLogs = allLogs.map(call => ({
+            id: call.id,
+            employee: call.emp_name || 'Unknown',
+            client_name: call.client_name || 'Unknown',
+            client_number: call.client_number,
+            call_type: call.call_type,
+            duration_seconds: call.duration,
+            call_date: call.call_date,
+            call_time: call.call_time,
+            call_method: call.call_method,
+            call_recording_url: call.call_recording_url || ''
+        }));
 
         res.json({
             success: true,

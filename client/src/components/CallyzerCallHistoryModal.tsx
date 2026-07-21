@@ -26,6 +26,7 @@ const CallyzerCallHistoryModal: React.FC<CallyzerCallHistoryModalProps> = ({ isO
     const [loading, setLoading] = useState(false);
     const [callLogs, setCallLogs] = useState<CallLog[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [typeFilter, setTypeFilter] = useState<string>('All');
 
     useEffect(() => {
         if (isOpen && phoneNumber) {
@@ -33,6 +34,7 @@ const CallyzerCallHistoryModal: React.FC<CallyzerCallHistoryModalProps> = ({ isO
         } else {
             setCallLogs([]);
             setError(null);
+            setTypeFilter('All');
         }
     }, [isOpen, phoneNumber]);
 
@@ -58,6 +60,11 @@ const CallyzerCallHistoryModal: React.FC<CallyzerCallHistoryModalProps> = ({ isO
         const s = seconds % 60;
         return `${m}m ${s}s`;
     };
+
+    const filteredLogs = callLogs.filter(log => {
+        if (typeFilter === 'All') return true;
+        return log.call_type === typeFilter;
+    });
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={`Call History: ${leadName}`} size="4xl">
@@ -87,21 +94,43 @@ const CallyzerCallHistoryModal: React.FC<CallyzerCallHistoryModalProps> = ({ isO
                         <p className="text-[var(--color-text)] opacity-60 text-sm mt-1 max-w-xs">There are no recorded calls for {phoneNumber} in the last 30 days.</p>
                     </div>
                 ) : (
-                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar-dark border border-[var(--color-border)] rounded-xl">
-                        <table className="min-w-full divide-y divide-[var(--color-border)]">
-                            <thead className="bg-[var(--color-surface)] sticky top-0 z-10">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Type</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Client</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Employee</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Date & Time</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Duration</th>
-                                    <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Recording</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-bg)]">
-                                {callLogs.map(log => (
-                                    <tr key={log.id} className="hover:bg-[var(--color-surface)] transition-colors">
+                    <div className="flex flex-col h-full">
+                        <div className="flex gap-2 mb-4 overflow-x-auto custom-scrollbar-dark pb-2">
+                            {['All', 'Incoming', 'Outgoing', 'Missed', 'Rejected'].map(type => (
+                                <button
+                                    key={type}
+                                    onClick={() => setTypeFilter(type)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${
+                                        typeFilter === type 
+                                            ? 'bg-[var(--color-brand)] text-white' 
+                                            : 'bg-[var(--color-surface)] text-[var(--color-text)] opacity-70 hover:opacity-100'
+                                    }`}
+                                >
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
+                        
+                        {filteredLogs.length === 0 ? (
+                            <div className="flex flex-col justify-center items-center h-48 text-center px-4 border border-[var(--color-border)] rounded-xl border-dashed">
+                                <p className="text-[var(--color-text)] opacity-70 font-semibold">No {typeFilter !== 'All' ? typeFilter : ''} Call Logs Found</p>
+                            </div>
+                        ) : (
+                            <div className="max-h-[50vh] overflow-y-auto custom-scrollbar-dark border border-[var(--color-border)] rounded-xl">
+                                <table className="min-w-full divide-y divide-[var(--color-border)]">
+                                    <thead className="bg-[var(--color-surface)] sticky top-0 z-10">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Type</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Client</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Employee</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Date & Time</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Duration</th>
+                                            <th className="px-4 py-3 text-left text-[11px] font-extrabold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Recording</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-bg)]">
+                                        {filteredLogs.map(log => (
+                                            <tr key={log.id} className="hover:bg-[var(--color-surface)] transition-colors">
                                         <td className="px-4 py-3 whitespace-nowrap">
                                             <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold ${log.call_type === 'Incoming' ? 'bg-blue-50 text-blue-600' : log.call_type === 'Outgoing' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                                                 {log.call_type === 'Incoming' ? (
@@ -140,9 +169,11 @@ const CallyzerCallHistoryModal: React.FC<CallyzerCallHistoryModalProps> = ({ isO
                                             )}
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
