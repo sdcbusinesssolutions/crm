@@ -204,7 +204,7 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                 type: type || 'Lead',
                 assigned_staff_ids: staffIds
             }])
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -242,6 +242,8 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
                     leadId: data.id,
                     contact: {
                         name: data.name,
@@ -274,7 +276,7 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         // 1. Verify lead exists and belongs to this tenant/user
         let checkQuery = supabase
             .from('leads')
-            .select('user_id, custom_data, phone')
+            .select('user_id, custom_data, phone, pipeline_id, stage_id')
             .eq('id', req.params.id);
 
         if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -321,7 +323,7 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
             .from('leads')
             .update(updates)
             .eq('id', req.params.id)
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -344,10 +346,15 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         } catch (e) { }
 
         try {
-            if ((updates.pipeline_id || updates.stage_id) && data.phone) {
+            const pipelineChanged = updates.pipeline_id !== undefined && updates.pipeline_id !== leadCheck.pipeline_id;
+            const stageChanged = updates.stage_id !== undefined && updates.stage_id !== leadCheck.stage_id;
+
+            if ((pipelineChanged || stageChanged) && data.phone) {
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
                     leadId: data.id,
                     contact: {
                         name: data.name,
@@ -405,7 +412,7 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
                 updated_at: new Date().toISOString()
             })
             .eq('id', req.params.id)
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -430,6 +437,8 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
                     leadId: data.id,
                     contact: {
                         name: data.name,
