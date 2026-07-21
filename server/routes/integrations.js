@@ -211,4 +211,8 @@ router.use('/smtp', requirePermission('Integrations', ACCESS_TYPES.READ), smtpRo
 const openaiRoutes = require('./integrations/openai');
 router.use('/openai', requirePermission('Integrations', ACCESS_TYPES.READ), openaiRoutes);
 
+// --- Callyzer Integration ---
+const callyzerRoutes = require('./integrations/callyzer');
+router.use('/callyzer', requirePermission('Integrations', ACCESS_TYPES.READ), callyzerRoutes);
+
 module.exports = router;

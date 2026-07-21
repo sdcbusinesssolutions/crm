@@ -588,5 +588,67 @@ export const integrationsService = {
 
         if (!res.ok) throw new Error('Failed to delete config');
         return await res.json();
+    },
+
+    // --- Callyzer Integration ---
+    async getCallyzerConfig() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return null;
+
+        try {
+            const res = await fetch(`${API_URL}/integrations/callyzer/config`, {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            console.warn('Failed to fetch Callyzer config', e);
+            return null;
+        }
+    },
+
+    async saveCallyzerConfig(baseUrl: string, apiToken: string) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/callyzer/config`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ baseUrl, apiToken })
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to save Callyzer configuration');
+        }
+        return await res.json();
+    },
+
+    async deleteCallyzerConfig() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/callyzer/config`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+        if (!res.ok) throw new Error('Failed to disconnect Callyzer');
+        return await res.json();
+    },
+
+    async getCallyzerHistory(phoneNumber: string) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('No session');
+
+        const res = await fetch(`${API_URL}/integrations/callyzer/history?number=${encodeURIComponent(phoneNumber)}`, {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to fetch call history');
+        }
+        return await res.json();
     }
 };
