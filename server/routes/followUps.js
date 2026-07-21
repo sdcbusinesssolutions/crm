@@ -28,8 +28,14 @@ router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
                         )
                 )
             `)
-            .eq('user_id', req.user.id)
-            .order('scheduled_at', { ascending: true });
+            .eq('user_id', req.user.id);
+            
+        // Staff can only see their own follow-ups
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        query = query.order('scheduled_at', { ascending: true });
 
         if (contact_id) {
             query = query.eq('contact_id', contact_id);
@@ -198,13 +204,17 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
         if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule;
         updates.updated_at = new Date();
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('follow_ups')
             .update(updates)
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
-            .select()
-            .single();
+            .eq('user_id', req.user.id);
+
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        const { data, error } = await query.select().single();
 
         if (error) throw error;
         res.json(data);
@@ -218,11 +228,17 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
 router.delete('/:id', requirePermission('Follow-up', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        let query = supabase
             .from('follow_ups')
             .delete()
             .eq('id', req.params.id)
             .eq('user_id', req.user.id);
+
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        const { error } = await query;
 
         if (error) throw error;
         res.json({ success: true });

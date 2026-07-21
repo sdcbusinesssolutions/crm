@@ -150,7 +150,9 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
         if (!editingLead.id) return;
         setLeadLoading(true);
         try {
-            await updateLead(editingLead.id, editingLead);
+            // Strip out virtual fields and read-only fields before sending updates
+            const { id, created_at, updated_at, count, pipelines, ...cleanUpdates } = editingLead;
+            await updateLead(editingLead.id, cleanUpdates);
             setToast({ type: 'success', title: 'Success', message: 'Lead updated successfully.' });
             if (onUpdate) onUpdate();
             onClose();
@@ -202,7 +204,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 lead_id: editingLead.id,
                 title: newTask.title,
                 description: newTask.description,
-                due_date: newTask.due_date
+                due_date: newTask.due_date ? newTask.due_date : null
             });
 
             if (addToGeneralFollowUps) {
@@ -211,7 +213,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                         contact_id: editingLead.id,
                         title: newTask.title,
                         description: newTask.description,
-                        scheduled_at: newTask.due_date || new Date().toISOString(),
+                        scheduled_at: newTask.due_date ? newTask.due_date : new Date().toISOString(),
                         status: 'PENDING',
                         priority: 'MEDIUM',
                         type: 'TASK'
@@ -240,7 +242,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 lead_id: editingLead.id,
                 title: newAppointment.title,
                 start_time: newAppointment.start_time,
-                end_time: newAppointment.end_time,
+                end_time: newAppointment.end_time ? newAppointment.end_time : null,
                 description: newAppointment.description
             });
             const updatedAppointments = await getAppointments(editingLead.id);
