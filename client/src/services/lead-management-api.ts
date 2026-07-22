@@ -320,6 +320,7 @@ export const getKanbanBoard = async (pipelineId: string, page: number = 1, limit
             if (filters.fromDate) params.append('fromDate', filters.fromDate);
             if (filters.toDate) params.append('toDate', filters.toDate);
         }
+        params.append('t', Date.now().toString()); // Cache busting
 
         const res = await fetch(`/api/pipelines/${pipelineId}/kanban?${params.toString()}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch kanban board');

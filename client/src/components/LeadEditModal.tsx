@@ -28,6 +28,11 @@ interface LeadEditModalProps {
 }
 
 const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, leadData, onUpdate }) => {
+    const parseDate = (d?: string) => {
+        if (!d) return new Date();
+        return new Date(d.endsWith('Z') ? d : d + 'Z');
+    };
+
     const { hasAccess } = usePermissions();
     const canWrite = hasAccess('Pipelines', ACCESS_TYPES.READ_WRITE);
 
@@ -454,7 +459,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                     <input
                                         type="text"
                                         disabled
-                                        value={editingLead.created_at ? new Date(editingLead.created_at).toLocaleString() : ''}
+                                        value={editingLead.created_at ? parseDate(editingLead.created_at).toLocaleString() : ''}
                                         className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 rounded-lg px-3 py-2 text-sm outline-none cursor-not-allowed"
                                     />
                                 </div>

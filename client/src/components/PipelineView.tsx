@@ -39,6 +39,11 @@ interface PipelineViewProps {
 }
 
 const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
+    const parseDate = (d?: string) => {
+        if (!d) return new Date();
+        return new Date(d.endsWith('Z') ? d : d + 'Z');
+    };
+
     const { hasAccess, isStaff } = usePermissions();
     const canWrite = hasAccess('Pipelines', ACCESS_TYPES.READ_WRITE);
     const canDelete = hasAccess('Pipelines', ACCESS_TYPES.ALL_ACCESS);
@@ -311,7 +316,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                     // Add lead to target column
                     return {
                         ...col,
-                        leads: [...col.leads, { ...leadToMove, stage_id: targetStageId }],
+                        leads: [...col.leads, { ...leadToMove, stage_id: targetStageId, updated_at: new Date().toISOString() }],
                         total_count: col.total_count + 1
                     };
                 }
@@ -658,8 +663,8 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                     lead.estimated_value || 0,
                     `"${(lead.status || '').replace(/"/g, '""')}"`,
                     `"${(lead.source || '').replace(/"/g, '""')}"`,
-                    `"${lead.created_at ? new Date(lead.created_at).toLocaleString() : ''}"`,
-                    `"${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleString() : ''}"`
+                    `"${lead.created_at ? parseDate(lead.created_at).toLocaleString() : ''}"`,
+                    `"${lead.last_contacted_at ? parseDate(lead.last_contacted_at).toLocaleString() : ''}"`
                 ];
                 csvRows.push(row.join(','));
             });
@@ -1392,9 +1397,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                             </div>
                                                             
                                                             <div className="text-[9px] text-[var(--color-text)] opacity-80 font-medium tracking-wide border-t border-[var(--color-border)]/20 pt-1 mt-1 flex justify-between items-center whitespace-nowrap">
-                                                                <span className="truncate pr-1">Created: <strong className="font-bold">{new Date(lead.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
+                                                                <span className="truncate pr-1">Created: <strong className="font-bold">{parseDate(lead.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
                                                                 {lead.updated_at && (
-                                                                    <span className="truncate pl-1 border-l border-[var(--color-border)]/30">Updated: <strong className="font-bold">{new Date(lead.updated_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
+                                                                    <span className="truncate pl-1 border-l border-[var(--color-border)]/30">Updated: <strong className="font-bold">{parseDate(lead.updated_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1477,7 +1482,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                                     <div className="flex justify-between items-center pt-3 border-t border-[var(--color-border)]">
                                         <div className="text-xs text-[var(--color-text)] opacity-50 font-medium">
-                                            {new Date(lead.created_at).toLocaleDateString()}
+                                            {parseDate(lead.created_at).toLocaleDateString()}
                                         </div>
                                         {lead.estimated_value && (
                                             <div className="text-sm font-bold text-emerald-600">
@@ -1541,7 +1546,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                 {lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-[var(--color-text)] opacity-60">
-                                                {new Date(lead.created_at).toLocaleDateString()}
+                                                {parseDate(lead.created_at).toLocaleDateString()}
                                             </td>
                                         </tr>
                                     ))}
