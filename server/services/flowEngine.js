@@ -636,14 +636,19 @@ class FlowEngine {
                 .maybeSingle();
 
             // 2. Get Lead Details (Pipeline Status)
-            const { data: leadData } = await rpcClient
+            let leadQuery = rpcClient
                 .from('leads')
                 .select('*')
-                .eq('user_id', userId)
-                .eq('phone', contactPhone) // Assuming phone is unique identifier for simplicity here
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .eq('user_id', userId);
+
+            // Use exact leadId if provided by the trigger, otherwise fallback to phone
+            if (initialInput && initialInput.leadId) {
+                leadQuery = leadQuery.eq('id', initialInput.leadId);
+            } else {
+                leadQuery = leadQuery.eq('phone', contactPhone).order('created_at', { ascending: false }).limit(1);
+            }
+
+            const { data: leadData } = await leadQuery.maybeSingle();
 
             leadContext = {
                 contact: contactData || {},
