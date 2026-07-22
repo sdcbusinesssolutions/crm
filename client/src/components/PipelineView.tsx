@@ -168,7 +168,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [selectedPipelineId, limit, filters.search, filters.sortBy, filters.quickFilter, filters.stageIds]);
+    }, [selectedPipelineId, limit, filters.search, filters.sortBy, filters.quickFilter, filters.stageIds, filters.fromDate, filters.toDate]);
 
     const loadPipelines = async () => {
         try {
@@ -592,9 +592,23 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         try {
             setToast({ type: 'info', title: 'Exporting...', message: 'Fetching all leads for export.' });
             
-            // Fetch all leads matching filters (using a large limit to grab everything)
+            // Fetch all leads matching filters by looping through pages
             const exportStageId = filters.stageIds && filters.stageIds.length > 0 ? filters.stageIds[0] : undefined;
-            const allLeads = await getLeads(selectedPipelineId, exportStageId, 1, 10000, filters);
+            
+            let allLeads: any[] = [];
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const chunk = await getLeads(selectedPipelineId, exportStageId, page, 100, filters);
+                if (chunk && chunk.length > 0) {
+                    allLeads = [...allLeads, ...chunk];
+                    if (chunk.length < 100) hasMore = false;
+                    else page++;
+                } else {
+                    hasMore = false;
+                }
+            }
 
             if (!allLeads || allLeads.length === 0) {
                 setToast({

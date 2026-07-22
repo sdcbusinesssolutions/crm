@@ -12,9 +12,14 @@ router.get('/', async (req, res) => {
 
         let query = supabase
             .from('tasks')
-            .select('*, leads ( name, phone, pipelines ( name ) )')
+            .select('*, leads!inner(name, phone, assigned_staff_ids, pipelines(name))')
             .eq('user_id', req.user.id)
             .order('due_date', { ascending: true });
+
+        // Restrict to staff based on lead assignment (if restricted staff)
+        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+            query = query.contains('leads.assigned_staff_ids', [req.staff.staffId]);
+        }
 
         if (lead_id) {
             query = query.eq('lead_id', lead_id);
@@ -37,6 +42,11 @@ router.post('/', async (req, res) => {
         const user = req.user;
         const { lead_id, title, description, due_date, is_completed } = req.body;
 
+        const metadata = {
+            created_by_staff_id: req.staff ? req.staff.staffId : null,
+            created_by_role: req.staff ? 'staff' : 'admin'
+        };
+
         const { data, error } = await supabase
             .from('tasks')
             .insert([{
@@ -45,7 +55,8 @@ router.post('/', async (req, res) => {
                 title,
                 description,
                 due_date,
-                is_completed: is_completed || false
+                is_completed: is_completed || false,
+                metadata: metadata
             }])
             .select()
             .single();

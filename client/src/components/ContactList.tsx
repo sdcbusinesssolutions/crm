@@ -676,11 +676,25 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             }
 
             // 2. If user has specifically selected IDs, filter the export list to those
-            const finalData = selectedIds.size > 0 
-                ? contactsToExport.filter(c => selectedIds.has(c.id))
-                : contactsToExport;
+            let finalData = contactsToExport;
+            if (selectedIds.size > 0) {
+                const allVisibleSelected = currentEntries.length > 0 && currentEntries.every(c => selectedIds.has(c.id));
+                
+                // If they selected all visible rows but there are more on the server, ask them
+                if (allVisibleSelected && contactsToExport.length > selectedIds.size) {
+                    const confirmAll = window.confirm(`You selected the ${selectedIds.size} currently loaded contacts.\\n\\nDo you want to export ALL ${contactsToExport.length} contacts instead? (Click OK for ALL)`);
+                    if (!confirmAll) {
+                        finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                    }
+                } else {
+                    finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                }
+            }
 
-            if (finalData.length === 0) return;
+            if (finalData.length === 0) {
+                setIsLoading(false);
+                return;
+            }
 
             // 3. Convert to CSV
             const csvData = finalData.map(c => {
