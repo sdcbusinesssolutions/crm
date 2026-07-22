@@ -125,8 +125,15 @@ class SheetAutomationService {
                 return oauth2Client;
 
             } catch (err) {
-                console.error('[SheetAutomation] Service Account Auth Error (Manual JWT):', err.message);
-                throw new Error(`Service Account Auth Failed: ${err.message}`);
+                let errMsg = err.response?.data ? JSON.stringify(err.response.data) : err.message || String(err);
+                if (err.name === 'AggregateError' && err.errors) {
+                    errMsg = `Network/DNS Error: ${err.errors.map(e => e.message).join(', ')}`;
+                } else if (err.code) {
+                    errMsg += ` (Code: ${err.code})`;
+                }
+                
+                console.error('[SheetAutomation] Service Account Auth Error (Manual JWT):', errMsg);
+                throw new Error(`Service Account Auth Failed: ${errMsg}`);
             }
         }
 

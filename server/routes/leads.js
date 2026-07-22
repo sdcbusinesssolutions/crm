@@ -244,14 +244,7 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                     stageId: data.stage_id,
                     pipelineName: data.pipelines ? data.pipelines.name : '',
                     stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }
@@ -355,14 +348,7 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
                     stageId: data.stage_id,
                     pipelineName: data.pipelines ? data.pipelines.name : '',
                     stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }
@@ -439,14 +425,7 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
                     stageId: data.stage_id,
                     pipelineName: data.pipelines ? data.pipelines.name : '',
                     stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }
