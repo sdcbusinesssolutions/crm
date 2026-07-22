@@ -1377,9 +1377,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                                 )}
                                                             </div>
                                                             
-                                                            {/* Bottom Side: Date */}
-                                                            <div className="text-[10px] text-[var(--color-text)] opacity-60 font-medium tracking-wide border-t border-[var(--color-border)]/20 pt-1 mt-1">
-                                                                Created: {new Date(lead.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                                            <div className="text-[9px] text-[var(--color-text)] opacity-80 font-medium tracking-wide border-t border-[var(--color-border)]/20 pt-1 mt-1 flex justify-between items-center whitespace-nowrap">
+                                                                <span className="truncate pr-1">Created: <strong className="font-bold">{new Date(lead.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
+                                                                {lead.updated_at && (
+                                                                    <span className="truncate pl-1 border-l border-[var(--color-border)]/30">Updated: <strong className="font-bold">{new Date(lead.updated_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
+                                                                )}
                                                             </div>
                                                         </div>
 
