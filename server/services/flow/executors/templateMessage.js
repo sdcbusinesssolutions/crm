@@ -118,7 +118,7 @@ module.exports = {
 
                         hParams.push({
                             type: 'text',
-                            text: resolvedVal
+                            text: resolvedVal || ' '
                         });
                     });
                 }
@@ -163,7 +163,7 @@ module.exports = {
 
                     params.push({
                         type: 'text',
-                        text: resolvedVal
+                        text: resolvedVal || ' '
                     });
                 }
             } else {
@@ -179,7 +179,7 @@ module.exports = {
 
                         params.push({
                             type: 'text',
-                            text: resolvedVal
+                            text: resolvedVal || ' '
                         });
                     });
                 }
@@ -236,7 +236,7 @@ module.exports = {
                                 const val = variableMapping ? variableMapping[vName] : '';
                                 bParams.push({
                                     type: 'text',
-                                    text: String(val || '')
+                                    text: String(val || ' ')
                                 });
                             });
 

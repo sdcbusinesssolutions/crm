@@ -56,6 +56,14 @@ router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
       query = query.contains('tags', [req.query.tag]);
     }
 
+    // --- OPT STATUS FILTERING ---
+    console.log('[Contacts GET] optStatus filter:', req.query.optStatus);
+    if (req.query.optStatus === 'opted_out') {
+      query = query.contains('custom_data', '{"opted_out":true}');
+    } else if (req.query.optStatus === 'opted_in') {
+      query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
+    }
+
     // --- DATE FILTERING ---
     if (req.query.startDate) {
       query = query.gte('created_at', req.query.startDate);
@@ -152,6 +160,8 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       }
       if (req.query.groupId) query = query.contains('group_ids', [req.query.groupId]);
       if (req.query.tag) query = query.contains('tags', [req.query.tag]);
+      if (req.query.optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (req.query.optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (req.query.startDate) query = query.gte('created_at', req.query.startDate);
       if (req.query.endDate) query = query.lte('created_at', req.query.endDate);
 
@@ -219,7 +229,7 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
     let query = supabase.from('contacts').select('phone').eq('user_id', userId);
 
@@ -250,6 +260,8 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     }
     if (groupId) query = query.contains('group_ids', [groupId]);
     if (tag) query = query.contains('tags', [tag]);
+    if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+    if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
     if (startDate) query = query.gte('created_at', startDate);
     if (endDate) query = query.lte('created_at', endDate);
 
@@ -864,9 +876,9 @@ router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_wri
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
-    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate });
+    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate, optStatus });
 
     // 1. Fetch ALL matching IDs (paginate to handle Supabase row limits)
     let allIds = [];
@@ -891,6 +903,8 @@ router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_wri
       }
       if (groupId) query = query.contains('group_ids', [groupId]);
       if (tag) query = query.contains('tags', [tag]);
+      if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (startDate) query = query.gte('created_at', startDate);
       if (endDate) query = query.lte('created_at', endDate);
 

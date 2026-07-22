@@ -138,6 +138,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     // Filter State
     const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+    const [selectedOptStatus, setSelectedOptStatus] = useState<string | null>(null);
 
     // SERVER-SIDE FILTERING: We no longer filter in memory.
     // The 'contacts' state now only holds the current page of records.
@@ -194,7 +195,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         if (canRead) {
             loadContacts();
         }
-    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate, canRead]);
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, selectedOptStatus, startDate, endDate, canRead]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -237,6 +238,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -506,6 +508,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             search: searchTerm,
                             groupId: selectedGroupFilter || undefined,
                             tag: selectedTagFilter || undefined,
+                            optStatus: selectedOptStatus || undefined,
                             startDate,
                             endDate
                         });
@@ -662,6 +665,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -1000,6 +1004,22 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             <ChevronDownIcon className="w-3 h-3" />
                         </div>
                     </div>
+
+                    {/* Opt-in/Out Filter */}
+                    <div className="relative">
+                        <select
+                            value={selectedOptStatus || ''}
+                            onChange={(e) => { setSelectedOptStatus(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-3 pr-8 py-2 w-full sm:w-36 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">Opt Status: All</option>
+                            <option value="opted_in">Opted In</option>
+                            <option value="opted_out">Opted Out</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                     
                     {/* Proper Date Range Picker UI */}
                     <div className="flex items-center gap-2 p-1.5 bg-[var(--color-brand)]/[0.03] rounded-2xl border border-[var(--color-brand)]/20 shadow-inner">
@@ -1053,7 +1073,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 <div className="h-px bg-slate-100 my-1"></div>
 
                                 {/* Delete by Filter (Contextual) */}
-                                {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
+                                {(searchTerm || selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
                                     <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
                                         <button 
                                             onClick={handleDeleteAllFiltered}
@@ -1087,6 +1107,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 search: searchTerm,
                                                 groupId: selectedGroupFilter || undefined,
                                                 tag: selectedTagFilter || undefined,
+                                                optStatus: selectedOptStatus || undefined,
                                                 startDate,
                                                 endDate
                                             });
@@ -1164,7 +1185,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             </div>
 
             {/* Active Filters */}
-            {(selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
+            {(selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Filters:</span>
                     {startDate && (
