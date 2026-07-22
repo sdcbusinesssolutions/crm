@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { followUpService } from '../services/followUpService';
 import { getLead } from '../services/lead-management-api';
+import { contactService } from '../services/contactService';
 import { reminderManager } from '../utils/reminderManager';
 import LeadEditModal from './LeadEditModal';
 import { supabase } from '../lib/supabase';
@@ -17,10 +18,24 @@ export const FollowUpGlobalSync: React.FC = () => {
                 tasks.forEach(task => {
                     if (task.scheduled_at) {
                         const contactPhone = task.contacts?.phone ? ` (${task.contacts.phone})` : '';
+                        const contactName = task.contacts?.name || 'Unknown';
+                        const isQuickAlarm = task.title && task.title.startsWith('[QUICK_ALARM]');
+                        
+                        const subtitleParts = [];
+                        if (task.description) subtitleParts.push(`📝 ${task.description}`);
+                        
+                        if (isQuickAlarm && task.contacts?.phone) {
+                            subtitleParts.push(`📞 ${task.contacts.phone}`);
+                        } else if (!isQuickAlarm) {
+                            subtitleParts.push(`👤 Contact: ${contactName}${contactPhone}`);
+                        }
+                        
+                        const finalSubtitle = subtitleParts.join('\n');
+
                         reminderManager.addReminder({
                             id: task.id,
                             title: task.title,
-                            subtitle: task.description ? `📝 ${task.description}\n👤 Contact: ${task.contacts?.name || 'Unknown'}${contactPhone}` : `👤 Contact: ${task.contacts?.name || 'Unknown'}${contactPhone}`,
+                            subtitle: finalSubtitle,
                             scheduledAt: new Date(task.scheduled_at),
                             data: { contactId: task.contact_id, description: task.description },
                             onAction: (data) => {
@@ -54,15 +69,31 @@ export const FollowUpGlobalSync: React.FC = () => {
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                         const task = payload.new as any;
                         if (task.status === 'PENDING' && task.scheduled_at) {
-                            // Fetch contact name for realtime event
-                            getLead(task.contact_id).then(leadData => {
-                                const contactName = (leadData as any)?.contacts?.name || (leadData as any)?.contacts?.whatsapp_name || leadData?.name || 'Unknown';
-                                const contactPhone = (leadData as any)?.contacts?.phone || leadData?.phone || '';
+                            // Fetch full task details (including joined contacts) to avoid relying on a new backend route
+                            followUpService.getFollowUps({ status: 'PENDING' }).then((tasks) => {
+                                const fullTask = tasks.find(t => t.id === task.id);
+                                const contactData = fullTask?.contacts;
+
+                                const contactName = contactData?.name || (contactData as any)?.whatsapp_name || 'Unknown';
+                                const contactPhone = contactData?.phone || '';
                                 const phoneStr = contactPhone ? ` (${contactPhone})` : '';
+                                
+                                const isQuickAlarm = task.title && task.title.startsWith('[QUICK_ALARM]');
+                                const subtitleParts = [];
+                                if (task.description) subtitleParts.push(`📝 ${task.description}`);
+                                
+                                if (isQuickAlarm && contactPhone) {
+                                    subtitleParts.push(`📞 ${contactPhone}`);
+                                } else if (!isQuickAlarm) {
+                                    subtitleParts.push(`👤 Contact: ${contactName}${phoneStr}`);
+                                }
+                                
+                                const finalSubtitle = subtitleParts.join('\n');
+
                                 reminderManager.addReminder({
                                     id: task.id,
                                     title: task.title,
-                                    subtitle: task.description ? `📝 ${task.description}\n👤 Contact: ${contactName}${phoneStr}` : `👤 Contact: ${contactName}${phoneStr}`, 
+                                    subtitle: finalSubtitle, 
                                     scheduledAt: new Date(task.scheduled_at),
                                     data: { contactId: task.contact_id, description: task.description },
                                     onAction: (data) => {

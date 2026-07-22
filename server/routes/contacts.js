@@ -2,8 +2,28 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
-const DripTriggerService = require('../services/DripTriggerService');
 const requirePermission = require('../middleware/requirePermission');
+const requireAuth = require('../middleware/requireAuth');
+
+// GET /api/contacts/:id
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .select('id, name, whatsapp_name, phone, email, status')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Contact not found' });
+    
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /api/contacts
 router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {

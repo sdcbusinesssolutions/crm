@@ -17,6 +17,17 @@ const getHeaders = async () => {
 };
 
 export const contactService = {
+    getContact: async (id: string): Promise<Contact | null> => {
+        try {
+            const headers = await getHeaders();
+            const res = await fetch(`/api/contacts/${id}`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch contact');
+            return await res.json();
+        } catch (e) {
+            console.error('Failed to load contact', e);
+            return null;
+        }
+    },
     getContacts: async (): Promise<Contact[]> => {
         try {
             const headers = await getHeaders();
