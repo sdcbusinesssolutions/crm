@@ -243,9 +243,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     // --- Statistics Calculations ---
     const stats = {
         all: followUps.filter(i => i.status !== 'COMPLETED').length,
-        today: followUps.filter(i => i.status !== 'COMPLETED' && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
-        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
-        overdue: followUps.filter(i => i.status !== 'COMPLETED' && isPast(parseISO(i.scheduled_at))).length,
+        today: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
+        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
+        overdue: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isPast(parseISO(i.scheduled_at))).length,
         completed: followUps.filter(i => i.status === 'COMPLETED').length
     };
 
@@ -254,9 +254,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         // 1. Filter Tab
         if (filter === 'all' && item.status === 'COMPLETED') return false;
         if (filter === 'completed' && item.status !== 'COMPLETED') return false;
-        if (filter === 'today' && (item.status === 'COMPLETED' || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'overdue' && (item.status === 'COMPLETED' || !isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'today' && (item.status === 'COMPLETED' || !item.scheduled_at || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'overdue' && (item.status === 'COMPLETED' || !item.scheduled_at || !isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !item.scheduled_at || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
 
         // 2. Search
         if (searchTerm) {
