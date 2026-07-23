@@ -513,7 +513,7 @@ class FlowEngine {
                         }
                     };
 
-                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id);
+                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id, true);
                 } else {
                     console.log(`   > No match.`);
                 }
@@ -551,7 +551,7 @@ class FlowEngine {
                         ...eventData,
                         triggerType: 'pipeline_change',
                         source: 'crm'
-                    }, node.id);
+                    }, node.id, true);
                 }
             }
         }
@@ -560,7 +560,7 @@ class FlowEngine {
     /**
      * Start a new flow session
      */
-    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null) {
+    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null, isSystemEvent = false) {
         // TRIGGER TYPING INDICATOR (Confirmation that we are handling this flow)
         if (this._currentWaMessageId) {
             console.log(`[FlowEngine] Bot starting flow '${flow.name}'. Sending Typing Indicator/Read Status.`);
@@ -687,13 +687,18 @@ class FlowEngine {
 
         // CRITICAL: Cancel any existing active sessions for this user to avoid "ghost" sessions
         // This ensures that if the user restarts a flow, the old one doesn't interfere later.
-        console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
-        await rpcClient.rpc('cancel_active_sessions', {
-            p_contact_phone: contactPhone
-        });
+        // BYPASS: If this is a system event (e.g. pipelineTrigger), do NOT cancel ongoing user flows.
+        if (!isSystemEvent) {
+            console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
+            await rpcClient.rpc('cancel_active_sessions', {
+                p_contact_phone: contactPhone
+            });
 
-        // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
-        await new Promise(r => setTimeout(r, 5));
+            // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
+            await new Promise(r => setTimeout(r, 5));
+        } else {
+            console.log(`[FlowEngine] System Event Flow Started. Bypassing active session cancellation for ${contactPhone}.`);
+        }
 
         const { data: session, error } = await rpcClient.rpc('create_flow_session', {
             p_user_id: userId,
@@ -1299,6 +1304,17 @@ class FlowEngine {
                 ...session.variables,
                 [node.id]: { ...(session.variables[node.id] || {}), ...output }
             };
+
+            // NEW: Fire Events explicitly triggered by the executor
+            if (output && output.__triggerEvent) {
+                // Run asynchronously without blocking flow execution
+                this.triggerFlowByEvent(
+                    session.user_id, 
+                    session.contact_phone, 
+                    output.__triggerEvent.type, 
+                    output.__triggerEvent.payload
+                ).catch(e => console.error('[FlowEngine] Error triggering event from node:', e));
+            }
 
             // 🚀 SCALE OPTIMIZATION:
             // We specifically SKIP hitting the Database ('flow_sessions' .update) right here!

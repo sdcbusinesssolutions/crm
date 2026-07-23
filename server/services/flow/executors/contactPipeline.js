@@ -139,7 +139,15 @@ const execute = async (session, node, context) => {
             pipelineName: pipelineName,
             stageId: resolvedStageId,
             stageName: stageName,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            __triggerEvent: {
+                type: 'pipeline_change',
+                payload: {
+                    pipelineId: resolvedPipelineId,
+                    stageId: resolvedStageId,
+                    leadId: resultLead.id
+                }
+            }
         };
 
     } catch (error) {
