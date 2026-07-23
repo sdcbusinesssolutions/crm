@@ -28,6 +28,60 @@ router.get('/', async (req, res) => {
         const { data, error } = await query;
 
         if (error) throw error;
+        
+        if (data && data.length > 0) {
+            // --- RESOLVE CREATOR NAMES ---
+            const staffIds = [...new Set(data.map(t => t.metadata?.created_by_staff_id).filter(Boolean))];
+            const ownerIds = [...new Set(data.map(t => !t.metadata?.created_by_staff_id ? t.user_id : null).filter(Boolean))];
+            
+            if (staffIds.length > 0 || ownerIds.length > 0) {
+                const memberMap = {};
+                
+                // 1. Fetch Staff Names
+                if (staffIds.length > 0) {
+                    const { data: teamStaff } = await supabase.from('team_staff').select('id, name').in('id', staffIds);
+                    if (teamStaff) teamStaff.forEach(ts => memberMap[`staff_${ts.id}`] = ts.name);
+                }
+
+                // 2. Fetch Owner/Agent Names (Fallback)
+                if (ownerIds.length > 0) {
+                    const { data: teamStaffOwners } = await supabase.from('team_staff').select('tenant_id, name').in('tenant_id', ownerIds);
+                    if (teamStaffOwners) teamStaffOwners.forEach(ts => memberMap[`user_${ts.tenant_id}`] = ts.name);
+                    
+                    const { data: teamMembers } = await supabase.from('team_members').select('user_id, first_name, last_name').in('user_id', ownerIds);
+                    if (teamMembers) {
+                        teamMembers.forEach(tm => {
+                            if (!memberMap[`user_${tm.user_id}`]) memberMap[`user_${tm.user_id}`] = `${tm.first_name || ''} ${tm.last_name || ''}`.trim();
+                        });
+                    }
+                    
+                    const { data: profiles } = await supabase.from('profiles').select('id, email').in('id', ownerIds);
+                    if (profiles) {
+                        profiles.forEach(p => {
+                            if (!memberMap[`user_${p.id}`]) memberMap[`user_${p.id}`] = p.email;
+                        });
+                    }
+                }
+
+                data.forEach(t => {
+                    let name = null;
+                    const staffId = t.metadata?.created_by_staff_id;
+                    if (staffId) {
+                        name = memberMap[`staff_${staffId}`];
+                        if (name && req.staff && staffId === req.staff.staffId) {
+                             name = name + ' (You)';
+                        }
+                    } else {
+                        name = memberMap[`user_${t.user_id}`];
+                        if (!name && t.user_id === req.user.id) {
+                            name = req.user.user_metadata?.name || req.user.user_metadata?.full_name || req.user.email || req.user.phone || 'Owner';
+                        }
+                    }
+                    t.created_by_name = name || 'System';
+                });
+            }
+        }
+
         res.json(data || []);
     } catch (err) {
         console.error('Error fetching tasks:', err);

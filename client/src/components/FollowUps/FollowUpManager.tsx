@@ -99,6 +99,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     priority: 'MEDIUM',
                     type: 'TASK',
                     created_at: t.created_at || new Date().toISOString(),
+                    created_by_name: t.created_by_name,
                     source: 'crm_task',
                     original_data: t,
                     pipeline_name: pipelineName,
@@ -443,7 +444,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {paginatedItems.map(item => {
-                                const isOverdue = item.status !== 'COMPLETED' && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
+                                const isOverdue = item.status !== 'COMPLETED' && !!item.scheduled_at && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
                                 const activeDrip = item.contacts?.drip_enrollments?.find(d => d.status === 'ACTIVE');
 
                                 return (
