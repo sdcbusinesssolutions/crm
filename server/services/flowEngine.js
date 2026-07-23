@@ -688,6 +688,7 @@ class FlowEngine {
         // CRITICAL: Cancel any existing active sessions for this user to avoid "ghost" sessions
         // This ensures that if the user restarts a flow, the old one doesn't interfere later.
         // BYPASS: If this is a system event (e.g. pipelineTrigger), do NOT cancel ongoing user flows.
+        let dbContactPhone = contactPhone;
         if (!isSystemEvent) {
             console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
             await rpcClient.rpc('cancel_active_sessions', {
@@ -698,11 +699,13 @@ class FlowEngine {
             await new Promise(r => setTimeout(r, 5));
         } else {
             console.log(`[FlowEngine] System Event Flow Started. Bypassing active session cancellation for ${contactPhone}.`);
+            // BYPASS DB CONSTRAINT: Append unique suffix so the DB allows parallel active sessions
+            dbContactPhone = `${contactPhone}_sys_${Date.now()}`;
         }
 
         const { data: session, error } = await rpcClient.rpc('create_flow_session', {
             p_user_id: userId,
-            p_contact_phone: contactPhone,
+            p_contact_phone: dbContactPhone,
             p_flow_id: flow.id,
             p_current_node_id: startNode.id,
             p_variables: initialContext
@@ -1147,8 +1150,13 @@ class FlowEngine {
             console.log(`[FlowEngine] Resolved Data for Node ${node.id}:`, JSON.stringify(resolvedData, null, 2));
             const resolvedNode = { ...node, data: resolvedData };
 
+            // STRIP _sys_ SUFFIX BEFORE PASSING TO EXECUTOR
+            // This ensures WhatsApp service and CRM tools use the real phone number.
+            const realPhone = session.contact_phone.split('_sys_')[0];
+            const safeSession = { ...session, contact_phone: realPhone };
+
             // 2. Execute
-            const output = await executor.execute(session, resolvedNode, session.variables);
+            const output = await executor.execute(safeSession, resolvedNode, safeSession.variables);
 
             // --- FLOW LOG: NODE EXECUTION ---
             try {
@@ -1157,10 +1165,10 @@ class FlowEngine {
                     timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata', hour12: false }),
                     flowName: flow.name,
                     from: phoneNumber,
-                    to: session.contact_phone,
+                    to: realPhone,
                     phoneNumberId: phoneNumberId,
                     whatsappNumber: phoneNumber,
-                    contact: session.contact_phone,
+                    contact: realPhone,
                     sessionId: session.id,
                     nodeId: node.id,
                     nodeType: node.type,
