@@ -5,25 +5,6 @@ const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClie
 const requirePermission = require('../middleware/requirePermission');
 const requireAuth = require('../middleware/requireAuth');
 
-// GET /api/contacts/:id
-router.get('/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { data, error } = await supabaseAdmin
-      .from('contacts')
-      .select('id, name, whatsapp_name, phone, email, status')
-      .eq('id', id)
-      .eq('user_id', req.user.id)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: 'Contact not found' });
-    
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // GET /api/contacts
 router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
@@ -154,8 +135,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
         .from('contacts')
         .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
 
       // Filter by assigned leads if restricted
       if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -185,7 +165,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       if (req.query.startDate) query = query.gte('created_at', req.query.startDate);
       if (req.query.endDate) query = query.lte('created_at', req.query.endDate);
 
-      const { data: chunk, error } = await query;
+      const { data: chunk, error } = await query.range(from, to);
       if (error) throw error;
 
       if (chunk && chunk.length > 0) {
@@ -298,6 +278,26 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     res.json(phones);
   } catch (err) {
     console.error('Error fetching phones:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/contacts/:id
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .select('id, name, whatsapp_name, phone, email, status')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Contact not found' });
+    
+    res.json(data);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });

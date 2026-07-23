@@ -1240,7 +1240,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         </span>
                     )}
                     <button
-                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setSelectedOptStatus(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
                         className="text-xs text-slate-500 hover:text-slate-700 font-medium underline"
                     >
                         Clear all
