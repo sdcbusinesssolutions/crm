@@ -157,7 +157,7 @@ class FlowEngine {
                     // Only fetch sessions that are actually ready to be resumed based on current status
                     const { data: delayedSessions, error } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'delayed')
                         .order('last_interaction_at', { ascending: true })
                         .limit(20); // Smaller batches for faster cluster distribution
@@ -208,7 +208,7 @@ class FlowEngine {
                     // We only fetch 100 to prevent massive egress if there are thousands of stuck sessions.
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'waiting_input')
                         .order('last_interaction_at', { ascending: true }) // CRITICAL: Must be true to fetch oldest (timed out) first
                         .limit(100);
