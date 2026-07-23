@@ -145,7 +145,12 @@ const execute = async (session, node, context) => {
                 payload: {
                     pipelineId: resolvedPipelineId,
                     stageId: resolvedStageId,
-                    leadId: resultLead.id
+                    pipelineName: pipelineName,
+                    stageName: stageName,
+                    leadId: resultLead.id,
+                    'contact.name': resultLead.name || phone,
+                    'contact.phone': phone,
+                    'contact.email': resultLead.email || ''
                 }
             }
         };
