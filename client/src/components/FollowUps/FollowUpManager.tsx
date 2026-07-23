@@ -535,9 +535,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                             <span className={`px-3 py-1 rounded text-xs font-bold
                                                 ${isOverdue ? 'bg-red-100 text-red-600' :
                                                     item.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                        !item.scheduled_at ? 'bg-slate-100 text-slate-600' :
                                                         isToday(parseISO(item.scheduled_at)) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}
                                              `}>
-                                                {format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a')}
+                                                {item.scheduled_at ? format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a') : 'No Date Set'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
