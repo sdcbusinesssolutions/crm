@@ -1074,7 +1074,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         {isBulkDropdownOpen && (
                             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
                                 {/* Delete Selection */}
-                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                     <button 
                                         onClick={handleBulkDelete} 
                                         disabled={selectedIds.size === 0}
@@ -1088,7 +1088,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
 
                                 {/* Delete by Filter (Contextual) */}
                                 {(searchTerm || selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
-                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                         <button 
                                             onClick={handleDeleteAllFiltered}
                                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
@@ -1398,7 +1398,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
                                                             <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
                                                         </PermissionGate>
-                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                                             <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
                                                         </PermissionGate>
                                                     </div>

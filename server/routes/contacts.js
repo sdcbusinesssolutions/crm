@@ -833,7 +833,7 @@ async function chunkedNullify(table, column, ids, chunkSize = 200, concurrency =
 }
 
 // POST /api/contacts/bulk-delete
-router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { ids } = req.body; // Expects { ids: ['id1', 'id2'] }
@@ -892,7 +892,7 @@ router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), asy
 });
 
 // POST /api/contacts/bulk-delete-filtered
-router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
