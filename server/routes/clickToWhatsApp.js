@@ -323,7 +323,8 @@ router.post('/launch', requireAuth, async (req, res) => {
             duplicates,
             advantagePlacements,
             publisherPlatforms,
-            adSets
+            adSets,
+            budgetOptimization
         } = req.body;
 
         // Validation
@@ -384,7 +385,8 @@ router.post('/launch', requireAuth, async (req, res) => {
             flexibleSpec,
             exclusions,
             advantagePlacements,
-            publisherPlatforms
+            publisherPlatforms,
+            budgetOptimization
         }, duplicates, adSets);
 
         res.status(200).json(result);

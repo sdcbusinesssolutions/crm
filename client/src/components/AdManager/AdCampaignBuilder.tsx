@@ -9,6 +9,7 @@ export type AdTree = {
   mediaUrls: string[];
   primaryText: string;
   headline: string;
+  description: string;
 };
 
 export type AdSetTree = {
@@ -22,6 +23,8 @@ export type AdSetTree = {
   gender: string;
   advantagePlacements: boolean;
   publisherPlatforms: string[];
+  startTime?: string;
+  endTime?: string;
   ads: AdTree[];
 };
 
@@ -62,7 +65,8 @@ const initialCampaign: CampaignTree = {
           name: 'Ad 1',
           mediaUrls: [],
           primaryText: 'Get instant support!',
-          headline: 'Chat with us on WhatsApp'
+          headline: 'Chat with us on WhatsApp',
+          description: ''
         }
       ]
     }
@@ -99,7 +103,8 @@ const AdCampaignBuilder: React.FC = () => {
           name: 'Ad 1',
           mediaUrls: [],
           primaryText: 'Get instant support!',
-          headline: 'Chat with us on WhatsApp'
+          headline: 'Chat with us on WhatsApp',
+          description: ''
         }
       ]
     };

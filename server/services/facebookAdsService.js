@@ -327,9 +327,9 @@ class FacebookAdsService {
                 name: `${campaignName} - Ad Set`,
                 campaign_id: campaignId,
                 daily_budget: dailyBudget * 100, // Meta expects cents
+                bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 billing_event: 'IMPRESSIONS',
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
-                bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 is_adset_budget_sharing_enabled: false,
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
@@ -478,7 +478,7 @@ class FacebookAdsService {
             // Destructure base config
             const {
                 campaignName, pageId, headline, primaryText, mediaUrls, imageUrl, mediaType,
-                welcomeMessageText, iceBreakerText, whatsappNumber, description, objective, status
+                welcomeMessageText, iceBreakerText, whatsappNumber, description, objective, status, budgetOptimization, dailyBudget
             } = baseConfig;
 
             // Step 1: Create the single Campaign
@@ -487,8 +487,11 @@ class FacebookAdsService {
                 objective: objective || 'OUTCOME_LEADS',
                 status: status || 'PAUSED',
                 special_ad_categories: '[]',
-                is_adset_budget_sharing_enabled: false,
-                access_token: accessToken
+                access_token: accessToken,
+                ...(budgetOptimization === 'CBO' && dailyBudget ? { 
+                    daily_budget: parseFloat(dailyBudget) * 100,
+                    bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
+                } : {})
             };
             require('fs').appendFileSync(require('path').join(__dirname, '../../meta_payloads.log'), `\n[${new Date().toISOString()}] CAMPAIGN PAYLOAD:\n${JSON.stringify(campaignParams, null, 2)}\n`);
 
@@ -539,7 +542,8 @@ class FacebookAdsService {
                 const adSetNode = normalizedAdSets[i];
                 
                 // Parse Age
-                let minAge = 18, maxAge = 65;
+                let minAge = adSetNode.minAge || baseConfig.minAge || 18;
+                let maxAge = adSetNode.maxAge || baseConfig.maxAge || 65;
                 if (adSetNode.age && adSetNode.age.includes('-')) {
                     const parts = adSetNode.age.split('-');
                     minAge = parseInt(parts[0]) || 18;
@@ -586,13 +590,26 @@ class FacebookAdsService {
                     final_geo_locations.countries = ['IN']; // fallback
                 }
 
-                const scheduleParams = { start_time: Math.floor(Date.now() / 1000) + 300 }; // 5 mins from now
+                const scheduleParams = {};
+                let userStartTime = adSetNode.startTime || baseConfig.startTime;
+                if (userStartTime) {
+                    scheduleParams.start_time = Math.floor(new Date(userStartTime).getTime() / 1000);
+                } else {
+                    scheduleParams.start_time = Math.floor(Date.now() / 1000) + 300;
+                }
+                let userEndTime = adSetNode.endTime || baseConfig.endTime;
+                if (userEndTime) {
+                    scheduleParams.end_time = Math.floor(new Date(userEndTime).getTime() / 1000);
+                }
+
                 let gendersArray = [1, 2];
-                if (adSetNode.gender === 'MALE') gendersArray = [1];
-                if (adSetNode.gender === 'FEMALE') gendersArray = [2];
+                if (adSetNode.gender === 'MALE' || adSetNode.gender === '1') gendersArray = [1];
+                if (adSetNode.gender === 'FEMALE' || adSetNode.gender === '2') gendersArray = [2];
                 
                 // Detailed Targeting
-                let flexible_spec = [];
+                let flexible_spec = baseConfig.flexibleSpec || [];
+                let exclusions = baseConfig.exclusions || {};
+                
                 if (adSetNode.detailedTargeting) {
                     const dtItems = adSetNode.detailedTargeting.split(',').map(s => s.trim()).filter(Boolean);
                     const interests = [];
@@ -613,10 +630,12 @@ class FacebookAdsService {
                 const adSetParams = {
                     name: adSetNode.name || `${campaignName} - Ad Set ${i+1}`,
                     campaign_id: campaignId,
-                    daily_budget: (parseFloat(adSetNode.budget) || parseFloat(baseConfig.dailyBudget) || 500) * 100, // cents
+                    ...(budgetOptimization !== 'CBO' ? { 
+                        daily_budget: (parseFloat(adSetNode.budget) || parseFloat(baseConfig.dailyBudget) || 500) * 100,
+                        bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
+                    } : {}),
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: baseConfig.optimizationGoal || 'CONVERSATIONS',
-                    bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                     is_adset_budget_sharing_enabled: false,
                     destination_type: 'WHATSAPP',
                     promoted_object: JSON.stringify({ 
@@ -630,6 +649,7 @@ class FacebookAdsService {
                         age_max: maxAge,
                         genders: gendersArray,
                         ...(flexible_spec.length > 0 && { flexible_spec }),
+                        ...(Object.keys(exclusions).length > 0 && { exclusions }),
                         ...(!baseConfig.advantagePlacements && baseConfig.publisherPlatforms ? { publisher_platforms: baseConfig.publisherPlatforms } : {
                             publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
                             facebook_positions: ['feed', 'story', 'marketplace', 'search']

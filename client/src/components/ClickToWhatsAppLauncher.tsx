@@ -271,6 +271,8 @@ const ClickToWhatsAppLauncher = () => {
     whatsappNumber: '',
     detailedTargeting: [] as any[],
     advantageAudience: 1,
+    advantagePlacements: true,
+    publisherPlatforms: ['facebook', 'instagram', 'audience_network', 'messenger'],
     objective: 'OUTCOME_SALES',
     optimizationGoal: 'CONVERSATIONS'
   });
@@ -311,7 +313,8 @@ const ClickToWhatsAppLauncher = () => {
       name: formData.adName || 'New Ad',
       mediaUrls: [],
       primaryText: formData.primaryText,
-      headline: formData.headline
+      headline: formData.headline,
+      description: formData.description
     }]
   }]);
   const [selectedAdSetId, setSelectedAdSetId] = useState('adset-initial');
@@ -333,7 +336,8 @@ const ClickToWhatsAppLauncher = () => {
           name: formData.adName || a.name,
           mediaUrls: formData.mediaUrls || a.mediaUrls,
           primaryText: formData.primaryText,
-          headline: formData.headline
+          headline: formData.headline,
+          description: formData.description
         };
       });
       return {
@@ -343,6 +347,8 @@ const ClickToWhatsAppLauncher = () => {
         minAge: formData.minAge,
         maxAge: formData.maxAge,
         gender: formData.gender,
+        startTime: formData.startDate,
+        endTime: formData.endDate,
         advantagePlacements: formData.advantageAudience === 1,
         budget: formData.budgetOptimization === 'ABO' ? Number(formData.dailyBudget) : s.budget,
         ads: updatedAds
@@ -360,10 +366,13 @@ const ClickToWhatsAppLauncher = () => {
       mediaUrls: targetAd?.mediaUrls || [],
       primaryText: targetAd?.primaryText || prev.primaryText,
       headline: targetAd?.headline || prev.headline,
+      description: targetAd?.description || prev.description,
       targetCountries: adSet.targetCountries || prev.targetCountries,
       minAge: adSet.minAge,
       maxAge: adSet.maxAge,
       gender: adSet.gender,
+      startDate: adSet.startTime || prev.startDate,
+      endDate: adSet.endTime || prev.endDate,
       dailyBudget: prev.budgetOptimization === 'ABO' && adSet.budget ? String(adSet.budget) : prev.dailyBudget
     }));
   }, []);
@@ -381,6 +390,8 @@ const ClickToWhatsAppLauncher = () => {
       minAge: formData.minAge,
       maxAge: formData.maxAge,
       gender: formData.gender,
+      startTime: formData.startDate,
+      endTime: formData.endDate,
       advantagePlacements: formData.advantageAudience === 1,
       publisherPlatforms: [],
       ads: [{
@@ -389,7 +400,8 @@ const ClickToWhatsAppLauncher = () => {
         name: 'New Ad',
         mediaUrls: formData.mediaUrls || [],
         primaryText: formData.primaryText,
-        headline: formData.headline
+        headline: formData.headline,
+        description: formData.description
       }]
     };
     setAdSets(prev => [...prev, newAdSet]);
@@ -447,7 +459,8 @@ const ClickToWhatsAppLauncher = () => {
           name: `Ad ${s.ads.length + 1}`,
           mediaUrls: formData.mediaUrls || [],
           primaryText: formData.primaryText,
-          headline: formData.headline
+          headline: formData.headline,
+          description: formData.description
         }]
       };
     }));
@@ -479,7 +492,8 @@ const ClickToWhatsAppLauncher = () => {
       adName: newAd.name,
       mediaUrls: newAd.mediaUrls,
       primaryText: newAd.primaryText,
-      headline: newAd.headline
+      headline: newAd.headline,
+      description: newAd.description
     }));
     setCurrentStep(3);
   }, [adSets]);
@@ -503,7 +517,8 @@ const ClickToWhatsAppLauncher = () => {
         adName: fallbackAd.name,
         mediaUrls: fallbackAd.mediaUrls,
         primaryText: fallbackAd.primaryText,
-        headline: fallbackAd.headline
+        headline: fallbackAd.headline,
+        description: fallbackAd.description
       }));
     }
   }, [adSets, selectedAdId]);
@@ -1738,6 +1753,96 @@ const ClickToWhatsAppLauncher = () => {
                     </div>
                   </div>
                 )}
+                
+                {/* SCHEDULE SECTION */}
+                <div className="ctwa-form-group" style={{ marginTop: '24px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="icon">📅</span> Schedule (Optional)
+                  </label>
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '4px', display: 'block' }}>Start Date</label>
+                      <input 
+                        type="date" 
+                        name="startDate"
+                        value={formData.startDate || ''}
+                        onChange={handleChange}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '4px', display: 'block' }}>End Date</label>
+                      <input 
+                        type="date" 
+                        name="endDate"
+                        value={formData.endDate || ''}
+                        onChange={handleChange}
+                        style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                  {/* PLACEMENTS SECTION */}
+                  <div className="ctwa-form-group" style={{ marginTop: '24px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                      Placements
+                    </label>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', background: formData.advantagePlacements ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#f8fafc', padding: '16px', borderRadius: '16px', border: formData.advantagePlacements ? 'none' : '1px solid #e2e8f0', boxShadow: formData.advantagePlacements ? '0 10px 25px rgba(16, 185, 129, 0.3)' : 'none', transition: 'all 0.3s ease' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', position: 'relative' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.advantagePlacements}
+                          onChange={(e) => setFormData({ ...formData, advantagePlacements: e.target.checked })}
+                          style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                        />
+                        <div style={{
+                          width: '54px', height: '30px', background: formData.advantagePlacements ? '#047857' : '#cbd5e1', 
+                          borderRadius: '15px', position: 'relative', transition: '0.3s', border: formData.advantagePlacements ? '1px solid #34d399' : 'none'
+                        }}>
+                          <div style={{
+                            width: '26px', height: '26px', background: 'white', borderRadius: '50%',
+                            position: 'absolute', top: '1px', left: formData.advantagePlacements ? '25px' : '2px',
+                            transition: '0.3s', boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+                          }} />
+                        </div>
+                      </label>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 800, color: formData.advantagePlacements ? '#ffffff' : '#64748b', letterSpacing: '0.2px' }}>
+                          {formData.advantagePlacements ? '✨ Advantage+ Placements (Recommended)' : 'Manual Placements'}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: formData.advantagePlacements ? '#d1fae5' : '#94a3b8', marginTop: '3px', fontWeight: 500 }}>
+                          {formData.advantagePlacements ? "Meta will allocate your budget across multiple placements to get more results." : "Manually choose the places to show your ad."}
+                        </span>
+                      </div>
+                    </div>
+
+                    {!formData.advantagePlacements && (
+                      <div style={{ marginTop: '16px', padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                        {[{id: 'facebook', label: 'Facebook'}, {id: 'instagram', label: 'Instagram'}, {id: 'audience_network', label: 'Audience Network'}, {id: 'messenger', label: 'Messenger'}].map(platform => (
+                          <label key={platform.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 16px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '8px', userSelect: 'none' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={formData.publisherPlatforms.includes(platform.id)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  publisherPlatforms: checked 
+                                    ? [...prev.publisherPlatforms, platform.id]
+                                    : prev.publisherPlatforms.filter(p => p !== platform.id)
+                                }));
+                              }}
+                              style={{ width: '16px', height: '16px', accentColor: '#2563eb' }}
+                            />
+                            <span style={{ fontSize: '0.9rem', color: '#334155', fontWeight: 600 }}>{platform.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 
               </div>
             )}
