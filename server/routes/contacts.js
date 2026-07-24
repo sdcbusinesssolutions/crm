@@ -2,8 +2,9 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
-const DripTriggerService = require('../services/DripTriggerService');
 const requirePermission = require('../middleware/requirePermission');
+const requireAuth = require('../middleware/requireAuth');
+
 
 // GET /api/contacts
 router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
@@ -54,6 +55,14 @@ router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
     // --- TAG FILTERING ---
     if (req.query.tag) {
       query = query.contains('tags', [req.query.tag]);
+    }
+
+    // --- OPT STATUS FILTERING ---
+    console.log('[Contacts GET] optStatus filter:', req.query.optStatus);
+    if (req.query.optStatus === 'opted_out') {
+      query = query.contains('custom_data', '{"opted_out":true}');
+    } else if (req.query.optStatus === 'opted_in') {
+      query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
     }
 
     // --- DATE FILTERING ---
@@ -126,8 +135,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
         .from('contacts')
         .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
 
       // Filter by assigned leads if restricted
       if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -152,10 +160,12 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       }
       if (req.query.groupId) query = query.contains('group_ids', [req.query.groupId]);
       if (req.query.tag) query = query.contains('tags', [req.query.tag]);
+      if (req.query.optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (req.query.optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (req.query.startDate) query = query.gte('created_at', req.query.startDate);
       if (req.query.endDate) query = query.lte('created_at', req.query.endDate);
 
-      const { data: chunk, error } = await query;
+      const { data: chunk, error } = await query.range(from, to);
       if (error) throw error;
 
       if (chunk && chunk.length > 0) {
@@ -219,7 +229,7 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
     let query = supabase.from('contacts').select('phone').eq('user_id', userId);
 
@@ -250,6 +260,8 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     }
     if (groupId) query = query.contains('group_ids', [groupId]);
     if (tag) query = query.contains('tags', [tag]);
+    if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+    if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
     if (startDate) query = query.gte('created_at', startDate);
     if (endDate) query = query.lte('created_at', endDate);
 
@@ -266,6 +278,26 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     res.json(phones);
   } catch (err) {
     console.error('Error fetching phones:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/contacts/:id
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .select('id, name, whatsapp_name, phone, email, status')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Contact not found' });
+    
+    res.json(data);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -801,7 +833,7 @@ async function chunkedNullify(table, column, ids, chunkSize = 200, concurrency =
 }
 
 // POST /api/contacts/bulk-delete
-router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { ids } = req.body; // Expects { ids: ['id1', 'id2'] }
@@ -860,13 +892,13 @@ router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), asy
 });
 
 // POST /api/contacts/bulk-delete-filtered
-router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
-    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate });
+    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate, optStatus });
 
     // 1. Fetch ALL matching IDs (paginate to handle Supabase row limits)
     let allIds = [];
@@ -891,6 +923,8 @@ router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_wri
       }
       if (groupId) query = query.contains('group_ids', [groupId]);
       if (tag) query = query.contains('tags', [tag]);
+      if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (startDate) query = query.gte('created_at', startDate);
       if (endDate) query = query.lte('created_at', endDate);
 

@@ -12,6 +12,8 @@ export interface FollowUp {
     type: 'CALL' | 'EMAIL' | 'WHATSAPP' | 'MEETING' | 'TASK';
     recurrence_rule?: any;
     created_at: string;
+    created_by_staff_id?: string;
+    created_by_name?: string;
     contacts?: {
         name: string;
         phone: string;
@@ -31,16 +33,23 @@ export interface FollowUp {
 
 const getHeaders = async () => {
     const token = tokenService.getAccessToken();
+    const commonHeaders = {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    };
+    
     if (token) {
         return {
-            'Content-Type': 'application/json',
+            ...commonHeaders,
             'Authorization': `Bearer ${token}`
         };
     }
     const { data: { session } } = await supabase.auth.getSession();
     return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session?.access_token || ''} `
+        ...commonHeaders,
+        'Authorization': `Bearer ${session?.access_token || ''}`
     };
 };
 

@@ -23,4 +23,51 @@ router.post('/trigger-signup-notifications', async (req, res) => {
     }
 });
 
+// GET /settings
+router.get('/settings', async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const meta = user.user_metadata || {};
+        const notificationSettings = meta.notificationSettings || {};
+        
+        return res.json(notificationSettings);
+    } catch (err) {
+        console.error('Error fetching auth notification settings:', err);
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// POST /settings
+router.post('/settings', async (req, res) => {
+    try {
+        const { domain, ...updates } = req.body;
+        
+        const supabase = getAuthenticatedSupabase(req);
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        
+        const meta = user.user_metadata || {};
+        const newSettings = { ...(meta.notificationSettings || {}), ...updates };
+        
+        // Update user metadata via auth admin api
+        await supabaseAdmin.auth.admin.updateUserById(user.id, {
+            user_metadata: { notificationSettings: newSettings }
+        });
+
+        return res.json({ success: true });
+    } catch (err) {
+        console.error('Error saving auth notification settings:', err);
+        return res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = router;

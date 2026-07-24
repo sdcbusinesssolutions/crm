@@ -17,6 +17,7 @@ import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
+import Toast from './Toast';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { getStaffList, getLeads, createLead, getLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
@@ -24,6 +25,8 @@ import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 import { contactService } from '../services/contactService';
 import { tokenService } from '../services/tokenService';
 import { aiAgentService, Agent } from '../services/aiAgentService';
+import { reminderManager } from '../utils/reminderManager';
+import { followUpService } from '../services/followUpService';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -97,6 +100,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState<string | null>(null);
 
+    // Toast State
+    const [toastConfig, setToastConfig] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
+
     // --- CACHE OPTIMIZATION: Memory Buffer for Recent Conversations ---
     // Stores the last 100 messages for recently visited chats to make switching instant.
     const messageCacheRef = useRef<Record<string, Message[]>>({});
@@ -105,6 +111,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [quickReplies, setQuickReplies] = useState<Flow[]>([]);
     const [isQuickReplyOpen, setIsQuickReplyOpen] = useState(false);
     const [quickReplySearch, setQuickReplySearch] = useState('');
+    const [isOptedOut, setIsOptedOut] = useState(false);
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
@@ -112,6 +119,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [contactNotes, setContactNotes] = useState('');
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [aiAgents, setAiAgents] = useState<Agent[]>([]);
+    
+    // Reminder state
+    const [showLocalReminder, setShowLocalReminder] = useState(false);
+    const [localReminderTime, setLocalReminderTime] = useState('');
+    const [localReminderMessage, setLocalReminderMessage] = useState('');
     const activeChat = useMemo(() =>
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
@@ -232,8 +244,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
                     if (res?.data && res.data.length > 0) {
                         setContactNotes(res.data[0].customData?.notes || '');
+                        setIsOptedOut(res.data[0].customData?.opted_out === true);
                     } else {
                         setContactNotes('');
+                        setIsOptedOut(false);
                     }
                 } catch (e) {
                     console.error("Failed to load notes", e);
@@ -243,6 +257,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             loadNotes();
         } else {
             setContactNotes('');
+            setIsOptedOut(false);
         }
     }, [activeChat?.contact_phone]);
 
@@ -2517,6 +2532,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             </div>
                         </header>
 
+                        {/* Opted Out Alert Banner */}
+                        {isOptedOut && (
+                            <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-center shadow-sm relative z-20 w-full animate-fade-in shrink-0">
+                                <span className="text-red-700 text-xs md:text-sm font-bold flex items-center gap-2 text-center">
+                                    <span className="text-base">🛑</span> This user has opted out. Messaging is paused.
+                                </span>
+                            </div>
+                        )}
+
                         {/* Messages Area */}
                         <div
                             ref={chatContainerRef}
@@ -2933,6 +2957,96 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             <DownloadIcon className="w-4 h-4" /> <span>Export</span>
                                         </button>
                                     </div>
+                                    
+                                    <button 
+                                        onClick={() => setShowLocalReminder(!showLocalReminder)}
+                                        className="w-full flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
+                                    >
+                                        <ClockIcon className="w-4 h-4" /> <span>⏰ Custom Reminder</span>
+                                    </button>
+
+                                    {showLocalReminder && (
+                                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2 animate-fade-in shadow-sm relative z-50">
+                                            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                                                Custom Reminder
+                                            </p>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Reminder message (e.g. Call back)"
+                                                value={localReminderMessage}
+                                                onChange={(e) => setLocalReminderMessage(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <input 
+                                                type="datetime-local" 
+                                                value={localReminderTime}
+                                                onChange={(e) => setLocalReminderTime(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <div className="flex gap-2 mt-1">
+                                                <button 
+                                                    onClick={() => setShowLocalReminder(false)}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-amber-100 rounded transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!activeLeadId) {
+                                                            setToastConfig({
+                                                                type: 'error',
+                                                                title: 'Cannot Set Alarm',
+                                                                message: 'Please click "Enable Team Assignment" above to register this contact before setting an alarm.'
+                                                            });
+                                                            return;
+                                                        }
+                                                        if (localReminderTime) {
+                                                            // Ask for desktop notification permission right when they set the alarm
+                                                            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                                                                Notification.requestPermission();
+                                                            }
+
+                                                            try {
+                                                                const targetTime = new Date(localReminderTime).getTime();
+                                                                await followUpService.createFollowUp({
+                                                                    contact_id: activeLeadId,
+                                                                    title: `[QUICK_ALARM] Reminder: ${activeChat.contact_name || 'Contact'}`,
+                                                                    description: localReminderMessage,
+                                                                    scheduled_at: new Date(targetTime).toISOString(),
+                                                                    type: 'TASK'
+                                                                });
+                                                                setShowLocalReminder(false);
+                                                                setLocalReminderMessage('');
+                                                                setLocalReminderTime('');
+                                                                setToastConfig({
+                                                                    type: 'success',
+                                                                    title: 'Reminder Set',
+                                                                    message: 'Reminder saved successfully!'
+                                                                });
+                                                            } catch (err) {
+                                                                console.error('Failed to create quick alarm', err);
+                                                                setToastConfig({
+                                                                    type: 'error',
+                                                                    title: 'Error',
+                                                                    message: 'Failed to save reminder'
+                                                                });
+                                                            }
+                                                        } else {
+                                                            setToastConfig({
+                                                                type: 'warning',
+                                                                title: 'Time Required',
+                                                                message: 'Please select a time'
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 rounded transition-colors shadow-sm"
+                                                >
+                                                    Save Alarm
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-3 relative z-40">
@@ -3083,7 +3197,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 onClose={() => setIsTemplateModalOpen(false)}
                 onSend={handleSendTemplate}
             />
+            {toastConfig && (
+                <Toast
+                    type={toastConfig.type}
+                    title={toastConfig.title}
+                    message={toastConfig.message}
+                    onClose={() => setToastConfig(null)}
+                />
+            )}
         </div>
     );
 };
+
 export default Inbox;

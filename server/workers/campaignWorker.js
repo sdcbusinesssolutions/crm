@@ -1104,6 +1104,16 @@ class CampaignWorker {
                 }
             };
 
+            // --- FAIL-SAFE OPT-OUT CHECK ---
+            if (item.contacts?.custom_data?.opted_out) {
+                console.warn(`[Worker] Skipping send to ${item.phone_number} — Contact has opted out.`);
+                await this.supabase.from('campaign_queue').update({
+                    status: 'FAILED',
+                    error_message: 'User opted out'
+                }).eq('id', item.id);
+                return;
+            }
+
             // LOG REQUEST
             try {
                 logCampaignRequest('SEND_MESSAGE', {

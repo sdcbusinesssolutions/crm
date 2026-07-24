@@ -5,6 +5,7 @@ import FollowUpForm from './FollowUpForm';
 import { format, isToday, isPast, isFuture, parseISO, isSameDay } from 'date-fns';
 import SendWhatsAppMessageModal from '../SendWhatsAppMessageModal';
 import EmailModal from '../EmailModal';
+import LeadEditModal from '../LeadEditModal';
 import { TriggerIcon } from '../icons';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
@@ -47,6 +48,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     const [selectedEmail, setSelectedEmail] = useState('');
     const [selectedEmailName, setSelectedEmailName] = useState('');
 
+    // Lead Edit Modal State
+    const [isLeadEditModalOpen, setIsLeadEditModalOpen] = useState(false);
+    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+
     useEffect(() => {
         if (canRead) {
             loadFollowUps();
@@ -73,7 +78,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 getTasks()
             ]);
 
-            const normalizedFollowUps: UnifiedTask[] = followUpData.map(f => ({
+            const filteredFollowUpData = followUpData.filter(f => !(f.title || '').startsWith('[QUICK_ALARM]'));
+
+            const normalizedFollowUps: UnifiedTask[] = filteredFollowUpData.map(f => ({
                 ...f,
                 source: 'follow_up'
             }));
@@ -92,6 +99,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     priority: 'MEDIUM',
                     type: 'TASK',
                     created_at: t.created_at || new Date().toISOString(),
+                    created_by_name: t.created_by_name,
                     source: 'crm_task',
                     original_data: t,
                     pipeline_name: pipelineName,
@@ -236,9 +244,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     // --- Statistics Calculations ---
     const stats = {
         all: followUps.filter(i => i.status !== 'COMPLETED').length,
-        today: followUps.filter(i => i.status !== 'COMPLETED' && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
-        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
-        overdue: followUps.filter(i => i.status !== 'COMPLETED' && isPast(parseISO(i.scheduled_at))).length,
+        today: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
+        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
+        overdue: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isPast(parseISO(i.scheduled_at))).length,
         completed: followUps.filter(i => i.status === 'COMPLETED').length
     };
 
@@ -247,9 +255,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         // 1. Filter Tab
         if (filter === 'all' && item.status === 'COMPLETED') return false;
         if (filter === 'completed' && item.status !== 'COMPLETED') return false;
-        if (filter === 'today' && (item.status === 'COMPLETED' || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'overdue' && (item.status === 'COMPLETED' || !isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'today' && (item.status === 'COMPLETED' || !item.scheduled_at || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'overdue' && (item.status === 'COMPLETED' || !item.scheduled_at || !isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !item.scheduled_at || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
 
         // 2. Search
         if (searchTerm) {
@@ -436,7 +444,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {paginatedItems.map(item => {
-                                const isOverdue = item.status !== 'COMPLETED' && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
+                                const isOverdue = item.status !== 'COMPLETED' && !!item.scheduled_at && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
                                 const activeDrip = item.contacts?.drip_enrollments?.find(d => d.status === 'ACTIVE');
 
                                 return (
@@ -458,6 +466,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                 )}
                                             </div>
                                             <div className="text-xs text-slate-500 line-clamp-1">{item.description || 'No description'}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                Created by: <span className="font-semibold text-slate-500">{item.created_by_name || 'System'}</span> at {format(parseISO(item.created_at), 'MMM d, yyyy h:mm a')}
+                                            </div>
                                             {item.recurrence_rule && (
                                                 <div className="text-[10px] text-green-600 font-bold flex items-center gap-1 mt-1 uppercase">
                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -472,7 +484,32 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                         {getInitials(item.contacts.name)}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-slate-800">{item.contacts.name}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div 
+                                                                className="text-sm font-bold text-slate-800 cursor-pointer hover:text-green-600 hover:underline transition-colors"
+                                                                onClick={() => {
+                                                                    if (item.contact_id) {
+                                                                        setSelectedLeadId(item.contact_id);
+                                                                        setIsLeadEditModalOpen(true);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {item.contacts.name}
+                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (item.contact_id) {
+                                                                        setSelectedLeadId(item.contact_id);
+                                                                        setIsLeadEditModalOpen(true);
+                                                                    }
+                                                                }}
+                                                                className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                                title="Edit Contact Info"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                            </button>
+                                                        </div>
                                                         <div className="text-xs text-slate-500">{item.contacts.phone}</div>
                                                         {activeDrip && (
                                                             <div className="mt-1 flex flex-col gap-0.5">
@@ -498,9 +535,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                             <span className={`px-3 py-1 rounded text-xs font-bold
                                                 ${isOverdue ? 'bg-red-100 text-red-600' :
                                                     item.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                        !item.scheduled_at ? 'bg-slate-100 text-slate-600' :
                                                         isToday(parseISO(item.scheduled_at)) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}
                                              `}>
-                                                {format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a')}
+                                                {item.scheduled_at ? format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a') : 'No Date Set'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -602,6 +640,15 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 onClose={() => setIsEmailModalOpen(false)}
                 recipientEmail={selectedEmail}
                 recipientName={selectedEmailName}
+            />
+            <LeadEditModal
+                isOpen={isLeadEditModalOpen}
+                onClose={() => {
+                    setIsLeadEditModalOpen(false);
+                    setSelectedLeadId(null);
+                }}
+                leadId={selectedLeadId}
+                onUpdate={loadFollowUps}
             />
         </div>
     );

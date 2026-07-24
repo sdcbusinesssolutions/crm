@@ -12,6 +12,7 @@ import InboxTemplateModal from './InboxTemplateModal';
 import { quickReplyService } from '../services/quickReplyService';
 import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
+import { contactService } from '../services/contactService';
 
 
 const formatTime = (dateString: string) => {
@@ -68,6 +69,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
     const [isAttachmentOpen, setIsAttachmentOpen] = useState(false);
     const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
     const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+    const [isOptedOut, setIsOptedOut] = useState(false);
     
 
     // Tags
@@ -174,6 +176,14 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                 setQuickReplies(qrs);
 
                 const cleanPhone = contactPhone.replace(/\D/g, '');
+                
+                const contactRes = await contactService.getContactsPaginated(1, 1, { search: cleanPhone });
+                if (contactRes?.data && contactRes.data.length > 0) {
+                    setIsOptedOut(contactRes.data[0].customData?.opted_out === true);
+                } else {
+                    setIsOptedOut(false);
+                }
+
                 const result = await inboxService.getConversations(1, 10, cleanPhone);
                 const match = result.find(c => c.contact_phone.includes(cleanPhone) || cleanPhone.includes(c.contact_phone));
                 
@@ -650,6 +660,15 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                     </div>
                 </div>
 
+                {/* Opted Out Alert Banner */}
+                {isOptedOut && (
+                    <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-center shadow-sm relative z-20 w-full shrink-0">
+                        <span className="text-red-700 text-xs md:text-sm font-bold flex items-center gap-2 text-center">
+                            <span className="text-base">🛑</span> This user has opted out. Messaging is paused.
+                        </span>
+                    </div>
+                )}
+
                 {/* Chat Area */}
                 <div className="flex-1 overflow-y-auto bg-[#efeae2] p-6 flex flex-col gap-2 custom-scrollbar relative" 
                      style={{ backgroundImage: "url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')", backgroundSize: '400px', backgroundBlendMode: 'overlay', backgroundColor: 'rgba(239,234,226,0.95)' }}>
@@ -776,7 +795,14 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
 
                 {/* Input Area */}
                 <div className="bg-white p-4 shadow-[0_-10px_20px_-10px_rgba(0,0,0,0.05)] border-t border-slate-200 z-10 shrink-0">
-                    <div className="flex items-end gap-3 relative">
+                    {isOptedOut ? (
+                        <div className="flex items-center justify-center py-2">
+                            <span className="text-red-600 font-semibold text-sm flex items-center gap-2">
+                                <CloseIcon className="w-4 h-4" /> Cannot send messages (User Opted Out)
+                            </span>
+                        </div>
+                    ) : (
+                        <div className="flex items-end gap-3 relative">
                         {/* Attachments & Templates */}
                         <div className="flex items-center gap-1.5 shrink-0 pb-1">
                             <div className="relative">
@@ -897,7 +923,8 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                 </button>
                             )}
                         </div>
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
             </div>

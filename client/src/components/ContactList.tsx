@@ -138,6 +138,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     // Filter State
     const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+    const [selectedOptStatus, setSelectedOptStatus] = useState<string | null>(null);
 
     // SERVER-SIDE FILTERING: We no longer filter in memory.
     // The 'contacts' state now only holds the current page of records.
@@ -194,7 +195,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         if (canRead) {
             loadContacts();
         }
-    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate, canRead]);
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, selectedOptStatus, startDate, endDate, canRead]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -237,6 +238,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -401,7 +403,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         stage_id: modalStageId,
                         name: newContact.name,
                         email: newContact.email || '',
-                        phone: newContact.phone
+                        phone: newContact.phone,
+                        tags: newContact.tags || []
                     });
                 } else {
                     await createLead({
@@ -410,7 +413,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         phone: newContact.phone,
                         pipeline_id: modalPipelineId,
                         stage_id: modalStageId,
-                        source: ((newContact.source || 'manual').toLowerCase() as any)
+                        source: ((newContact.source || 'manual').toLowerCase() as any),
+                        tags: newContact.tags || []
                     });
                 }
             }
@@ -504,6 +508,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             search: searchTerm,
                             groupId: selectedGroupFilter || undefined,
                             tag: selectedTagFilter || undefined,
+                            optStatus: selectedOptStatus || undefined,
                             startDate,
                             endDate
                         });
@@ -660,6 +665,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -670,11 +676,25 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             }
 
             // 2. If user has specifically selected IDs, filter the export list to those
-            const finalData = selectedIds.size > 0 
-                ? contactsToExport.filter(c => selectedIds.has(c.id))
-                : contactsToExport;
+            let finalData = contactsToExport;
+            if (selectedIds.size > 0) {
+                const allVisibleSelected = currentEntries.length > 0 && currentEntries.every(c => selectedIds.has(c.id));
+                
+                // If they selected all visible rows but there are more on the server, ask them
+                if (allVisibleSelected && contactsToExport.length > selectedIds.size) {
+                    const confirmAll = window.confirm(`You selected the ${selectedIds.size} currently loaded contacts.\\n\\nDo you want to export ALL ${contactsToExport.length} contacts instead? (Click OK for ALL)`);
+                    if (!confirmAll) {
+                        finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                    }
+                } else {
+                    finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                }
+            }
 
-            if (finalData.length === 0) return;
+            if (finalData.length === 0) {
+                setIsLoading(false);
+                return;
+            }
 
             // 3. Convert to CSV
             const csvData = finalData.map(c => {
@@ -998,6 +1018,22 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             <ChevronDownIcon className="w-3 h-3" />
                         </div>
                     </div>
+
+                    {/* Opt-in/Out Filter */}
+                    <div className="relative">
+                        <select
+                            value={selectedOptStatus || ''}
+                            onChange={(e) => { setSelectedOptStatus(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-3 pr-8 py-2 w-full sm:w-36 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">Opt Status: All</option>
+                            <option value="opted_in">Opted In</option>
+                            <option value="opted_out">Opted Out</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
                     
                     {/* Proper Date Range Picker UI */}
                     <div className="flex items-center gap-2 p-1.5 bg-[var(--color-brand)]/[0.03] rounded-2xl border border-[var(--color-brand)]/20 shadow-inner">
@@ -1038,7 +1074,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         {isBulkDropdownOpen && (
                             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
                                 {/* Delete Selection */}
-                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                     <button 
                                         onClick={handleBulkDelete} 
                                         disabled={selectedIds.size === 0}
@@ -1051,8 +1087,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 <div className="h-px bg-slate-100 my-1"></div>
 
                                 {/* Delete by Filter (Contextual) */}
-                                {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
-                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                {(searchTerm || selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
+                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                         <button 
                                             onClick={handleDeleteAllFiltered}
                                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
@@ -1085,6 +1121,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 search: searchTerm,
                                                 groupId: selectedGroupFilter || undefined,
                                                 tag: selectedTagFilter || undefined,
+                                                optStatus: selectedOptStatus || undefined,
                                                 startDate,
                                                 endDate
                                             });
@@ -1162,7 +1199,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             </div>
 
             {/* Active Filters */}
-            {(selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
+            {(selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Filters:</span>
                     {startDate && (
@@ -1203,7 +1240,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         </span>
                     )}
                     <button
-                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setSelectedOptStatus(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
                         className="text-xs text-slate-500 hover:text-slate-700 font-medium underline"
                     >
                         Clear all
@@ -1259,7 +1296,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         <div className="w-9 h-9 rounded-full bg-[var(--color-brand)] flex items-center justify-center text-white font-bold text-sm shadow-sm uppercase">
                                                             {(contact.name || '?').charAt(0)}
                                                         </div>
-                                                        <div className="text-sm font-bold text-slate-800">{contact.name}</div>
+                                                        <div className="flex flex-col">
+                                                            <div className="text-sm font-bold text-slate-800">{contact.name}</div>
+                                                            {contact.customData?.opted_out && (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 mt-0.5 w-max uppercase tracking-wider">
+                                                                    Opted Out
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black">
@@ -1354,7 +1398,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
                                                             <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
                                                         </PermissionGate>
-                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                                             <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
                                                         </PermissionGate>
                                                     </div>
@@ -1371,7 +1415,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             <div className="absolute top-5 right-5">
                 <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+            <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+                {contact.customData?.opted_out && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wider">
+                        Opted Out
+                    </span>
+                )}
+            </div>
             <p className="text-sm text-slate-500 font-mono">{formatPhone(contact.phone)}</p>
             {contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}
             
@@ -1606,7 +1657,37 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 </div>
                                 <div className="h-px bg-slate-200 w-full"></div>
 
-                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Organization</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5"><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label><div className="relative"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })}>{['New', 'Contacted', 'Qualified', 'Converted', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="e.g. Website, Referral" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} /></div></div>
+                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Organization</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label><div className="relative"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })}>{['New', 'Contacted', 'Qualified', 'Converted', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div></div>
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="e.g. Website, Referral" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} /></div>
+                                        
+                                        {/* OPT OUT TOGGLE */}
+                                        <div className="sm:col-span-2 p-4 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-red-700">Messaging Opt-Out</h4>
+                                                <p className="text-xs text-red-600 mt-0.5 font-medium">If enabled, this contact will be blocked from receiving campaigns and manual messages.</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer"
+                                                    checked={!!formData.customData?.opted_out}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            customData: {
+                                                                ...(prev.customData || {}),
+                                                                opted_out: checked
+                                                            }
+                                                        }));
+                                                    }}
+                                                />
+                                                <div className="w-11 h-6 bg-red-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div className="space-y-5">
                                         <div><div className="flex justify-between items-center mb-2"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Groups</label>{!isCreatingGroup && (<button type="button" onClick={() => { setIsCreatingGroup(true); setNewGroupName(''); }} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 hover:bg-brand-50 px-2 py-1 rounded transition-colors"><PlusIcon className="w-3 h-3" /> New Group</button>)}</div>
                                             {!isCreatingGroup ? (<div className="relative mb-3"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" onChange={handleGroupSelect}><option value="">Select a group to add...</option>{availableGroups.filter(g => !(formData.groupIds || []).includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div>) : (<div className="flex gap-2 mb-3 animate-fade-in p-2 bg-brand-50/50 rounded-xl border border-brand-100"><input type="text" autoFocus placeholder="Enter new group name" className="flex-1 px-4 py-2 bg-white border-2 border-brand-500 rounded-lg focus:outline-none text-slate-900 font-medium text-sm" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateGroup())} /><button type="button" onClick={handleCreateGroup} className="px-3 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 shadow-sm"><CheckIcon className="w-4 h-4" /></button><button type="button" onClick={() => setIsCreatingGroup(false)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-lg font-bold hover:bg-slate-50"><CloseIcon className="w-4 h-4" /></button></div>)}

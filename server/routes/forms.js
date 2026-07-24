@@ -266,7 +266,7 @@ router.post('/submit', async (req, res) => {
         // 1. Fetch Form Definition
         const { data: form, error: formError } = await supabase
             .from('forms')
-            .select('*')
+            .select('*, pipelines(name), pipeline_stages(name)')
             .eq('form_token', form_token)
             .single();
 
@@ -441,6 +441,8 @@ router.post('/submit', async (req, res) => {
                     flowEngine.triggerFlowByEvent(form.user_id, contactInfo.phone, 'pipeline_change', {
                         pipelineId: form.pipeline_id,
                         stageId: form.stage_id,
+                        pipelineName: form.pipelines ? form.pipelines.name : '',
+                        stageName: form.pipeline_stages ? form.pipeline_stages.name : '',
                         source: 'form_builder'
                     });
                 } catch (e) { console.error('Flow Trigger Error', e); }

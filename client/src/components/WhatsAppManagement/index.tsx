@@ -6,7 +6,9 @@ import TwoFactorAuth from './TwoFactorAuth';
 import MMLiteOnboarding from './MMLiteOnboarding';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
-type Tab = 'account' | 'webhook' | 'marketing' | 'password' | '2fa';
+import OptInOutKeywords from './OptInOutKeywords';
+
+type Tab = 'account' | 'webhook' | 'marketing' | 'keywords' | 'password' | '2fa';
 
 const WhatsAppManagement: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('account');
@@ -41,6 +43,8 @@ const WhatsAppManagement: React.FC = () => {
                 return <WebhookSetup readOnly={showReadOnlyBadge} />;
             case 'marketing':
                 return <MMLiteOnboarding readOnly={showReadOnlyBadge} />;
+            case 'keywords':
+                return <OptInOutKeywords readOnly={showReadOnlyBadge} />;
             case 'password':
                 return <ChangePassword readOnly={showReadOnlyBadge} />;
             case '2fa':
@@ -99,6 +103,15 @@ const WhatsAppManagement: React.FC = () => {
                                 }`}
                         >
                             Marketing (MM Lite)
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('keywords')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'keywords'
+                                    ? 'bg-white text-brand-600 shadow-sm'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-200/50'
+                                }`}
+                        >
+                            Opt-In/Out Keywords
                         </button>
                         <button
                             onClick={() => setActiveTab('password')}

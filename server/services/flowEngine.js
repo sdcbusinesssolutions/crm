@@ -157,7 +157,7 @@ class FlowEngine {
                     // Only fetch sessions that are actually ready to be resumed based on current status
                     const { data: delayedSessions, error } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'delayed')
                         .order('last_interaction_at', { ascending: true })
                         .limit(20); // Smaller batches for faster cluster distribution
@@ -208,7 +208,7 @@ class FlowEngine {
                     // We only fetch 100 to prevent massive egress if there are thousands of stuck sessions.
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'waiting_input')
                         .order('last_interaction_at', { ascending: true }) // CRITICAL: Must be true to fetch oldest (timed out) first
                         .limit(100);
@@ -513,7 +513,7 @@ class FlowEngine {
                         }
                     };
 
-                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id);
+                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id, true);
                 } else {
                     console.log(`   > No match.`);
                 }
@@ -551,7 +551,7 @@ class FlowEngine {
                         ...eventData,
                         triggerType: 'pipeline_change',
                         source: 'crm'
-                    }, node.id);
+                    }, node.id, true);
                 }
             }
         }
@@ -560,7 +560,7 @@ class FlowEngine {
     /**
      * Start a new flow session
      */
-    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null) {
+    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null, isSystemEvent = false) {
         // TRIGGER TYPING INDICATOR (Confirmation that we are handling this flow)
         if (this._currentWaMessageId) {
             console.log(`[FlowEngine] Bot starting flow '${flow.name}'. Sending Typing Indicator/Read Status.`);
@@ -636,14 +636,19 @@ class FlowEngine {
                 .maybeSingle();
 
             // 2. Get Lead Details (Pipeline Status)
-            const { data: leadData } = await rpcClient
+            let leadQuery = rpcClient
                 .from('leads')
                 .select('*')
-                .eq('user_id', userId)
-                .eq('phone', contactPhone) // Assuming phone is unique identifier for simplicity here
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .eq('user_id', userId);
+
+            // Use exact leadId if provided by the trigger, otherwise fallback to phone
+            if (initialInput && initialInput.leadId) {
+                leadQuery = leadQuery.eq('id', initialInput.leadId);
+            } else {
+                leadQuery = leadQuery.eq('phone', contactPhone).order('created_at', { ascending: false }).limit(1);
+            }
+
+            const { data: leadData } = await leadQuery.maybeSingle();
 
             leadContext = {
                 contact: contactData || {},
@@ -682,17 +687,25 @@ class FlowEngine {
 
         // CRITICAL: Cancel any existing active sessions for this user to avoid "ghost" sessions
         // This ensures that if the user restarts a flow, the old one doesn't interfere later.
-        console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
-        await rpcClient.rpc('cancel_active_sessions', {
-            p_contact_phone: contactPhone
-        });
+        // BYPASS: If this is a system event (e.g. pipelineTrigger), do NOT cancel ongoing user flows.
+        let dbContactPhone = contactPhone;
+        if (!isSystemEvent) {
+            console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
+            await rpcClient.rpc('cancel_active_sessions', {
+                p_contact_phone: contactPhone
+            });
 
-        // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
-        await new Promise(r => setTimeout(r, 5));
+            // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
+            await new Promise(r => setTimeout(r, 5));
+        } else {
+            console.log(`[FlowEngine] System Event Flow Started. Bypassing active session cancellation for ${contactPhone}.`);
+            // BYPASS DB CONSTRAINT: Append unique suffix so the DB allows parallel active sessions
+            dbContactPhone = `${contactPhone}_sys_${Date.now()}`;
+        }
 
         const { data: session, error } = await rpcClient.rpc('create_flow_session', {
             p_user_id: userId,
-            p_contact_phone: contactPhone,
+            p_contact_phone: dbContactPhone,
             p_flow_id: flow.id,
             p_current_node_id: startNode.id,
             p_variables: initialContext
@@ -1137,8 +1150,13 @@ class FlowEngine {
             console.log(`[FlowEngine] Resolved Data for Node ${node.id}:`, JSON.stringify(resolvedData, null, 2));
             const resolvedNode = { ...node, data: resolvedData };
 
+            // STRIP _sys_ SUFFIX BEFORE PASSING TO EXECUTOR
+            // This ensures WhatsApp service and CRM tools use the real phone number.
+            const realPhone = session.contact_phone.split('_sys_')[0];
+            const safeSession = { ...session, contact_phone: realPhone };
+
             // 2. Execute
-            const output = await executor.execute(session, resolvedNode, session.variables);
+            const output = await executor.execute(safeSession, resolvedNode, safeSession.variables);
 
             // --- FLOW LOG: NODE EXECUTION ---
             try {
@@ -1147,10 +1165,10 @@ class FlowEngine {
                     timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata', hour12: false }),
                     flowName: flow.name,
                     from: phoneNumber,
-                    to: session.contact_phone,
+                    to: realPhone,
                     phoneNumberId: phoneNumberId,
                     whatsappNumber: phoneNumber,
-                    contact: session.contact_phone,
+                    contact: realPhone,
                     sessionId: session.id,
                     nodeId: node.id,
                     nodeType: node.type,
@@ -1294,6 +1312,17 @@ class FlowEngine {
                 ...session.variables,
                 [node.id]: { ...(session.variables[node.id] || {}), ...output }
             };
+
+            // NEW: Fire Events explicitly triggered by the executor
+            if (output && output.__triggerEvent) {
+                // Run asynchronously without blocking flow execution
+                this.triggerFlowByEvent(
+                    session.user_id, 
+                    session.contact_phone, 
+                    output.__triggerEvent.type, 
+                    output.__triggerEvent.payload
+                ).catch(e => console.error('[FlowEngine] Error triggering event from node:', e));
+            }
 
             // 🚀 SCALE OPTIMIZATION:
             // We specifically SKIP hitting the Database ('flow_sessions' .update) right here!

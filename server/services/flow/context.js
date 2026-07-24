@@ -11,7 +11,7 @@ class ContextManager {
      * @param {object} context - The data object (e.g. { name: "John" })
      * @returns {string} - The text with variables replaced.
      */
-    resolve(text, context) {
+    resolve(text, context, clearMissing = false) {
         if (typeof text !== 'string') return text;
 
         return text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
@@ -59,7 +59,7 @@ class ContextManager {
                     // ...
                 }
             }
-            return match; // Keep original if not found
+            return clearMissing ? '' : match; // Keep original if not found, unless clearMissing is true
         });
     }
 

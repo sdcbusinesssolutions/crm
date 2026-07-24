@@ -114,9 +114,10 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
             // 1. Normalize Numbers
             const normalized = manualNumbers.map(num => {
-                const clean = num.toString().trim().replace(/\D/g, '');
-                return `+${clean}`;
-            }).filter(isValidE164);
+                let clean = num.toString().trim().replace(/\D/g, '');
+                if (clean.length === 10) clean = '91' + clean;
+                return clean;
+            }).filter(clean => isValidE164(`+${clean}`));
 
             if (!normalized.length) return res.status(400).json({ error: 'No valid manual numbers found.' });
 
@@ -131,7 +132,7 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                 const phoneChunk = uniquePhones.slice(i, i + SEARCH_CHUNK_SIZE);
                 const { data: chunkData, error: fetchErr } = await supabase
                     .from('contacts')
-                    .select('id, phone, name, email')
+                    .select('id, phone, name, email, is_blocked, custom_data')
                     .eq('user_id', user.id)
                     .in('phone', phoneChunk);
 
@@ -140,17 +141,27 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             }
 
             const existingMap = new Map(existingContacts.map(c => [c.phone, c]));
-            allContacts = uniquePhones.map(phone => {
-                if (existingMap.has(phone)) return existingMap.get(phone);
-                return {
-                    id: null, // Virtual Contact
-                    user_id: user.id,
-                    phone: phone,
-                    name: 'Guest',
-                    email: null,
-                    is_virtual: true
-                };
-            });
+            allContacts = [];
+            
+            for (const phone of uniquePhones) {
+                if (existingMap.has(phone)) {
+                    const existing = existingMap.get(phone);
+                    // Filter out opted-out or blocked contacts
+                    if (existing.is_blocked || existing.custom_data?.opted_out) {
+                        continue;
+                    }
+                    allContacts.push(existing);
+                } else {
+                    allContacts.push({
+                        id: null, // Virtual Contact
+                        user_id: user.id,
+                        phone: phone,
+                        name: 'Guest',
+                        email: null,
+                        is_virtual: true
+                    });
+                }
+            }
         } else {
             // Group, Tags or All
             let pageIndex = 0;

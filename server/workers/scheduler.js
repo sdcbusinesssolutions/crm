@@ -225,8 +225,10 @@ class Scheduler {
                     dueDate: task.due_date,
                     name: taskWithLead.leads.name,
                     email: taskWithLead.leads.email,
+                    phone: taskWithLead.leads.phone,
                     'contact.name': taskWithLead.leads.name,
                     'contact.email': taskWithLead.leads.email,
+                    'contact.phone': taskWithLead.leads.phone,
                     ...extraData
                 });
             }

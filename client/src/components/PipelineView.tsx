@@ -11,6 +11,8 @@ import EmailModal from './EmailModal';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PipelineAssignment from '../modules/teamStaff/components/PipelineAssignment';
 import SendWhatsAppMessageModal from './SendWhatsAppMessageModal';
+import LeadEditModal from './LeadEditModal';
+import CallyzerCallHistoryModal from './CallyzerCallHistoryModal';
 import { EyeIcon, EyeOffIcon } from './icons';
 import {
     getPipelines,
@@ -37,6 +39,11 @@ interface PipelineViewProps {
 }
 
 const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
+    const parseDate = (d?: string) => {
+        if (!d) return new Date();
+        return new Date(d.endsWith('Z') ? d : d + 'Z');
+    };
+
     const { hasAccess, isStaff } = usePermissions();
     const canWrite = hasAccess('Pipelines', ACCESS_TYPES.READ_WRITE);
     const canDelete = hasAccess('Pipelines', ACCESS_TYPES.ALL_ACCESS);
@@ -62,9 +69,11 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const [filters, setFilters] = useState({
         search: '',
         stageIds: [] as string[],
-        sortBy: 'created_at_desc',
+        sortBy: 'updated_at_desc',
         quickFilter: 'all', // 'all', 'hot', 'cold', 'high_value'
-        viewType: 'Pipeline'
+        viewType: 'Pipeline',
+        fromDate: '',
+        toDate: ''
     });
     const [isNumberMasked, setIsNumberMasked] = useState(true);
 
@@ -87,15 +96,15 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning', title: string, message: string } | null>(null);
 
     // Enhanced Lead Modal State
-    const [activeTab, setActiveTab] = useState('opportunity');
-    const [notes, setNotes] = useState<any[]>([]);
-    const [tasks, setTasks] = useState<any[]>([]);
-    const [appointments, setAppointments] = useState<any[]>([]);
-    const [callLogs, setCallLogs] = useState<any[]>([]);
-    const [newNote, setNewNote] = useState({ title: '', content: '', tags: '' });
-    const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
-    const [newAppointment, setNewAppointment] = useState({ title: '', start_time: '', end_time: '', description: '' });
-    const [newCallLog, setNewCallLog] = useState({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     // Email Modal State
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -104,6 +113,10 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     // WhatsApp Modal State
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [activeWhatsAppLead, setActiveWhatsAppLead] = useState<{ phone: string, name: string } | null>(null);
+
+    // Callyzer Call History Modal State
+    const [isCallHistoryModalOpen, setIsCallHistoryModalOpen] = useState(false);
+    const [activeCallHistoryLead, setActiveCallHistoryLead] = useState<{ phone: string, name: string } | null>(null);
 
     const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId);
 
@@ -160,7 +173,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [selectedPipelineId, limit, filters.search, filters.sortBy, filters.quickFilter, filters.stageIds]);
+    }, [selectedPipelineId, limit, filters.search, filters.sortBy, filters.quickFilter, filters.stageIds, filters.fromDate, filters.toDate]);
 
     const loadPipelines = async () => {
         try {
@@ -303,7 +316,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                     // Add lead to target column
                     return {
                         ...col,
-                        leads: [...col.leads, { ...leadToMove, stage_id: targetStageId }],
+                        leads: [...col.leads, { ...leadToMove, stage_id: targetStageId, updated_at: new Date().toISOString() }],
                         total_count: col.total_count + 1
                     };
                 }
@@ -523,23 +536,6 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const handleEditLeadClick = async (lead: Lead) => {
         setEditingLead(lead);
         setIsEditLeadModalOpen(true);
-        setActiveTab('opportunity');
-
-        // Fetch related data
-        try {
-            const [fetchedNotes, fetchedTasks, fetchedAppointments, fetchedCallLogs] = await Promise.all([
-                getNotes(lead.id),
-                getTasks(lead.id),
-                getAppointments(lead.id),
-                getCallLogs(lead.id)
-            ]);
-            setNotes(fetchedNotes);
-            setTasks(fetchedTasks);
-            setAppointments(fetchedAppointments);
-            setCallLogs(fetchedCallLogs);
-        } catch (e) {
-            console.error("Error fetching lead details", e);
-        }
     };
 
     const handleDeleteLeadClick = async (leadId: string) => {
@@ -564,88 +560,10 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
         }
     };
 
-    const handleAddNote = async () => {
-        if (!canWrite) return;
-        if (!editingLead.id || !newNote.title || !newNote.content) return;
-        try {
-            await createNote({
-                lead_id: editingLead.id,
-                title: newNote.title,
-                content: newNote.content,
-                tags: newNote.tags.split(',').map(t => t.trim()).filter(Boolean)
-            });
-            const updatedNotes = await getNotes(editingLead.id);
-            setNotes(updatedNotes);
-            setNewNote({ title: '', content: '', tags: '' });
-            setToast({ type: 'success', title: 'Note Added', message: 'Note added successfully.' });
-        } catch (e) {
-            console.error(e);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to add note.' });
-        }
-    };
-
-    const handleAddFollowUp = async () => {
-        if (!canWrite) return;
-        if (!editingLead.id || !newTask.title) return;
-        try {
-            await createTask({
-                lead_id: editingLead.id,
-                title: newTask.title,
-                description: newTask.description,
-                due_date: newTask.due_date
-            });
-            const updatedTasks = await getTasks(editingLead.id);
-            setTasks(updatedTasks);
-            setNewTask({ title: '', description: '', due_date: '' });
-            setToast({ type: 'success', title: 'Task Added', message: 'Follow-up task added successfully.' });
-        } catch (e) {
-            console.error(e);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to add task.' });
-        }
-    };
-
-    const handleAddAppointment = async () => {
-        if (!canWrite) return;
-        if (!editingLead.id || !newAppointment.title || !newAppointment.start_time) return;
-        try {
-            await createAppointment({
-                lead_id: editingLead.id,
-                title: newAppointment.title,
-                start_time: newAppointment.start_time,
-                end_time: newAppointment.end_time,
-                description: newAppointment.description
-            });
-            const updatedAppointments = await getAppointments(editingLead.id);
-            setAppointments(updatedAppointments);
-            setNewAppointment({ title: '', start_time: '', end_time: '', description: '' });
-            setToast({ type: 'success', title: 'Appointment Added', message: 'Appointment scheduled successfully.' });
-        } catch (e) {
-            console.error(e);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to add appointment.' });
-        }
-    };
-
-    const handleAddCallLog = async () => {
-        if (!canWrite) return;
-        if (!editingLead.id) return;
-        try {
-            await createCallLog({
-                lead_id: editingLead.id,
-                call_type: newCallLog.call_type,
-                duration: newCallLog.duration,
-                notes: newCallLog.notes,
-                called_at: newCallLog.called_at || new Date().toISOString()
-            });
-            const updatedCallLogs = await getCallLogs(editingLead.id);
-            setCallLogs(updatedCallLogs);
-            setNewCallLog({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
-            setToast({ type: 'success', title: 'Call Log Added', message: 'Call log added successfully.' });
-        } catch (e) {
-            console.error(e);
-            setToast({ type: 'error', title: 'Error', message: 'Failed to add call log.' });
-        }
-    };
-
+    
+    
+    
+    
     const handleSaveLead = async () => {
         if (!canWrite) return;
         if (!editingLead.id) return;
@@ -673,93 +591,123 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     };
 
     // Export Leads to CSV
-    const handleExportLeads = () => {
-        if (!filteredBoardData) return;
+    const handleExportLeads = async () => {
+        if (!selectedPipelineId) return;
 
-        // Collect all leads from filtered columns
-        const allLeads: Lead[] = [];
-        filteredBoardData.columns.forEach(col => {
-            col.leads.forEach(lead => {
-                allLeads.push({
-                    ...lead,
-                    stage_name: col.stage.name
-                } as any);
-            });
-        });
+        try {
+            setToast({ type: 'info', title: 'Exporting...', message: 'Fetching all leads for export.' });
+            
+            // Fetch all leads matching filters by looping through pages
+            const exportStageId = filters.stageIds && filters.stageIds.length > 0 ? filters.stageIds[0] : undefined;
+            
+            let allLeads: any[] = [];
+            let page = 1;
+            let hasMore = true;
+            
+            while (hasMore) {
+                const chunk = await getLeads(selectedPipelineId, exportStageId, page, 100, filters);
+                if (chunk && chunk.length > 0) {
+                    allLeads = [...allLeads, ...chunk];
+                    if (chunk.length < 100) hasMore = false;
+                    else page++;
+                } else {
+                    hasMore = false;
+                }
+            }
 
-        if (allLeads.length === 0) {
-            setToast({
-                type: 'warning',
-                title: 'No Leads',
-                message: 'No leads to export with current filters.'
-            });
-            return;
-        }
+            if (!allLeads || allLeads.length === 0) {
+                setToast({
+                    type: 'warning',
+                    title: 'No Leads',
+                    message: 'No leads to export with current filters.'
+                });
+                return;
+            }
 
-        // Create CSV content
-        const headers = [
-            'Name',
-            'Email',
-            'Phone',
-            'Company',
-            'Stage',
-            'Value',
-            'Status',
-            'Source',
-            'Created At',
-            'Last Contact'
-        ];
+            // Map stage IDs to stage names using current boardData
+            const stageMap: Record<string, string> = {};
+            if (boardData) {
+                boardData.columns.forEach(col => {
+                    stageMap[col.stage.id] = col.stage.name;
+                });
+            }
 
-        const csvRows = [headers.join(',')];
+            const exportLeads = allLeads.map(lead => ({
+                ...lead,
+                stage_name: lead.stage_id ? (stageMap[lead.stage_id] || 'Unknown Stage') : 'No Stage'
+            }));
 
-        allLeads.forEach(lead => {
-            const row = [
-                `"${(lead.name || '').replace(/"/g, '""')}"`,
-                `"${(lead.email || '').replace(/"/g, '""')}"`,
-                `"${(formatPhone(lead.phone) || '').replace(/"/g, '""')}"`,
-                `"${(lead.company || '').replace(/"/g, '""')}"`,
-                `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
-                lead.estimated_value || 0,
-                `"${(lead.status || '').replace(/"/g, '""')}"`,
-                `"${(lead.source || '').replace(/"/g, '""')}"`,
-                `"${lead.created_at ? new Date(lead.created_at).toLocaleString() : ''}"`,
-                `"${lead.last_contacted_at ? new Date(lead.last_contacted_at).toLocaleString() : ''}"`
+            // Create CSV content
+            const headers = [
+                'Name',
+                'Email',
+                'Phone',
+                'Company',
+                'Stage',
+                'Value',
+                'Status',
+                'Source',
+                'Created At',
+                'Last Contact'
             ];
-            csvRows.push(row.join(','));
-        });
 
-        const csvContent = csvRows.join('\n');
+            const csvRows = [headers.join(',')];
 
-        // Create download link
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
+            exportLeads.forEach(lead => {
+                const row = [
+                    `"${(lead.name || '').replace(/"/g, '""')}"`,
+                    `"${(lead.email || '').replace(/"/g, '""')}"`,
+                    `"${(formatPhone(lead.phone) || '').replace(/"/g, '""')}"`,
+                    `"${(lead.company || '').replace(/"/g, '""')}"`,
+                    `"${((lead as any).stage_name || '').replace(/"/g, '""')}"`,
+                    lead.estimated_value || 0,
+                    `"${(lead.status || '').replace(/"/g, '""')}"`,
+                    `"${(lead.source || '').replace(/"/g, '""')}"`,
+                    `"${lead.created_at ? parseDate(lead.created_at).toLocaleString() : ''}"`,
+                    `"${lead.last_contacted_at ? parseDate(lead.last_contacted_at).toLocaleString() : ''}"`
+                ];
+                csvRows.push(row.join(','));
+            });
 
-        // Generate filename with filters info
-        let filename = 'leads';
-        if (filters.stageIds.length > 0) {
-            filename += '_filtered_stages';
+            const csvContent = csvRows.join('\n');
+
+            // Create download link
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            // Generate filename with filters info
+            let filename = 'leads';
+            if (filters.stageIds.length > 0) {
+                filename += '_filtered_stages';
+            }
+            if (filters.search) {
+                filename += '_search';
+            }
+            if (filters.quickFilter !== 'all') {
+                filename += `_${filters.quickFilter}`;
+            }
+            if (filters.fromDate || filters.toDate) {
+                filename += '_by_date';
+            }
+            filename += `_${new Date().toISOString().split('T')[0]}.csv`;
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            setToast({
+                type: 'success',
+                title: 'Export Successful',
+                message: `Exported ${allLeads.length} lead(s) to CSV.`
+            });
+        } catch (error) {
+            console.error("Export failed:", error);
+            setToast({ type: 'error', title: 'Export Failed', message: 'Could not export leads.' });
         }
-        if (filters.search) {
-            filename += '_search';
-        }
-        if (filters.quickFilter !== 'all') {
-            filename += `_${filters.quickFilter}`;
-        }
-        filename += `_${new Date().toISOString().split('T')[0]}.csv`;
-
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        setToast({
-            type: 'success',
-            title: 'Export Successful',
-            message: `Exported ${allLeads.length} lead(s) to CSV.`
-        });
     };
 
     // Scroll Sync Logic
@@ -887,6 +835,46 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     )}
                                 </div>
                             </div>
+                            
+                            {/* Date Filter - Top Row */}
+                            <div className="hidden md:flex items-center gap-2 ml-2 bg-white rounded-xl border border-[var(--color-brand)]/20 shadow-sm px-2 overflow-hidden hover:border-[var(--color-brand)]/60 transition-all focus-within:ring-1 focus-within:ring-[var(--color-brand)] focus-within:border-[var(--color-brand)]">
+                                <input
+                                    type="date"
+                                    value={filters.fromDate}
+                                    onChange={(e) => setFilters({ ...filters, fromDate: e.target.value })}
+                                    className="py-1.5 text-[13px] outline-none bg-transparent text-[var(--color-brand)] font-medium cursor-pointer"
+                                    title="From Date"
+                                />
+                                <span className="text-xs text-[var(--color-brand)]/50 font-medium">to</span>
+                                <input
+                                    type="date"
+                                    value={filters.toDate}
+                                    onChange={(e) => setFilters({ ...filters, toDate: e.target.value })}
+                                    className="py-1.5 text-[13px] outline-none bg-transparent text-[var(--color-brand)] font-medium cursor-pointer"
+                                    title="To Date"
+                                />
+                                </div>
+
+
+                            {/* Stage Filters Dropdown */}
+                            <div className="relative ml-2">
+                                <select
+                                    value={filters.stageIds.length === 1 ? filters.stageIds[0] : ''}
+                                    onChange={(e) => setFilters({ ...filters, stageIds: e.target.value ? [e.target.value] : [] })}
+                                    className={`border rounded-xl pl-2.5 pr-7 py-1.5 text-[13px] focus:ring-1 outline-none transition-all appearance-none cursor-pointer shadow-sm font-medium ${filters.stageIds.length > 0
+                                        ? 'bg-[var(--color-brand)] text-white border-[var(--color-brand)]'
+                                        : 'bg-white text-[var(--color-brand)] border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] focus:ring-[var(--color-brand)] hover:border-[var(--color-brand)]/60'
+                                        }`}
+                                >
+                                    <option value="">All Stages</option>
+                                    {boardData?.columns.map(col => (
+                                        <option key={col.stage.id} value={col.stage.id}>
+                                            {col.stage.name} ({col.total_count})
+                                        </option>
+                                    ))}
+                                </select>
+                                <svg className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.stageIds.length > 0 ? 'text-white' : 'text-[var(--color-brand)]/70'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
                         </div>
 
                         <div className="flex items-center justify-between w-full md:w-auto gap-2">
@@ -903,8 +891,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
                                         className="bg-white border border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] rounded-xl pl-2.5 pr-7 py-1.5 text-sm text-[var(--color-brand)] font-medium focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all appearance-none cursor-pointer hover:bg-[var(--color-brand)]/5 shadow-sm"
                                     >
-                                        <option value="created_at_desc">Newest First</option>
-                                        <option value="created_at_asc">Oldest First</option>
+                                        <option value="updated_at_desc">Recently Updated</option>
+                                        <option value="created_at_desc">Recently Created</option>
+                                        <option value="created_at_asc">Oldest Created</option>
                                         <option value="value_desc">Value: High to Low</option>
                                         <option value="value_asc">Value: Low to High</option>
                                     </select>
@@ -929,22 +918,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                     <svg className={`w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none ${filters.quickFilter !== 'all' ? 'text-white' : 'text-[var(--color-brand)]/70'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                 </div>
 
-                                {/* Filters Toggle Button - Icon Only */}
-                                <button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    className={`p-2 rounded-xl text-sm font-medium transition-all flex items-center justify-center shadow-sm ${showFilters
-                                        ? 'bg-[var(--color-brand)] text-white'
-                                        : 'bg-white border border-[var(--color-brand)]/20 text-[var(--color-brand)] hover:bg-[var(--color-brand)]/5'
-                                        }`}
-                                    title="Filter by Stage"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                                    {filters.stageIds.length > 0 && (
-                                        <span className="ml-1 bg-[var(--color-brand)] text-white px-1 h-3.5 flex items-center justify-center rounded-full text-[9px] font-bold">
-                                            {filters.stageIds.length}
-                                        </span>
-                                    )}
-                                </button>
+                                {/* Filters Toggle Button (Removed because filters are always inline now) */}
 
                                 {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
                                     <button
@@ -991,53 +965,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                         </div>
                     </div>
 
-                    {/* Stage Filters - Collapsible */}
-                    {showFilters && (
-                        <div className="p-4 md:p-5 bg-[var(--color-surface)] border-b md:border md:border-t-0 border-[var(--color-border)] md:rounded-b-2xl shadow-sm animate-in fade-in slide-in-from-top-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider mr-2">Stage:</span>
-                                <button
-                                    onClick={() => setFilters({ ...filters, stageIds: [] })}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filters.stageIds.length === 0
-                                        ? 'bg-[var(--color-brand)] text-white'
-                                        : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
-                                        }`}
-                                >
-                                    All Stages
-                                </button>
-                                {boardData?.columns.map(col => (
-                                    <button
-                                        key={col.stage.id}
-                                        onClick={() => {
-                                            const newStageIds = filters.stageIds.includes(col.stage.id)
-                                                ? filters.stageIds.filter(id => id !== col.stage.id)
-                                                : [...filters.stageIds, col.stage.id];
-                                            setFilters({ ...filters, stageIds: newStageIds });
-                                        }}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${filters.stageIds.includes(col.stage.id)
-                                            ? 'bg-[var(--color-brand)] text-white'
-                                            : 'bg-white border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-brand)]'
-                                            }`}
-                                    >
-                                        <span className={`w-2 h-2 rounded-full ${filters.stageIds.includes(col.stage.id) ? 'bg-white' : ''}`} style={{ backgroundColor: filters.stageIds.includes(col.stage.id) ? undefined : col.stage.color }}></span>
-                                        {col.stage.name}
-                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${filters.stageIds.includes(col.stage.id) ? 'bg-white/20' : 'bg-slate-100'}`}>
-                                            {col.total_count}
-                                        </span>
-                                    </button>
-                                ))}
-                                {(filters.search || filters.stageIds.length > 0 || filters.quickFilter !== 'all') && (
-                                    <button
-                                        onClick={() => setFilters({ search: '', stageIds: [], sortBy: 'created_at_desc', quickFilter: 'all', viewType: 'Pipeline' })}
-                                        className="ml-auto text-xs text-[var(--color-brand)] hover:underline font-medium flex items-center gap-1"
-                                    >
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                                        Clear all
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                    {/* Stage Filters moved inline */}
                 </div>
             </div>
 
@@ -1149,6 +1077,15 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
             </Modal>
 
             <DatabaseSetup isOpen={showDbSetup} onClose={() => setShowDbSetup(false)} />
+
+            {activeCallHistoryLead && (
+                <CallyzerCallHistoryModal
+                    isOpen={isCallHistoryModalOpen}
+                    onClose={() => setIsCallHistoryModalOpen(false)}
+                    phoneNumber={activeCallHistoryLead.phone}
+                    leadName={activeCallHistoryLead.name}
+                />
+            )}
 
             <Modal
                 isOpen={isCreatingStage}
@@ -1370,82 +1307,100 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                         )}
 
 
-                                                        <div className="flex justify-between items-center py-2 px-1">
-                                                            {/* Left Side: Actions */}
-                                                            <div className="flex items-center gap-1">
-                                                                {/* Edit */}
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); handleEditLeadClick(lead); }}
-                                                                    className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
-                                                                    title="Edit Lead"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                                                                </button>
-
-                                                                {/* WhatsApp */}
-                                                                {lead.phone && (
+                                                        <div className="flex flex-col gap-2 py-2 px-1 mt-1 border-t border-[var(--color-border)]/50">
+                                                            <div className="flex justify-between items-center">
+                                                                {/* Left Side: Actions */}
+                                                                <div className="flex items-center gap-1">
+                                                                    {/* Edit */}
                                                                     <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setActiveWhatsAppLead({ phone: lead.phone, name: lead.name || '' });
-                                                                            setIsWhatsAppModalOpen(true);
-                                                                        }}
-                                                                        className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group/btn"
-                                                                        title="WhatsApp Message"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
-                                                                    </button>
-                                                                )}
-
-                                                                {/* Email */}
-                                                                {lead.email && (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setEmailRecipient({ email: lead.email, name: lead.name || '' });
-                                                                            setIsEmailModalOpen(true);
-                                                                        }}
+                                                                        onClick={(e) => { e.stopPropagation(); handleEditLeadClick(lead); }}
                                                                         className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
-                                                                        title="Email"
+                                                                        title="Edit Lead"
                                                                     >
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                                                     </button>
-                                                                )}
 
-                                                                {/* Add Task */}
-                                                                {canWrite && (
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleEditLeadClick(lead);
-                                                                            setTimeout(() => setActiveTab('follow_up'), 100);
-                                                                        }}
-                                                                        className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
-                                                                        title="Add Task"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
-                                                                    </button>
-                                                                )}
+                                                                    {/* WhatsApp */}
+                                                                    {lead.phone && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveWhatsAppLead({ phone: lead.phone, name: lead.name || '' });
+                                                                                setIsWhatsAppModalOpen(true);
+                                                                            }}
+                                                                            className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors group/btn"
+                                                                            title="WhatsApp Message"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
+                                                                        </button>
+                                                                    )}
 
-                                                                {/* Delete */}
-                                                                {canDelete && (
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteLeadClick(lead.id); }}
-                                                                        className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors group/btn"
-                                                                        title="Delete Lead"
-                                                                    >
-                                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                                                    </button>
+                                                                    {/* Call History */}
+                                                                    {lead.phone && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveCallHistoryLead({ phone: lead.phone, name: lead.name || '' });
+                                                                                setIsCallHistoryModalOpen(true);
+                                                                            }}
+                                                                            className="p-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group/btn"
+                                                                            title="Call History"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Email */}
+                                                                    {lead.email && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEmailRecipient({ email: lead.email, name: lead.name || '' });
+                                                                                setIsEmailModalOpen(true);
+                                                                            }}
+                                                                            className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
+                                                                            title="Email"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Add Task */}
+                                                                    {canWrite && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleEditLeadClick(lead);
+                                                                            }}
+                                                                            className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-[var(--color-brand)] hover:bg-[var(--color-brand)]/10 rounded-lg transition-colors group/btn"
+                                                                            title="Add Task"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                                                                        </button>
+                                                                    )}
+
+                                                                    {/* Delete */}
+                                                                    {canDelete && (
+                                                                        <button
+                                                                            onClick={(e) => { e.stopPropagation(); handleDeleteLeadClick(lead.id); }}
+                                                                            className="p-1.5 text-[var(--color-text)] opacity-60 hover:opacity-100 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors group/btn"
+                                                                            title="Delete Lead"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Right Side: Avatar */}
+                                                                {lead.owner_id && (
+                                                                    <div className="w-5 h-5 rounded-full bg-[var(--color-brand)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--color-brand)] shrink-0">U</div>
                                                                 )}
                                                             </div>
-
-                                                            {/* Right Side: Date */}
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="text-[10px] text-[var(--color-text)] font-semibold tracking-wide">
-                                                                    {new Date(lead.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                                                                </div>
-                                                                {lead.owner_id && (
-                                                                    <div className="w-5 h-5 rounded-full bg-[var(--color-brand)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--color-brand)]">U</div>
+                                                            
+                                                            <div className="text-[9px] text-[var(--color-text)] opacity-80 font-medium tracking-wide border-t border-[var(--color-border)]/20 pt-1 mt-1 flex justify-between items-center whitespace-nowrap">
+                                                                <span className="truncate pr-1">Created: <strong className="font-bold">{parseDate(lead.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
+                                                                {lead.updated_at && (
+                                                                    <span className="truncate pl-1 border-l border-[var(--color-border)]/30">Updated: <strong className="font-bold">{parseDate(lead.updated_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong></span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1528,7 +1483,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
                                     <div className="flex justify-between items-center pt-3 border-t border-[var(--color-border)]">
                                         <div className="text-xs text-[var(--color-text)] opacity-50 font-medium">
-                                            {new Date(lead.created_at).toLocaleDateString()}
+                                            {parseDate(lead.created_at).toLocaleDateString()}
                                         </div>
                                         {lead.estimated_value && (
                                             <div className="text-sm font-bold text-emerald-600">
@@ -1592,7 +1547,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                                 {lead.estimated_value ? `$${lead.estimated_value.toLocaleString()}` : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-sm text-[var(--color-text)] opacity-60">
-                                                {new Date(lead.created_at).toLocaleDateString()}
+                                                {parseDate(lead.created_at).toLocaleDateString()}
                                             </td>
                                         </tr>
                                     ))}
@@ -1613,516 +1568,17 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
 
 
             {/* Edit Lead Modal */}
-            <Modal
+            <LeadEditModal
                 isOpen={isEditLeadModalOpen}
                 onClose={() => setIsEditLeadModalOpen(false)}
-                title={`Contact Info (Edit) | Contact Type: ${editingLead.type || 'Lead'}`}
-                size="3xl"
-                scrollable={true}
-                footer={
-                    <div className="flex justify-end w-full gap-2">
-                        <button
-                            onClick={() => setIsEditLeadModalOpen(false)}
-                            className="px-4 py-2 text-[var(--color-text)] opacity-70 hover:opacity-100 hover:bg-[var(--color-bg)] rounded-lg transition-all"
-                        >
-                            Cancel
-                        </button>
-                        {canWrite && (
-                            <button
-                                onClick={handleSaveLead}
-                                disabled={leadLoading}
-                                className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity"
-                            >
-                                {leadLoading ? 'Saving...' : 'UPDATE'}
-                            </button>
-                        )}
-                    </div>
-                }
-            >
-                <div className="flex flex-col h-full">
-                    {/* Tabs */}
-                    <div className="sticky top-0 z-10 bg-[var(--color-surface)] pb-4 mb-4 border-b border-[var(--color-border)]">
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar">
-                            {['Opportunity', 'Additional Info', 'Call Logs', 'Follow-up', 'Notes', 'Appointments'].map(tab => {
-                                const tabKey = tab.toLowerCase().replace(' ', '_').replace('-', '_');
-                                const isActive = activeTab === tabKey || (tabKey === 'follow_up' && activeTab === 'follow_up');
-                                return (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tabKey === 'follow_up' ? 'follow_up' : tabKey)}
-                                        className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${isActive ? 'bg-[var(--color-brand)] text-white' : 'bg-transparent text-[var(--color-text)] hover:bg-[var(--color-bg)]'}`}
-                                    >
-                                        {tab}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                        {activeTab === 'opportunity' && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Opportunity Name</label>
-                                    <input
-                                        type="text"
-                                        value={editingLead.name || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Contact Name <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        value={editingLead.name || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, name: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Email</label>
-                                    <input
-                                        type="email"
-                                        value={editingLead.email || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Phone</label>
-                                    <PhoneInputWithCountry
-                                        value={editingLead.phone || ''}
-                                        onChange={(val) => setEditingLead({ ...editingLead, phone: val })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">City</label>
-                                    <input
-                                        type="text"
-                                        value={editingLead.custom_data?.city || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, city: e.target.value } })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Pipeline <span className="text-red-500">*</span></label>
-                                    <select
-                                        value={editingLead.pipeline_id || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, pipeline_id: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    >
-                                        {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Stage <span className="text-red-500">*</span></label>
-                                    <select
-                                        value={editingLead.stage_id || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, stage_id: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    >
-                                        {boardData?.columns.map(c => <option key={c.stage.id} value={c.stage.id}>{c.stage.name}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Created At</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        value={editingLead.created_at ? new Date(editingLead.created_at).toLocaleString() : ''}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 rounded-lg px-3 py-2 text-sm outline-none cursor-not-allowed"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Updated At</label>
-                                    <input
-                                        type="text"
-                                        disabled
-                                        value={new Date().toLocaleString()} // Mock for now
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 rounded-lg px-3 py-2 text-sm outline-none cursor-not-allowed"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Tags</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Add tags separated by comma"
-                                        value={editingLead.tags?.join(', ') || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, tags: e.target.value.split(',').map(t => t.trim()) })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Type</label>
-                                    <select
-                                        value={editingLead.type || 'Lead'}
-                                        onChange={(e) => setEditingLead({ ...editingLead, type: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    >
-                                        <option value="Lead">Lead</option>
-                                        <option value="Customer">Customer</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Lead Value</label>
-                                    <input
-                                        type="number"
-                                        value={editingLead.estimated_value || ''}
-                                        onChange={(e) => setEditingLead({ ...editingLead, estimated_value: parseFloat(e.target.value) })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Status</label>
-                                    <select
-                                        value={editingLead.status || 'active'}
-                                        onChange={(e) => setEditingLead({ ...editingLead, status: e.target.value })}
-                                        className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="Hot">Hot</option>
-                                        <option value="Warm">Warm</option>
-                                        <option value="Cold">Cold</option>
-                                        <option value="Won">Won</option>
-                                        <option value="Lost">Lost</option>
-                                    </select>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'additional_info' && (
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">First Name <span className="text-red-500">*</span></label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.first_name || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, first_name: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Last Name</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.last_name || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, last_name: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Email <span className="text-red-500">*</span></label>
-                                        <input
-                                            type="email"
-                                            value={editingLead.email || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, email: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Phone <span className="text-red-500">*</span></label>
-                                        <PhoneInputWithCountry
-                                            value={editingLead.phone || ''}
-                                            onChange={(val) => setEditingLead({ ...editingLead, phone: val })}
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Contact Type</label>
-                                        <select
-                                            value={editingLead.type || 'Lead'}
-                                            onChange={(e) => setEditingLead({ ...editingLead, type: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        >
-                                            <option value="Lead">Lead</option>
-                                            <option value="Customer">Customer</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Business Name</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.company || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, company: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">GST No</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.gst_no || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, gst_no: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Business Address</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.business_address || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, business_address: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">State</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.state || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, state: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold mb-1 text-[var(--color-text)]">Postal Code</label>
-                                        <input
-                                            type="text"
-                                            value={editingLead.custom_data?.postal_code || ''}
-                                            onChange={(e) => setEditingLead({ ...editingLead, custom_data: { ...editingLead.custom_data, postal_code: e.target.value } })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'call_logs' && (
-                            <div className="space-y-6">
-                                {canWrite && (
-                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                        <h3 className="font-bold text-[var(--color-text)]">Log Call</h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <select
-                                                value={newCallLog.call_type}
-                                                onChange={(e) => setNewCallLog({ ...newCallLog, call_type: e.target.value })}
-                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                            >
-                                                <option value="outbound">Outbound</option>
-                                                <option value="inbound">Inbound</option>
-                                                <option value="missed">Missed</option>
-                                            </select>
-                                            <input
-                                                type="number"
-                                                placeholder="Duration (seconds)"
-                                                value={newCallLog.duration || ''}
-                                                onChange={(e) => setNewCallLog({ ...newCallLog, duration: parseInt(e.target.value) || 0 })}
-                                                className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                            />
-                                        </div>
-                                        <input
-                                            type="datetime-local"
-                                            value={newCallLog.called_at}
-                                            onChange={(e) => setNewCallLog({ ...newCallLog, called_at: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <textarea
-                                            placeholder="Call Notes"
-                                            value={newCallLog.notes}
-                                            onChange={(e) => setNewCallLog({ ...newCallLog, notes: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                        />
-                                        <button
-                                            onClick={handleAddCallLog}
-                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                        >
-                                            Log Call
-                                        </button>
-                                    </div>
-                                )}
-                                <div className="space-y-3">
-                                    <h3 className="font-bold text-[var(--color-text)]">Call History</h3>
-                                    {callLogs.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No call logs found.</p>}
-                                    {callLogs.map(log => (
-                                        <div key={log.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
-                                            <div className="flex justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase ${log.call_type === 'inbound' ? 'bg-green-100 text-green-800' : log.call_type === 'missed' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                        {log.call_type}
-                                                    </span>
-                                                    <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(log.called_at).toLocaleString()}</span>
-                                                </div>
-                                                <span className="text-xs text-[var(--color-text)] opacity-70">{log.duration}s</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--color-text)] opacity-70 mt-1">{log.notes}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'follow_up' && (
-                            <div className="space-y-6">
-                                {canWrite && (
-                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                        <h3 className="font-bold text-[var(--color-text)]">Add Follow-up Task</h3>
-                                        <input
-                                            type="text"
-                                            placeholder="Follow-up Title"
-                                            value={newTask.title}
-                                            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <textarea
-                                            placeholder="Description"
-                                            value={newTask.description}
-                                            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                        />
-                                        <input
-                                            type="datetime-local"
-                                            value={newTask.due_date}
-                                            onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <button
-                                            onClick={handleAddFollowUp}
-                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                        >
-                                            ADD
-                                        </button>
-                                    </div>
-                                )}
-                                <div className="space-y-3">
-                                    <h3 className="font-bold text-[var(--color-text)]">Tasks</h3>
-                                    {tasks.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No tasks found.</p>}
-                                    {tasks.map(task => (
-                                        <div key={task.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
-                                            <div className="flex justify-between">
-                                                <h4 className="font-bold text-sm text-[var(--color-text)]">{task.title}</h4>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(task.due_date).toLocaleDateString()}</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--color-text)] opacity-70 mt-1">{task.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'notes' && (
-                            <div className="space-y-6">
-                                {canWrite && (
-                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                        <h3 className="font-bold text-[var(--color-text)]">Add Note</h3>
-                                        <input
-                                            type="text"
-                                            placeholder="Title *"
-                                            value={newNote.title}
-                                            onChange={(e) => setNewNote({ ...newNote, title: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Add Tags (comma separated)"
-                                            value={newNote.tags}
-                                            onChange={(e) => setNewNote({ ...newNote, tags: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <textarea
-                                            placeholder="Write Notes *"
-                                            value={newNote.content}
-                                            onChange={(e) => setNewNote({ ...newNote, content: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-32 resize-none"
-                                        />
-                                        <button
-                                            onClick={handleAddNote}
-                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                        >
-                                            Save
-                                        </button>
-                                    </div>
-                                )}
-                                <div className="space-y-3">
-                                    <h3 className="font-bold text-[var(--color-text)]">Previous Notes</h3>
-                                    {notes.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No notes found.</p>}
-                                    {notes.map(note => (
-                                        <div key={note.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
-                                            <div className="flex justify-between">
-                                                <h4 className="font-bold text-sm text-[var(--color-text)]">{note.title}</h4>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(note.created_at).toLocaleDateString()}</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--color-text)] opacity-70 mt-1 whitespace-pre-wrap">{note.content}</p>
-                                            {note.tags && note.tags.length > 0 && (
-                                                <div className="flex gap-1 mt-2">
-                                                    {note.tags.map((tag: string) => (
-                                                        <span key={tag} className="text-[10px] bg-[var(--color-bg)] text-[var(--color-text)] opacity-60 px-1.5 py-0.5 rounded">
-                                                            {tag}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 'appointments' && (
-                            <div className="space-y-6">
-                                {canWrite && (
-                                    <div className="space-y-4 border-b border-[var(--color-border)] pb-6">
-                                        <h3 className="font-bold text-[var(--color-text)]">Schedule Appointment</h3>
-                                        <input
-                                            type="text"
-                                            placeholder="Title *"
-                                            value={newAppointment.title}
-                                            onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                        />
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">Start Time</label>
-                                                <input
-                                                    type="datetime-local"
-                                                    value={newAppointment.start_time}
-                                                    onChange={(e) => setNewAppointment({ ...newAppointment, start_time: e.target.value })}
-                                                    className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-bold mb-1 text-[var(--color-text)] opacity-70">End Time</label>
-                                                <input
-                                                    type="datetime-local"
-                                                    value={newAppointment.end_time}
-                                                    onChange={(e) => setNewAppointment({ ...newAppointment, end_time: e.target.value })}
-                                                    className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                        <textarea
-                                            placeholder="Description"
-                                            value={newAppointment.description}
-                                            onChange={(e) => setNewAppointment({ ...newAppointment, description: e.target.value })}
-                                            className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
-                                        />
-                                        <button
-                                            onClick={handleAddAppointment}
-                                            className="px-4 py-2 bg-[var(--color-brand)] text-white rounded-lg font-bold hover:opacity-90 transition-opacity float-right"
-                                        >
-                                            Schedule
-                                        </button>
-                                    </div>
-                                )}
-                                <div className="space-y-3">
-                                    <h3 className="font-bold text-[var(--color-text)]">Upcoming Appointments</h3>
-                                    {appointments.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No appointments found.</p>}
-                                    {appointments.map(apt => (
-                                        <div key={apt.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
-                                            <div className="flex justify-between">
-                                                <h4 className="font-bold text-sm text-[var(--color-text)]">{apt.title}</h4>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(apt.start_time).toLocaleString()}</span>
-                                            </div>
-                                            <p className="text-xs text-[var(--color-text)] opacity-70 mt-1">{apt.description}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </Modal>
+                leadId={editingLead?.id}
+                leadData={editingLead}
+                onUpdate={() => {
+                    if (selectedPipelineId) {
+                        fetchBoardData(selectedPipelineId);
+                    }
+                }}
+            />
 
             {
                 toast && (
