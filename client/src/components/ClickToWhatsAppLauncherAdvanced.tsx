@@ -1596,15 +1596,15 @@ const ClickToWhatsAppLauncher = () => {
             )}
 
             <div className="ctwa-actions" style={{ flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', width: '100%', alignItems: 'center', position: 'relative' }}>
                 {currentStep > 1 && !successData && (
-                  <button type="button" onClick={prevStep} className="ctwa-back-btn" style={{ position: 'relative', transform: 'none', top: 'auto', left: 'auto' }}>
+                  <button type="button" onClick={prevStep} className="ctwa-back-btn">
                     Back
                   </button>
                 )}
                 
                 {!successData && (
-                  <button type="submit" disabled={loading} className={`ctwa-submit-btn ${currentStep === totalSteps ? 'pulse-button' : ''}`} style={{marginLeft: 'auto'}}>
+                  <button type="submit" disabled={loading} className={`ctwa-submit-btn ${currentStep === totalSteps ? 'pulse-button' : ''}`}>
                     {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : (
                       <>
                         {loading ? 'Creating...' : 'Next'}

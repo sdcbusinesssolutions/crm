@@ -322,12 +322,19 @@ router.post('/launch', requireAuth, async (req, res) => {
             exclusions,
             duplicates,
             advantagePlacements,
-            publisherPlatforms
+            publisherPlatforms,
+            adSets
         } = req.body;
 
         // Validation
-        if (!adAccountId || !pageId || !campaignName || !dailyBudget || !headline || !primaryText || !imageUrl || !targetCountries || !minAge || !maxAge) {
-            return res.status(400).json({ error: 'Missing required ad configuration parameters.' });
+        const isUsingAdSetsTree = adSets && adSets.length > 0;
+        if (!adAccountId || !pageId || !campaignName || !dailyBudget) {
+            return res.status(400).json({ error: 'Missing required ad configuration parameters (Ad Account, Page, Campaign Name, Budget).' });
+        }
+        if (!isUsingAdSetsTree) {
+            if (!headline || !primaryText || !imageUrl || !targetCountries || !minAge || !maxAge) {
+                return res.status(400).json({ error: 'Missing required ad configuration parameters.' });
+            }
         }
 
         // Fetch User's Meta Access Token from WhatsApp Config
@@ -378,7 +385,7 @@ router.post('/launch', requireAuth, async (req, res) => {
             exclusions,
             advantagePlacements,
             publisherPlatforms
-        }, duplicates);
+        }, duplicates, adSets);
 
         res.status(200).json(result);
     } catch (error) {

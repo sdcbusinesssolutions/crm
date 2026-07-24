@@ -1958,15 +1958,15 @@ const ClickToWhatsAppLauncher = () => {
             )}
 
             <div className="ctwa-actions" style={{ flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', position: 'relative' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', width: '100%', alignItems: 'center', position: 'relative' }}>
                 {currentStep > 1 && !successData && (
-                  <button type="button" onClick={prevStep} className="ctwa-back-btn" style={{ position: 'relative', transform: 'none', top: 'auto', left: 'auto' }}>
+                  <button type="button" onClick={prevStep} className="ctwa-back-btn">
                     Back
                   </button>
                 )}
                 
                 {!successData && (
-                  <button type="submit" disabled={loading} className={`ctwa-submit-btn ${currentStep === totalSteps ? 'pulse-button' : ''}`} style={{marginLeft: 'auto'}}>
+                  <button type="submit" disabled={loading} className={`ctwa-submit-btn ${currentStep === totalSteps ? 'pulse-button' : ''}`}>
                     {currentStep === totalSteps ? (loading ? 'Launching Ad...' : 'Launch WhatsApp Ad') : (
                       <>
                         {loading ? 'Creating...' : 'Next'}
@@ -1990,15 +1990,6 @@ const ClickToWhatsAppLauncher = () => {
                 </div>
               )}
 
-              {successData && (
-                <button type="button" onClick={() => {
-                  setSuccessData(null);
-                  setCurrentStep(1);
-                  setFormData({...formData, campaignName: 'New Campaign ' + Date.now()});
-                }} className="ctwa-submit-btn" style={{marginLeft: 'auto'}}>
-                  Create Another Ad
-                </button>
-              )}
             </div>
           </form>
           </div>
@@ -2226,6 +2217,42 @@ const ClickToWhatsAppLauncher = () => {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {successData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#ffffff', width: '100%', maxWidth: '500px', borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="ctwa-success" style={{background: '#dcfce7', padding: '1rem', borderRadius: '8px', border: '1px solid #bbf7d0'}}>
+              <h4 style={{color: '#166534', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Ads Launched Successfully!
+              </h4>
+              <p style={{color: '#15803d', margin: '0 0 0.75rem 0', fontSize: '0.9rem'}}>Your campaign structure has been created on Meta.</p>
+              <div style={{color: '#15803d', fontSize: '0.85rem'}}>
+                <strong>Campaign ID:</strong> {successData.campaignId}
+              </div>
+              {successData.adSets && successData.adSets.length > 0 && (
+                <div style={{marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto'}}>
+                  {successData.adSets.map((adSet: any, index: number) => (
+                    <div key={index} style={{ background: '#f0fdf4', padding: '8px', borderRadius: '6px', border: '1px dashed #bbf7d0' }}>
+                      <div style={{color: '#166534', fontWeight: 600, fontSize: '0.85rem'}}>{adSet.row} (Ad Set ID: {adSet.adSetId})</div>
+                      <div style={{color: '#15803d', fontSize: '0.8rem', marginTop: '4px'}}>
+                        Ad IDs: {adSet.adIds.join(', ')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button type="button" onClick={() => {
+              setSuccessData(null);
+              setCurrentStep(1);
+              setFormData({...formData, campaignName: 'New Campaign ' + Date.now()});
+            }} className="ctwa-submit-btn" style={{width: '100%'}}>
+              Create Another Ad
+            </button>
           </div>
         </div>
       )}

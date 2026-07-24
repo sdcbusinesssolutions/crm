@@ -408,24 +408,27 @@
   position: relative;
 }
 .ctwa-submit-btn {
-  background: linear-gradient(90deg, #64e32d, #038a16);
+  background: #0FB880;
   color: white;
   border: none;
-  padding: 0.6rem 2rem;
-  font-size: 0.95rem;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
   font-weight: 700;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.25s;
-  box-shadow: 0 4px 14px rgba(6, 142, 62, 0.25);
+  box-shadow: 0 4px 14px rgba(15, 184, 128, 0.25);
   letter-spacing: 0.3px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  box-sizing: border-box;
 }
 .ctwa-submit-btn:hover {
+  background: #0e9f6f;
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(6, 142, 62, 0.45);
+  box-shadow: 0 10px 28px rgba(15, 184, 128, 0.45);
 }
 .ctwa-submit-btn:disabled {
   opacity: 0.6;
@@ -435,42 +438,43 @@
 
 /* High Converting Pulse */
 @keyframes pulse-green {
-  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(37, 211, 102, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(15, 184, 128, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(15, 184, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(15, 184, 128, 0); }
 }
 
 .ctwa-submit-btn.pulse-button {
   animation: pulse-green 2s infinite;
-  background: linear-gradient(90deg, #25D366, #128C7E);
-  font-size: 1rem;
-  padding: 0.75rem 2.5rem;
+  background: #0FB880;
+  padding: 0.75rem 2rem;
 }
 .ctwa-submit-btn.pulse-button:hover {
   animation: none;
+  background: #0e9f6f;
   transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(37, 211, 102, 0.4);
+  box-shadow: 0 12px 30px rgba(15, 184, 128, 0.4);
 }
 
 .ctwa-back-btn {
-  position: absolute;
-  left: 0; top: 50%;
-  transform: translateY(-50%);
-  background: #068E3E;
+  background: #0FB880;
   border: none;
-  padding: 0.6rem 1.5rem;
-  font-size: 0.9rem;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
   font-weight: 700;
-  border-radius: 22px;
+  border-radius: 12px;
   cursor: pointer;
   color: white;
   transition: all 0.25s;
-  box-shadow: 0 4px 14px rgba(6, 142, 62, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(15, 184, 128, 0.25);
+  box-sizing: border-box;
 }
 .ctwa-back-btn:hover { 
-  background: #057a35;
-  transform: translateY(-50%) translateY(-2px);
-  box-shadow: 0 10px 28px rgba(6, 142, 62, 0.45);
+  background: #0e9f6f;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(15, 184, 128, 0.45);
 }
 
 /* ═══════════ ERROR / SUCCESS ═══════════ */
