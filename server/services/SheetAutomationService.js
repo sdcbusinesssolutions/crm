@@ -1285,8 +1285,8 @@ class SheetAutomationService {
                 throw new Error('Invalid phone number format');
             }
 
-            // Start Flow with Explicit Node ID
-            await flowEngine.startFlow(auto.user_id, safePhone, flow, initialContext, startNode ? startNode.id : null);
+            // Start Flow with Explicit Node ID and mark as System Event (true)
+            await flowEngine.startFlow(auto.user_id, safePhone, flow, initialContext, startNode ? startNode.id : null, true);
             return;
         }
 

@@ -363,15 +363,19 @@ router.get('/:id/kanban', requirePermission('Pipelines', 'read'), async (req, re
             }
 
             // Sorting
-            const sortBy = req.query.sortBy || 'created_at_desc';
-            if (sortBy === 'created_at_asc') {
+            const sortBy = req.query.sortBy || 'updated_at_desc';
+            if (sortBy === 'updated_at_desc') {
+                query = query.order('updated_at', { ascending: false });
+            } else if (sortBy === 'created_at_desc') {
+                query = query.order('created_at', { ascending: false });
+            } else if (sortBy === 'created_at_asc') {
                 query = query.order('created_at', { ascending: true });
             } else if (sortBy === 'value_desc') {
                 query = query.order('estimated_value', { ascending: false });
             } else if (sortBy === 'value_asc') {
                 query = query.order('estimated_value', { ascending: true });
             } else {
-                query = query.order('created_at', { ascending: false });
+                query = query.order('updated_at', { ascending: false });
             }
 
             // Per-Stage Pagination (Initial Load: 20)

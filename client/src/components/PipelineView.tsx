@@ -69,7 +69,7 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
     const [filters, setFilters] = useState({
         search: '',
         stageIds: [] as string[],
-        sortBy: 'created_at_desc',
+        sortBy: 'updated_at_desc',
         quickFilter: 'all', // 'all', 'hot', 'cold', 'high_value'
         viewType: 'Pipeline',
         fromDate: '',
@@ -891,8 +891,9 @@ const PipelineView: React.FC<PipelineViewProps> = ({ initialPipelineId }) => {
                                         onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
                                         className="bg-white border border-[var(--color-brand)]/20 focus:border-[var(--color-brand)] rounded-xl pl-2.5 pr-7 py-1.5 text-sm text-[var(--color-brand)] font-medium focus:ring-1 focus:ring-[var(--color-brand)] outline-none transition-all appearance-none cursor-pointer hover:bg-[var(--color-brand)]/5 shadow-sm"
                                     >
-                                        <option value="created_at_desc">Newest First</option>
-                                        <option value="created_at_asc">Oldest First</option>
+                                        <option value="updated_at_desc">Recently Updated</option>
+                                        <option value="created_at_desc">Recently Created</option>
+                                        <option value="created_at_asc">Oldest Created</option>
                                         <option value="value_desc">Value: High to Low</option>
                                         <option value="value_asc">Value: Low to High</option>
                                     </select>
