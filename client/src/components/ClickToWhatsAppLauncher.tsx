@@ -616,7 +616,13 @@ const ClickToWhatsAppLauncher = () => {
       value = value.replace(/\D/g, ''); // Remove + and any other non-digits
     }
     
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updates: any = { [name]: value };
+      if (name === 'maxAge' && parseInt(value as string) < 65 && prev.advantageAudience === 1) {
+        updates.advantageAudience = 0;
+      }
+      return { ...prev, ...updates };
+    });
   }, []);
 
   const selectedAccount = adAccounts.find(acc => acc.account_id === formData.adAccountId);

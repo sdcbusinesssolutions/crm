@@ -349,9 +349,7 @@ class FacebookAdsService {
                     }),
                     ...(flexibleSpec && flexibleSpec.length > 0 && { flexible_spec: flexibleSpec }),
                     ...(exclusions && exclusions.length > 0 && { exclusions: exclusions }),
-                    targeting_automation: {
-                        advantage_audience: advantageAudience !== undefined ? advantageAudience : 1
-                    }
+                    ...( (maxAge ? parseInt(maxAge) : 65) === 65 && advantageAudience === 1 ? { targeting_automation: { advantage_audience: 1 } } : {} )
                 }),
                 status: status || 'PAUSED',
                 access_token: accessToken,
@@ -544,10 +542,15 @@ class FacebookAdsService {
                 // Parse Age
                 let minAge = adSetNode.minAge || baseConfig.minAge || 18;
                 let maxAge = adSetNode.maxAge || baseConfig.maxAge || 65;
-                if (adSetNode.age && adSetNode.age.includes('-')) {
-                    const parts = adSetNode.age.split('-');
-                    minAge = parseInt(parts[0]) || 18;
-                    maxAge = parseInt(parts[1]) || 65;
+                const ageParts = adSetNode.age ? adSetNode.age.split('-') : [];
+                if (ageParts.length === 2) {
+                    minAge = parseInt(ageParts[0]) || 18;
+                    maxAge = parseInt(ageParts[1]) || 65;
+                }
+                
+                let currentAdvantageAudience = baseConfig.advantageAudience === 1 ? 1 : 0;
+                if (maxAge < 65) {
+                    currentAdvantageAudience = 0; // Auto-disable Advantage+ Audience if max age is restricted
                 }
 
                 // Resolve Location for this AdSet
@@ -654,7 +657,7 @@ class FacebookAdsService {
                             publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
                             facebook_positions: ['feed', 'story', 'marketplace', 'search']
                         }),
-                        targeting_automation: { advantage_audience: 1 }
+                        ...(currentAdvantageAudience === 1 ? { targeting_automation: { advantage_audience: 1 } } : {})
                     }),
                     status: status || 'PAUSED',
                     access_token: accessToken,
