@@ -657,7 +657,7 @@ class FacebookAdsService {
                             publisher_platforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
                             facebook_positions: ['feed', 'story', 'marketplace', 'search']
                         }),
-                        ...(currentAdvantageAudience === 1 ? { targeting_automation: { advantage_audience: 1 } } : {})
+                        targeting_automation: { advantage_audience: currentAdvantageAudience === 1 ? 1 : 0 }
                     }),
                     status: status || 'PAUSED',
                     access_token: accessToken,
@@ -766,7 +766,18 @@ class FacebookAdsService {
         } catch (error) {
             console.error('--- Click to WhatsApp Bulk API Error ---');
             console.error(error.response?.data || error.message);
-            throw new Error(error.response?.data?.error?.message || error.message || 'Failed to launch bulk campaign');
+            
+            let displayMessage = error.message || 'Failed to launch bulk campaign';
+            if (error.response?.data?.error) {
+                const fbError = error.response.data.error;
+                if (fbError.error_user_title && fbError.error_user_msg) {
+                    displayMessage = `${fbError.error_user_title}: ${fbError.error_user_msg}`;
+                } else if (fbError.message) {
+                    displayMessage = fbError.message;
+                }
+            }
+            
+            throw new Error(displayMessage);
         }
     }
 }

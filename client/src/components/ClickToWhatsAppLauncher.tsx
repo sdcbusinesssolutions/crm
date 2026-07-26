@@ -748,7 +748,7 @@ const ClickToWhatsAppLauncher = () => {
       if (response.ok) {
         setFormData(prev => ({ 
           ...prev, 
-          mediaUrls: [...(prev.mediaUrls || []), data.url],
+          mediaUrls: [data.url], // Enforce 1 media only
           mediaType: file.type.startsWith('video/') ? 'video' : 'image'
         }));
       } else {
@@ -1929,10 +1929,10 @@ const ClickToWhatsAppLauncher = () => {
                             <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({...formData, mediaUrls: formData.mediaUrls.filter((_, idx) => idx !== i)}); }} style={{position: 'absolute', top: '-6px', right: '-6px', background: '#dc2626', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '12px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>&times;</button>
                           </div>
                         ))}
-                        {formData.mediaUrls.length < 4 && (
+                        {formData.mediaUrls.length < 1 && (
                           <div onClick={() => document.getElementById('ad-media-upload')?.click()} style={{width: '80px', height: '80px', border: '2px dashed #cbd5e1', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#f8fafc', transition: 'all 0.2s'}}>
                             <span style={{fontSize: '24px', color: '#94a3b8', lineHeight: 1}}>+</span>
-                            <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 500}}>Add ({4 - formData.mediaUrls.length})</span>
+                            <span style={{fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 500}}>Add</span>
                           </div>
                         )}
                       </div>
@@ -1942,7 +1942,7 @@ const ClickToWhatsAppLauncher = () => {
                           <svg viewBox="0 0 24 24" fill="#068E3E" style={{ width: '28px', height: '28px' }}><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
                         </div>
                         <div className="upload-text-area" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Images or Videos (Up to 4)</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111' }}>Upload Image or Video</span>
                           <span style={{ fontSize: '0.65rem', color: '#6b7280', marginTop: '2px' }}>Recommended: 1:1 aspect ratio<br/>at least 1080 × 1080 pixels.</span>
                           <button type="button" className="ctwa-upload-btn-mini" style={{ background: '#068E3E', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: '12px', height: '12px' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -2026,7 +2026,36 @@ const ClickToWhatsAppLauncher = () => {
                   </div>
                 </div>
 
-                {error && <div className="ctwa-error" style={{color: 'red', marginTop: '1rem'}}>{error}</div>}
+                {error && (
+                  <div className="ctwa-error" style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#b91c1c', padding: '16px', borderRadius: '12px', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{width: '20px', height: '20px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                      Meta Ads API Error
+                    </div>
+                    <div style={{ fontSize: '0.95rem', lineHeight: '1.5' }}>{error}</div>
+                    
+                    {error.toLowerCase().includes('advantage audience') && (
+                      <div style={{ background: '#fee2e2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', color: '#991b1b', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        💡 <span><strong>How to fix:</strong> Go to <strong>Step 2 (Audience)</strong> and toggle the "Advantage+ Audience" setting ON or OFF.</span>
+                      </div>
+                    )}
+                    {(error.toLowerCase().includes('payment') || error.toLowerCase().includes('billing') || error.toLowerCase().includes('credit')) ? (
+                      <div style={{ background: '#fee2e2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', color: '#991b1b', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        💳 <span><strong>How to fix:</strong> Please check your Meta Business Manager billing settings and ensure your payment method is active.</span>
+                      </div>
+                    ) : null}
+                    {(error.toLowerCase().includes('permission') || error.toLowerCase().includes('role') || error.toLowerCase().includes('access')) ? (
+                      <div style={{ background: '#fee2e2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', color: '#991b1b', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🔐 <span><strong>How to fix:</strong> Reconnect your Facebook account in Integrations, or ensure you have Admin/Advertiser access to the ad account and page.</span>
+                      </div>
+                    ) : null}
+                    {error.toLowerCase().includes('parameter') ? (
+                      <div style={{ background: '#fee2e2', padding: '10px 14px', borderRadius: '8px', fontSize: '0.9rem', color: '#991b1b', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        🔧 <span><strong>How to fix:</strong> Meta rejected some of your settings. Please double-check your age range, budget, and targeting options.</span>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
                 {successData && (
                   <div className="ctwa-success" style={{background: '#dcfce7', padding: '1rem', borderRadius: '8px', marginTop: '1rem'}}>
                     <h4 style={{color: '#166534', margin: '0 0 0.5rem 0'}}>Ad Launched Successfully!</h4>
