@@ -33,6 +33,9 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage, setEntriesPerPage] = useState(10);
+  
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const handlePageSelect = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const pageId = e.target.value;
@@ -41,6 +44,8 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
     setForms([]);
     setLeads([]);
     setCurrentPage(1);
+    setStartDate('');
+    setEndDate('');
     
     if (!pageId) return;
 
@@ -69,6 +74,8 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
     setSelectedFormId(formId);
     setLeads([]);
     setCurrentPage(1);
+    setStartDate('');
+    setEndDate('');
     
     if (!formId) return;
 
@@ -101,9 +108,29 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
   });
   const columns = Array.from(allFieldNames);
 
-  const totalLeads = leads.length;
+  const filteredLeads = leads.filter(lead => {
+    if (!startDate && !endDate) return true;
+    
+    const leadDate = new Date(lead.created_time);
+    
+    if (startDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      if (leadDate < start) return false;
+    }
+    
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      if (leadDate > end) return false;
+    }
+    
+    return true;
+  });
+
+  const totalLeads = filteredLeads.length;
   const totalPages = Math.ceil(totalLeads / entriesPerPage);
-  const paginatedLeads = leads.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
+  const paginatedLeads = filteredLeads.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
 
   const getPageNumbers = () => {
     const pages: (number | string)[] = [];
@@ -204,10 +231,36 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
                 <ChevronDownIcon className="w-3 h-3" />
               </div>
             </div>
+
+            {/* Proper Date Range Picker UI */}
+            <div className="flex items-center gap-2 p-1.5 bg-[var(--color-brand)]/[0.03] rounded-2xl border border-[var(--color-brand)]/20 shadow-inner">
+                <div className="flex items-center gap-2 bg-white border border-[var(--color-brand)] rounded-xl px-3 py-1 shadow-sm group focus-within:ring-2 focus-within:ring-[var(--color-brand)]/20 focus-within:border-[var(--color-brand)] transition-all">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">From</span>
+                    <input 
+                        type="date" 
+                        value={startDate} 
+                        onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }} 
+                        className="bg-transparent border-none text-xs font-bold focus:ring-0 p-0 outline-none w-[110px] text-slate-700 cursor-pointer"
+                    />
+                </div>
+                <div className="w-3 h-px bg-[var(--color-brand)]/40"></div>
+                <div className="flex items-center gap-2 bg-white border border-[var(--color-brand)] rounded-xl px-3 py-1 shadow-sm group focus-within:ring-2 focus-within:ring-[var(--color-brand)]/20 focus-within:border-[var(--color-brand)] transition-all">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tight">To</span>
+                    <input 
+                        type="date" 
+                        value={endDate} 
+                        onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }} 
+                        className="bg-transparent border-none text-xs font-bold focus:ring-0 p-0 outline-none w-[110px] text-slate-700 cursor-pointer"
+                    />
+                </div>
+            </div>
           </div>
           
           {selectedFormId && leads.length > 0 && (
             <div className="flex items-center gap-3">
+              <div className="px-4 py-2 text-sm font-bold bg-brand-50 text-brand-700 border border-brand-200 rounded-xl flex items-center shadow-sm">
+                Total Leads: {totalLeads}
+              </div>
               <button 
                 onClick={exportToCSV}
                 className="px-4 py-2 text-sm font-bold bg-white text-slate-700 border border-slate-300 rounded-xl hover:bg-slate-50 flex items-center gap-2 transition-all shadow-sm"
@@ -221,12 +274,6 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
 
         {selectedFormId && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            {loadingLeads && (
-              <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-center">
-                <div className="text-sm font-bold text-slate-400 animate-pulse">Fetching leads...</div>
-              </div>
-            )}
-
             <div className="overflow-x-auto hidden md:block">
               <table className="min-w-full border-collapse text-left text-sm whitespace-nowrap">
                 <thead className="bg-brand-600 text-white shadow-md">
