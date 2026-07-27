@@ -5,6 +5,7 @@ const CampaignAIService = require('../services/CampaignAIService');
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
 const logger = require('../utils/logger');
+const axios = require('axios');
 
 const getUserId = (req) => req.user.id;
 
@@ -524,6 +525,99 @@ router.post('/generate-bulk-ai', requireAuth, async (req, res) => {
     } catch (error) {
         console.error('[Generate Bulk AI Error]:', error);
         res.status(500).json({ error: error.message || 'Failed to generate variations using AI.' });
+    }
+});
+/**
+ * GET /api/click-to-whatsapp/pages/:pageId/forms
+ * Fetches Lead Forms for a specific Facebook Page
+ */
+router.get('/pages/:pageId/forms', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { pageId } = req.params;
+        const supabase = getAuthenticatedSupabase(req);
+
+        // Fetch meta_access_token from whatsapp_config
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('meta_access_token')
+            .eq('user_id', userId)
+            .single();
+            
+        const envToken = process.env.META_ACCESS_TOKEN;
+        const systemToken = envToken || config?.meta_access_token;
+
+        if (!systemToken) {
+            return res.status(403).json({ error: 'System Token (Meta Access Token) not found.' });
+        }
+
+        // Fetch Page Access Token using System Token
+        const pageTokenRes = await axios.get(`https://graph.facebook.com/v20.0/${pageId}?fields=access_token`, {
+            headers: { 'Authorization': `Bearer ${systemToken}` }
+        });
+        
+        const pageToken = pageTokenRes.data.access_token;
+        if (!pageToken) {
+            return res.status(403).json({ error: 'Failed to retrieve Page Access Token.' });
+        }
+
+        // Fetch Lead Forms using Page Access Token
+        const formsRes = await axios.get(`https://graph.facebook.com/v20.0/${pageId}/leadgen_forms`, {
+            headers: { 'Authorization': `Bearer ${pageToken}` },
+            params: { fields: 'id,name,status,created_time,leads_count' }
+        });
+
+        res.status(200).json(formsRes.data.data);
+    } catch (error) {
+        console.error('[Fetch Lead Forms API Error]:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data?.error?.message || 'Failed to fetch lead forms.' });
+    }
+});
+
+/**
+ * GET /api/click-to-whatsapp/pages/:pageId/forms/:formId/leads
+ * Fetches Leads for a specific Facebook Lead Form
+ */
+router.get('/pages/:pageId/forms/:formId/leads', requireAuth, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { pageId, formId } = req.params;
+        const supabase = getAuthenticatedSupabase(req);
+
+        // Fetch meta_access_token from whatsapp_config
+        const { data: config, error } = await supabase
+            .from('whatsapp_config')
+            .select('meta_access_token')
+            .eq('user_id', userId)
+            .single();
+            
+        const envToken = process.env.META_ACCESS_TOKEN;
+        const systemToken = envToken || config?.meta_access_token;
+
+        if (!systemToken) {
+            return res.status(403).json({ error: 'System Token (Meta Access Token) not found.' });
+        }
+
+        // Fetch Page Access Token using System Token
+        const pageTokenRes = await axios.get(`https://graph.facebook.com/v20.0/${pageId}?fields=access_token`, {
+            headers: { 'Authorization': `Bearer ${systemToken}` }
+        });
+        
+        const pageToken = pageTokenRes.data.access_token;
+        if (!pageToken) {
+            return res.status(403).json({ error: 'Failed to retrieve Page Access Token.' });
+        }
+
+        // Fetch Leads using Page Access Token
+        const leadsRes = await axios.get(`https://graph.facebook.com/v20.0/${formId}/leads`, {
+            headers: { 'Authorization': `Bearer ${pageToken}` },
+            params: { fields: 'id,created_time,field_data', limit: 100 }
+        });
+
+        res.status(200).json(leadsRes.data.data);
+    } catch (error) {
+        console.error('[Fetch Leads API Error]:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data?.error?.message || 'Failed to fetch leads.' });
     }
 });
 

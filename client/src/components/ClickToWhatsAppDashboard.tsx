@@ -4,6 +4,7 @@ import ClickToWhatsAppLauncher from './ClickToWhatsAppLauncher';
 import ClickToWhatsAppAnalytics from './ClickToWhatsAppAnalytics';
 import { settingsService } from '../services/settingsService';
 import { tokenService } from '../services/tokenService';
+import FacebookLeadForms from './FacebookLeadForms';
 
 declare global {
   interface Window {
@@ -26,7 +27,7 @@ interface AdAccount {
 }
 
 const ClickToWhatsAppDashboard = () => {
-  const [activeTab, setActiveTab] = useState<'pages' | 'ads' | 'analytics'>('pages');
+  const [activeTab, setActiveTab] = useState<'pages' | 'ads' | 'analytics' | 'leads'>('pages');
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [adAccounts, setAdAccounts] = useState<AdAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -244,6 +245,12 @@ const ClickToWhatsAppDashboard = () => {
               onClick={() => { setActiveTab('analytics'); setSelectedAdAccount(null); setSearchTerm(''); }}
             >
               Analytics
+            </button>
+            <button 
+              className={`ctwa-tab-btn ${activeTab === 'leads' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('leads'); setSelectedAdAccount(null); setSearchTerm(''); }}
+            >
+              Leads
             </button>
           </div>
 
@@ -528,6 +535,10 @@ const ClickToWhatsAppDashboard = () => {
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'leads' && (
+        <FacebookLeadForms pages={pages} />
       )}
     </div>
   );

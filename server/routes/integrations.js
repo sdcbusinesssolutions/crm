@@ -32,6 +32,18 @@ router.get('/facebook/pages/:pageId/forms', requirePermission('Integrations', AC
     }
 });
 
+router.get('/facebook/pages/:pageId/forms/:formId/leads', requirePermission('Integrations', ACCESS_TYPES.READ), async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { pageId, formId } = req.params;
+        const leads = await facebookService.getFormLeads(userId, pageId, formId);
+        res.json(leads);
+    } catch (error) {
+        console.error('Failed to fetch form leads:', error);
+        res.status(500).json({ error: 'Failed to fetch form leads' });
+    }
+});
+
 router.post('/facebook/leads/sync', requirePermission('Integrations', ACCESS_TYPES.READ_WRITE), async (req, res) => {
     try {
         const userId = req.user.id;

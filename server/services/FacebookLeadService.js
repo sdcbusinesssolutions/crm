@@ -330,6 +330,34 @@ class FacebookLeadService {
         }
     }
 
+    async getFormLeads(userId, pageId, formId) {
+        // 1. Get Page Access Token
+        const { data: page, error } = await supabaseAdmin
+            .from('integration_facebook_pages')
+            .select('page_access_token')
+            .eq('user_id', userId)
+            .eq('page_id', pageId)
+            .single();
+
+        if (error || !page) throw new Error('Page not found or access denied');
+
+        try {
+            const url = `https://graph.facebook.com/v20.0/${formId}/leads`;
+            const params = {
+                access_token: page.page_access_token,
+                fields: 'id,created_time,field_data',
+                limit: 100 // Can add pagination later if needed
+            };
+
+            const response = await axios.get(url, { params });
+            return response.data.data;
+        } catch (error) {
+            console.error('[FacebookLeadService] Get Form Leads Error:', error.response?.data || error.message);
+            logFacebookLeadEvent('GET_FORM_LEADS_ERROR', { userId, pageId, formId, error: error.response?.data || error.message });
+            throw new Error('Failed to fetch leads for form');
+        }
+    }
+
     async syncLeads(userId, pageId, formId = null) {
         logFacebookLeadEvent('SYNC_LEADS_START', { userId, pageId, formId });
         // 1. Get Page Access Token
