@@ -274,7 +274,7 @@ const FacebookLeadForms = ({ pages }: { pages: FacebookPage[] }) => {
 
         {selectedFormId && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto hidden md:block">
+            <div className="overflow-x-auto w-full">
               <table className="min-w-full border-collapse text-left text-sm whitespace-nowrap">
                 <thead className="bg-brand-600 text-white shadow-md">
                   <tr>
