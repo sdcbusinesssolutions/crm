@@ -299,7 +299,6 @@ class FacebookAdsService {
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
                     special_ad_categories: '[]',
-                    is_adset_budget_sharing_enabled: false,
                     access_token: accessToken
                 }
             });
@@ -330,7 +329,7 @@ class FacebookAdsService {
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 billing_event: 'IMPRESSIONS',
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
-                is_adset_budget_sharing_enabled: false,
+                is_adset_budget_sharing_enabled: true,
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
                     page_id: pageId,
@@ -635,11 +634,11 @@ class FacebookAdsService {
                     campaign_id: campaignId,
                     ...(budgetOptimization !== 'CBO' ? { 
                         daily_budget: (parseFloat(adSetNode.budget) || parseFloat(baseConfig.dailyBudget) || 500) * 100,
-                        bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
+                        bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+                        is_adset_budget_sharing_enabled: true
                     } : {}),
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: baseConfig.optimizationGoal || 'CONVERSATIONS',
-                    is_adset_budget_sharing_enabled: false,
                     destination_type: 'WHATSAPP',
                     promoted_object: JSON.stringify({ 
                         page_id: pageId,
