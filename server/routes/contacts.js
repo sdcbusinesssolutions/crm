@@ -4,6 +4,7 @@ const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
 const requireAuth = require('../middleware/requireAuth');
+const DripTriggerService = require('../services/DripTriggerService');
 
 
 // GET /api/contacts
