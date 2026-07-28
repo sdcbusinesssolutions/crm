@@ -331,11 +331,11 @@ class FacebookAdsService {
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
                 is_adset_budget_sharing_enabled: true,
                 destination_type: 'WHATSAPP',
-                promoted_object: { 
+                promoted_object: JSON.stringify({ 
                     page_id: pageId,
                     ...(whatsappNumber && whatsappNumber.trim() !== '' && { whatsapp_phone_number: whatsappNumber.trim() })
-                },
-                targeting: {
+                }),
+                targeting: JSON.stringify({
                     geo_locations: final_geo_locations,
                     ...(excludedGeoLocations && { excluded_geo_locations: excludedGeoLocations }),
                     device_platforms: ['mobile', 'desktop'],
@@ -349,7 +349,7 @@ class FacebookAdsService {
                     ...(flexibleSpec && flexibleSpec.length > 0 && { flexible_spec: flexibleSpec }),
                     ...(exclusions && exclusions.length > 0 && { exclusions: exclusions }),
                     ...( (maxAge ? parseInt(maxAge) : 65) === 65 && advantageAudience === 1 ? { targeting_automation: { advantage_audience: 1 } } : {} )
-                },
+                }),
                 status: status || 'PAUSED',
                 access_token: accessToken,
                 ...scheduleParams
@@ -358,7 +358,9 @@ class FacebookAdsService {
             console.log('--- Creating Ad Set with Params ---');
             console.log(JSON.stringify(adSetParams, null, 2));
 
-            const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, adSetParams);
+            const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, new URLSearchParams(adSetParams).toString(), {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            });
             const adSetId = adSetRes.data.id;
 
             // Define the WhatsApp Welcome Experience (Visual Editor format)
@@ -640,11 +642,11 @@ class FacebookAdsService {
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: baseConfig.optimizationGoal || 'CONVERSATIONS',
                     destination_type: 'WHATSAPP',
-                    promoted_object: { 
+                    promoted_object: JSON.stringify({ 
                         page_id: pageId,
                         ...(whatsappNumber && whatsappNumber.trim() !== '' && { whatsapp_phone_number: whatsappNumber.trim() })
-                    },
-                    targeting: {
+                    }),
+                    targeting: JSON.stringify({
                         geo_locations: final_geo_locations,
                         device_platforms: ['mobile', 'desktop'],
                         age_min: minAge,
@@ -657,7 +659,7 @@ class FacebookAdsService {
                             facebook_positions: ['feed', 'story', 'marketplace', 'search']
                         }),
                         targeting_automation: { advantage_audience: currentAdvantageAudience === 1 ? 1 : 0 }
-                    },
+                    }),
                     status: status || 'PAUSED',
                     access_token: accessToken,
                     ...scheduleParams
@@ -665,7 +667,9 @@ class FacebookAdsService {
 
                 require('fs').appendFileSync(require('path').join(__dirname, '../../meta_payloads.log'), `\n[${new Date().toISOString()}] ADSET PAYLOAD:\n${JSON.stringify(adSetParams, null, 2)}\n`);
 
-                const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, adSetParams);
+                const adSetRes = await axios.post(`${baseUrl}/act_${adAccountId}/adsets`, new URLSearchParams(adSetParams).toString(), {
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                });
                 const adSetId = adSetRes.data.id;
 
                 const adIds = [];
