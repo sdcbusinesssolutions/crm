@@ -748,6 +748,16 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             header: true,
             skipEmptyLines: true,
             complete: async (results) => {
+                if (results.data.length > 5000) {
+                    setToast({
+                        type: 'error',
+                        title: 'Upload Limit Exceeded',
+                        message: `You can only upload a maximum of 5,000 records at a time. Your file contains ${results.data.length} records. Please split your file and upload in batches.`
+                    });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
+
                 setIsLoading(true);
                 const importedContacts: any[] = [];
 
