@@ -110,8 +110,29 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 };
             });
 
-            // Merge and Sort by Date (scheduled_at)
-            const merged = [...normalizedFollowUps, ...normalizedTasks].sort((a, b) => {
+            // Sort by created_at descending first to find the latest
+            const allTasks = [...normalizedFollowUps, ...normalizedTasks].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                return dateB - dateA; // Descending
+            });
+
+            // Deduplicate PENDING tasks by contact_id, keeping only the latest
+            const seenContactIds = new Set();
+            const deduplicated = [];
+
+            for (const task of allTasks) {
+                if (task.status !== 'COMPLETED' && task.contact_id) {
+                    if (seenContactIds.has(task.contact_id)) {
+                        continue; // Skip older pending task
+                    }
+                    seenContactIds.add(task.contact_id);
+                }
+                deduplicated.push(task);
+            }
+
+            // Finally, sort by scheduled_at for the UI
+            const merged = deduplicated.sort((a, b) => {
                 const dateA = new Date(a.scheduled_at || 0).getTime();
                 const dateB = new Date(b.scheduled_at || 0).getTime();
                 return dateA - dateB;
