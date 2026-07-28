@@ -597,7 +597,7 @@ const ClickToWhatsAppLauncher = () => {
             setFormData(prev => ({ ...prev, pageId: result.data.pages[0].id }));
           }
           if (result.data.whatsappConfig?.phone_number) {
-            setFormData(prev => ({ ...prev, whatsappNumber: result.data.whatsappConfig.phone_number }));
+            setFormData(prev => ({ ...prev, whatsappNumber: result.data.whatsappConfig.phone_number.replace(/\D/g, '') }));
           }
         }
       } catch (err) {
