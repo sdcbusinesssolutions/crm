@@ -688,9 +688,18 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                             <div className="flex-1">
                                                 <div className="flex justify-between">
                                                     <h4 className={`font-bold text-sm ${task.is_completed ? 'line-through opacity-50' : ''} text-[var(--color-text)]`}>{task.title}</h4>
-                                                    <span className="text-xs text-[var(--color-text)] opacity-50">{task.due_date ? new Date(task.due_date).toLocaleString() : 'No date'}</span>
+                                                    <span className="text-xs text-[var(--color-text)] opacity-50 whitespace-nowrap ml-4">{task.due_date ? new Date(task.due_date).toLocaleString() : 'No date'}</span>
                                                 </div>
                                                 <p className={`text-xs mt-1 ${task.is_completed ? 'opacity-30' : 'opacity-70'} text-[var(--color-text)]`}>{task.description}</p>
+                                                
+                                                <div className="flex items-center gap-1.5 mt-2">
+                                                    <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] text-slate-500 font-medium border border-slate-200">
+                                                        <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
+                                                        <span>{task.created_by_name || 'System'}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
