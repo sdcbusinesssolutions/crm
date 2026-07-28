@@ -635,7 +635,7 @@ class FacebookAdsService {
                     ...(budgetOptimization !== 'CBO' ? { 
                         daily_budget: (parseFloat(adSetNode.budget) || parseFloat(baseConfig.dailyBudget) || 500) * 100,
                         bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
-                        is_adset_budget_sharing_enabled: true
+                        is_adset_budget_sharing_enabled: 'true'
                     } : {}),
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: baseConfig.optimizationGoal || 'CONVERSATIONS',
