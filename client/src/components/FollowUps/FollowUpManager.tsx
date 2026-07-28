@@ -32,9 +32,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [dateFilterStart, setDateFilterStart] = useState('');
+    const [dateFilterEnd, setDateFilterEnd] = useState('');
     const [editingFollowUp, setEditingFollowUp] = useState<UnifiedTask | null>(null);
-
-    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -131,13 +131,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 deduplicated.push(task);
             }
 
-            // Finally, sort by scheduled_at for the UI
-            const merged = deduplicated.sort((a, b) => {
-                const dateA = new Date(a.scheduled_at || 0).getTime();
-                const dateB = new Date(b.scheduled_at || 0).getTime();
-                return dateA - dateB;
-            });
-
+            // Tasks are already sorted by created_at descending from the deduplication step above.
+            // This ensures newly created/updated tasks appear at the top in all tabs.
+            const merged = deduplicated;
+            
             setFollowUps(merged);
         } catch (error) {
             console.error('Failed to load tasks', error);
@@ -233,20 +230,67 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         }
     };
 
-    const handleExport = () => {
-        if (followUps.length === 0) return;
+    // --- Filtering & Searching ---
+    const filteredItems = followUps.filter(item => {
+        // 1. Filter Tab
+        if (filter === 'all' && item.status === 'COMPLETED') return false;
+        if (filter === 'completed' && item.status !== 'COMPLETED') return false;
+        if (filter === 'today' && (item.status === 'COMPLETED' || !item.scheduled_at || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'overdue' && (item.status === 'COMPLETED' || !item.scheduled_at || !isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !item.scheduled_at || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
 
-        const headers = ['Status', 'Title', 'Description', 'Contact Name', 'Contact Phone', 'Due Date', 'Source', 'Pipeline'];
+        // 1.5 Date Range Filter
+        if (dateFilterStart || dateFilterEnd) {
+            if (!item.scheduled_at) return false;
+            try {
+                const itemDateStr = format(parseISO(item.scheduled_at), 'yyyy-MM-dd');
+                
+                if (dateFilterStart && itemDateStr < dateFilterStart) {
+                    return false;
+                }
+                if (dateFilterEnd && itemDateStr > dateFilterEnd) {
+                    return false;
+                }
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // 2. Search
+        if (searchTerm) {
+            const query = searchTerm.toLowerCase();
+            return (
+                item.title?.toLowerCase().includes(query) ||
+                item.description?.toLowerCase().includes(query) ||
+                item.contacts?.name?.toLowerCase().includes(query) ||
+                item.contacts?.phone?.includes(query) ||
+                item.contacts?.email?.toLowerCase().includes(query) ||
+                item.created_by_name?.toLowerCase().includes(query) ||
+                (item.source === 'crm_task' && 'pipeline task'.includes(query)) ||
+                item.pipeline_name?.toLowerCase().includes(query)
+            );
+        }
+        return true;
+    });
+
+    const handleExport = () => {
+        if (filteredItems.length === 0) {
+            alert('No tasks to export.');
+            return;
+        }
+
+        const headers = ['Status', 'Title', 'Description', 'Contact Name', 'Contact Phone', 'Contact Email', 'Due Date', 'Source', 'Pipeline'];
         const csvRows = [headers.join(',')];
 
-        followUps.forEach(item => {
+        filteredItems.forEach(item => {
             const row = [
                 item.status,
                 `"${(item.title || '').replace(/"/g, '""')}"`,
                 `"${(item.description || '').replace(/"/g, '""')}"`,
                 `"${(item.contacts?.name || '').replace(/"/g, '""')}"`,
                 `"${(item.contacts?.phone || '').replace(/"/g, '""')}"`,
-                `"${new Date(item.scheduled_at).toLocaleString()}"`,
+                `"${(item.contacts?.email || '').replace(/"/g, '""')}"`,
+                `"${item.scheduled_at ? new Date(item.scheduled_at).toLocaleString() : ''}"`,
                 item.source === 'crm_task' ? 'Pipeline Task' : 'Follow-Up',
                 `"${(item.pipeline_name || '-').replace(/"/g, '""')}"`
             ];
@@ -270,30 +314,6 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         overdue: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isPast(parseISO(i.scheduled_at))).length,
         completed: followUps.filter(i => i.status === 'COMPLETED').length
     };
-
-    // --- Filtering & Searching ---
-    const filteredItems = followUps.filter(item => {
-        // 1. Filter Tab
-        if (filter === 'all' && item.status === 'COMPLETED') return false;
-        if (filter === 'completed' && item.status !== 'COMPLETED') return false;
-        if (filter === 'today' && (item.status === 'COMPLETED' || !item.scheduled_at || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'overdue' && (item.status === 'COMPLETED' || !item.scheduled_at || !isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !item.scheduled_at || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
-
-        // 2. Search
-        if (searchTerm) {
-            const query = searchTerm.toLowerCase();
-            return (
-                item.title?.toLowerCase().includes(query) ||
-                item.description?.toLowerCase().includes(query) ||
-                item.contacts?.name?.toLowerCase().includes(query) ||
-                item.contacts?.phone?.includes(query) ||
-                (item.source === 'crm_task' && 'pipeline task'.includes(query)) ||
-                item.pipeline_name?.toLowerCase().includes(query)
-            );
-        }
-        return true;
-    });
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -434,19 +454,53 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
             {/* Table Section */}
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {/* Table Top Bar */}
-                <div className="p-4 flex justify-between items-center border-b border-slate-100">
+                <div className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-center border-b border-slate-100">
                     <h3 className="font-bold text-lg text-slate-800">All Tasks</h3>
-                    <div className="relative w-64">
-                        <input
-                            type="text"
-                            placeholder="Search tasks..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 transition"
-                        />
-                        <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                        <div className="flex flex-row items-center gap-2 w-full sm:w-auto">
+                            <div className="flex items-center gap-1 border border-slate-300 rounded-lg bg-white overflow-hidden">
+                                <span className="px-2 py-2 text-xs font-medium text-slate-500 bg-slate-50 border-r border-slate-300">From</span>
+                                <input
+                                    type="date"
+                                    value={dateFilterStart}
+                                    onChange={(e) => setDateFilterStart(e.target.value)}
+                                    className="px-2 py-2 text-sm focus:outline-none text-slate-600 cursor-pointer"
+                                    title="Start Date"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1 border border-slate-300 rounded-lg bg-white overflow-hidden">
+                                <span className="px-2 py-2 text-xs font-medium text-slate-500 bg-slate-50 border-r border-slate-300">To</span>
+                                <input
+                                    type="date"
+                                    value={dateFilterEnd}
+                                    onChange={(e) => setDateFilterEnd(e.target.value)}
+                                    className="px-2 py-2 text-sm focus:outline-none text-slate-600 cursor-pointer"
+                                    title="End Date"
+                                />
+                            </div>
+                            
+                            {(dateFilterStart || dateFilterEnd) && (
+                                <button 
+                                    onClick={() => { setDateFilterStart(''); setDateFilterEnd(''); }}
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
+                                    title="Clear date filters"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            )}
+                        </div>
+                        <div className="relative w-full sm:w-72">
+                            <input
+                                type="text"
+                                placeholder="Search by name, phone, email, or staff..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 transition"
+                            />
+                            <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
 

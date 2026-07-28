@@ -677,7 +677,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Tasks</h3>
                                     {tasks.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No tasks found.</p>}
-                                    {tasks.map(task => (
+                                    {[...tasks].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).map(task => (
                                         <div key={task.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm flex items-start gap-3">
                                             <input
                                                 type="checkbox"
