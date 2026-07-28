@@ -271,12 +271,12 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             });
         }
 
-        // Create Campaign
+        // Create Campaign as 'CREATING' to prevent worker from picking it up before queue is ready
         const { data: campaign, error: cErr } = await supabase.from('campaigns').insert({
             user_id: user.id, title, template_id: templateId, template_name: templateName,
             language_code: languageCode, contact_group_id: contactGroupId,
             scheduled_at: sendNow ? new Date() : scheduledAt,
-            status: sendNow ? 'PROCESSING' : 'SCHEDULED',
+            status: 'CREATING',
             total_contacts: uniqueContacts.length,
             variable_mapping: variableMapping,
             media_url: mediaUrl, media_type: mediaType, location_header: locationHeader
@@ -368,6 +368,11 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                 scheduledAt: sendNow ? 'NOW' : scheduledAt
             });
         } catch (ignore) { }
+
+        // Finally, activate the campaign so the worker can pick it up
+        await supabase.from('campaigns').update({ 
+            status: sendNow ? 'PROCESSING' : 'SCHEDULED' 
+        }).eq('id', campaign.id);
 
         res.json({ success: true, campaignId: campaign.id });
 
