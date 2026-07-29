@@ -358,7 +358,7 @@ const ClickToWhatsAppLauncher = () => {
         ads: updatedAds
       };
     }));
-  }, [formData.adSetName, formData.adName, formData.mediaUrls, formData.primaryText, formData.headline, formData.targetCountries, formData.minAge, formData.maxAge, formData.gender, formData.advantageAudience, formData.locationRadiuses, formData.locationTypes, formData.detailedTargeting]);
+  }, [formData.adSetName, formData.adName, formData.mediaUrls, formData.primaryText, formData.headline, formData.description, formData.targetCountries, formData.minAge, formData.maxAge, formData.gender, formData.advantageAudience, formData.locationRadiuses, formData.locationTypes, formData.detailedTargeting]);
 
   // When selecting a different ad set or ad, load its data into formData
   const loadAdSetIntoForm = useCallback((adSet: AdSetTree, ad?: AdTree) => {
