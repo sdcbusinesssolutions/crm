@@ -559,7 +559,8 @@ class FacebookAdsService {
 
                 // Resolve Location for this AdSet
                 // Start with Visual Builder map locations if available
-                let final_geo_locations = baseConfig.geoLocations ? JSON.parse(JSON.stringify(baseConfig.geoLocations)) : { location_types: ['home', 'recent'] };
+                let final_geo_locations = adSetNode.geoLocations ? JSON.parse(JSON.stringify(adSetNode.geoLocations)) : (baseConfig.geoLocations ? JSON.parse(JSON.stringify(baseConfig.geoLocations)) : { location_types: ['home', 'recent'] });
+                let excluded_geo_locations = adSetNode.excludedGeoLocations ? JSON.parse(JSON.stringify(adSetNode.excludedGeoLocations)) : (baseConfig.excludedGeoLocations ? JSON.parse(JSON.stringify(baseConfig.excludedGeoLocations)) : null);
                 
                 const processLocations = async (locString, targetArrayName) => {
                     if (!locString) return;
@@ -590,8 +591,45 @@ class FacebookAdsService {
                     }
                 };
 
+                const processMetaLocations = async (metaLocations) => {
+                    if (!metaLocations || metaLocations.length === 0) return;
+                    for (const loc of metaLocations) {
+                        try {
+                            const searchRes = await axios.get(`${baseUrl}/search`, {
+                                params: { type: 'adgeolocation', q: loc.name, access_token: accessToken, limit: 1 }
+                            });
+                            if (searchRes.data && searchRes.data.data && searchRes.data.data.length > 0) {
+                                const locationData = searchRes.data.data[0];
+                                if (loc.type === 'exclude' && !excluded_geo_locations) excluded_geo_locations = {};
+                                const targetObj = loc.type === 'exclude' ? excluded_geo_locations : final_geo_locations;
+                                
+                                if (locationData.type === 'city') {
+                                    if (!targetObj.cities) targetObj.cities = [];
+                                    targetObj.cities.push({ 
+                                        key: locationData.key, 
+                                        radius: loc.radius > 0 ? loc.radius : 0, 
+                                        distance_unit: 'mile' 
+                                    });
+                                } else if (locationData.type === 'region') {
+                                    if (!targetObj.regions) targetObj.regions = [];
+                                    targetObj.regions.push({ key: locationData.key });
+                                } else if (locationData.type === 'country') {
+                                    if (!targetObj.countries) targetObj.countries = [];
+                                    targetObj.countries.push(locationData.country_code || locationData.key);
+                                } else if (locationData.type === 'zip') {
+                                    if (!targetObj.zips) targetObj.zips = [];
+                                    targetObj.zips.push({ key: locationData.key });
+                                }
+                            }
+                        } catch (err) {
+                            console.error(`Error resolving metaLocation '${loc.name}':`, err.message);
+                        }
+                    }
+                };
+
                 await processLocations(adSetNode.location, 'cities'); // CSV Default mapped to cities/regions/countries
                 await processLocations(adSetNode.locationsExclude, 'excluded_custom_locations'); // CSV Exclusions
+                await processMetaLocations(adSetNode.metaLocations); // Visual Builder proper location parsing
 
                 // Process Visual Builder targetCountries (e.g. 'IN|US' but may contain map pins like 'Pune, India')
                 if (adSetNode.targetCountries) {
@@ -632,10 +670,10 @@ class FacebookAdsService {
                 if (adSetNode.gender === 'FEMALE' || adSetNode.gender === '2') gendersArray = [2];
                 
                 // Detailed Targeting
-                let flexible_spec = baseConfig.flexibleSpec || [];
-                let exclusions = baseConfig.exclusions || {};
+                let flexible_spec = adSetNode.flexibleSpec || baseConfig.flexibleSpec || [];
+                let exclusions = adSetNode.exclusions || baseConfig.exclusions || {};
                 
-                if (adSetNode.detailedTargeting) {
+                if (adSetNode.detailedTargeting && typeof adSetNode.detailedTargeting === 'string') {
                     const dtItems = adSetNode.detailedTargeting.split(',').map(s => s.trim()).filter(Boolean);
                     const interests = [];
                     for (const item of dtItems) {
@@ -671,6 +709,7 @@ class FacebookAdsService {
                     }),
                     targeting: JSON.stringify({
                         geo_locations: final_geo_locations,
+                        ...(excluded_geo_locations && { excluded_geo_locations: excluded_geo_locations }),
                         device_platforms: ['mobile', 'desktop'],
                         age_min: minAge,
                         age_max: maxAge,

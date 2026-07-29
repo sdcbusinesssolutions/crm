@@ -73,10 +73,23 @@ export default function CampaignReview({ campaign, onPreviewAd, selectedAdId }: 
             {!isCollapsed && (
               <>
                 {/* Targeting Summary */}
-            <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
+            <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '4px' }}>Location</div>
-                <div style={{ fontSize: '0.9rem', color: '#334155', fontWeight: 500 }}>{adSet.targetCountries || 'Not specified'}</div>
+                <div style={{ fontSize: '0.9rem', color: '#334155', fontWeight: 500 }}>
+                  {(() => {
+                    const countries = (adSet.targetCountries || '').split('|').filter(Boolean);
+                    const included = countries.filter(c => adSet.locationTypes?.[c] !== 'exclude');
+                    const excluded = countries.filter(c => adSet.locationTypes?.[c] === 'exclude');
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {included.length > 0 && <div><span style={{color:'#046B2F', fontWeight:700}}>Include:</span> {included.join(', ')}</div>}
+                        {excluded.length > 0 && <div><span style={{color:'#DC2626', fontWeight:700}}>Exclude:</span> {excluded.join(', ')}</div>}
+                        {included.length === 0 && excluded.length === 0 && 'Not specified'}
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '4px' }}>Age & Gender</div>
@@ -85,9 +98,22 @@ export default function CampaignReview({ campaign, onPreviewAd, selectedAdId }: 
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '4px' }}>Placements</div>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 700, marginBottom: '4px' }}>Targeting</div>
                 <div style={{ fontSize: '0.9rem', color: '#334155', fontWeight: 500 }}>
-                  {adSet.advantagePlacements ? 'Advantage+ (Auto)' : 'Manual'}
+                  {(() => {
+                    const dt = adSet.detailedTargeting || [];
+                    if (dt.length === 0) return 'Broad (None)';
+                    const inc = dt.filter(t => t.mode === 'include').map(t=>t.name);
+                    const narrow = dt.filter(t => t.mode === 'narrow').map(t=>t.name);
+                    const exc = dt.filter(t => t.mode === 'exclude').map(t=>t.name);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {inc.length > 0 && <div><span style={{color:'#046B2F', fontWeight:700}}>Include:</span> {inc.join(', ')}</div>}
+                        {narrow.length > 0 && <div><span style={{color:'#0284c7', fontWeight:700}}>Must Also Match:</span> {narrow.join(', ')}</div>}
+                        {exc.length > 0 && <div><span style={{color:'#DC2626', fontWeight:700}}>Exclude:</span> {exc.join(', ')}</div>}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

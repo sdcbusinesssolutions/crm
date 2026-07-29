@@ -209,19 +209,19 @@ function RadiusConfigurator({ locationName, radius, onChange }: { locationName: 
               width: '18px', height: '18px', borderRadius: '50%', border: radius > 0 ? '5px solid #25D366' : '1px solid #d1d5db',
               background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.2s ease', boxSizing: 'border-box'
             }} />
-            <input type="radio" checked={radius > 0} onChange={() => { if(radius === 0) onChange(25); }} style={{ display: 'none' }} />
+            <input type="radio" checked={radius > 0} onChange={() => { if(radius === 0) onChange(10); }} style={{ display: 'none' }} />
             Cities within radius
           </label>
           
           <div style={{ paddingLeft: '30px', display: 'flex', alignItems: 'center', gap: '12px', opacity: radius > 0 ? 1 : 0.4, pointerEvents: radius > 0 ? 'auto' : 'none', transition: 'opacity 0.2s ease' }}>
             <input 
-              type="range" min="10" max="50" step="1" 
-              value={radius > 0 ? radius : 25} 
+              type="range" min="2" max="50" step="1" 
+              value={radius > 0 ? radius : 10} 
               onChange={(e) => onChange(parseInt(e.target.value))}
               style={{ flex: 1, accentColor: '#25D366', height: '4px', cursor: 'pointer' }}
             />
             <span style={{ fontSize: '0.85rem', background: '#f3f4f6', padding: '4px 8px', borderRadius: '6px', fontWeight: 600, color: '#374151', minWidth: '45px', textAlign: 'center' }}>
-              {radius > 0 ? radius : 25} mi
+              {radius > 0 ? radius : 10} mi
             </span>
           </div>
         </div>
@@ -347,6 +347,10 @@ const ClickToWhatsAppLauncher = () => {
         minAge: formData.minAge,
         maxAge: formData.maxAge,
         gender: formData.gender,
+        locationRadiuses: formData.locationRadiuses,
+        locationTypes: formData.locationTypes,
+        detailedTargeting: formData.detailedTargeting,
+        droppedPins: droppedPins,
         startTime: formData.startDate,
         endTime: formData.endDate,
         advantagePlacements: formData.advantageAudience === 1,
@@ -354,7 +358,7 @@ const ClickToWhatsAppLauncher = () => {
         ads: updatedAds
       };
     }));
-  }, [formData.adSetName, formData.adName, formData.mediaUrls, formData.primaryText, formData.headline, formData.targetCountries, formData.minAge, formData.maxAge, formData.gender, formData.advantageAudience]);
+  }, [formData.adSetName, formData.adName, formData.mediaUrls, formData.primaryText, formData.headline, formData.targetCountries, formData.minAge, formData.maxAge, formData.gender, formData.advantageAudience, formData.locationRadiuses, formData.locationTypes, formData.detailedTargeting]);
 
   // When selecting a different ad set or ad, load its data into formData
   const loadAdSetIntoForm = useCallback((adSet: AdSetTree, ad?: AdTree) => {
@@ -371,10 +375,20 @@ const ClickToWhatsAppLauncher = () => {
       minAge: adSet.minAge,
       maxAge: adSet.maxAge,
       gender: adSet.gender,
+      locationRadiuses: adSet.locationRadiuses || {},
+      locationTypes: adSet.locationTypes || {},
+      detailedTargeting: adSet.detailedTargeting || [],
       startDate: adSet.startTime || prev.startDate,
       endDate: adSet.endTime || prev.endDate,
       dailyBudget: prev.budgetOptimization === 'ABO' && adSet.budget ? String(adSet.budget) : prev.dailyBudget
     }));
+    
+    // Also sync dropped pins
+    if (adSet.droppedPins) {
+      setDroppedPins(adSet.droppedPins);
+    } else {
+      setDroppedPins([]);
+    }
   }, []);
 
   // === Ad Set Handlers ===
@@ -390,6 +404,10 @@ const ClickToWhatsAppLauncher = () => {
       minAge: formData.minAge,
       maxAge: formData.maxAge,
       gender: formData.gender,
+      locationRadiuses: formData.locationRadiuses,
+      locationTypes: formData.locationTypes,
+      detailedTargeting: formData.detailedTargeting,
+      droppedPins: droppedPins,
       startTime: formData.startDate,
       endTime: formData.endDate,
       advantagePlacements: formData.advantageAudience === 1,
@@ -779,75 +797,112 @@ const ClickToWhatsAppLauncher = () => {
     try {
       const authHeader = await tokenService.getAuthHeader();
       
-      let parsedGeo = undefined;
-      let parsedExcludedGeo = undefined;
+      const adSetsPayload = adSets.map(adSet => {
+        let parsedGeo = undefined;
+        let parsedExcludedGeo = undefined;
+        const pins = adSet.droppedPins || [];
+        const locRadiuses = adSet.locationRadiuses || {};
+        const locTypes = adSet.locationTypes || {};
+        const dt = adSet.detailedTargeting || [];
 
-      // Automatically construct custom_locations from map pins if JSON isn't manually provided
-      if (!parsedGeo && droppedPins.length > 0) {
-        const includePins = droppedPins.filter(pin => !pin.name || formData.locationTypes[pin.name] !== 'exclude');
-        if (includePins.length > 0) {
-          parsedGeo = {
-            custom_locations: includePins.map(pin => ({
-              latitude: pin.lat,
-              longitude: pin.lng,
-              radius: (pin.name && formData.locationRadiuses[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25) || 25,
-              distance_unit: 'kilometer'
-            })),
-            location_types: ['home', 'recent']
-          };
+        const metaLocations: { name: string, radius: number, type: 'include'|'exclude' }[] = [];
+
+        if (pins.length > 0) {
+          const includePins = pins.filter(pin => !pin.name || locTypes[pin.name] !== 'exclude');
+          const excludePins = pins.filter(pin => pin.name && locTypes[pin.name] === 'exclude');
+
+          // Separate named pins from raw map pins for Include
+          const namedIncludePins = includePins.filter(pin => pin.name && pin.name !== 'Custom Target Region');
+          const rawIncludePins = includePins.filter(pin => !pin.name || pin.name === 'Custom Target Region');
+          
+          if (rawIncludePins.length > 0) {
+            parsedGeo = {
+              custom_locations: rawIncludePins.map(pin => ({
+                latitude: pin.lat,
+                longitude: pin.lng,
+                radius: (pin.name && locRadiuses[pin.name] !== undefined ? (locRadiuses[pin.name] > 0 ? locRadiuses[pin.name] : 1) : 25),
+                distance_unit: 'mile'
+              })),
+              location_types: ['home', 'recent']
+            };
+          }
+
+          namedIncludePins.forEach(pin => {
+            if (pin.name) {
+              metaLocations.push({
+                name: pin.name,
+                radius: locRadiuses[pin.name] !== undefined ? locRadiuses[pin.name] : 25,
+                type: 'include'
+              });
+            }
+          });
+          
+          // Separate named pins from raw map pins for Exclude
+          const namedExcludePins = excludePins.filter(pin => pin.name && pin.name !== 'Custom Target Region');
+          const rawExcludePins = excludePins.filter(pin => !pin.name || pin.name === 'Custom Target Region');
+
+          if (rawExcludePins.length > 0) {
+            parsedExcludedGeo = {
+              custom_locations: rawExcludePins.map(pin => ({
+                latitude: pin.lat,
+                longitude: pin.lng,
+                radius: (locRadiuses[pin.name] !== undefined ? (locRadiuses[pin.name] > 0 ? locRadiuses[pin.name] : 1) : 25),
+                distance_unit: 'mile'
+              }))
+            };
+          }
+
+          namedExcludePins.forEach(pin => {
+            if (pin.name) {
+              metaLocations.push({
+                name: pin.name,
+                radius: locRadiuses[pin.name] !== undefined ? locRadiuses[pin.name] : 25,
+                type: 'exclude'
+              });
+            }
+          });
         }
-      }
 
-      if (!parsedExcludedGeo && droppedPins.length > 0) {
-        const excludePins = droppedPins.filter(pin => pin.name && formData.locationTypes[pin.name] === 'exclude');
-        if (excludePins.length > 0) {
-          parsedExcludedGeo = {
-            custom_locations: excludePins.map(pin => ({
-              latitude: pin.lat,
-              longitude: pin.lng,
-              radius: (formData.locationRadiuses[pin.name] !== undefined ? formData.locationRadiuses[pin.name] : 25) || 25,
-              distance_unit: 'kilometer'
-            }))
-          };
+        const includedInterests = dt.filter(t => t.mode === 'include' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+        const includedBehaviors = dt.filter(t => t.mode === 'include' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+        
+        const flexibleSpec = [];
+        if (includedInterests.length > 0 || includedBehaviors.length > 0) {
+          const orCondition: any = {};
+          if (includedInterests.length > 0) orCondition.interests = includedInterests;
+          if (includedBehaviors.length > 0) orCondition.behaviors = includedBehaviors;
+          flexibleSpec.push(orCondition);
         }
-      }
+        
+        const narrowInterests = dt.filter(t => t.mode === 'narrow' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+        const narrowBehaviors = dt.filter(t => t.mode === 'narrow' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+        if (narrowInterests.length > 0 || narrowBehaviors.length > 0) {
+          const narrowCondition: any = {};
+          if (narrowInterests.length > 0) narrowCondition.interests = narrowInterests;
+          if (narrowBehaviors.length > 0) narrowCondition.behaviors = narrowBehaviors;
+          flexibleSpec.push(narrowCondition);
+        }
+        
+        const excludedInterests = dt.filter(t => t.mode === 'exclude' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
+        const excludedBehaviors = dt.filter(t => t.mode === 'exclude' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
+        const exclusions: any = {};
+        if (excludedInterests.length > 0) exclusions.interests = excludedInterests;
+        if (excludedBehaviors.length > 0) exclusions.behaviors = excludedBehaviors;
 
-
-      const includedInterests = formData.detailedTargeting.filter(t => t.mode === 'include' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
-      const includedBehaviors = formData.detailedTargeting.filter(t => t.mode === 'include' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
-      
-      const flexibleSpec = [];
-      if (includedInterests.length > 0 || includedBehaviors.length > 0) {
-        const orCondition: any = {};
-        if (includedInterests.length > 0) orCondition.interests = includedInterests;
-        if (includedBehaviors.length > 0) orCondition.behaviors = includedBehaviors;
-        flexibleSpec.push(orCondition); // Pushing as a single object creates OR logic between all of them
-      }
-      
-      // Grouping narrow tags into a SECOND object (AND logic across boxes, OR logic within box)
-      const narrowInterests = formData.detailedTargeting.filter(t => t.mode === 'narrow' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
-      const narrowBehaviors = formData.detailedTargeting.filter(t => t.mode === 'narrow' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
-      if (narrowInterests.length > 0 || narrowBehaviors.length > 0) {
-        const narrowCondition: any = {};
-        if (narrowInterests.length > 0) narrowCondition.interests = narrowInterests;
-        if (narrowBehaviors.length > 0) narrowCondition.behaviors = narrowBehaviors;
-        flexibleSpec.push(narrowCondition); // Pushing as a SECOND object creates AND logic with the first box!
-      }
-      
-      const excludedInterests = formData.detailedTargeting.filter(t => t.mode === 'exclude' && t.type === 'interest').map(t => ({ id: t.id, name: t.name }));
-      const excludedBehaviors = formData.detailedTargeting.filter(t => t.mode === 'exclude' && t.type === 'behavior').map(t => ({ id: t.id, name: t.name }));
-      const exclusions: any = {};
-      if (excludedInterests.length > 0) exclusions.interests = excludedInterests;
-      if (excludedBehaviors.length > 0) exclusions.behaviors = excludedBehaviors;
+        return {
+          ...adSet,
+          geoLocations: parsedGeo,
+          excludedGeoLocations: parsedExcludedGeo,
+          metaLocations: metaLocations,
+          flexibleSpec: flexibleSpec,
+          exclusions: exclusions
+        };
+      });
 
       const payload = {
         ...formData,
-        geoLocations: parsedGeo,
-        excludedGeoLocations: parsedExcludedGeo,
-        flexibleSpec: flexibleSpec,
-        exclusions: exclusions,
         duplicates: bulkRows,
-        adSets: adSets
+        adSets: adSetsPayload
       };
 
 

@@ -21,6 +21,11 @@ export type AdSetTree = {
   minAge: number;
   maxAge: number;
   gender: string;
+  locationRadiuses?: Record<string, number>;
+  locationTypes?: Record<string, 'include' | 'exclude'>;
+  detailedTargeting?: any[];
+  metaLocations?: { name: string, radius: number, type: 'include' | 'exclude' }[];
+  droppedPins?: {lat: number, lng: number, name?: string}[];
   advantagePlacements: boolean;
   publisherPlatforms: string[];
   startTime?: string;
@@ -94,6 +99,10 @@ const AdCampaignBuilder: React.FC = () => {
       minAge: 18,
       maxAge: 65,
       gender: 'ALL',
+      locationRadiuses: {},
+      locationTypes: {},
+      detailedTargeting: [],
+      droppedPins: [],
       advantagePlacements: true,
       publisherPlatforms: ['facebook', 'instagram', 'messenger', 'audience_network'],
       ads: [
