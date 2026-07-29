@@ -131,13 +131,35 @@ router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
             query = query.contains('assigned_staff_ids', [req.staff.staffId]);
         }
 
-        const { data, error } = await query.single();
+        let { data, error } = await query.maybeSingle();
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return res.status(404).json({ error: 'Lead not found' });
-            }
+        if (error && error.code !== 'PGRST116') {
             throw error;
+        }
+
+        // AUTO-RESOLVE: If not found as a lead, it might be a contact_id passed from FollowUps
+        if (!data) {
+            const { data: contact } = await supabase.from('contacts').select('phone').eq('id', req.params.id).maybeSingle();
+            if (contact && contact.phone) {
+                let phoneQuery = supabase
+                    .from('leads')
+                    .select('*')
+                    .eq('phone', contact.phone)
+                    .eq('user_id', req.user.id);
+                
+                if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+                    phoneQuery = phoneQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+                }
+                
+                const { data: leadByPhone } = await phoneQuery.maybeSingle();
+                if (leadByPhone) {
+                    data = leadByPhone;
+                }
+            }
+        }
+
+        if (!data) {
+            return res.status(404).json({ error: 'Lead not found' });
         }
 
         if (data) {
@@ -314,6 +336,22 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
                     }
                 } catch(e) { console.error('Error updating conversation assignment', e); }
             }
+        }
+
+        // Sync basic info changes to the contacts table so Follow-up tasks (which link to contacts) reflect the update
+        if ((updates.name !== undefined || updates.phone !== undefined || updates.email !== undefined) && leadCheck.phone) {
+            const contactUpdates = {};
+            if (updates.name !== undefined) contactUpdates.name = updates.name;
+            if (updates.phone !== undefined) contactUpdates.phone = updates.phone;
+            if (updates.email !== undefined) contactUpdates.email = updates.email;
+            
+            supabase.from('contacts')
+                .update(contactUpdates)
+                .eq('phone', leadCheck.phone)
+                .eq('user_id', req.user.id)
+                .then(({ error }) => {
+                    if (error) console.error('Failed to sync lead update to contact:', error.message);
+                });
         }
 
         const { data, error } = await supabase
