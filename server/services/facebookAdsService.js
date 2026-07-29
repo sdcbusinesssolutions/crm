@@ -558,7 +558,8 @@ class FacebookAdsService {
                 }
 
                 // Resolve Location for this AdSet
-                let final_geo_locations = { location_types: ['home', 'recent'] };
+                // Start with Visual Builder map locations if available
+                let final_geo_locations = baseConfig.geoLocations ? JSON.parse(JSON.stringify(baseConfig.geoLocations)) : { location_types: ['home', 'recent'] };
                 
                 const processLocations = async (locString, targetArrayName) => {
                     if (!locString) return;
@@ -589,11 +590,28 @@ class FacebookAdsService {
                     }
                 };
 
-                await processLocations(adSetNode.location, 'cities'); // Default mapped to cities/regions/countries
-                await processLocations(adSetNode.locationsExclude, 'excluded_custom_locations'); // Exclusions
+                await processLocations(adSetNode.location, 'cities'); // CSV Default mapped to cities/regions/countries
+                await processLocations(adSetNode.locationsExclude, 'excluded_custom_locations'); // CSV Exclusions
 
-                // Ensure at least one country if empty
-                if (!final_geo_locations.cities && !final_geo_locations.regions && !final_geo_locations.countries && !final_geo_locations.zips) {
+                // Process Visual Builder targetCountries (e.g. 'IN|US' but may contain map pins like 'Pune, India')
+                if (adSetNode.targetCountries) {
+                    if (!final_geo_locations.countries) final_geo_locations.countries = [];
+                    const countries = adSetNode.targetCountries.split('|').filter(Boolean);
+                    countries.forEach(c => {
+                        const code = c.trim().toUpperCase();
+                        // Only add valid 2-letter country codes. Map pins (city names) are already in custom_locations!
+                        if (code.length === 2 && /^[A-Z]{2}$/.test(code)) {
+                            if (!final_geo_locations.countries.includes(code)) final_geo_locations.countries.push(code);
+                        }
+                    });
+                    // Clean up empty array to prevent Meta API errors
+                    if (final_geo_locations.countries.length === 0) {
+                        delete final_geo_locations.countries;
+                    }
+                }
+
+                // Ensure at least one country or custom location if completely empty
+                if (!final_geo_locations.cities && !final_geo_locations.regions && !final_geo_locations.countries && !final_geo_locations.zips && !final_geo_locations.custom_locations) {
                     final_geo_locations.countries = ['IN']; // fallback
                 }
 
