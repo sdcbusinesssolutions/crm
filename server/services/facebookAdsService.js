@@ -835,13 +835,16 @@ class FacebookAdsService {
             let displayMessage = error.message || 'Failed to launch bulk campaign';
             if (error.response?.data?.error) {
                 const fbError = error.response.data.error;
-                if (fbError.error_user_title && fbError.error_user_msg) {
+                if (fbError.code === 4 || fbError.error_subcode === 5044001) {
+                    displayMessage = "Rate Limit Exceeded: You are creating too many ads too quickly. Please wait a few minutes before launching another campaign.";
+                } else if (fbError.error_user_title && fbError.error_user_msg) {
                     displayMessage = `${fbError.error_user_title}: ${fbError.error_user_msg}`;
                 } else if (fbError.message) {
                     displayMessage = fbError.message;
                 }
             }
             
+            console.error('[Click To WhatsApp API Error]:', displayMessage);
             throw new Error(displayMessage);
         }
     }
