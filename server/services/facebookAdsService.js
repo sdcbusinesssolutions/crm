@@ -299,6 +299,7 @@ class FacebookAdsService {
                     objective: objective || 'OUTCOME_LEADS',
                     status: status || 'PAUSED',
                     special_ad_categories: '[]',
+                    is_adset_budget_sharing_enabled: 'False',
                     access_token: accessToken
                 }
             });
@@ -329,7 +330,7 @@ class FacebookAdsService {
                 bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
                 billing_event: 'IMPRESSIONS',
                 optimization_goal: optimizationGoal || 'CONVERSATIONS',
-                is_adset_budget_sharing_enabled: 'True',
+                is_adset_budget_sharing_enabled: 'False',
                 destination_type: 'WHATSAPP',
                 promoted_object: JSON.stringify({ 
                     page_id: pageId,
@@ -490,7 +491,9 @@ class FacebookAdsService {
                 ...(budgetOptimization === 'CBO' && dailyBudget ? { 
                     daily_budget: parseFloat(dailyBudget) * 100,
                     bid_strategy: 'LOWEST_COST_WITHOUT_CAP'
-                } : {})
+                } : {
+                    is_adset_budget_sharing_enabled: 'False'
+                })
             };
             require('fs').appendFileSync(require('path').join(__dirname, '../../meta_payloads.log'), `\n[${new Date().toISOString()}] CAMPAIGN PAYLOAD:\n${JSON.stringify(campaignParams, null, 2)}\n`);
 
@@ -637,8 +640,10 @@ class FacebookAdsService {
                     ...(budgetOptimization !== 'CBO' ? { 
                         daily_budget: (parseFloat(adSetNode.budget) || parseFloat(baseConfig.dailyBudget) || 500) * 100,
                         bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+                        is_adset_budget_sharing_enabled: 'False'
+                    } : {
                         is_adset_budget_sharing_enabled: 'True'
-                    } : {}),
+                    }),
                     billing_event: 'IMPRESSIONS',
                     optimization_goal: baseConfig.optimizationGoal || 'CONVERSATIONS',
                     destination_type: 'WHATSAPP',

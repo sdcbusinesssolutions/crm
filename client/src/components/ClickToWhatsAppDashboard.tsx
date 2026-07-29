@@ -271,7 +271,8 @@ const ClickToWhatsAppDashboard = () => {
           )}
 
           <button 
-            className="ctwa-btn ctwa-btn-create-ad" 
+            className={`ctwa-btn ctwa-btn-create-ad ${loading ? 'opacity-50 cursor-not-allowed' : ''}`} 
+            disabled={loading}
             onClick={() => {
               if (adAccounts.length > 0) {
                 setSelectedAdAccount(adAccounts[0].account_id);
