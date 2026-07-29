@@ -2389,7 +2389,60 @@ const ClickToWhatsAppLauncher = () => {
             <button type="button" onClick={() => {
               setSuccessData(null);
               setCurrentStep(1);
-              setFormData({...formData, campaignName: 'New Campaign ' + Date.now()});
+              setDroppedPins([]);
+              setFormData(prev => ({
+                ...prev,
+                campaignName: '',
+                adSetName: '',
+                adName: '',
+                status: 'PAUSED',
+                budgetOptimization: 'CBO',
+                dailyBudget: '',
+                headline: 'Chat with us on WhatsApp!',
+                primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
+                mediaUrls: [],
+                mediaType: 'image',
+                targetCountries: '',
+                locationRadiuses: {},
+                locationTypes: {},
+                minAge: 18,
+                maxAge: 65,
+                gender: 'ALL',
+                startDate: new Date().toISOString().split('T')[0],
+                endDate: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0],
+                welcomeMessageText: 'Hello! I saw your ad on Facebook.',
+                iceBreakerText: 'I would like to know more',
+                description: '',
+                detailedTargeting: [],
+                advantageAudience: 1,
+                advantagePlacements: true,
+                publisherPlatforms: ['facebook', 'instagram', 'audience_network', 'messenger'],
+                objective: 'OUTCOME_SALES',
+                optimizationGoal: 'CONVERSATIONS'
+              }));
+              setAdSets([{
+                id: 'adset-initial',
+                type: 'AD_SET',
+                name: 'New Ad Set',
+                budget: 0,
+                targetCountries: '',
+                minAge: 18,
+                maxAge: 65,
+                gender: 'ALL',
+                advantagePlacements: true,
+                publisherPlatforms: [],
+                ads: [{
+                  id: 'ad-initial',
+                  type: 'AD',
+                  name: 'New Ad',
+                  mediaUrls: [],
+                  primaryText: 'Get instant support and exclusive offers right in your WhatsApp inbox.',
+                  headline: 'Chat with us on WhatsApp!',
+                  description: ''
+                }]
+              }]);
+              setSelectedAdSetId('adset-initial');
+              setSelectedAdId('ad-initial');
             }} className="ctwa-submit-btn" style={{width: '100%'}}>
               Create Another Ad
             </button>
