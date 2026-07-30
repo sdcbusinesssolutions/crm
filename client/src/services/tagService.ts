@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { tokenService } from './tokenService';
 
 export interface Tag {
     id: string;
@@ -11,13 +12,26 @@ export interface Tag {
 }
 
 export const tagService = {
+    async getAuthHeaders() {
+        const token = tokenService.getAccessToken();
+        if (token) {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+        
+        // Fallback to Supabase session for owners if token is missing
+        const { data: { session } } = await supabase.auth.getSession();
+        return {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token || ''}`
+        };
+    },
+
     async getTags(): Promise<Tag[]> {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session?.access_token || ''}`
-            };
+            const headers = await this.getAuthHeaders();
             const res = await fetch('/api/tags', { headers });
             if (!res.ok) throw new Error('Failed to fetch tags');
             return await res.json();
@@ -28,46 +42,54 @@ export const tagService = {
     },
 
     async saveTag(tag: Partial<Tag>): Promise<Tag> {
-        // Prepare data (remove count/id if needed or handle updates)
-        const tagData = {
-            name: tag.name,
-            description: tag.description,
-            color: tag.color
-        };
+        try {
+            const headers = await this.getAuthHeaders();
+            const tagData = {
+                name: tag.name,
+                description: tag.description,
+                color: tag.color
+            };
 
-        if (tag.id && !tag.id.startsWith('temp-')) {
-            // Update
-            const { data, error } = await (supabase
-                .from('tags') as any)
-                .update(tagData)
-                .eq('id', tag.id)
-                .select()
-                .single();
-            if (error) throw error;
-            return data;
-        } else {
-            // Insert
-            const { data, error } = await (supabase
-                .from('tags') as any)
-                .insert([{
-                    name: tag.name,
-                    description: tag.description,
-                    color: tag.color || '#10b981',
-                    user_id: (await supabase.auth.getUser()).data.user?.id
-                }])
-                .select()
-                .single();
-            if (error) throw error;
-            return data;
+            const isUpdate = tag.id && !tag.id.startsWith('temp-');
+            const url = isUpdate ? `/api/tags/${tag.id}` : '/api/tags';
+            
+            // If it's a temporary tag we're customizing (e.g. from a legacy contact), 
+            // the backend handles the 'temp-' prefix automatically in PUT by inserting it.
+            const method = tag.id ? 'PUT' : 'POST'; 
+            
+            const response = await fetch(tag.id ? `/api/tags/${tag.id}` : '/api/tags', {
+                method,
+                headers,
+                body: JSON.stringify(tagData)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to save tag');
+            }
+
+            return await response.json();
+        } catch (e) {
+            console.error("Error saving tag:", e);
+            throw e;
         }
     },
 
     async deleteTag(id: string): Promise<void> {
-        const { error } = await supabase
-            .from('tags')
-            .delete()
-            .eq('id', id);
-        if (error) throw error;
+        try {
+            const headers = await this.getAuthHeaders();
+            const response = await fetch(`/api/tags/${id}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to delete tag');
+            }
+        } catch (e) {
+            console.error("Error deleting tag:", e);
+            throw e;
+        }
     },
 
     async getContactsByTag(tagName: string, page: number = 1, limit: number = 20): Promise<{ contacts: any[], total: number }> {
@@ -101,6 +123,7 @@ export const tagService = {
         }
         return (data as any)?.created_at || null;
     },
+    
     async getContactCount(tagName: string): Promise<number> {
         const { count, error } = await supabase
             .from('contacts')
