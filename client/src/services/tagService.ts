@@ -100,7 +100,7 @@ export const tagService = {
         const { data, error, count } = await supabase
             .from('contacts')
             .select('*', { count: 'exact' })
-            .contains('tags', [tagName])
+            .filter('tags', 'cs', JSON.stringify([tagName]))
             .range(from, to)
             .order('created_at', { ascending: false });
 
@@ -112,7 +112,7 @@ export const tagService = {
         const { data, error } = await supabase
             .from('contacts')
             .select('created_at')
-            .contains('tags', [tagName])
+            .filter('tags', 'cs', JSON.stringify([tagName]))
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -128,7 +128,7 @@ export const tagService = {
         const { count, error } = await supabase
             .from('contacts')
             .select('*', { count: 'exact', head: true })
-            .contains('tags', [tagName]);
+            .filter('tags', 'cs', JSON.stringify([tagName]));
 
         if (error) {
             console.error(`Error fetching count for tag ${tagName}:`, error);

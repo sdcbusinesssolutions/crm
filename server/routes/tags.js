@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAuthenticatedSupabase } = require('../lib/supabaseClient');
+const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
 
 // GET /api/tags - Get all tags
@@ -67,14 +67,13 @@ router.get('/', requirePermission('Tags', 'read'), async (req, res) => {
 // POST /api/tags - Create a new tag
 router.post('/', requirePermission('Tags', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const { name, description, color } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'Tag name is required' });
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tags')
             .insert([{
                 name: name.trim(),
@@ -96,7 +95,6 @@ router.post('/', requirePermission('Tags', 'read_write'), async (req, res) => {
 // PUT /api/tags/:id - Update an existing tag
 router.put('/:id', requirePermission('Tags', 'read_write'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
         const { name, description, color } = req.body;
 
@@ -106,7 +104,7 @@ router.put('/:id', requirePermission('Tags', 'read_write'), async (req, res) => 
 
         // If the ID is a temp ID (legacy tag), we need to insert it instead of updating
         if (id.startsWith('temp-')) {
-            const { data, error } = await supabase
+            const { data, error } = await supabaseAdmin
                 .from('tags')
                 .insert([{
                     name: name.trim(),
@@ -121,7 +119,7 @@ router.put('/:id', requirePermission('Tags', 'read_write'), async (req, res) => 
             return res.json(data);
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from('tags')
             .update({
                 name: name.trim(),
@@ -145,7 +143,6 @@ router.put('/:id', requirePermission('Tags', 'read_write'), async (req, res) => 
 // DELETE /api/tags/:id - Delete a tag
 router.delete('/:id', requirePermission('Tags', 'all_access'), async (req, res) => {
     try {
-        const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
 
         // Note: For temporary tags, we don't have a record in `tags` table to delete.
@@ -155,7 +152,7 @@ router.delete('/:id', requirePermission('Tags', 'all_access'), async (req, res) 
             return res.status(204).send();
         }
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('tags')
             .delete()
             .eq('id', id)

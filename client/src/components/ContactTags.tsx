@@ -28,6 +28,7 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
 
     // Create/Edit Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [editingTag, setEditingTag] = useState<Tag | null>(null);
     const [formData, setFormData] = useState<Partial<Tag>>({ name: '', description: '', color: '#10b981' });
 
@@ -87,8 +88,9 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name?.trim()) return;
+        if (!formData.name?.trim() || isSaving) return;
 
+        setIsSaving(true);
         try {
             await tagService.saveTag({
                 ...formData,
@@ -96,13 +98,15 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
             });
             await loadTags();
             setIsModalOpen(false);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to save tag", err);
             setToast({
                 type: 'error',
                 title: 'Error Saving Tag',
-                message: 'Failed to save tag. Please ensure the tag name is unique.'
+                message: err.message || 'Failed to save tag. Please ensure the tag name is unique.'
             });
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -434,8 +438,10 @@ const ContactTags: React.FC<ContactTagsProps> = () => {
                             </div>
                         </div>
                         <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
-                            <button onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-btn text-slate-600 font-bold">Cancel</button>
-                            <button onClick={handleSave} className="px-5 py-2.5 bg-brand-600 text-white rounded-btn font-bold hover:bg-brand-700 shadow-md">Save Tag</button>
+                            <button onClick={() => setIsModalOpen(false)} disabled={isSaving} className="px-5 py-2.5 bg-white border border-slate-200 rounded-btn text-slate-600 font-bold disabled:opacity-50">Cancel</button>
+                            <button onClick={handleSave} disabled={isSaving} className="px-5 py-2.5 bg-brand-600 text-white rounded-btn font-bold hover:bg-brand-700 shadow-md flex items-center gap-2 disabled:opacity-50">
+                                {isSaving ? 'Saving...' : 'Save Tag'}
+                            </button>
                         </div>
                     </div>
                 </div>
