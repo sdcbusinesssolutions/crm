@@ -163,7 +163,7 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         <button
                             onClick={() => fetchTemplates(true)}
                             disabled={isLoading}
-                            className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-sm font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2 disabled:opacity-50"
                             title="Force Sync with Meta"
                         >
                             <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
