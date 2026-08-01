@@ -122,7 +122,7 @@ router.get('/', requirePermission('WhatsApp Templates', 'read'), async (req, res
 
         // 2. Sync with Meta (Smart Sync: Only if last_synced_at is > 10 mins or forced)
         const lastSyncedAt = localTemplates[0]?.last_synced_at;
-        const needsSync = req.query.sync === 'true' || !lastSyncedAt || (new Date() - new Date(lastSyncedAt) > 1000);
+        const needsSync = req.query.sync === 'true' || !lastSyncedAt || (new Date() - new Date(lastSyncedAt) > 10 * 60 * 1000);
 
         if (needsSync) {
             try {

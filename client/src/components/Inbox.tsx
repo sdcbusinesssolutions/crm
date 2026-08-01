@@ -2756,6 +2756,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 } else if (e.key === 'Escape') {
                                                     setIsQuickReplyOpen(false);
                                                 }
+                                            } else if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
                                             }
                                         }}
                                         className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
