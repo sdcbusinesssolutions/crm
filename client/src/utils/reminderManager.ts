@@ -14,13 +14,47 @@ type ReminderEventData = {
 
 class ReminderManager {
     private timeouts: Map<string, NodeJS.Timeout> = new Map();
+    private pendingReminders: Map<string, ReminderConfig> = new Map();
     private dismissedIds: Set<string> = new Set();
+    private pollingInterval: NodeJS.Timeout | null = null;
     
     // We want to trigger it 15 minutes before the actual time, as requested
     private ADVANCE_NOTICE_MS = 15 * 60 * 1000;
 
     constructor() {
         this.loadFromStorage();
+        this.startPolling();
+    }
+
+    private startPolling() {
+        if (this.pollingInterval) clearInterval(this.pollingInterval);
+        this.pollingInterval = setInterval(() => {
+            this.checkReminders();
+        }, 5000); // Check every 5 seconds for robustness
+    }
+
+    private checkReminders() {
+        const now = Date.now();
+        for (const [id, config] of this.pendingReminders.entries()) {
+            const advanceNotice = (config.title && config.title.startsWith('[QUICK_ALARM]')) ? 0 : this.ADVANCE_NOTICE_MS;
+            const fireTime = config.scheduledAt.getTime() - advanceNotice;
+            
+            if (now >= fireTime) {
+                if (now - fireTime <= 60 * 60 * 1000) { // Due within last 60 mins
+                    this.triggerReminder(config);
+                    this.pendingReminders.delete(id);
+                    const timeout = this.timeouts.get(id);
+                    if (timeout) {
+                        clearTimeout(timeout);
+                        this.timeouts.delete(id);
+                    }
+                } else {
+                    // Too old, just remove
+                    this.pendingReminders.delete(id);
+                    this.removeReminder(id);
+                }
+            }
+        }
     }
 
     private loadFromStorage() {
@@ -85,26 +119,29 @@ class ReminderManager {
         const now = Date.now();
         const scheduledTime = config.scheduledAt.getTime();
         
-        // When should the alarm fire? (e.g. 15 mins before scheduledTime)
-        // If it's a Quick Alarm, fire exactly at the time, not 15 mins before.
+        // When should the alarm fire?
         const advanceNotice = (config.title && config.title.startsWith('[QUICK_ALARM]')) ? 0 : this.ADVANCE_NOTICE_MS;
         const fireTime = scheduledTime - advanceNotice;
         const delayMs = fireTime - now;
 
         if (delayMs > 0) {
-            // Future reminder: set a timeout
+            // Future reminder: set a timeout AND add to pending for polling
+            this.pendingReminders.set(config.id, config);
             const timeout = setTimeout(() => {
-                this.triggerReminder(config);
+                if (this.pendingReminders.has(config.id)) {
+                    this.triggerReminder(config);
+                    this.pendingReminders.delete(config.id);
+                    this.timeouts.delete(config.id);
+                }
             }, delayMs);
             this.timeouts.set(config.id, timeout);
             this.saveToStorage(config);
         } else if (delayMs <= 0 && delayMs > -(60 * 60 * 1000)) {
-            // If it's already due (within the last 60 minutes)
             // Fire immediately
             this.triggerReminder(config);
             this.saveToStorage(config);
         } else {
-            // It's way past due (> 60m), just clean it up if it was in storage
+            // Past due (>60m)
             this.removeFromStorage(config.id);
         }
     }
@@ -115,7 +152,7 @@ class ReminderManager {
             clearTimeout(timeout);
             this.timeouts.delete(id);
         }
-        // Always attempt to remove from storage, just in case
+        this.pendingReminders.delete(id);
         this.removeFromStorage(id);
     }
 
@@ -136,7 +173,12 @@ class ReminderManager {
     clearAll() {
         this.timeouts.forEach(clearTimeout);
         this.timeouts.clear();
+        this.pendingReminders.clear();
         this.dismissedIds.clear();
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
     }
 }
 

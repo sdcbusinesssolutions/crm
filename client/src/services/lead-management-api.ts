@@ -533,7 +533,8 @@ export const deleteNote = async (id: string): Promise<boolean> => {
 export const getTasks = async (leadId?: string): Promise<any[]> => {
     try {
         const headers = await getHeaders();
-        const url = leadId ? `/api/tasks?lead_id=${leadId}` : '/api/tasks';
+        // Add cache buster to prevent browser from returning stale tasks
+        const url = leadId ? `/api/tasks?lead_id=${leadId}&_t=${Date.now()}` : `/api/tasks?_t=${Date.now()}`;
         const res = await fetch(url, { headers });
         if (!res.ok) throw new Error('Failed to fetch tasks');
         return await res.json();
