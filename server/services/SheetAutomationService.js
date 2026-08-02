@@ -657,7 +657,17 @@ class SheetAutomationService {
                 */
 
                 // 2. Implicit Recurrence via Conditions (e.g. Birthday / Anniversary)
-                const conditions = Array.isArray(auto.trigger_condition) ? auto.trigger_condition : [auto.trigger_condition];
+                let conditions = [];
+                if (auto.trigger_condition?.logic === 'OR' && Array.isArray(auto.trigger_condition.groups)) {
+                    auto.trigger_condition.groups.forEach(g => {
+                        if (Array.isArray(g.conditions)) conditions.push(...g.conditions);
+                    });
+                } else if (Array.isArray(auto.trigger_condition)) {
+                    conditions = auto.trigger_condition;
+                } else if (auto.trigger_condition) {
+                    conditions = [auto.trigger_condition];
+                }
+
                 for (const cond of conditions) {
                     if (cond && ['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'day_month_after', 'day_month_before', 'in_last_x_days', 'in_next_x_days'].includes(cond.operator)) {
                         isRecurring = true;
@@ -1029,12 +1039,25 @@ class SheetAutomationService {
     checkCondition(conditionOrConditions, rowObj) {
         if (!conditionOrConditions) return true; // No condition = always run
 
-        // Support Multiple Conditions (AND Logic)
+        // Support Advanced Logic Groups: { logic: 'OR', groups: [...] }
+        if (conditionOrConditions.logic === 'OR' && Array.isArray(conditionOrConditions.groups)) {
+            if (conditionOrConditions.groups.length === 0) return true;
+            
+            // Return true if ANY group evaluates to true (OR logic between groups)
+            return conditionOrConditions.groups.some(group => {
+                if (!group.conditions || group.conditions.length === 0) return true;
+                // Within a group, ALL conditions must be met (AND logic)
+                return group.conditions.every(cond => this.checkSingleCondition(cond, rowObj));
+            });
+        }
+
+        // Support Legacy Flat Array (AND Logic)
         if (Array.isArray(conditionOrConditions)) {
             // Return true only if ALL conditions are met
             return conditionOrConditions.every(cond => this.checkSingleCondition(cond, rowObj));
         }
 
+        // Support Single Condition Object
         return this.checkSingleCondition(conditionOrConditions, rowObj);
     }
 
@@ -1069,10 +1092,10 @@ class SheetAutomationService {
         const istNow = getISTComponents(now); // Current IST date components
 
         // --- Basic String/General Checks ---
-        if (op === 'is_empty') return !val || val.toString().trim() === '';
-        if (op === 'is_not_empty') return val && val.toString().trim() !== '';
+        if (op === 'is_empty') return val === null || val === undefined || val.toString().trim() === '';
+        if (op === 'is_not_empty') return val !== null && val !== undefined && val.toString().trim() !== '';
 
-        if (!targetVal && !['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_before', 'day_month_after', 'day_month_equal'].includes(op)) {
+        if (!targetVal && !['is_today', 'is_yesterday', 'is_tomorrow', 'day_month_before', 'day_month_after', 'day_month_equal', 'is_current_month', 'is_next_month', 'is_current_year'].includes(op)) {
             return false;
         }
 
@@ -1134,7 +1157,7 @@ class SheetAutomationService {
         // Simpler: Compare YYYYMMDD integers.
         const toInt = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
         const istNowInt = istNow.year * 10000 + (istNow.month + 1) * 100 + istNow.day;
-        const valInt = toInt(dateVal);
+        const valInt = dateVal ? toInt(dateVal) : null;
 
         if (op === 'in_last_x_days') {
             const days = parseInt(targetVal) || 0;
@@ -1153,10 +1176,16 @@ class SheetAutomationService {
         if (['date_equals', 'date_before', 'date_after', 'date_between'].includes(op)) {
             // For explicit date comparisons, we assume targetVal is also YYYY-MM-DD provided by user (or UI).
             // We parse it naively.
-            const targetDate = this.parseDate(targetVal);
-            if (!targetDate) return false;
+            let targetDate = null;
+            if (op !== 'date_between') {
+                targetDate = this.parseDate(targetVal);
+                if (!targetDate) return false;
+            }
 
-            const targetInt = toInt(targetDate);
+            let targetInt = null;
+            if (targetDate) {
+                targetInt = toInt(targetDate);
+            }
 
             if (op === 'date_equals') return valInt === targetInt;
             if (op === 'date_before') return valInt < targetInt; // Strict before? "Date Before" usually means <
@@ -1188,23 +1217,27 @@ class SheetAutomationService {
         }
 
         // --- NEW: Month & Year Logic ---
-        const valYear = dateVal.getFullYear();
-        const valMonth = dateVal.getMonth() + 1; // 1-12
+        if (['month_equals', 'is_current_month', 'is_next_month', 'year_equals', 'is_current_year'].includes(op)) {
+            const valYear = dateVal.getFullYear();
+            const valMonth = dateVal.getMonth() + 1; // 1-12
 
-        if (op === 'month_equals') return valMonth === parseInt(targetVal);
-        if (op === 'is_current_month') return valMonth === (istNow.month + 1) && valYear === istNow.year;
-        if (op === 'is_next_month') {
-            let nextMonth = istNow.month + 2;
-            let nextYear = istNow.year;
-            if (nextMonth > 12) {
-                nextMonth = 1;
-                nextYear++;
+            if (op === 'month_equals') return valMonth === parseInt(targetVal);
+            if (op === 'is_current_month') {
+                return valMonth === (istNow.month + 1) && valYear === istNow.year;
             }
-            return valMonth === nextMonth && valYear === nextYear;
-        }
+            if (op === 'is_next_month') {
+                let nextMonth = istNow.month + 2;
+                let nextYear = istNow.year;
+                if (nextMonth > 12) {
+                    nextMonth = 1;
+                    nextYear++;
+                }
+                return valMonth === nextMonth && valYear === nextYear;
+            }
 
-        if (op === 'year_equals') return valYear === parseInt(targetVal);
-        if (op === 'is_current_year') return valYear === istNow.year;
+            if (op === 'year_equals') return valYear === parseInt(targetVal);
+            if (op === 'is_current_year') return valYear === istNow.year;
+        }
 
         return false;
     }
@@ -1222,18 +1255,18 @@ class SheetAutomationService {
             return new Date(Math.round((numVal - 25569) * 864e5));
         }
 
-        // 2. Original Constructors
-        let d = new Date(val);
-        if (!isNaN(d.getTime())) return d;
-
         // 2. Try DD/MM/YYYY or DD-MM-YYYY (Common in Sheet data)
         const parts = String(val).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
         if (parts) {
             // parts[1] is Day, parts[2] is Month, parts[3] is Year
             // Note: Month is 0-indexed in JS Date
-            d = new Date(parts[3], parseInt(parts[2]) - 1, parts[1]);
+            let d = new Date(parts[3], parseInt(parts[2]) - 1, parts[1]);
             if (!isNaN(d.getTime())) return d;
         }
+
+        // 3. Original Constructors (Fallbacks)
+        let d = new Date(val);
+        if (!isNaN(d.getTime())) return d;
 
         // 3. Try DD-Mon-YYYY (e.g., 20-Jan-2026)
         const textParts = String(val).match(/^(\d{1,2})[\/\-]([A-Za-z]{3})[\/\-](\d{4})/);
