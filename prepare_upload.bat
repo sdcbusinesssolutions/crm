@@ -7,6 +7,8 @@ echo ==========================================
 
 echo 🔨 Building Frontend Locally...
 cd client
+echo 📦 Installing missing dependencies...
+call npm install
 call npm run build
 cd ..
 
