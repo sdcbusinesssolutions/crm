@@ -82,7 +82,8 @@ const VideoGuideModal: React.FC<VideoGuideModalProps> = ({ isOpen, onClose, vide
                         src={`https://www.youtube.com/embed/${videoId}?autoplay=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&loop=1&playlist=${videoId}`}
                         title="YouTube video player" 
                         frameBorder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                         allowFullScreen
                     ></iframe>
                     {/* Invisible overlay to block mouse hover on the top YouTube title/channel icon */}
