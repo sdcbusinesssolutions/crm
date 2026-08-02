@@ -3,6 +3,7 @@ import { PlusIcon, SearchIcon, EyeIcon, TrashIcon } from '../icons';
 import { supabase } from '../../lib/supabase';
 import PermissionGate from '../../modules/teamStaff/components/PermissionGate';
 import { ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+import VideoGuideModal from '../VideoGuideModal';
 
 interface Campaign {
     id: string;
@@ -25,6 +26,7 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'Active' | 'Archive'>('Active');
+    const [showVideo, setShowVideo] = useState(false);
 
     useEffect(() => {
         fetchCampaigns();
@@ -115,13 +117,25 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                         </div>
                     </div>
                     <PermissionGate moduleName="Campaigns" requiredAccess={ACCESS_TYPES.READ_WRITE}>
-                        <button
-                            onClick={onCreate}
-                            className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] text-sm font-bold shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 w-full sm:w-auto"
-                        >
-                            <PlusIcon className="w-5 h-5" />
-                            Create New Campaign
-                        </button>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <button 
+                                onClick={() => setShowVideo(true)}
+                                className="flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-md hover:shadow-lg transition-all animate-pulse"
+                                title="Watch Video"
+                            >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                </svg>
+                                VIEW
+                            </button>
+                            <button
+                                onClick={onCreate}
+                                className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-[var(--radius-btn)] text-sm font-bold shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2 flex-1 sm:flex-none"
+                            >
+                                <PlusIcon className="w-5 h-5" />
+                                Create New Campaign
+                            </button>
+                        </div>
                     </PermissionGate>
                 </div>
             </div>
@@ -289,6 +303,13 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
                     </div>
                 </div>
             </div>
+
+            <VideoGuideModal
+                isOpen={showVideo}
+                onClose={() => setShowVideo(false)}
+                videoId="wXm2dntkwXU"
+                title="Create Campaign Guide"
+            />
         </div>
     );
 };
