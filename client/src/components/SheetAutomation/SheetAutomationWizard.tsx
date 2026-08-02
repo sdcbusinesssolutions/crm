@@ -442,12 +442,12 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
     // --- Render ---
     return (
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 overflow-hidden ring-1 ring-slate-900/5 relative isolate">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border-2 border-[#00684A] overflow-hidden relative isolate">
             {/* Subtle background glow effect */}
             <div className="absolute inset-0 -z-10 bg-gradient-to-br from-brand-50/50 via-transparent to-brand-100/20 pointer-events-none" />
             
             {/* Header Steps */}
-            <div className="flex items-center justify-between border-b border-slate-100/50 bg-gradient-to-r from-slate-50/50 to-white/50 p-6 backdrop-blur-sm">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-slate-50/50 to-white/50 p-6 backdrop-blur-sm">
                 <div className="flex space-x-6">
                     {[1, 2, 3, 4, 5].map(s => (
                         <div key={s} className={`flex items-center space-x-3 group ${step >= s ? 'opacity-100' : 'opacity-40 grayscale'}`}>
