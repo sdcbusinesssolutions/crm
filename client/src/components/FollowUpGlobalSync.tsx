@@ -179,15 +179,14 @@ export const FollowUpGlobalSync: React.FC = () => {
                         if (!t.is_completed && t.due_date && t.metadata?.enable_popup === true) {
                             getTasks().then(pipelineTasks => {
                                 const fullTask = pipelineTasks.find(pt => pt.id === t.id);
-                                if (!fullTask) return;
                                 
-                                const contactPhone = fullTask.leads?.phone ? ` (${fullTask.leads.phone})` : '';
-                                const contactName = fullTask.leads?.name || 'Unknown';
-                                const pipelineName = fullTask.leads?.pipelines?.name || 'No Pipeline';
-                                const leadIdSnippet = fullTask.lead_id ? ` [ID: ${fullTask.lead_id.substring(0,6)}]` : '';
+                                const contactPhone = fullTask?.leads?.phone ? ` (${fullTask.leads.phone})` : '';
+                                const contactName = fullTask?.leads?.name || 'Unknown CRM Lead';
+                                const pipelineName = fullTask?.leads?.pipelines?.name || 'No Pipeline';
+                                const leadIdSnippet = t.lead_id ? ` [ID: ${t.lead_id.substring(0,6)}]` : '';
                                 
                                 const subtitleParts = [];
-                                if (fullTask.description) subtitleParts.push(`📝 ${fullTask.description}`);
+                                if (t.description) subtitleParts.push(`📝 ${t.description}`);
                                 subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                                 subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
