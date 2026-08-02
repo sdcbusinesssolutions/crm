@@ -72,7 +72,7 @@ export const FollowUpGlobalSync: React.FC = () => {
                         subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                         subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                         
-                        const scheduledTime = new Date(t.due_date.endsWith('Z') ? t.due_date : t.due_date + 'Z');
+                        const scheduledTime = new Date(t.due_date.replace(' ', 'T'));
                         
                         reminderManager.addReminder({
                             id: `crm_${t.id}`,
@@ -190,7 +190,7 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                                 subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
-                                const scheduledTime = new Date(t.due_date.endsWith('Z') ? t.due_date : t.due_date + 'Z');
+                                const scheduledTime = new Date(t.due_date.replace(' ', 'T'));
                                 
                                 reminderManager.addReminder({
                                     id: `crm_${t.id}`,
