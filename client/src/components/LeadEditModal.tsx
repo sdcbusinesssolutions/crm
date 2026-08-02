@@ -689,7 +689,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                             <div className="flex-1">
                                                 <div className="flex justify-between">
                                                     <h4 className={`font-bold text-sm ${task.is_completed ? 'line-through opacity-50' : ''} text-[var(--color-text)]`}>{task.title}</h4>
-                                                    <span className="text-xs text-[var(--color-text)] opacity-50 whitespace-nowrap ml-4">{task.due_date ? new Date(task.due_date).toLocaleString() : 'No date'}</span>
+                                                    <span className="text-xs text-[var(--color-text)] opacity-50 whitespace-nowrap ml-4">{task.due_date ? new Date(task.due_date.endsWith('Z') ? task.due_date : task.due_date + 'Z').toLocaleString() : 'No date'}</span>
                                                 </div>
                                                 <p className={`text-xs mt-1 ${task.is_completed ? 'opacity-30' : 'opacity-70'} text-[var(--color-text)]`}>{task.description}</p>
                                                 

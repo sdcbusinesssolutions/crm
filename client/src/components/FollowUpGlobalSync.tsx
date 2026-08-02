@@ -72,7 +72,7 @@ export const FollowUpGlobalSync: React.FC = () => {
                         subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                         subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                         
-                        const scheduledTime = new Date(new Date(t.due_date).getTime() - 15 * 60000);
+                        const scheduledTime = new Date(t.due_date.endsWith('Z') ? t.due_date : t.due_date + 'Z');
                         
                         reminderManager.addReminder({
                             id: `crm_${t.id}`,
@@ -191,8 +191,7 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                                 subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
-                                // Schedule 15 minutes before due date as per UI
-                                const scheduledTime = new Date(new Date(t.due_date).getTime() - 15 * 60000);
+                                const scheduledTime = new Date(t.due_date.endsWith('Z') ? t.due_date : t.due_date + 'Z');
                                 
                                 reminderManager.addReminder({
                                     id: `crm_${t.id}`,
