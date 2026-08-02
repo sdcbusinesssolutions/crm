@@ -95,7 +95,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     contact_id: t.lead_id, // Use lead_id as contact_id for keying purposes
                     title: t.title,
                     description: t.description,
-                    scheduled_at: t.due_date,
+                    scheduled_at: (t.due_date && !t.due_date.endsWith('Z')) ? t.due_date + 'Z' : t.due_date,
                     status: t.is_completed ? 'COMPLETED' : 'PENDING',
                     priority: 'MEDIUM',
                     type: 'TASK',
