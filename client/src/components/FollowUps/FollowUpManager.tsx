@@ -31,6 +31,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     const [followUps, setFollowUps] = useState<UnifiedTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');
+    const [sourceFilter, setSourceFilter] = useState<'all' | 'crm_task' | 'follow_up'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilterStart, setDateFilterStart] = useState('');
     const [dateFilterEnd, setDateFilterEnd] = useState('');
@@ -117,16 +118,17 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 return dateB - dateA; // Descending
             });
 
-            // Deduplicate PENDING tasks by contact_id, keeping only the latest
-            const seenContactIds = new Set();
+            // Deduplicate PENDING tasks by contact_id + source, keeping only the latest per category
+            const seenContactSource = new Set();
             const deduplicated = [];
 
             for (const task of allTasks) {
                 if (task.status !== 'COMPLETED' && task.contact_id) {
-                    if (seenContactIds.has(task.contact_id)) {
-                        continue; // Skip older pending task
+                    const key = `${task.contact_id}_${task.source}`;
+                    if (seenContactSource.has(key)) {
+                        continue; // Skip older pending task of the same type
                     }
-                    seenContactIds.add(task.contact_id);
+                    seenContactSource.add(key);
                 }
                 deduplicated.push(task);
             }
@@ -232,6 +234,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
 
     // --- Filtering & Searching ---
     const filteredItems = followUps.filter(item => {
+        // 0. Source Filter
+        if (sourceFilter === 'crm_task' && item.source !== 'crm_task') return false;
+        if (sourceFilter === 'follow_up' && item.source !== 'follow_up') return false;
+
         // 1. Filter Tab
         if (filter === 'all' && item.status === 'COMPLETED') return false;
         if (filter === 'completed' && item.status !== 'COMPLETED') return false;
@@ -454,9 +460,28 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
             {/* Table Section */}
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {/* Table Top Bar */}
-                <div className="p-4 flex flex-col sm:flex-row gap-4 justify-between items-center border-b border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-800">All Tasks</h3>
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                <div className="p-4 flex flex-col xl:flex-row gap-4 justify-between items-center border-b border-slate-100">
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setSourceFilter('all')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            All Tasks
+                        </button>
+                        <button
+                            onClick={() => setSourceFilter('crm_task')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'crm_task' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Pipeline Tasks
+                        </button>
+                        <button
+                            onClick={() => setSourceFilter('follow_up')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'follow_up' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            General Reminders
+                        </button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
                         <div className="flex flex-row items-center gap-2 w-full sm:w-auto">
                             <div className="flex items-center gap-1 border border-slate-300 rounded-lg bg-white overflow-hidden">
                                 <span className="px-2 py-2 text-xs font-medium text-slate-500 bg-slate-50 border-r border-slate-300">From</span>

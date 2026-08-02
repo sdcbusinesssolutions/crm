@@ -139,6 +139,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     // Animation Effect
     const [displayedPercent, setDisplayedPercent] = useState(0);
     const [animatedFollowupWidths, setAnimatedFollowupWidths] = useState<number[]>([0, 0, 0, 0]);
+    const [showVideo, setShowVideo] = useState(false);
     const [breathingOffset, setBreathingOffset] = useState(0);
 
     // Breathing Animation Loop
@@ -187,8 +188,20 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     return (
         <div className="w-full h-full border-2 border-blue-600 rounded-[24px] p-4 shadow-sm font-sans flex flex-col" style={{ backgroundColor: '#f8fafc', backgroundImage: 'radial-gradient(circle at top right, #ffffff, #f1f5f9)' }}>
             {/* Header */}
-            <div className="w-full text-center pb-2">
-                <h2 className="text-lg font-black tracking-wide uppercase" style={{ color: '#07523d' }}>Lead Pipeline Automation CRM</h2>
+            <div className="w-full flex justify-center items-center gap-3 pb-2 relative">
+                <h2 className="text-lg font-black tracking-wide uppercase flex items-center gap-2" style={{ color: '#07523d' }}>
+                    Lead Pipeline Automation CRM
+                </h2>
+                <button 
+                    onClick={() => setShowVideo(true)}
+                    className="flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-md hover:shadow-lg transition-all animate-pulse"
+                    title="Watch Video"
+                >
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                    </svg>
+                    VIEW
+                </button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 h-full">
@@ -659,9 +672,43 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                             </div>
                         </div>
                     </div>
-
                 </div>
             </div>
+            
+            {/* Video Modal */}
+            {showVideo && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-t-2xl rounded-b-sm overflow-hidden shadow-2xl w-full max-w-4xl flex flex-col relative animate-scale-in">
+                        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
+                            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                </svg>
+                                CRM Automation Guide
+                            </h3>
+                            <button 
+                                onClick={() => setShowVideo(false)}
+                                className="text-slate-400 hover:text-slate-700 bg-slate-200 hover:bg-slate-300 rounded-full p-2 transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div className="relative w-full" style={{ paddingBottom: '56.25%' /* 16:9 Aspect Ratio */ }}>
+                            <iframe 
+                                className="absolute top-0 left-0 w-full h-full"
+                                src="https://www.youtube.com/embed/_MX4Rrx5DZs?autoplay=1&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&loop=1&playlist=_MX4Rrx5DZs" 
+                                title="YouTube video player" 
+                                frameBorder="0" 
+                                sandbox="allow-scripts allow-same-origin allow-presentation"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                                allowFullScreen
+                            ></iframe>
+                            {/* Invisible overlay to block mouse hover on the YouTube title/channel icon */}
+                            <div className="absolute top-0 left-0 w-full h-16 z-10" title="Video Title"></div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

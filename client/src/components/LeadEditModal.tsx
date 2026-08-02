@@ -47,7 +47,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
     const [callLogs, setCallLogs] = useState<any[]>([]);
     const [newNote, setNewNote] = useState({ title: '', content: '', tags: '' });
     const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
-    const [addToGeneralFollowUps, setAddToGeneralFollowUps] = useState(false);
+    const [enablePopup, setEnablePopup] = useState(false);
     const [newAppointment, setNewAppointment] = useState({ title: '', start_time: '', end_time: '', description: '' });
     const [newCallLog, setNewCallLog] = useState({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
 
@@ -209,29 +209,14 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 lead_id: editingLead.id,
                 title: newTask.title,
                 description: newTask.description,
-                due_date: newTask.due_date ? newTask.due_date : null
+                due_date: newTask.due_date ? newTask.due_date : null,
+                enable_popup: enablePopup
             });
-
-            if (addToGeneralFollowUps) {
-                try {
-                    await followUpService.createFollowUp({
-                        contact_id: editingLead.id,
-                        title: newTask.title,
-                        description: newTask.description,
-                        scheduled_at: newTask.due_date ? newTask.due_date : new Date().toISOString(),
-                        status: 'PENDING',
-                        priority: 'MEDIUM',
-                        type: 'TASK'
-                    });
-                } catch (generalErr) {
-                    console.error("Failed to add to general follow-ups", generalErr);
-                    // Non-fatal error
-                }
-            }
 
             const updatedTasks = await getTasks(editingLead.id);
             setTasks(updatedTasks);
             setNewTask({ title: '', description: '', due_date: '' });
+            setEnablePopup(false);
             setToast({ type: 'success', title: 'Task Added', message: 'Follow-up task added successfully.' });
         } catch (e) {
             console.error(e);
@@ -648,15 +633,18 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                             className="w-full border border-[var(--color-border)] bg-[var(--color-input-bg)] text-[var(--color-text)] rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[var(--color-brand)] outline-none h-20 resize-none"
                                         />
                                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between">
-                                            <label className="flex items-center gap-2 text-sm text-[var(--color-text)] cursor-pointer">
+                                            <div className="flex items-center mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
                                                 <input
                                                     type="checkbox"
-                                                    checked={addToGeneralFollowUps}
-                                                    onChange={(e) => setAddToGeneralFollowUps(e.target.checked)}
-                                                    className="rounded text-[var(--color-brand)] focus:ring-[var(--color-brand)]"
+                                                    id="enablePopup"
+                                                    className="w-4 h-4 text-blue-600 bg-white border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
+                                                    checked={enablePopup}
+                                                    onChange={(e) => setEnablePopup(e.target.checked)}
                                                 />
-                                                Also save to General Follow-ups Reminder
-                                            </label>
+                                                <label htmlFor="enablePopup" className="ml-2 text-sm font-medium text-blue-900 cursor-pointer flex-1">
+                                                    Enable Popup Alarm (15 mins before)
+                                                </label>
+                                            </div>
                                             <div className="flex gap-2 items-center w-full sm:w-auto">
                                                 <input
                                                     type="datetime-local"

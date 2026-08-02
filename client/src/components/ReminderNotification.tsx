@@ -46,9 +46,21 @@ export const ReminderNotification: React.FC = () => {
         
         // Mark as completed in the database so it doesn't come back on refresh
         try {
-            await followUpService.updateFollowUp(id, { status: 'COMPLETED' });
+            if (id.startsWith('crm_')) {
+                const taskId = id.replace('crm_', '');
+                await fetch(`/api/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ is_completed: true })
+                });
+            } else {
+                await followUpService.updateFollowUp(id, { status: 'COMPLETED' });
+            }
         } catch (err) {
-            console.error('Failed to mark follow-up as completed', err);
+            console.error('Failed to mark task as completed', err);
         }
     };
 
@@ -98,8 +110,18 @@ export const ReminderNotification: React.FC = () => {
                             <p className="text-sm text-slate-500 mb-4 whitespace-pre-line">{reminder.subtitle}</p>
                         )}
                         <div className="flex gap-2 mt-4">
-
-
+                            <button
+                                onClick={() => handleAction(reminder)}
+                                className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                            >
+                                View Details
+                            </button>
+                            <button
+                                onClick={() => handleSnooze(reminder)}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+                            >
+                                Snooze (10m)
+                            </button>
                         </div>
                     </div>
                 </div>

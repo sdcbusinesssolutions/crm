@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { followUpService } from '../services/followUpService';
-import { getLead } from '../services/lead-management-api';
+import { getLead, getTasks } from '../services/lead-management-api';
 import { contactService } from '../services/contactService';
 import { reminderManager } from '../utils/reminderManager';
 import LeadEditModal from './LeadEditModal';
@@ -13,7 +13,10 @@ export const FollowUpGlobalSync: React.FC = () => {
     useEffect(() => {
         const syncFollowUps = async () => {
             try {
-                const tasks = await followUpService.getFollowUps({ status: 'PENDING' });
+                const [tasks, pipelineTasks] = await Promise.all([
+                    followUpService.getFollowUps({ status: 'PENDING' }),
+                    getTasks()
+                ]);
                 
                 tasks.forEach(task => {
                     if (task.scheduled_at) {
@@ -49,6 +52,35 @@ export const FollowUpGlobalSync: React.FC = () => {
                         });
                     }
                 });
+
+                // Sync CRM Tasks with enable_popup
+                pipelineTasks.forEach((t: any) => {
+                    if (!t.is_completed && t.due_date && t.metadata?.enable_popup === true) {
+                        const contactPhone = t.leads?.phone ? ` (${t.leads.phone})` : '';
+                        const contactName = t.leads?.name || 'Unknown';
+                        
+                        const subtitleParts = [];
+                        if (t.description) subtitleParts.push(`📝 ${t.description}`);
+                        subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}`);
+                        if (t.leads?.pipelines && t.leads.pipelines.length > 0) {
+                            subtitleParts.push(`💼 Pipeline: ${t.leads.pipelines[0].name}`);
+                        }
+                        
+                        reminderManager.addReminder({
+                            id: `crm_${t.id}`,
+                            title: `[CRM Task] ${t.title}`,
+                            subtitle: subtitleParts.join('\n'),
+                            scheduledAt: new Date(t.due_date),
+                            data: { contactId: t.lead_id, description: t.description },
+                            onAction: (data) => {
+                                if (data.contactId) {
+                                    setSelectedLeadId(data.contactId);
+                                    setIsLeadEditModalOpen(true);
+                                }
+                            }
+                        });
+                    }
+                });
             } catch (err) {
                 console.error("Failed to sync follow-ups", err);
             }
@@ -57,23 +89,19 @@ export const FollowUpGlobalSync: React.FC = () => {
         // Fetch on mount
         syncFollowUps();
 
-        // WebSocket (Supabase Realtime) Subscription
-        const channel = supabase
+        // WebSocket (Supabase Realtime) Subscription for Follow-ups
+        const followUpsChannel = supabase
             .channel('public:follow_ups')
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'follow_ups' },
                 (payload) => {
-                    console.log('Realtime Follow-up Update received!', payload);
-                    
                     if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                         const task = payload.new as any;
                         if (task.status === 'PENDING' && task.scheduled_at) {
-                            // Fetch full task details (including joined contacts) to avoid relying on a new backend route
                             followUpService.getFollowUps({ status: 'PENDING' }).then((tasks) => {
                                 const fullTask = tasks.find(t => t.id === task.id);
                                 const contactData = fullTask?.contacts;
-
                                 const contactName = contactData?.name || (contactData as any)?.whatsapp_name || 'Unknown';
                                 const contactPhone = contactData?.phone || '';
                                 const phoneStr = contactPhone ? ` (${contactPhone})` : '';
@@ -88,25 +116,20 @@ export const FollowUpGlobalSync: React.FC = () => {
                                     subtitleParts.push(`👤 Contact: ${contactName}${phoneStr}`);
                                 }
                                 
-                                const finalSubtitle = subtitleParts.join('\n');
-
                                 reminderManager.addReminder({
                                     id: task.id,
                                     title: task.title,
-                                    subtitle: finalSubtitle, 
+                                    subtitle: subtitleParts.join('\n'), 
                                     scheduledAt: new Date(task.scheduled_at),
                                     data: { contactId: task.contact_id, description: task.description },
                                     onAction: (data) => {
                                         if (data.contactId) {
                                             setSelectedLeadId(data.contactId);
                                             setIsLeadEditModalOpen(true);
-                                        } else {
-                                            alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
                                         }
                                     }
                                 });
                             }).catch(() => {
-                                // Fallback if fetch fails
                                 reminderManager.addReminder({
                                     id: task.id,
                                     title: task.title,
@@ -117,19 +140,63 @@ export const FollowUpGlobalSync: React.FC = () => {
                                         if (data.contactId) {
                                             setSelectedLeadId(data.contactId);
                                             setIsLeadEditModalOpen(true);
-                                        } else {
-                                            alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
                                         }
                                     }
                                 });
                             });
                         } else if (task.status !== 'PENDING') {
-                            // If it was marked completed/cancelled, remove the reminder
                             reminderManager.removeReminder(task.id);
                         }
                     } else if (payload.eventType === 'DELETE') {
                         const oldTask = payload.old as any;
                         reminderManager.removeReminder(oldTask.id);
+                    }
+                }
+            )
+            .subscribe();
+
+        // WebSocket Subscription for CRM Tasks
+        const tasksChannel = supabase
+            .channel('public:tasks')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'tasks' },
+                (payload) => {
+                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                        const t = payload.new as any;
+                        if (!t.is_completed && t.due_date && t.metadata?.enable_popup === true) {
+                            getTasks().then(pipelineTasks => {
+                                const fullTask = pipelineTasks.find(pt => pt.id === t.id);
+                                if (!fullTask) return;
+                                
+                                const contactPhone = fullTask.leads?.phone ? ` (${fullTask.leads.phone})` : '';
+                                const contactName = fullTask.leads?.name || 'Unknown';
+                                
+                                const subtitleParts = [];
+                                if (fullTask.description) subtitleParts.push(`📝 ${fullTask.description}`);
+                                subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}`);
+                                
+                                reminderManager.addReminder({
+                                    id: `crm_${t.id}`,
+                                    title: `[CRM Task] ${t.title}`,
+                                    subtitle: subtitleParts.join('\n'),
+                                    scheduledAt: new Date(t.due_date),
+                                    data: { contactId: t.lead_id, description: t.description },
+                                    onAction: (data) => {
+                                        if (data.contactId) {
+                                            setSelectedLeadId(data.contactId);
+                                            setIsLeadEditModalOpen(true);
+                                        }
+                                    }
+                                });
+                            });
+                        } else {
+                            // If completed, or enable_popup is false, remove the reminder
+                            reminderManager.removeReminder(`crm_${t.id}`);
+                        }
+                    } else if (payload.eventType === 'DELETE') {
+                        const oldTask = payload.old as any;
+                        reminderManager.removeReminder(`crm_${oldTask.id}`);
                     }
                 }
             )
@@ -145,7 +212,8 @@ export const FollowUpGlobalSync: React.FC = () => {
         window.addEventListener('open-contact-modal', handleOpenModal);
 
         return () => {
-            supabase.removeChannel(channel);
+            supabase.removeChannel(followUpsChannel);
+            supabase.removeChannel(tasksChannel);
             window.removeEventListener('open-contact-modal', handleOpenModal);
         };
     }, []);
