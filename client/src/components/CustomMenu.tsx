@@ -13,6 +13,10 @@ const CustomMenu: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const [entriesPerPage] = useState(10);
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({ name: '', type: 'URL', value: '' });
@@ -94,6 +98,9 @@ const CustomMenu: React.FC = () => {
     };
 
     const filteredMenus = menus.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const totalPages = Math.ceil(filteredMenus.length / entriesPerPage) || 1;
+    const currentEntries = filteredMenus.slice((currentPage - 1) * entriesPerPage, currentPage * entriesPerPage);
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
@@ -114,7 +121,7 @@ const CustomMenu: React.FC = () => {
                             type="text" 
                             placeholder="Search references..." 
                             value={searchTerm} 
-                            onChange={(e) => setSearchTerm(e.target.value)} 
+                            onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} 
                             className="pl-10 pr-4 py-2.5 w-full bg-white border border-brand-600 rounded-btn focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 text-sm shadow-sm outline-none transition-all placeholder:text-slate-400" 
                         />
                     </div>
@@ -157,7 +164,7 @@ const CustomMenu: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
-                                {filteredMenus.map((menu) => (
+                                {currentEntries.map((menu) => (
                                     <tr key={menu.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-bold text-slate-900">{menu.name}</div>
@@ -200,6 +207,16 @@ const CustomMenu: React.FC = () => {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                )}
+                
+                {filteredMenus.length > 0 && (
+                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center gap-4">
+                        <div className="flex gap-2">
+                            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Previous</button>
+                            <div className="px-4 py-2 bg-brand-600 text-white rounded-btn text-sm font-bold shadow-sm shadow-brand-200">{currentPage}</div>
+                            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-4 py-2 border border-slate-300 rounded-btn bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-sm font-bold shadow-sm">Next</button>
+                        </div>
                     </div>
                 )}
             </div>
