@@ -112,7 +112,13 @@ const FollowUpManager: React.FC = () => {
         setLoading(true);
         try {
             const data = await getTasks();
-            setTasks(data);
+            const fixedData = data.map(t => {
+                if (t.due_date && !t.due_date.endsWith('Z')) {
+                    t.due_date += 'Z';
+                }
+                return t;
+            });
+            setTasks(fixedData);
         } catch (error) {
             console.error('Failed to load tasks', error);
         } finally {

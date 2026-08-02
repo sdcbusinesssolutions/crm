@@ -94,12 +94,16 @@ router.post('/', async (req, res) => {
     try {
         const supabase = supabaseAdmin;
         const user = req.user;
-        const { lead_id, title, description, due_date, is_completed } = req.body;
+        const { lead_id, title, description, due_date, is_completed, enable_popup } = req.body;
 
         const metadata = {
             created_by_staff_id: req.staff ? req.staff.staffId : null,
             created_by_role: req.staff ? 'staff' : 'admin'
         };
+        
+        if (enable_popup !== undefined) {
+            metadata.enable_popup = enable_popup;
+        }
 
         const { data, error } = await supabase
             .from('tasks')
