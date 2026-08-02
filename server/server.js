@@ -327,6 +327,7 @@ app.use('/api', router);
 
 app.use('/api/auth-notifications', authNotificationsRoutes); // Triggered post-signup for whatsapp config
 app.use('/api/external', require('./routes/external_api')); // Dedicated External API Endpoint
+app.use('/api/custom-menus', requireAuth, require('./routes/customMenus'));
 app.use('/.netlify/functions/server', router);
 // app.use('/', router); // DISABLED: This causes conflict with SPA routing (e.g. /admin/users hits API instead of React)
 

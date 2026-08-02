@@ -49,7 +49,8 @@ export type MenuItem =
     | 'G Automation'
     | 'Click to WhatsApp Ads'
     | 'Campaign Analytics'
-    | 'Quick Reply';
+    | 'Quick Reply'
+    | 'Custom Menu';
 
 interface SidebarProps {
     activeItem: MenuItem;
