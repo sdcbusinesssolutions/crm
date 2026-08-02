@@ -308,13 +308,19 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                             }
                                             try {
                                                 const targetTime = new Date(localReminderTime).getTime();
-                                                await followUpService.createFollowUp({
-                                                    contact_id: editingLead.id,
+                                                await createTask({
+                                                    lead_id: editingLead.id,
                                                     title: `[QUICK_ALARM] Reminder: ${editingLead.name || 'Contact'}`,
                                                     description: localReminderMessage,
-                                                    scheduled_at: new Date(targetTime).toISOString(),
-                                                    type: 'TASK'
+                                                    due_date: new Date(targetTime).toISOString(),
+                                                    enable_popup: true
                                                 });
+                                                
+                                                // Refresh tasks list if we are on the Follow-up tab
+                                                if (editingLead.id) {
+                                                    const updatedTasks = await getTasks(editingLead.id);
+                                                    setTasks(updatedTasks);
+                                                }
                                                 setShowLocalReminder(false);
                                                 setLocalReminderMessage('');
                                                 setLocalReminderTime('');
