@@ -4,6 +4,7 @@ import { followUpService } from '../services/followUpService';
 
 export const ReminderNotification: React.FC = () => {
     const [activeReminders, setActiveReminders] = useState<ReminderConfig[]>([]);
+    const [currentPage, setCurrentPage] = useState(0);
 
     useEffect(() => {
         // Request desktop notification permission on load
@@ -86,9 +87,26 @@ export const ReminderNotification: React.FC = () => {
 
     if (activeReminders.length === 0) return null;
 
+    const MAX_VISIBLE = 3;
+    const totalPages = Math.ceil(activeReminders.length / MAX_VISIBLE);
+    
+    // Ensure currentPage is valid if items are removed
+    let safePage = currentPage;
+    if (safePage >= totalPages) {
+        safePage = Math.max(0, totalPages - 1);
+        if (currentPage !== safePage) {
+            setCurrentPage(safePage);
+        }
+    }
+
+    const visibleReminders = activeReminders.slice(
+        safePage * MAX_VISIBLE,
+        (safePage + 1) * MAX_VISIBLE
+    );
+
     return (
         <div className="fixed top-20 right-8 z-[100] flex flex-col gap-4 w-[360px] pointer-events-none">
-            {activeReminders.map(reminder => (
+            {visibleReminders.map(reminder => (
                 <div key={reminder.id} className="pointer-events-auto bg-white rounded-xl shadow-2xl border border-brand-200 overflow-hidden animate-slide-in-right">
                     <div className="bg-brand-50 px-4 py-3 flex items-center justify-between border-b border-brand-100">
                         <div className="flex items-center gap-2">
@@ -126,6 +144,33 @@ export const ReminderNotification: React.FC = () => {
                     </div>
                 </div>
             ))}
+            
+            {totalPages > 1 && (
+                <div className="pointer-events-auto bg-slate-800 text-white text-sm font-medium py-2 px-4 rounded-xl shadow-lg flex items-center justify-between animate-fade-in">
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold"
+                    >
+                        ← Prev
+                    </button>
+                    <div className="flex flex-col items-center">
+                        <span className="text-slate-300 font-bold">
+                            {safePage + 1} / {totalPages}
+                        </span>
+                        <span className="text-xs text-brand-400">
+                            {activeReminders.length} total
+                        </span>
+                    </div>
+                    <button 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={safePage === totalPages - 1}
+                        className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-semibold"
+                    >
+                        Next →
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
