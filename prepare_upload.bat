@@ -5,6 +5,11 @@ echo ==========================================
 echo 🛍️ CLEAN BUILD AND PACKAGE (Optimized)
 echo ==========================================
 
+echo 🔨 Building Frontend Locally...
+cd client
+call npm run build
+cd ..
+
 set "BUILD_DIR=..\temp_deploy_build_wpcode"
 set "ZIP_NAME=deploy-package.zip"
 
@@ -34,12 +39,10 @@ set GIT_DATE=%datetime:~0,8%
 set "IMAGE_TAG=%GIT_BRANCH_CLEAN%-%GIT_DATE%-%GIT_COMMIT%"
 echo    Tag: %IMAGE_TAG%
 
-REM 2. Copy CLIENT (Only Source Code)
+REM 2. Copy CLIENT (Source Code + Built dist)
 echo 📂 Copying Client...
-REM /XD: Exclude huge/unneeded folders (node_modules, coverage, docs)
-REM /XF: Exclude unneeded files (.md, .log, .env)
 mkdir "%BUILD_DIR%\client"
-robocopy "client" "%BUILD_DIR%\client" /E /XD node_modules dist coverage local_testing doc docs /XF *.log .env* *.md *.txt *.sql
+robocopy "client" "%BUILD_DIR%\client" /E /XD node_modules coverage local_testing doc docs /XF *.log .env* *.md *.txt *.sql
 
 REM Write tag to file for remote use
 echo IMAGE_TAG=%IMAGE_TAG% > "%BUILD_DIR%\deploy_env"
