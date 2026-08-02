@@ -16,7 +16,6 @@ router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
                 contacts (
                     name,
                     phone,
-                    pipelines (name),
                         drip_enrollments (
                             id,
                             drip_campaign_id,
