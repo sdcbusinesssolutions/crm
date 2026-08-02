@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 export const FollowUpGlobalSync: React.FC = () => {
     const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
     const [isLeadEditModalOpen, setIsLeadEditModalOpen] = useState(false);
+    const [initialModalTab, setInitialModalTab] = useState<string>('opportunity');
 
     useEffect(() => {
         const syncFollowUps = async () => {
@@ -20,18 +21,22 @@ export const FollowUpGlobalSync: React.FC = () => {
                 
                 tasks.forEach(task => {
                     if (task.scheduled_at) {
-                        const contactPhone = task.contacts?.phone ? ` (${task.contacts.phone})` : '';
-                        const contactName = task.contacts?.name || 'Unknown';
                         const isQuickAlarm = task.title && task.title.startsWith('[QUICK_ALARM]');
                         
                         const subtitleParts = [];
                         if (task.description) subtitleParts.push(`📝 ${task.description}`);
                         
+                        const contactName = task.contacts?.name || (task.contacts as any)?.whatsapp_name || 'Unknown';
+                        const contactPhone = task.contacts?.phone ? ` (${task.contacts.phone})` : '';
+                        const pipelineName = (task.contacts as any)?.pipelines?.name || 'No Pipeline';
+                        const leadIdSnippet = task.contact_id ? ` [ID: ${task.contact_id.substring(0,6)}]` : '';
+                        
                         if (isQuickAlarm && task.contacts?.phone) {
                             subtitleParts.push(`📞 ${task.contacts.phone}`);
                         } else if (!isQuickAlarm) {
-                            subtitleParts.push(`👤 Contact: ${contactName}${contactPhone}`);
+                            subtitleParts.push(`👤 Contact: ${contactName}${contactPhone}${leadIdSnippet}`);
                         }
+                        subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                         
                         const finalSubtitle = subtitleParts.join('\n');
 
@@ -43,8 +48,9 @@ export const FollowUpGlobalSync: React.FC = () => {
                             data: { contactId: task.contact_id, description: task.description },
                             onAction: (data) => {
                                 if (data.contactId) {
-                                    setSelectedLeadId(data.contactId);
-                                    setIsLeadEditModalOpen(true);
+                                    window.dispatchEvent(new CustomEvent('open-contact-modal', { 
+                                        detail: { contactId: data.contactId, initialTab: 'follow-up' } 
+                                    }));
                                 } else {
                                     alert("No Lead record found for this contact in the CRM. Please create a Lead first to view details.");
                                 }
@@ -58,24 +64,27 @@ export const FollowUpGlobalSync: React.FC = () => {
                     if (!t.is_completed && t.due_date && t.metadata?.enable_popup === true) {
                         const contactPhone = t.leads?.phone ? ` (${t.leads.phone})` : '';
                         const contactName = t.leads?.name || 'Unknown';
+                        const pipelineName = t.leads?.pipelines?.name || 'No Pipeline';
+                        const leadIdSnippet = t.lead_id ? ` [ID: ${t.lead_id.substring(0,6)}]` : '';
                         
                         const subtitleParts = [];
                         if (t.description) subtitleParts.push(`📝 ${t.description}`);
-                        subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}`);
-                        if (t.leads?.pipelines && t.leads.pipelines.length > 0) {
-                            subtitleParts.push(`💼 Pipeline: ${t.leads.pipelines[0].name}`);
-                        }
+                        subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
+                        subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
+                        
+                        const scheduledTime = new Date(new Date(t.due_date).getTime() - 15 * 60000);
                         
                         reminderManager.addReminder({
                             id: `crm_${t.id}`,
                             title: `[CRM Task] ${t.title}`,
                             subtitle: subtitleParts.join('\n'),
-                            scheduledAt: new Date(t.due_date),
+                            scheduledAt: scheduledTime,
                             data: { contactId: t.lead_id, description: t.description },
                             onAction: (data) => {
                                 if (data.contactId) {
-                                    setSelectedLeadId(data.contactId);
-                                    setIsLeadEditModalOpen(true);
+                                    window.dispatchEvent(new CustomEvent('open-contact-modal', { 
+                                        detail: { contactId: data.contactId, initialTab: 'follow-up' } 
+                                    }));
                                 }
                             }
                         });
@@ -105,6 +114,8 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 const contactName = contactData?.name || (contactData as any)?.whatsapp_name || 'Unknown';
                                 const contactPhone = contactData?.phone || '';
                                 const phoneStr = contactPhone ? ` (${contactPhone})` : '';
+                                const pipelineName = (contactData as any)?.pipelines?.name || 'No Pipeline';
+                                const leadIdSnippet = task.contact_id ? ` [ID: ${task.contact_id.substring(0,6)}]` : '';
                                 
                                 const isQuickAlarm = task.title && task.title.startsWith('[QUICK_ALARM]');
                                 const subtitleParts = [];
@@ -113,8 +124,9 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 if (isQuickAlarm && contactPhone) {
                                     subtitleParts.push(`📞 ${contactPhone}`);
                                 } else if (!isQuickAlarm) {
-                                    subtitleParts.push(`👤 Contact: ${contactName}${phoneStr}`);
+                                    subtitleParts.push(`👤 Contact: ${contactName}${phoneStr}${leadIdSnippet}`);
                                 }
+                                subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
                                 reminderManager.addReminder({
                                     id: task.id,
@@ -171,21 +183,28 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 
                                 const contactPhone = fullTask.leads?.phone ? ` (${fullTask.leads.phone})` : '';
                                 const contactName = fullTask.leads?.name || 'Unknown';
+                                const pipelineName = fullTask.leads?.pipelines?.name || 'No Pipeline';
+                                const leadIdSnippet = fullTask.lead_id ? ` [ID: ${fullTask.lead_id.substring(0,6)}]` : '';
                                 
                                 const subtitleParts = [];
                                 if (fullTask.description) subtitleParts.push(`📝 ${fullTask.description}`);
-                                subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}`);
+                                subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
+                                subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
+                                
+                                // Schedule 15 minutes before due date as per UI
+                                const scheduledTime = new Date(new Date(t.due_date).getTime() - 15 * 60000);
                                 
                                 reminderManager.addReminder({
                                     id: `crm_${t.id}`,
                                     title: `[CRM Task] ${t.title}`,
                                     subtitle: subtitleParts.join('\n'),
-                                    scheduledAt: new Date(t.due_date),
+                                    scheduledAt: scheduledTime,
                                     data: { contactId: t.lead_id, description: t.description },
                                     onAction: (data) => {
                                         if (data.contactId) {
-                                            setSelectedLeadId(data.contactId);
-                                            setIsLeadEditModalOpen(true);
+                                            window.dispatchEvent(new CustomEvent('open-contact-modal', { 
+                                                detail: { contactId: data.contactId, initialTab: 'follow-up' } 
+                                            }));
                                         }
                                     }
                                 });
@@ -203,9 +222,12 @@ export const FollowUpGlobalSync: React.FC = () => {
             .subscribe();
 
         const handleOpenModal = (e: Event) => {
-            const customEvent = e as CustomEvent<{ contactId: string }>;
+            const customEvent = e as CustomEvent<{ contactId: string, initialTab?: string }>;
             if (customEvent.detail?.contactId) {
                 setSelectedLeadId(customEvent.detail.contactId);
+                // The actual tab opening logic is handled in LeadEditModal if we pass a prop
+                // But since FollowUpGlobalSync maintains the modal, we need to pass initialTab
+                setInitialModalTab(customEvent.detail.initialTab || 'opportunity');
                 setIsLeadEditModalOpen(true);
             }
         };
@@ -223,6 +245,7 @@ export const FollowUpGlobalSync: React.FC = () => {
             isOpen={isLeadEditModalOpen}
             onClose={() => setIsLeadEditModalOpen(false)}
             leadId={selectedLeadId}
+            initialTab={initialModalTab}
         />
     );
 };

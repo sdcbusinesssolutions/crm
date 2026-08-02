@@ -25,9 +25,10 @@ interface LeadEditModalProps {
     leadId?: string | null;
     leadData?: Partial<Lead> | null;
     onUpdate?: () => void;
+    initialTab?: string;
 }
 
-const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, leadData, onUpdate }) => {
+const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, leadData, onUpdate, initialTab }) => {
     const parseDate = (d?: string) => {
         if (!d) return new Date();
         return new Date(d.endsWith('Z') ? d : d + 'Z');
@@ -40,7 +41,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
     const [leadLoading, setLeadLoading] = useState(false);
     const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info' | 'warning', title: string, message: string } | null>(null);
 
-    const [activeTab, setActiveTab] = useState('opportunity');
+    const [activeTab, setActiveTab] = useState(initialTab || 'opportunity');
     const [notes, setNotes] = useState<any[]>([]);
     const [tasks, setTasks] = useState<any[]>([]);
     const [appointments, setAppointments] = useState<any[]>([]);
@@ -146,6 +147,12 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
             console.error("Error fetching lead related details", e);
         }
     };
+
+    useEffect(() => {
+        if (isOpen && initialTab) {
+            setActiveTab(initialTab);
+        }
+    }, [isOpen, initialTab]);
 
     const handleSaveLead = async () => {
         if (!canWrite) {
