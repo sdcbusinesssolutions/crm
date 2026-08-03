@@ -23,6 +23,7 @@ interface Transaction {
     platform_cost: number | null;
     created_at: string;
     profiles?: { id: string; name: string; email: string; signup_domain: string } | null;
+    whatsapp_config?: { whatsapp_account_id: string } | null;
 }
 
 interface DomainSummary {
@@ -126,7 +127,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
             tx.meta_cost || '',
             tx.platform_cost || '',
             tx.contact_phone || '',
-            tx.whatsapp_account_id || '',
+            tx.whatsapp_config?.whatsapp_account_id || tx.whatsapp_account_id || '',
             tx.wa_message_id || '',
             (tx.description || '').replace(/,/g, ';')
         ]);
@@ -207,6 +208,31 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                     </select>
                     <input type="text" placeholder="Filter by Name or Email" value={filterUserSearch} onChange={e => setFilterUserSearch(e.target.value)}
                         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 w-44" />
+                    <select
+                        onChange={e => {
+                            const val = e.target.value;
+                            const now = new Date();
+                            if (val === 'this_month') {
+                                setFilterDateFrom(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10));
+                                setFilterDateTo(new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10));
+                            } else if (val === 'last_month') {
+                                setFilterDateFrom(new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 10));
+                                setFilterDateTo(new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10));
+                            } else if (val === 'this_year') {
+                                setFilterDateFrom(new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10));
+                                setFilterDateTo(new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10));
+                            } else {
+                                setFilterDateFrom('');
+                                setFilterDateTo('');
+                            }
+                        }}
+                        className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                    >
+                        <option value="">Custom Date Range</option>
+                        <option value="this_month">This Month</option>
+                        <option value="last_month">Last Month</option>
+                        <option value="this_year">This Year</option>
+                    </select>
                     <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
                         className="border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20" title="From Date" />
                     <input type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)}
@@ -305,8 +331,8 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                                         <td className="px-4 py-3 text-xs font-mono text-slate-600">
                                             {tx.contact_phone || '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.whatsapp_account_id || ''}>
-                                            {tx.whatsapp_account_id ? tx.whatsapp_account_id.slice(-8) : '—'}
+                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[80px] truncate" title={tx.whatsapp_config?.whatsapp_account_id || tx.whatsapp_account_id || ''}>
+                                            {tx.whatsapp_config?.whatsapp_account_id || (tx.whatsapp_account_id ? tx.whatsapp_account_id.slice(-8) : '—')}
                                         </td>
                                         <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_message_id || ''}>
                                             {tx.wa_message_id ? tx.wa_message_id : '—'}

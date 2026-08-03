@@ -310,10 +310,13 @@ router.use('/inbox', requireAuth, inboxRoutes);
 router.use('/test-request', requireAuth, testRequestRoutes);
 router.use('/upload', requireAuth, uploadRoutes);
 
+const financialReportRoutes = require('./routes/admin/financialReportRoutes');
+
 // Admin Routes (Mounted under /admin)
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/wallet/admin', verifyAdminToken, walletAdminRoutes);
+router.use('/wallet/admin/finance-report', verifyAdminToken, financialReportRoutes);
 router.use('/wallet/admin/reports', verifyAdminToken, reportRoutes);
 router.use('/wallet', requireAuth, walletRoutes); // Protected wallet routes
 app.use('/api/public-settings', require('./routes/publicSettings'));

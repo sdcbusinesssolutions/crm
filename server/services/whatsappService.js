@@ -168,11 +168,12 @@ class WhatsAppService {
             let fromPhone = fromPhoneId; // Default
             let logWhatsappNumber = 'Unknown';
             let waConfigId = null;
+            let accountOwnerId = userId;
 
             try {
                 const { data: phoneData } = await supabaseAdmin
                     .from('whatsapp_config')
-                    .select('id, phone_number')
+                    .select('id, phone_number, user_id')
                     .eq('phone_number_id', fromPhoneId)
                     .maybeSingle();
 
@@ -181,6 +182,9 @@ class WhatsAppService {
                     if (phoneData.phone_number) {
                         fromPhone = phoneData.phone_number;
                         logWhatsappNumber = phoneData.phone_number;
+                    }
+                    if (phoneData.user_id) {
+                        accountOwnerId = phoneData.user_id;
                     }
                 }
             } catch (e) { }
@@ -194,7 +198,7 @@ class WhatsAppService {
             let preDebitTxId = null;
             try {
                 const preDebitResult = await WalletService.preDebit({
-                    userId,
+                    userId: accountOwnerId,
                     waMessageId: tempWaMessageId,
                     category: expectedCategory,
                     source: walletSource,

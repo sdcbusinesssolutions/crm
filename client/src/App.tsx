@@ -12,6 +12,7 @@ import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
 import AdminSettings from './pages/admin/settings/Settings';
 import AdminLayout from './layouts/admin/AdminLayout';
 import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
+import FinanceReport from './pages/admin/FinanceReport';
 import { Session } from '@supabase/supabase-js';
 import Sidebar, { MenuItem } from './components/Sidebar';
 
@@ -895,6 +896,7 @@ const App: React.FC = () => {
                     <Route path="settings" element={<AdminSettings />} />
                     <Route path="super" element={<SuperDashboard />} />
                     <Route path="limits" element={<FeatureLimitsManager />} />
+                    <Route path="finance" element={<FinanceReport />} />
                 </Route>
 
                 {/* Public Form Route */}

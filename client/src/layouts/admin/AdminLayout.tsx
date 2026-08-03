@@ -125,6 +125,7 @@ const AdminLayout = () => {
     const menuItems = [
         { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
         { path: '/admin/users', label: 'Users', icon: '👥' },
+        { path: '/admin/finance', label: 'Finance Report', icon: '📈' },
         { path: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
         { path: '/admin/plans', label: 'Plans', icon: '📝' },
         { path: '/admin/settings', label: 'Settings', icon: '⚙️' },

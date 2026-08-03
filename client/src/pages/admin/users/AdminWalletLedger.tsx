@@ -22,6 +22,7 @@ interface Transaction {
     platform_cost: number | null;
     created_at: string;
     whatsapp_config?: { phone_number: string } | null;
+    admin_profile?: { name: string; email: string } | null;
 }
 
 interface WalletSummary {
@@ -153,14 +154,15 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                     <SummaryCard
                         label="Current Balance"
                         value={`₹${Number(wallet?.balance || 0).toFixed(2)}`}
-                        color={wallet?.wallet_enforced ? 'text-emerald-600' : 'text-slate-600'}
-                        sub={wallet?.wallet_enforced ? '🔒 Enforced' : '🔓 Not Enforced'}
+                        theme={wallet?.wallet_enforced ? 'emerald' : 'slate'}
+                        icon={wallet?.wallet_enforced ? '🔒' : '💳'}
+                        sub={wallet?.wallet_enforced ? 'Enforced' : 'Not Enforced'}
                     />
-                    <SummaryCard label="Total Debited"   value={`₹${(summary?.total_debited || 0).toFixed(2)}`}   color="text-rose-600" />
-                    <SummaryCard label="Total Credited"  value={`₹${(summary?.total_credited || 0).toFixed(2)}`}  color="text-emerald-600" />
-                    <SummaryCard label="Meta Cost"       value={`₹${(summary?.total_meta_cost || 0).toFixed(4)}`} color="text-blue-600" />
-                    <SummaryCard label="Marketing"       value={`₹${(summary?.by_category?.MARKETING || 0).toFixed(2)}`}  color="text-rose-700" />
-                    <SummaryCard label="Utility"         value={`₹${(summary?.by_category?.UTILITY || 0).toFixed(2)}`}    color="text-blue-700" />
+                    <SummaryCard label="Total Debited"   value={`₹${(summary?.total_debited || 0).toFixed(2)}`}   theme="rose" icon="📉" />
+                    <SummaryCard label="Total Credited"  value={`₹${(summary?.total_credited || 0).toFixed(2)}`}  theme="emerald" icon="💰" />
+                    <SummaryCard label="Meta Cost"       value={`₹${(summary?.total_meta_cost || 0).toFixed(4)}`} theme="blue" icon="💬" />
+                    <SummaryCard label="Marketing"       value={`₹${(summary?.by_category?.MARKETING || 0).toFixed(2)}`}  theme="rose" icon="📢" />
+                    <SummaryCard label="Utility"         value={`₹${(summary?.by_category?.UTILITY || 0).toFixed(2)}`}    theme="blue" icon="🔌" />
                 </div>
 
                 {/* Filters */}
@@ -279,9 +281,19 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                                             {tx.wa_conversation_id ? tx.wa_conversation_id.slice(-12) : '—'}
                                         </td>
                                         <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">
-                                            <span className="line-clamp-2" title={tx.description || ''}>
-                                                {tx.description || '—'}
-                                            </span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="line-clamp-2" title={tx.description || ''}>
+                                                    {(tx.description || '—')
+                                                        .replace(/Pre-debit at MAX RISK \([^)]+\) rate for requested ([^.]+)\. Will refund at webhook if cheaper.*/, 'Estimated charge for $1. Refund if cheaper.')
+                                                        .replace(/Markup only charge: Message was free from Meta. Pre-debit [^,]+, markup [^.]+Refund: [0-9.]+/, 'Refund: Message was delivered for free.')}
+                                                </span>
+                                                {tx.type === 'CREDIT' && tx.source === 'ADMIN_TOPUP' && tx.admin_profile && (
+                                                    <div className="text-[10px] font-medium text-brand-600 flex items-center gap-1 bg-brand-50 w-fit px-1.5 rounded border border-brand-100">
+                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                        {tx.admin_profile.name || tx.admin_profile.email}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -314,12 +326,28 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
     );
 };
 
-const SummaryCard: React.FC<{ label: string; value: string; color?: string; sub?: string }> = ({ label, value, color = 'text-slate-800', sub }) => (
-    <div className="bg-white rounded-xl border border-slate-100 px-4 py-3 shadow-sm">
-        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{label}</div>
-        <div className={`text-lg font-black tabular-nums ${color}`}>{value}</div>
-        {sub && <div className="text-[10px] text-slate-400 mt-0.5">{sub}</div>}
-    </div>
-);
+const THEMES: Record<string, any> = {
+    emerald: { bg: 'bg-emerald-500', border: 'border-emerald-200', textVal: 'text-emerald-900', textLabel: 'text-emerald-600', shadow: 'shadow-emerald-500/30' },
+    rose: { bg: 'bg-rose-500', border: 'border-rose-200', textVal: 'text-rose-900', textLabel: 'text-rose-600', shadow: 'shadow-rose-500/30' },
+    blue: { bg: 'bg-blue-500', border: 'border-blue-200', textVal: 'text-blue-900', textLabel: 'text-blue-600', shadow: 'shadow-blue-500/30' },
+    amber: { bg: 'bg-amber-500', border: 'border-amber-200', textVal: 'text-amber-900', textLabel: 'text-amber-600', shadow: 'shadow-amber-500/30' },
+    slate: { bg: 'bg-slate-500', border: 'border-slate-200', textVal: 'text-slate-900', textLabel: 'text-slate-600', shadow: 'shadow-slate-500/30' }
+};
+
+const SummaryCard: React.FC<{ label: string; value: string; theme?: string; sub?: string; icon: string }> = ({ label, value, theme = 'slate', sub, icon }) => {
+    const t = THEMES[theme] || THEMES.slate;
+    return (
+        <div className={`col-span-1 bg-white p-3 rounded-2xl border-2 ${t.border} shadow-sm flex items-center gap-3 hover:shadow-md transition-shadow`}>
+            <div className={`w-10 h-10 rounded-xl ${t.bg} flex items-center justify-center shrink-0 shadow-lg ${t.shadow} text-white text-lg`}>
+                {icon}
+            </div>
+            <div>
+                <p className={`text-lg font-black ${t.textVal} tracking-tight tabular-nums leading-tight`}>{value}</p>
+                <p className={`text-[9px] font-bold ${t.textLabel} uppercase tracking-wider mt-0.5`}>{label}</p>
+                {sub && <p className={`text-[9px] ${t.textLabel} mt-0.5 opacity-80`}>{sub}</p>}
+            </div>
+        </div>
+    );
+};
 
 export default AdminWalletLedger;

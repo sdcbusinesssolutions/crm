@@ -108,6 +108,37 @@ class WalletService {
         try {
             const wallet = await this.getWallet(userId);
 
+            // 1. STRICT LOCK CHECK: Is wallet frozen?
+            if (wallet.wallet_frozen) {
+                console.warn(`[WalletService] 🚫 Blocked: Wallet is frozen for user ${userId}`);
+                return false;
+            }
+
+            // 2. STRICT BAN & EXPIRED CHECK: Is user profile suspended, banned, or expired?
+            try {
+                const { data: profile } = await supabaseAdmin
+                    .from('profiles')
+                    .select('plan_status, plan_expires_at')
+                    .eq('id', userId)
+                    .maybeSingle();
+
+                if (profile) {
+                    // Block on negative statuses
+                    if (['suspended', 'banned', 'expired', 'past_due', 'canceled'].includes(profile.plan_status)) {
+                        console.warn(`[WalletService] 🚫 Blocked: Profile status is '${profile.plan_status}' for user ${userId}`);
+                        return false;
+                    }
+
+                    // Block if the physical expiration date has passed
+                    if (profile.plan_expires_at && new Date(profile.plan_expires_at) < new Date()) {
+                        console.warn(`[WalletService] 🚫 Blocked: Profile plan expired on ${profile.plan_expires_at} for user ${userId}`);
+                        return false;
+                    }
+                }
+            } catch (err) {
+                // Ignore DB errors on profile check, fail open for this specific secondary check
+            }
+
             const billingMode = wallet.billing_mode || 'DIRECT_META';
 
             let checkAmount;
@@ -148,6 +179,13 @@ class WalletService {
 
             if (billingMode === 'DIRECT_META') {
                 return; // NO WALLET DEDUCTION AT ALL for DIRECT_META
+            }
+
+            // Explicit application-layer balance check to prevent negative balances
+            // Ensures strict checking across ALL flows (Staff Inbox, Campaigns, Drips, API)
+            const hasBalance = await this.hasSufficientBalance(userId, debitAmount);
+            if (!hasBalance) {
+                throw new Error('Insufficient Wallet Balance. Top-up required.');
             }
 
             const { data, error } = await supabaseAdmin.rpc('adjust_wallet_balance', {

@@ -10,7 +10,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const WalletReport = () => {
-    const [balanceData, setBalanceData] = useState({ balance: 0, wallet_enforced: false });
+    const [balanceData, setBalanceData] = useState({ balance: 0, wallet_enforced: false, thisMonthExpense: 0 });
     const [transactions, setTransactions] = useState<any[]>([]);
     const [totalTransactions, setTotalTransactions] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +19,7 @@ const WalletReport = () => {
     const [page, setPage] = useState(1);
     const [sourceFilter, setSourceFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
+    const [typeFilter, setTypeFilter] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [limit, setLimit] = useState(20);
@@ -26,7 +27,7 @@ const WalletReport = () => {
     useEffect(() => {
         fetchBalance();
         fetchTransactions();
-    }, [page, limit, sourceFilter, categoryFilter, dateFrom, dateTo]);
+    }, [page, limit, sourceFilter, categoryFilter, typeFilter, dateFrom, dateTo]);
 
     const fetchBalance = async () => {
         try {
@@ -54,6 +55,7 @@ const WalletReport = () => {
                 limit: limit.toString(),
                 ...(sourceFilter && { source: sourceFilter }),
                 ...(categoryFilter && { category: categoryFilter }),
+                ...(typeFilter && { type: typeFilter }),
                 ...(dateFrom && { date_from: dateFrom }),
                 ...(dateTo && { date_to: dateTo })
             });
@@ -75,53 +77,84 @@ const WalletReport = () => {
 
     const totalPages = Math.ceil(totalTransactions / limit);
 
+    const exportCSV = () => {
+        if (!transactions.length) return;
+        const headers = ['Date', 'Time', 'Tx ID', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance After (₹)', 'To Phone', 'Description', 'Admin Profile'];
+        const rows = transactions.map(tx => {
+            const date = new Date(tx.created_at).toLocaleDateString();
+            const time = new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const adminInfo = tx.admin_profile ? (tx.admin_profile.name || tx.admin_profile.email) : '';
+            return [
+                date,
+                time,
+                tx.id,
+                tx.type,
+                tx.source,
+                tx.wa_category || '',
+                Number(tx.amount).toFixed(4),
+                Number(tx.balance_after).toFixed(4),
+                tx.contact_phone || '',
+                (tx.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+                adminInfo
+            ];
+        });
+        const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `wallet_report_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+    };
+
     return (
         <div className="space-y-6 animate-fade-in p-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Wallet & Billing</h1>
-                    <p className="text-sm text-slate-500 mt-1">Track your message costs and wallet balance.</p>
-                </div>
+            <div className="flex items-center gap-3">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight">Wallet & Billing</h1>
                 <button
                     onClick={() => { fetchBalance(); fetchTransactions(); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium text-sm shadow-sm"
+                    className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
+                    title="Refresh Data"
                 >
                     <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                    Refresh
                 </button>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-center">
-                    <div className="relative z-10">
-                        <h3 className="text-slate-500 font-medium text-sm tracking-wide uppercase mb-1">Current Balance</h3>
-                        <div className="text-5xl font-black text-slate-900 mb-4 tracking-tight">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-blue-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30 text-white text-2xl">
+                        💳
+                    </div>
+                    <div>
+                        <p className="text-3xl font-black text-blue-900 tracking-tight">
                             ₹{typeof balanceData.balance === 'number' ? balanceData.balance.toFixed(2) : balanceData.balance}
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${balanceData.wallet_enforced ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${balanceData.wallet_enforced ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
-                                {balanceData.wallet_enforced ? 'MODE B: ENFORCED' : 'MODE A: REPORT ONLY'}
-                            </span>
-                        </div>
+                        </p>
+                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Current Balance</p>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-                    <h3 className="text-slate-500 font-medium text-sm tracking-wide uppercase mb-1">Billing Status</h3>
-                    <div className="text-xl font-bold mb-1">
-                        {balanceData.wallet_enforced ? (
-                            <span className="text-amber-600">Pre-paid Billing Active</span>
-                        ) : (
-                            <span className="text-emerald-600">Unrestricted Sending</span>
-                        )}
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-rose-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-rose-500 flex items-center justify-center shrink-0 shadow-lg shadow-rose-500/30 text-white text-2xl">
+                        📉
                     </div>
-                    <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                        {balanceData.wallet_enforced
-                            ? "Your messages will be blocked if your balance reaches zero. Top-up to avoid service disruption."
-                            : "Your balance is not currently enforced. You can send messages freely for now."}
-                    </p>
+                    <div>
+                        <p className="text-3xl font-black text-rose-900 tracking-tight">
+                            ₹{typeof balanceData.thisMonthExpense === 'number' ? balanceData.thisMonthExpense.toFixed(2) : '0.00'}
+                        </p>
+                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">This Month's Spend</p>
+                    </div>
+                </div>
+
+                <div className={`col-span-1 bg-white p-5 rounded-2xl border-2 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow ${balanceData.wallet_enforced ? 'border-amber-200' : 'border-emerald-200'}`}>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 shadow-lg text-white text-2xl ${balanceData.wallet_enforced ? 'bg-amber-500 shadow-amber-500/30' : 'bg-emerald-500 shadow-emerald-500/30'}`}>
+                        {balanceData.wallet_enforced ? '🔒' : '🔓'}
+                    </div>
+                    <div>
+                        <p className={`text-[15px] font-black tracking-tight mt-1 ${balanceData.wallet_enforced ? 'text-amber-900' : 'text-emerald-900'}`}>
+                            {balanceData.wallet_enforced ? 'Pre-paid Billing Active' : 'Tracking Mode Only'}
+                        </p>
+                        <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${balanceData.wallet_enforced ? 'text-amber-600' : 'text-emerald-600'}`}>Billing Status</p>
+                    </div>
                 </div>
             </div>
 
@@ -151,6 +184,16 @@ const WalletReport = () => {
                     <option value="SERVICE">Service</option>
                 </select>
 
+                <select
+                    value={typeFilter}
+                    onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+                    className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none focus:border-brand-500 min-w-[120px]"
+                >
+                    <option value="">All Types</option>
+                    <option value="CREDIT">Credit (+)</option>
+                    <option value="DEBIT">Debit (-)</option>
+                </select>
+
                 <input
                     type="date"
                     value={dateFrom}
@@ -178,14 +221,23 @@ const WalletReport = () => {
                     <option value={100}>100 / page</option>
                 </select>
 
-                {(sourceFilter || categoryFilter || dateFrom || dateTo || limit !== 20) && (
+                <div className="flex gap-2">
+                    {(sourceFilter || categoryFilter || typeFilter || dateFrom || dateTo || limit !== 20) && (
+                        <button
+                            onClick={() => { setSourceFilter(''); setCategoryFilter(''); setTypeFilter(''); setDateFrom(''); setDateTo(''); setLimit(20); setPage(1); }}
+                            className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors"
+                        >
+                            Reset Filters
+                        </button>
+                    )}
                     <button
-                        onClick={() => { setSourceFilter(''); setCategoryFilter(''); setDateFrom(''); setDateTo(''); setLimit(20); setPage(1); }}
-                        className="px-3 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 transition-colors"
+                        onClick={exportCSV}
+                        className="px-3 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
+                        disabled={transactions.length === 0}
                     >
-                        Reset Filters
+                        ⬇ Export CSV
                     </button>
-                )}
+                </div>
             </div>
 
             {/* Transactions Table */}
@@ -217,7 +269,7 @@ const WalletReport = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {transactions.map((tx) => (
-                                    <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={tx.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="text-sm font-medium text-slate-900">
                                                 {new Date(tx.created_at).toLocaleDateString()}
@@ -248,8 +300,8 @@ const WalletReport = () => {
                                                     </div>
                                                 )}
                                                 {tx.description?.includes('MAX RISK') && (
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200" title="System reserves the most expensive rate until Meta confirms the final category.">
-                                                        🛡️ MAX-RISK HOLD
+                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="System reserves the estimated rate until delivery confirmation.">
+                                                        ⏳ ESTIMATED COST
                                                     </div>
                                                 )}
                                             </div>
@@ -261,32 +313,45 @@ const WalletReport = () => {
                                                 {tx.whatsapp_config?.phone_number && (
                                                     <div className="text-[11px] text-slate-600"><span className="font-semibold text-slate-400">From:</span> {tx.whatsapp_config.phone_number}</div>
                                                 )}
-                                                {tx.whatsapp_account_id && (
-                                                    <div className="text-[10px] text-slate-500 font-mono truncate" title={`WABA ID: ${tx.whatsapp_account_id}`}>
-                                                        <span className="font-sans font-semibold text-slate-400">WABA:</span> {tx.whatsapp_account_id.slice(-8)}
-                                                    </div>
-                                                )}
-                                                {tx.wa_message_id && (
-                                                    <div className="text-[10px] text-slate-500 font-mono truncate max-w-[200px]" title={`Msg ID: ${tx.wa_message_id}`}>
-                                                        <span className="font-sans font-semibold text-slate-400">MSG:</span> {tx.wa_message_id}
-                                                    </div>
-                                                )}
+                                                {/* Hidden technical IDs for normal users, but useful for support */}
+                                                <div className="hidden group-hover:block mt-2">
+                                                    {tx.whatsapp_account_id && (
+                                                        <div className="text-[10px] text-slate-300 font-mono truncate" title={`WABA ID: ${tx.whatsapp_account_id}`}>
+                                                            <span className="font-sans text-slate-300">WABA:</span> {tx.whatsapp_account_id.slice(-8)}
+                                                        </div>
+                                                    )}
+                                                    {tx.wa_message_id && (
+                                                        <div className="text-[10px] text-slate-300 font-mono truncate max-w-[200px]" title={`Msg ID: ${tx.wa_message_id}`}>
+                                                            <span className="font-sans text-slate-300">MSG:</span> {tx.wa_message_id.startsWith('pending_api') ? '(Pending Meta ID)' : tx.wa_message_id}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {tx.description && (
-                                                <div className="text-[11px] text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
-                                                    {tx.description}
+                                                <div className="text-[11px] text-slate-600 mt-2 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed font-medium">
+                                                    {tx.description
+                                                        .replace(/Pre-debit at MAX RISK \([^)]+\) rate for requested ([^.]+)\. Will refund at webhook if cheaper.*/, 'Estimated charge for $1 message. If Meta charges less upon delivery, the difference will be automatically refunded.')
+                                                        .replace(/Markup only charge: Message was free from Meta. Pre-debit [^,]+, markup [^.]+Refund: [0-9.]+/, 'Refund: Message was delivered for free (No markup applied).')}
+                                                </div>
+                                            )}
+                                            
+                                            {/* Show who topped up */}
+                                            {tx.type === 'CREDIT' && tx.source === 'ADMIN_TOPUP' && tx.admin_profile && (
+                                                <div className="text-[10px] font-medium text-brand-600 mt-1 flex items-center gap-1 bg-brand-50 w-fit px-1.5 py-0.5 rounded border border-brand-100">
+                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                    Added by: {tx.admin_profile.name || tx.admin_profile.email}
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className={`text-sm font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                                {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(4)}
+                                                {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(2)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <span className="text-sm font-bold text-slate-600 tabular-nums bg-slate-50 px-2 py-1 rounded">
-                                                ₹{Number(tx.balance_after).toFixed(4)}
+                                                ₹{Number(tx.balance_after).toFixed(2)}
                                             </span>
                                         </td>
                                     </tr>
