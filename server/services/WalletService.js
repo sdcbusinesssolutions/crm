@@ -11,6 +11,9 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 const roundMoney = (val) => Math.round(Number(val) * 10000) / 10000;
 
+// In-Memory RAM Lock to prevent DB connection spam from duplicate webhooks
+const activeWebhookLocks = new Set();
+
 class WalletService {
 
     /**
@@ -105,7 +108,7 @@ class WalletService {
         try {
             const wallet = await this.getWallet(userId);
 
-            const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
+            const billingMode = wallet.billing_mode || 'DIRECT_META';
 
             let checkAmount;
             if (overrideAmount !== null) {
@@ -141,13 +144,13 @@ class WalletService {
             let debitDescription = `Pre-debit at MAX RISK (MARKETING) rate for requested ${requestedCategory}. Will refund at webhook if cheaper. Msg: ${waMessageId}`;
 
             const wallet = await this.getWallet(userId);
-            const billingMode = wallet.billing_mode || 'CREDIT_LINE_SUPER';
+            const billingMode = wallet.billing_mode || 'DIRECT_META';
 
             if (billingMode === 'DIRECT_META') {
                 return; // NO WALLET DEDUCTION AT ALL for DIRECT_META
             }
 
-            const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
+            const { data, error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
                 p_user_id: userId,
                 p_amount: debitAmount,
                 p_type: 'DEBIT',
@@ -171,6 +174,8 @@ class WalletService {
                 logWalletEvent('PRE_DEBIT_ERROR', { userId, waMessageId, error: error.message });
                 throw error;
             }
+            
+            const transactionId = data?.transaction_id;
 
             logWalletEvent('PRE_DEBIT_SUCCESS', { userId, waMessageId, amount: debitAmount, category: actualCategory });
 
@@ -239,6 +244,8 @@ class WalletService {
                     throw markupErr; // Security: Do not allow the message to send if we cannot collect our fee!
                 }
             }
+
+            return { transactionId };
         } catch (e) {
             console.error('[WalletService] Pre-debit error:', e);
             logWalletEvent('PRE_DEBIT_EXCEPTION', { userId, waMessageId, error: e.message });
@@ -247,16 +254,74 @@ class WalletService {
     }
 
     /**
+     * V2 ATOMIC: Link the generated Meta message ID to the pending preDebit transaction
+     */
+    static async updateTransactionMessageId(transactionId, actualWaMessageId) {
+        if (!transactionId || !actualWaMessageId) return;
+        try {
+            const { error } = await supabaseAdmin
+                .from('wallet_transactions')
+                .update({ wa_message_id: actualWaMessageId })
+                .eq('id', transactionId);
+            
+            if (error) {
+                console.error(`[WalletService] Failed to link waMessageId ${actualWaMessageId} to tx ${transactionId}:`, error);
+            }
+        } catch (err) {
+            console.error(`[WalletService] Exception linking waMessageId:`, err);
+        }
+    }
+
+    /**
+     * V2 ATOMIC: Completely reverse a pre-debit if the API call to Meta failed (e.g. invalid number)
+     */
+    static async refundFailedApiCall(transactionId) {
+        if (!transactionId) return;
+        try {
+            // First, get the transaction details
+            const { data: tx, error: fetchErr } = await supabaseAdmin
+                .from('wallet_transactions')
+                .select('*')
+                .eq('id', transactionId)
+                .single();
+                
+            if (fetchErr || !tx) return;
+
+            // Refund the user's wallet
+            const description = `API Send Failed. Full refund for pre-debit. Msg: ${tx.wa_message_id}`;
+            await supabaseAdmin.rpc('adjust_wallet_balance', {
+                p_user_id: tx.user_id,
+                p_amount: tx.amount,
+                p_type: 'CREDIT',
+                p_source: 'REFUND',
+                p_wa_category: tx.wa_category,
+                p_wa_message_id: tx.wa_message_id,
+                p_description: description
+            });
+
+            logWalletEvent('API_FAIL_REFUND_SUCCESS', { userId: tx.user_id, waMessageId: tx.wa_message_id, amount: tx.amount });
+        } catch (err) {
+            console.error(`[WalletService] Exception during refundFailedApiCall:`, err);
+        }
+    }
+
+    /**
      * WEBHOOK PRICING RECONCILIATION WITH 24-HOUR WINDOW DEDUPLICATION
      * V2 updates: Handles both REFUNDS (cheaper category) and DEBITS (more expensive category)
      */
-    static async handleWebhookPricing(userId, waMessageId, pricing, conversation = null, contactPhone = null) {
-        if (!pricing) return;
-
-        const waConversationId = conversation?.id || null;
-        const conversationExpiry = conversation?.expiration_timestamp
-            ? new Date(conversation.expiration_timestamp * 1000).toISOString()
-            : null;
+    static async handleWebhookPricing(userId, waMessageId, pricing, waConversationId, conversationExpiry, contactPhone) {
+        if (!userId || !waMessageId) return;
+        
+        // --- 🚀 RAM LOCK (First Line of Defense) ---
+        // If 1000 identical webhooks hit this container simultaneously, 
+        // 999 will be instantly dropped in RAM without touching the Database.
+        if (activeWebhookLocks.has(waMessageId)) {
+            return;
+        }
+        activeWebhookLocks.add(waMessageId);
+        
+        // Auto-release the RAM lock after 2 minutes to prevent memory leaks
+        setTimeout(() => activeWebhookLocks.delete(waMessageId), 120000);
 
         try {
             const { data: originalTx } = await supabaseAdmin
@@ -448,7 +513,14 @@ class WalletService {
             p_created_by: null,
             p_ip_address: null
         });
-        if (error) console.error('[WalletService] Refund/adjustment error:', error);
+        if (error) {
+            // 23505 is PostgreSQL's unique_violation code
+            if (error.code === '23505' || (error.message && error.message.includes('unique constraint'))) {
+                console.warn(`[WalletService] Idempotency Race Condition Caught: Refund for ${waMessageId} was already processed by another thread. Safely ignored.`);
+                return false;
+            }
+            console.error('[WalletService] Refund/adjustment error:', error);
+        }
         return !error;
     }
 

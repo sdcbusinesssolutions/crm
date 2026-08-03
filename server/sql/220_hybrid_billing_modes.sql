@@ -12,7 +12,7 @@
 --                         Wallet only charges platform markup, NOT Meta cost.
 ALTER TABLE public.user_wallets
     ADD COLUMN IF NOT EXISTS billing_mode TEXT
-        NOT NULL DEFAULT 'CREDIT_LINE_SUPER'
+        NOT NULL DEFAULT 'DIRECT_META'
         CHECK (billing_mode IN ('CREDIT_LINE_SUPER', 'CREDIT_LINE_TENANT', 'DIRECT_META'));
 
 -- 2. Add is_tenant_master flag — identifies Tenant Admin's own Master Wallet row
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.domain_wallet_settings (
     id              UUID DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
     domain          TEXT NOT NULL UNIQUE,
     -- Default billing mode applied to new users created under this domain
-    default_billing_mode TEXT NOT NULL DEFAULT 'CREDIT_LINE_SUPER'
+    default_billing_mode TEXT NOT NULL DEFAULT 'DIRECT_META'
         CHECK (default_billing_mode IN ('CREDIT_LINE_SUPER', 'CREDIT_LINE_TENANT', 'DIRECT_META')),
     -- Tenant Admin User ID who owns this domain (set by Super Admin)
     tenant_admin_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,

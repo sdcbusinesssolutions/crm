@@ -17,7 +17,7 @@ router.get('/balance/:userId', async (req, res) => {
                 wallet.default_billing_mode = domainSettings.default_billing_mode;
             } else {
                 wallet.allow_tenant_billing_control = true;
-                wallet.default_billing_mode = 'CREDIT_LINE_SUPER';
+                wallet.default_billing_mode = 'DIRECT_META';
             }
         }
 
@@ -407,7 +407,7 @@ router.post('/topup', async (req, res) => {
 
         // ── Fetch target user's current wallet ──────────────────────────────
         const targetWallet = await WalletService.getWallet(uid);
-        let effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'CREDIT_LINE_SUPER';
+        let effectiveBillingMode = billing_mode || targetWallet.billing_mode || 'DIRECT_META';
 
         // ═══════════════════════════════════════════════════════════════════════
         // 🔒 SECURITY: STRICT DOMAIN ISOLATION ENFORCEMENT
@@ -424,7 +424,7 @@ router.post('/topup', async (req, res) => {
             .eq('domain', targetDomain)
             .maybeSingle();
             
-        const domainDefaultMode = domainSettings?.default_billing_mode || 'CREDIT_LINE_SUPER';
+        const domainDefaultMode = domainSettings?.default_billing_mode || 'DIRECT_META';
 
         if (billing_mode && billing_mode !== targetWallet.billing_mode) {
             // Strict Matrix Validation
@@ -827,7 +827,7 @@ router.get('/domain-settings/:domain', async (req, res) => {
             .eq('domain', req.params.domain)
             .maybeSingle();
         if (error) throw error;
-        res.json(data || { domain: req.params.domain, default_billing_mode: 'CREDIT_LINE_SUPER', allow_tenant_billing_control: true });
+        res.json(data || { domain: req.params.domain, default_billing_mode: 'DIRECT_META', allow_tenant_billing_control: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -857,7 +857,7 @@ router.post('/domain-settings', async (req, res) => {
 
         const upsertData = {
             domain,
-            default_billing_mode: default_billing_mode || 'CREDIT_LINE_SUPER',
+            default_billing_mode: default_billing_mode || 'DIRECT_META',
             allow_tenant_billing_control: allow_tenant_billing_control !== undefined ? allow_tenant_billing_control : true,
             updated_at: new Date().toISOString()
         };

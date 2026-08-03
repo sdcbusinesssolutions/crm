@@ -164,25 +164,51 @@ class WhatsAppService {
 
             console.log(`[WhatsAppService] Attempting send via ${endpoint.toUpperCase()} (Type: ${type}, Category: ${templateCategory || 'N/A'}${body.solution_id ? ', Solution: ' + body.solution_id : ''})`);
 
-            // --- CONSERVATIVE WALLET BALANCE CHECK ---
-            // Always check against MARKETING rate regardless of template category.
-            // Meta can reclassify any template to MARKETING at delivery time,
-            // so we must ensure the user can cover the highest possible cost.
-            if (type === 'template') {
-                const hasBalance = await WalletService.hasSufficientBalance(userId, null, 'MARKETING');
-                
-                if (!hasBalance) {
-                    console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — INSUFFICIENT WALLET BALANCE (checked at MARKETING rate).`);
-                    throw new Error('Insufficient Wallet Balance. Top-up required.');
+            // Fetch actual phone number for logging and wallet account ID
+            let fromPhone = fromPhoneId; // Default
+            let logWhatsappNumber = 'Unknown';
+            let waConfigId = null;
+
+            try {
+                const { data: phoneData } = await supabaseAdmin
+                    .from('whatsapp_config')
+                    .select('id, phone_number')
+                    .eq('phone_number_id', fromPhoneId)
+                    .maybeSingle();
+
+                if (phoneData) {
+                    waConfigId = phoneData.id;
+                    if (phoneData.phone_number) {
+                        fromPhone = phoneData.phone_number;
+                        logWhatsappNumber = phoneData.phone_number;
+                    }
                 }
-            } else {
-                // Free-form messages (text, image, interactive) could open a SERVICE window.
-                // Check if they have at least enough for a SERVICE message, otherwise block.
-                const hasBalance = await WalletService.hasSufficientBalance(userId, null, 'SERVICE');
-                if (!hasBalance) {
-                    console.warn(`[WhatsAppService] 🚫 Blocked free-form send to ${to} — INSUFFICIENT WALLET BALANCE (checked at SERVICE rate).`);
-                    throw new Error('Insufficient Wallet Balance to send message. Top-up required.');
-                }
+            } catch (e) { }
+
+            // --- V2 ATOMIC WALLET PRE-DEBIT ---
+            // We lock funds BEFORE calling Meta API to prevent double-spend race conditions.
+            const walletSource = options.walletSource || 'INBOX_SEND';
+            const expectedCategory = (type === 'template') ? (templateCategory || 'MARKETING') : 'SERVICE';
+            const tempWaMessageId = `pending_api_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
+            
+            let preDebitTxId = null;
+            try {
+                const preDebitResult = await WalletService.preDebit({
+                    userId,
+                    waMessageId: tempWaMessageId,
+                    category: expectedCategory,
+                    source: walletSource,
+                    contactPhone: to,
+                    flowId: options.flowId || null,
+                    dripCampaignId: options.dripCampaignId || null,
+                    whatsappAccountId: waConfigId || null,
+                    createdBy: options.createdBy,
+                    ipAddress: options.ipAddress
+                });
+                preDebitTxId = preDebitResult?.transactionId;
+            } catch (err) {
+                console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — INSUFFICIENT WALLET BALANCE (checked at ${expectedCategory} rate).`);
+                throw new Error('Insufficient Wallet Balance. Top-up required.');
             }
 
             let response;
@@ -216,32 +242,19 @@ class WhatsAppService {
                     });
                 } else {
                     // If it was already the standard endpoint, we throw the error.
+                    if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
                     throw postErr;
                 }
             }
 
+            const waMessageId = response.data.messages?.[0]?.id;
+            
+            // --- V2 ATOMIC: LINK SUCCESSFUL ID ---
+            if (waMessageId && preDebitTxId) {
+                await WalletService.updateTransactionMessageId(preDebitTxId, waMessageId);
+            }
+
             console.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
-
-            // Fetch actual phone number for logging
-            let fromPhone = fromPhoneId; // Default
-            let logWhatsappNumber = 'Unknown';
-            let waConfigId = null;
-
-            try {
-                const { data: phoneData } = await supabaseAdmin
-                    .from('whatsapp_config')
-                    .select('id, phone_number')
-                    .eq('phone_number_id', fromPhoneId)
-                    .maybeSingle();
-
-                if (phoneData) {
-                    waConfigId = phoneData.id;
-                    if (phoneData.phone_number) {
-                        fromPhone = phoneData.phone_number;
-                        logWhatsappNumber = phoneData.phone_number;
-                    }
-                }
-            } catch (e) { }
 
             // --- LOG TO FILE (INBOX LOGGER) ---
 
@@ -259,34 +272,11 @@ class WhatsAppService {
             } catch (logErr) { console.error('Inbox Out Log Error:', logErr); }
 
             // --- LOGGING ---
-            const waMessageId = response.data.messages?.[0]?.id;
+            // Background logging
             if (waMessageId && !skipDBLog) {
-                // Run asynchronously to not block return
                 this.logOutboundMessage(userId, to, type, content, 'sent', waMessageId).catch(err => {
                     console.error('Background logging failed:', err);
                 });
-            }
-            
-            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
-            // Pre-debit always at MARKETING rate (worst-case).
-            // handleWebhookPricing() will credit back the difference when Meta confirms actual category.
-            // Source defaults to INBOX_SEND for whatsappService (inbox / flow / drip context).
-            // Callers that know their context (e.g. flowEngine) can pass options.walletSource.
-            if (waMessageId && type === 'template') {
-                 const category = content.category || 'MARKETING';
-                 const walletSource = options.walletSource || 'INBOX_SEND';
-                 WalletService.preDebit({
-                     userId,
-                     waMessageId,
-                     category,
-                     source: walletSource,
-                     contactPhone: to,
-                     flowId: options.flowId || null,
-                     dripCampaignId: options.dripCampaignId || null,
-                     whatsappAccountId: waConfigId || null,
-                     createdBy: options.createdBy,
-                     ipAddress: options.ipAddress
-                 }).catch(err => console.error('[Wallet] Pre-debit failed:', err));
             }
 
             return response.data;

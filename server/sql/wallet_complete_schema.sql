@@ -114,7 +114,7 @@ ALTER TABLE public.user_wallets
 --   CREDIT_LINE_TENANT → Deducts from Tenant Admin Master Wallet (agency model)
 --   DIRECT_META        → No wallet deduction; user pays Meta directly
 ALTER TABLE public.user_wallets
-    ADD COLUMN IF NOT EXISTS billing_mode TEXT NOT NULL DEFAULT 'CREDIT_LINE_SUPER'
+    ADD COLUMN IF NOT EXISTS billing_mode TEXT NOT NULL DEFAULT 'DIRECT_META'
         CHECK (billing_mode IN ('CREDIT_LINE_SUPER','CREDIT_LINE_TENANT','DIRECT_META'));
 
 -- is_tenant_master: TRUE only for the Tenant Admin's own wholesale wallet row
@@ -125,7 +125,7 @@ ALTER TABLE public.user_wallets
 CREATE TABLE IF NOT EXISTS public.domain_wallet_settings (
     id                       UUID        DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
     domain                   TEXT        NOT NULL UNIQUE,
-    default_billing_mode     TEXT        NOT NULL DEFAULT 'CREDIT_LINE_SUPER'
+    default_billing_mode     TEXT        NOT NULL DEFAULT 'DIRECT_META'
         CHECK (default_billing_mode IN ('CREDIT_LINE_SUPER','CREDIT_LINE_TENANT','DIRECT_META')),
     tenant_admin_user_id     UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
     allow_tenant_billing_control BOOLEAN NOT NULL DEFAULT TRUE,
@@ -218,6 +218,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_conversation_dedup
     ON public.wallet_transactions(user_id, wa_conversation_id)
     WHERE type = 'DEBIT'
       AND source NOT IN ('ADJUSTMENT','REFUND','ADMIN_TOPUP','RECHARGE','WEBHOOK_SYNC');
+
+-- SECURITY PATCH: Prevent Idempotency Race Condition on Webhook Pricing Reconciliations
+-- Ensures only ONE refund or adjustment can ever be issued per wa_message_id
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wallet_tx_refund_dedup
+    ON public.wallet_transactions(wa_message_id)
+    WHERE source IN ('ADJUSTMENT', 'REFUND');
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- §7  TAMPER-PROOF TRIGGER

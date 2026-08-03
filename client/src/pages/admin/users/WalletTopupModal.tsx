@@ -235,8 +235,12 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     <label className="block text-sm font-bold text-slate-700 mb-3">Credit Line / Billing Mode</label>
                     <div className="space-y-3">
                         {BILLING_MODE_OPTIONS.filter(mode => {
-                            // STRICT ISOLATION: Only show the EXACT billing mode assigned to the domain
-                            return mode.value === domainDefaultBillingMode;
+                            // STRICT ISOLATION: Show the EXACT billing mode assigned to the domain.
+                            // However, if the Super Admin enabled "allowTenantControl", also allow the Tenant to switch users to DIRECT_META (User Pays Meta).
+                            if (mode.value === domainDefaultBillingMode) return true;
+                            if (allowTenantControl && mode.value === 'DIRECT_META') return true;
+                            
+                            return false;
                         }).map(mode => (
                             <label
                                 key={mode.value}

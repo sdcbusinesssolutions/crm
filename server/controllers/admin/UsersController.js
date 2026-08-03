@@ -70,7 +70,7 @@ exports.getUsers = async (req, res) => {
             } else {
                 walletMap.set(w.user_id, {
                     balance: Number(w.balance || 0),
-                    billing_mode: w.billing_mode || 'CREDIT_LINE_SUPER'
+                    billing_mode: w.billing_mode || 'DIRECT_META'
                 });
             }
         });
@@ -97,7 +97,7 @@ exports.getUsers = async (req, res) => {
             const canTenantDelete = !u.plan_assigned_by_admin && daysSinceCreation <= DELETE_WINDOW_DAYS;
 
             const isTenantAdmin = (u.role === 'admin');
-            const walletInfo = walletMap.get(u.id) || { balance: 0, billing_mode: 'CREDIT_LINE_SUPER' };
+            const walletInfo = walletMap.get(u.id) || { balance: 0, billing_mode: 'DIRECT_META' };
             const masterBalance = masterWalletMap.has(u.id) ? masterWalletMap.get(u.id) : null;
 
             return {

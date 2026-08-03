@@ -338,7 +338,7 @@ exports.getTenantsList = async (req, res) => {
 
         const tenants = (domainsRes.data || []).map(ds => {
             const plan = planMap.get(ds.domain) || {};
-            const ws = walletSettingsMap.get(ds.domain) || { default_billing_mode: 'CREDIT_LINE_SUPER', allow_tenant_billing_control: true };
+            const ws = walletSettingsMap.get(ds.domain) || { default_billing_mode: 'DIRECT_META', allow_tenant_billing_control: true };
             return {
                 domain: ds.domain,
                 brand_name: ds.brand_name || 'Unknown',

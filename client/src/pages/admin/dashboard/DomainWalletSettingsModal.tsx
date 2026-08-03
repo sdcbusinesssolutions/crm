@@ -251,7 +251,7 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                                 Since this Tenant's users will be messaging via YOUR Meta account, you must allocate wholesale credits to the Tenant Admin so they can fund their users.
                             </p>
                             
-                            {domainAdmins.length > 1 ? (
+                            {domainAdmins.length > 0 ? (
                                 <div className="mb-3">
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Select Admin to Receive Funds</label>
                                     <select
@@ -265,11 +265,6 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                                             </option>
                                         ))}
                                     </select>
-                                </div>
-                            ) : domainAdmins.length === 1 ? (
-                                <div className="mb-3 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                                    <span className="font-bold text-slate-700">Funds will be added to: </span>
-                                    <span className="text-slate-600">{domainAdmins[0].name || 'Unnamed Admin'} ({domainAdmins[0].email})</span>
                                 </div>
                             ) : (
                                 <div className="mb-3 p-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-medium">
