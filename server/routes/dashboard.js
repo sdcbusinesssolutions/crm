@@ -65,7 +65,9 @@ router.get('/stats', requireAuth, async (req, res) => {
             supabase.from('tasks').select('is_completed, due_date').eq('user_id', userId).limit(5000),
             
             // FollowUps
-            supabase.from('follow_ups').select('status, scheduled_at').eq('user_id', userId).limit(5000),
+            (req.user.isStaff && req.user.staffId) 
+                ? supabase.from('follow_ups').select('status, scheduled_at').eq('user_id', userId).eq('created_by_staff_id', req.user.staffId).limit(5000)
+                : supabase.from('follow_ups').select('status, scheduled_at').eq('user_id', userId).limit(5000),
 
             // Templates: fetch status rows + exact count in one request
             supabase.from('whatsapp_templates')

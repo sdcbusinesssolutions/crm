@@ -13,6 +13,22 @@ const getAuthHeaders = () => {
 };
 
 export const inboxService = {
+    createConversation: async (contactPhone: string): Promise<Conversation | null> => {
+        try {
+            const headers = getAuthHeaders();
+            const response = await fetch(`${API_BASE}/conversations`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ contactPhone })
+            });
+            if (!response.ok) throw new Error('Failed to create conversation');
+            return await response.json();
+        } catch (e) {
+            console.error("Failed to create conversation", e);
+            return null;
+        }
+    },
+
     getConversations: async (page: number = 1, limit: number = 20, search: string = '', quickFilter: string = 'All', filterTag: string = ''): Promise<Conversation[]> => {
         try {
             const headers = getAuthHeaders();

@@ -2,8 +2,10 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
-const DripTriggerService = require('../services/DripTriggerService');
 const requirePermission = require('../middleware/requirePermission');
+const requireAuth = require('../middleware/requireAuth');
+const DripTriggerService = require('../services/DripTriggerService');
+
 
 // GET /api/contacts
 router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
@@ -54,6 +56,14 @@ router.get('/', requirePermission('Contact+List', 'read'), async (req, res) => {
     // --- TAG FILTERING ---
     if (req.query.tag) {
       query = query.contains('tags', [req.query.tag]);
+    }
+
+    // --- OPT STATUS FILTERING ---
+    console.log('[Contacts GET] optStatus filter:', req.query.optStatus);
+    if (req.query.optStatus === 'opted_out') {
+      query = query.contains('custom_data', '{"opted_out":true}');
+    } else if (req.query.optStatus === 'opted_in') {
+      query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
     }
 
     // --- DATE FILTERING ---
@@ -110,6 +120,14 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
     const chunkSize = 1000; // Efficient chunk size (Matches Supabase default MAX_ROWS)
     let hasMore = true;
 
+    // Fetch pipeline dictionaries for mapping
+    const { data: allPipelines } = await supabaseAdmin.from('pipelines').select('id, name').eq('user_id', userId);
+    const { data: allStages } = await supabaseAdmin.from('pipeline_stages').select('id, name').eq('user_id', userId);
+    const pipelineMap = {};
+    (allPipelines || []).forEach(p => pipelineMap[p.id] = p.name);
+    const stageMap = {};
+    (allStages || []).forEach(s => stageMap[s.id] = s.name);
+
     while (hasMore) {
       const from = pageIndex * chunkSize;
       const to = from + chunkSize - 1;
@@ -118,8 +136,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
         .from('contacts')
         .select('id, name, phone, email, status, source, tags, group_ids, custom_data, created_at')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to);
+        .order('created_at', { ascending: false });
 
       // Filter by assigned leads if restricted
       if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -144,14 +161,39 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       }
       if (req.query.groupId) query = query.contains('group_ids', [req.query.groupId]);
       if (req.query.tag) query = query.contains('tags', [req.query.tag]);
+      if (req.query.optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (req.query.optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (req.query.startDate) query = query.gte('created_at', req.query.startDate);
       if (req.query.endDate) query = query.lte('created_at', req.query.endDate);
 
-      const { data: chunk, error } = await query;
+      const { data: chunk, error } = await query.range(from, to);
       if (error) throw error;
 
       if (chunk && chunk.length > 0) {
-        allContacts = allContacts.concat(chunk);
+        // Fetch leads for this chunk to get pipeline assignments
+        const chunkPhones = chunk.map(c => c.phone).filter(Boolean);
+        let leadsByPhone = {};
+        if (chunkPhones.length > 0) {
+          const { data: chunkLeads } = await supabaseAdmin
+            .from('leads')
+            .select('phone, pipeline_id, stage_id')
+            .eq('user_id', userId)
+            .in('phone', chunkPhones);
+            
+          (chunkLeads || []).forEach(lead => {
+            if (!leadsByPhone[lead.phone]) leadsByPhone[lead.phone] = [];
+            const pName = pipelineMap[lead.pipeline_id] || 'Unknown';
+            const sName = stageMap[lead.stage_id] || 'Unknown';
+            leadsByPhone[lead.phone].push(`${pName} (${sName})`);
+          });
+        }
+
+        const enhancedChunk = chunk.map(c => ({
+          ...c,
+          pipelines_string: leadsByPhone[c.phone] ? leadsByPhone[c.phone].join(' | ') : ''
+        }));
+
+        allContacts = allContacts.concat(enhancedChunk);
         if (chunk.length < chunkSize) hasMore = false;
         else pageIndex++;
       } else {
@@ -172,6 +214,7 @@ router.get('/export', requirePermission('Contact+List', 'read'), async (req, res
       tags: c.tags || [],
       groupIds: c.group_ids || [],
       customData: c.custom_data || {},
+      pipelines_string: c.pipelines_string,
       createdAt: c.created_at
     }));
 
@@ -187,7 +230,7 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
     let query = supabase.from('contacts').select('phone').eq('user_id', userId);
 
@@ -218,6 +261,8 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     }
     if (groupId) query = query.contains('group_ids', [groupId]);
     if (tag) query = query.contains('tags', [tag]);
+    if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+    if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
     if (startDate) query = query.gte('created_at', startDate);
     if (endDate) query = query.lte('created_at', endDate);
 
@@ -234,6 +279,26 @@ router.get('/phones', requirePermission('Contact+List', 'read'), async (req, res
     res.json(phones);
   } catch (err) {
     console.error('Error fetching phones:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/contacts/:id
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data, error } = await supabaseAdmin
+      .from('contacts')
+      .select('id, name, whatsapp_name, phone, email, status')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Contact not found' });
+    
+    res.json(data);
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -611,6 +676,62 @@ router.post('/bulk', requirePermission('Contact+List', 'read_write'), async (req
 
     console.log(`✅ Import Complete. Stats:`, stats);
 
+    // --- PIPELINES / LEADS IMPORT ---
+    try {
+      const leadsToInsert = [];
+      const pipelinesMap = {};
+      contacts.forEach(c => {
+        if (c.importPipelines && c.importPipelines.length > 0) {
+          pipelinesMap[c.phone] = c.importPipelines;
+        }
+      });
+      
+      const phonesWithPipelines = Object.keys(pipelinesMap);
+      if (phonesWithPipelines.length > 0) {
+        // Fetch existing leads for these phones to avoid duplicating the exact same pipeline assignment
+        const { data: existingLeads } = await supabaseAdmin
+          .from('leads')
+          .select('phone, pipeline_id, stage_id')
+          .eq('user_id', user.id)
+          .in('phone', phonesWithPipelines);
+          
+        const existingLeadsSet = new Set();
+        (existingLeads || []).forEach(l => existingLeadsSet.add(`${l.phone}-${l.pipeline_id}`));
+
+        for (const phone of phonesWithPipelines) {
+          const contact = chunkedResults.find(c => c.phone === phone);
+          const name = contact ? contact.name : 'Unknown';
+          const email = contact ? contact.email : '';
+          const company = contact && contact.custom_data ? contact.custom_data.company : '';
+          const source = contact ? contact.source : 'Import';
+
+          pipelinesMap[phone].forEach(p => {
+            if (!existingLeadsSet.has(`${phone}-${p.pipelineId}`)) {
+              leadsToInsert.push({
+                user_id: user.id,
+                name: name,
+                phone: phone,
+                email: email,
+                company: company,
+                pipeline_id: p.pipelineId,
+                stage_id: p.stageId,
+                source: source,
+                status: 'active'
+              });
+              // avoid duplicate insertions in the same chunk
+              existingLeadsSet.add(`${phone}-${p.pipelineId}`);
+            }
+          });
+        }
+        
+        if (leadsToInsert.length > 0) {
+          await supabaseAdmin.from('leads').insert(leadsToInsert);
+        }
+      }
+    } catch (leadErr) {
+      console.error('[Bulk Import] Leads/Pipelines insertion failed:', leadErr.message);
+    }
+
 
 
     // Update updated_at for all affected groups (best effort — column may not exist)
@@ -713,7 +834,7 @@ async function chunkedNullify(table, column, ids, chunkSize = 200, concurrency =
 }
 
 // POST /api/contacts/bulk-delete
-router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const { ids } = req.body; // Expects { ids: ['id1', 'id2'] }
@@ -772,13 +893,13 @@ router.post('/bulk-delete', requirePermission('Contact+List', 'read_write'), asy
 });
 
 // POST /api/contacts/bulk-delete-filtered
-router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_write'), async (req, res) => {
+router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'all_access'), async (req, res) => {
   try {
     const supabase = getAuthenticatedSupabase(req);
     const userId = req.user.id;
-    const { search, groupId, tag, startDate, endDate } = req.query;
+    const { search, groupId, tag, startDate, endDate, optStatus } = req.query;
 
-    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate });
+    console.log(`[Bulk Delete Filtered] Request from user ${userId} with filters:`, { search, groupId, tag, startDate, endDate, optStatus });
 
     // 1. Fetch ALL matching IDs (paginate to handle Supabase row limits)
     let allIds = [];
@@ -803,6 +924,8 @@ router.post('/bulk-delete-filtered', requirePermission('Contact+List', 'read_wri
       }
       if (groupId) query = query.contains('group_ids', [groupId]);
       if (tag) query = query.contains('tags', [tag]);
+      if (optStatus === 'opted_out') query = query.contains('custom_data', '{"opted_out":true}');
+      if (optStatus === 'opted_in') query = query.or('custom_data.is.null,custom_data.not.cs.{"opted_out":true}');
       if (startDate) query = query.gte('created_at', startDate);
       if (endDate) query = query.lte('created_at', endDate);
 

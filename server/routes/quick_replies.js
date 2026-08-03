@@ -1,15 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
+const requirePermission = require('../middleware/requirePermission');
 
 // GET / - List all quick replies
-router.get('/', async (req, res) => {
+router.get('/', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
-        const { data, error } = await supabase
-            .from('quick_replies')
-            .select('*')
-            .order('updated_at', { ascending: false });
+        
+        let query = supabase.from('quick_replies').select('*').order('updated_at', { ascending: false });
+        
+        if (req.user && req.user.id) {
+            query = query.eq('user_id', req.user.id);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
         res.json(data);
@@ -20,15 +25,15 @@ router.get('/', async (req, res) => {
 });
 
 // GET /:id - Get a single quick reply
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
-        const { data, error } = await supabase
-            .from('quick_replies')
-            .select('*')
-            .eq('id', id)
-            .single();
+        let query = supabase.from('quick_replies').select('*').eq('id', id);
+        if (req.user && req.user.id) {
+            query = query.eq('user_id', req.user.id);
+        }
+        const { data, error } = await query.single();
         if (error) throw error;
         res.json(data);
     } catch (error) {
@@ -37,7 +42,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST / - Create a new quick reply
-router.post('/', async (req, res) => {
+router.post('/', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { name, nodes, edges } = req.body;
@@ -65,26 +70,24 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /:id - Update a quick reply
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermission('Inbox', 'read_write'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
         const { name, nodes, edges } = req.body;
-
-        const updates = {
+        
+        let query = supabase.from('quick_replies').update({
+            name: name || 'Untitled Reply',
+            nodes: nodes || [],
+            edges: edges || [],
             updated_at: new Date().toISOString()
-        };
-        if (name !== undefined) updates.name = name;
-        if (nodes !== undefined) updates.nodes = nodes;
-        if (edges !== undefined) updates.edges = edges;
+        }).eq('id', id);
+        
+        if (req.user && req.user.id) {
+            query = query.eq('user_id', req.user.id);
+        }
 
-        const { data, error } = await supabase
-            .from('quick_replies')
-            .update(updates)
-            .eq('id', id)
-            .select()
-            .single();
-
+        const { data, error } = await query.select().single();
         if (error) throw error;
         res.json(data);
     } catch (error) {
@@ -94,15 +97,17 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /:id - Delete a quick reply
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermission('Inbox', 'all_access'), async (req, res) => {
     try {
         const supabase = getAuthenticatedSupabase(req);
         const { id } = req.params;
-
-        const { error } = await supabase
-            .from('quick_replies')
-            .delete()
-            .eq('id', id);
+        
+        let query = supabase.from('quick_replies').delete().eq('id', id);
+        if (req.user && req.user.id) {
+            query = query.eq('user_id', req.user.id);
+        }
+        
+        const { data, error } = await query;
 
         if (error) throw error;
         res.json({ success: true });

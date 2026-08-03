@@ -14,9 +14,10 @@ import { getForms, getTasks } from '../services/lead-management-api';
 import { inputFieldService } from '../services/inputFieldService';
 import { UsersIcon, BadgeIcon, HomeIcon, MenuIcon } from './icons';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
+import CustomMenu from './CustomMenu';
 
 interface ContactsProps {
-    initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms';
+    initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms' | 'custom-menu';
     initialPipelineId?: string | null;
     followUpInitialView?: 'list' | 'form';
     onToggleSidebar?: () => void;
@@ -112,7 +113,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
         'pipelines': 'Pipelines',
         'forms': 'Form Builder',
         'follow-up': 'Follow-up',
-        'inputs': 'Input Fields'
+        'inputs': 'Input Fields',
+        'custom-menu': 'Custom Menu'
     };
 
     const handleTabClick = (tabId: string) => {
@@ -131,6 +133,7 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
             case 'pipelines': return <PipelineView initialPipelineId={initialPipelineId} />;
             case 'follow-up': return <FollowUpManager onNavigate={onNavigate} initialView={followUpInitialView} />;
             case 'forms': return <FormBuilder />;
+            case 'custom-menu': return <CustomMenu />;
             default: return (
                 <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-2xl border border-slate-200 shadow-sm m-4 animate-fade-in">
                     <div className="p-8 text-center max-w-md">
@@ -200,6 +203,13 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                 inactiveClass: tabInactiveClass,
                 count: counts.inputs
             },
+            {
+                id: 'custom-menu',
+                label: 'References',
+                activeClass: 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20',
+                inactiveClass: tabInactiveClass,
+                count: null
+            },
         ].filter(tab => {
             const moduleMap: Record<string, string> = {
                 'dashboard': 'Overview',
@@ -208,7 +218,8 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                 'pipelines': 'Pipelines',
                 'forms': 'Form Builder',
                 'follow-up': 'Follow-up',
-                'inputs': 'Input Fields'
+                'inputs': 'Input Fields',
+                'custom-menu': 'Overview' // Fallback to Overview permission so it is visible
             };
             return hasAccess(moduleMap[tab.id], ACCESS_TYPES.READ);
         });

@@ -6,6 +6,7 @@ import GmailCard from './GmailCard';
 import GoogleCalendarCard from './GoogleCalendarCard';
 import GoogleContactsCard from './GoogleContactsCard';
 import SmtpCard from './SmtpCard';
+import CallyzerIntegrationCard from './CallyzerIntegrationCard';
 import { themeService } from '../../services/themeService';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
@@ -100,6 +101,11 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                         {/* OpenAI */}
                         <div className="h-full">
                             <OpenAIIntegrationCard />
+                        </div>
+
+                        {/* Callyzer */}
+                        <div className="h-full">
+                            <CallyzerIntegrationCard />
                         </div>
 
                         {/* Google Sheets */}

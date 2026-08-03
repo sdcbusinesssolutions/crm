@@ -610,8 +610,10 @@ export interface Conversation {
   unread_count: number;
   status: 'open' | 'resolved' | 'pending';
   tags: string[];
-  assigned_to?: string;
-  updated_at: string;
+    assigned_to?: string;
+    updated_at: string;
+    bot_paused_until?: string | null;
+    assigned_ai_agent_id?: string | null;
 }
 
 export interface Message {

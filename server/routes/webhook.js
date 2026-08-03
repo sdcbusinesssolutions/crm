@@ -7,10 +7,9 @@ const path = require('path');
 const { execFile } = require('child_process');
 const { supabaseAdmin, supabase } = require('../lib/supabaseClient');
 const flowEngine = require('../services/flowEngine');
-const { logWebhookEvent } = require('../utils/logger');
 const { executeFlowInternal } = require('../services/flowEngine');
 const WalletService = require('../services/WalletService');
-const { logInboxMessage } = require('../utils/logger');
+const { logInboxMessage, logWebhookEvent, logMetaEvent } = require('../utils/logger');
 const { extractMessageContent } = require('../utils/whatsappParser');
 const fs = require('fs');
 const https = require('https');
@@ -367,6 +366,7 @@ router.get('/webhook', async (req, res) => {
         const challenge = req.query['hub.challenge'];
 
         console.log(`[Global Webhook GET] Verification request:`, { mode, token });
+        if (logMetaEvent) logMetaEvent('GLOBAL_GET_VERIFICATION', { mode, token, challenge });
 
         if (mode && token) {
             if (mode === 'subscribe') {
@@ -399,6 +399,7 @@ router.get('/:userId/:phoneNumberId/webhook', async (req, res) => {
         const challenge = req.query['hub.challenge'];
 
         console.log(`[Webhook GET] Verification request for User: ${userId}, Phone: ${phoneNumberId}`);
+        if (logMetaEvent) logMetaEvent('GET_VERIFICATION', { params: req.params, query: req.query });
 
         // Check if mode and token exist
         if (!mode || !token) {
@@ -449,6 +450,9 @@ router.post('/webhook', async (req, res) => {
     
     if (logWebhookEvent) {
         logWebhookEvent('GLOBAL_WEBHOOK', rawBody);
+    }
+    if (logMetaEvent) {
+        logMetaEvent('GLOBAL_POST_PAYLOAD', rawBody);
     }
 
     try {
@@ -603,6 +607,9 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
     // Log raw webhook to rotating file
     if (logWebhookEvent) {
         logWebhookEvent('INCOMING_WEBHOOK', rawBody);
+    }
+    if (logMetaEvent) {
+        logMetaEvent('POST_PAYLOAD', { userId, phoneNumberId, payload: rawBody });
     }
 
     // --- SECURITY FIX: TRUST PAYLOAD METADATA OVER URL PARAMS ---
@@ -1153,6 +1160,22 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
         const accessToken = config?.meta_access_token;
         console.log(`Access Token found: ${!!accessToken}`);
 
+        // 3.5 Fetch Custom Opt-in / Opt-out Keywords
+        let customOptOutKeywords = ['stop', 'unsubscribe', 'cancel', 'optout'];
+        let customOptInKeywords = ['start', 'subscribe', 'resume', 'optin'];
+        try {
+            if (userId) {
+                const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+                if (userData && userData.user && userData.user.user_metadata && userData.user.user_metadata.notificationSettings) {
+                    const ns = userData.user.user_metadata.notificationSettings;
+                    if (ns.opt_out_keywords) customOptOutKeywords = ns.opt_out_keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                    if (ns.opt_in_keywords) customOptInKeywords = ns.opt_in_keywords.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+                }
+            }
+        } catch (keywordErr) {
+            console.error('Error fetching custom keywords:', keywordErr);
+        }
+
         // 4. Process each message
         for (const message of messages) {
             try {
@@ -1209,14 +1232,35 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // Determine DB Text Content
                 let dbMessageText = extracted.text || extracted.caption;
+                let cleanTextContent = extracted.text || extracted.caption || '';
+                
                 if (!dbMessageText && extracted.type === 'interactive' && extracted.raw?.interactive) {
                     dbMessageText = JSON.stringify(extracted.raw.interactive);
+                    if (extracted.interactive?.subtype === 'button_reply' || extracted.interactive?.subtype === 'list_reply') {
+                        cleanTextContent = extracted.interactive.title;
+                    }
                 } else if (!dbMessageText && extracted.type === 'button' && extracted.button?.text) {
                     dbMessageText = extracted.button.text;
+                    cleanTextContent = extracted.button.text;
                 } else if (!dbMessageText && extracted.type === 'location') {
                     const locName = extracted.location?.name;
                     const locAddr = extracted.location?.address;
                     dbMessageText = [locName, locAddr].filter(Boolean).join(', ') || null;
+                    cleanTextContent = dbMessageText || '';
+                }
+
+                // --- OPT-IN / OPT-OUT LOGIC ---
+                let isOptOut = false;
+                let isOptIn = false;
+                if (cleanTextContent && typeof cleanTextContent === 'string') {
+                    const t = cleanTextContent.trim().toLowerCase();
+                    if (customOptOutKeywords.includes(t)) {
+                        isOptOut = true;
+                        console.log(`[Webhook] Opt-out keyword detected from ${contactPhone}`);
+                    } else if (customOptInKeywords.includes(t)) {
+                        isOptIn = true;
+                        console.log(`[Webhook] Opt-in keyword detected from ${contactPhone}`);
+                    }
                 }
 
                 // Determine Preview Text
@@ -1269,7 +1313,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                                     let flowName = (flowId === 'unknown_flow') ? 'Unknown Form' : 'Flow ' + flowId;
                                     if (flowId !== 'unknown_flow') {
-                                        const { data: flowData } = await supabaseAdmin.from('whatsapp_flows').select('name').eq('id', flowId).maybeSingle();
+                                        const { data: flowData } = await supabaseAdmin.from('flows').select('name').eq('id', flowId).maybeSingle();
                                         if (flowData) flowName = flowData.name;
                                     }
 
@@ -1311,14 +1355,18 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // If NOT media, we can trigger flow concurrently with DB writes (only if not stale!)
                 if (!isMedia && inputPayload && !isStale) {
-                    // Normalize payload
-                    if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
-                    if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
+                    if (isOptOut) {
+                        console.log(`[Webhook] Opted out. Skipping flow processing for ${contactPhone}`);
+                    } else {
+                        // Normalize payload
+                        if (typeof inputPayload === 'string') inputPayload = { text: inputPayload };
+                        if (typeof inputPayload === 'object' && inputPayload !== null) inputPayload.name = contactName;
 
-                    console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
+                        console.log(`[Webhook] OPTIMIZATION: Triggering Flow Engine Concurrently for ${extracted.type}`);
 
-                    flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id))
-                        .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
+                        flowPromise = processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id))
+                            .catch(err => console.error('[Webhook] Concurrent Flow Error:', err));
+                    }
                 }
 
                 // --- DRIP CAMPAIGN STOP ON REPLY ---
@@ -1327,18 +1375,55 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // --- SAVE MESSAGE IMMEDIATELY (Do NOT block on media download) ---
                 // 1. Upsert Contact
                 let contactId = null;
-                const { data: contactData } = await supabaseAdmin.from('contacts').select('id').eq('user_id', userId).eq('phone', contactPhone).maybeSingle();
-                if (contactData) {
-                    contactId = contactData.id;
-                    await supabaseAdmin.from('contacts').update({ name: contactName !== '~' ? contactName : undefined, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).eq('id', contactId);
+                const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id, custom_data').eq('user_id', userId).eq('phone', contactPhone);
+                
+                if (contactDataList && contactDataList.length > 0) {
+                    contactId = contactDataList[0].id;
+                    // Update all duplicates to ensure UI always sees the updated status
+                    for (const c of contactDataList) {
+                        let cData = c.custom_data || {};
+                        if (isOptOut) cData.opted_out = true;
+                        if (isOptIn) cData.opted_out = false;
+                        await supabaseAdmin.from('contacts').update({ 
+                            name: contactName !== '~' ? contactName : undefined, 
+                            last_active: new Date(extracted.timestamp * 1000).toISOString(), 
+                            status: 'active', 
+                            custom_data: cData 
+                        }).eq('id', c.id);
+                    }
                 } else {
-                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ user_id: userId, phone: contactPhone, name: contactName, last_active: new Date(extracted.timestamp * 1000).toISOString(), status: 'active' }).select().single();
+                    let contactCustomData = {};
+                    if (isOptOut) contactCustomData.opted_out = true;
+                    if (isOptIn) contactCustomData.opted_out = false;
+                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ 
+                        user_id: userId, 
+                        phone: contactPhone, 
+                        name: contactName, 
+                        last_active: new Date(extracted.timestamp * 1000).toISOString(), 
+                        status: 'active', 
+                        custom_data: contactCustomData 
+                    }).select().single();
                     contactId = newContact?.id;
+                }
+
+                // 1.5 Update Lead custom_fields if opted_out changes
+                if (isOptOut || isOptIn) {
+                    const { data: leadDataList } = await supabaseAdmin.from('leads').select('id, custom_fields').eq('user_id', userId).eq('phone', contactPhone);
+                    if (leadDataList && leadDataList.length > 0) {
+                        for (const leadData of leadDataList) {
+                            let leadCustomFields = leadData.custom_fields || {};
+                            if (isOptOut) leadCustomFields.opted_out = true;
+                            if (isOptIn) leadCustomFields.opted_out = false;
+                            await supabaseAdmin.from('leads').update({ custom_fields: leadCustomFields }).eq('id', leadData.id);
+                        }
+                    }
                 }
 
                 // 2. Upsert Conversation
                 let conversationId = null;
-                const { data: convData } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).maybeSingle();
+                const { data: convDataList } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).limit(1);
+                const convData = convDataList && convDataList.length > 0 ? convDataList[0] : null;
+                
                 if (convData) {
                     conversationId = convData.id;
                     await supabaseAdmin.from('conversations').update({ last_message: lastMessagePreview, unread_count: (convData.unread_count || 0) + 1, updated_at: new Date(extracted.timestamp * 1000).toISOString(), contact_name: contactName !== '~' ? contactName : undefined }).eq('id', conversationId);
@@ -1389,7 +1474,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                 }).eq('id', savedMessageId);
 
                                 // 2. Trigger Flow Engine (NOW WITH URL)
-                                if (inputPayload && !isStale) {
+                                if (inputPayload && !isStale && !isOptOut) {
                                     inputPayload.url = mediaData.url;
                                     inputPayload.mime_type = mediaData.mime_type || null;
                                     inputPayload.filename = extracted.filename || mediaData.filename || null;
@@ -1402,7 +1487,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             } else {
                                 console.warn(`[Webhook] BG: Media download failed for ${savedMessageId}`);
                                 // Trigger Flow anyway with null URL so it doesn't hang the conversation indefinitely
-                                if (inputPayload && !isStale) {
+                                if (inputPayload && !isStale && !isOptOut) {
                                     await processFlowConcurrently(() => flowEngine.processMessage(userId, extracted.from, inputPayload, extracted.type, interactionId, extracted.id));
                                 }
                             }

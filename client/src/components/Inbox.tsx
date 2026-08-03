@@ -17,11 +17,16 @@ import { Conversation, Message, Flow } from '../types';
 import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 import QuickReply from './QuickReply';
 import InboxTemplateModal from './InboxTemplateModal';
+import Toast from './Toast';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { getStaffList, getLeads, createLead, getLead } from '../services/lead-management-api';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 import { contactService } from '../services/contactService';
+import { tokenService } from '../services/tokenService';
+import { aiAgentService, Agent } from '../services/aiAgentService';
+import { reminderManager } from '../utils/reminderManager';
+import { followUpService } from '../services/followUpService';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -95,6 +100,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isClearChatModalOpen, setIsClearChatModalOpen] = useState(false);
     const [contactStatus, setContactStatus] = useState<string | null>(null);
 
+    // Toast State
+    const [toastConfig, setToastConfig] = useState<{ type: 'success' | 'error' | 'info' | 'warning'; title: string; message: string } | null>(null);
+
     // --- CACHE OPTIMIZATION: Memory Buffer for Recent Conversations ---
     // Stores the last 100 messages for recently visited chats to make switching instant.
     const messageCacheRef = useRef<Record<string, Message[]>>({});
@@ -103,12 +111,19 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [quickReplies, setQuickReplies] = useState<Flow[]>([]);
     const [isQuickReplyOpen, setIsQuickReplyOpen] = useState(false);
     const [quickReplySearch, setQuickReplySearch] = useState('');
+    const [isOptedOut, setIsOptedOut] = useState(false);
     const [selectedQuickReplyIndex, setSelectedQuickReplyIndex] = useState(0);
     const [staffMembers, setStaffMembers] = useState<any[]>([]);
     const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
     const [assignedStaffNames, setAssignedStaffNames] = useState<string[]>([]);
     const [contactNotes, setContactNotes] = useState('');
     const [isSavingNotes, setIsSavingNotes] = useState(false);
+    const [aiAgents, setAiAgents] = useState<Agent[]>([]);
+    
+    // Reminder state
+    const [showLocalReminder, setShowLocalReminder] = useState(false);
+    const [localReminderTime, setLocalReminderTime] = useState('');
+    const [localReminderMessage, setLocalReminderMessage] = useState('');
     const activeChat = useMemo(() =>
         conversations.find(c => c.id === activeChatId),
         [conversations, activeChatId]
@@ -229,8 +244,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
                     if (res?.data && res.data.length > 0) {
                         setContactNotes(res.data[0].customData?.notes || '');
+                        setIsOptedOut(res.data[0].customData?.opted_out === true);
                     } else {
                         setContactNotes('');
+                        setIsOptedOut(false);
                     }
                 } catch (e) {
                     console.error("Failed to load notes", e);
@@ -240,6 +257,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             loadNotes();
         } else {
             setContactNotes('');
+            setIsOptedOut(false);
         }
     }, [activeChat?.contact_phone]);
 
@@ -443,6 +461,18 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
         loadContactStatus();
     }, [activeChat]);
+
+    useEffect(() => {
+        const fetchAgents = async () => {
+            try {
+                const agents = await aiAgentService.listAgents();
+                setAiAgents(agents);
+            } catch (err) {
+                console.error("Failed to fetch AI agents", err);
+            }
+        };
+        fetchAgents();
+    }, []);
 
     // Now that we have server-side filtering, filteredChats is just conversations
     const filteredChats = conversations;
@@ -658,6 +688,54 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             scrollToBottom(false);
         }
     }, [messages.length]);
+
+    const toggleAiPause = async () => {
+        if (!activeChatId) return;
+        const isPaused = !!activeChat?.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
+        const newState = !isPaused;
+        const previousState = activeChat?.bot_paused_until;
+        
+        // Optimistic UI update
+        const pauseUntil = newState ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
+        setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, bot_paused_until: pauseUntil } : c));
+        
+        try {
+            const response = await fetch(`/api/inbox/messages/${activeChatId}/toggle-ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenService.getAccessToken()}` },
+                body: JSON.stringify({ paused: newState })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        } catch (e) {
+            console.error('Failed to toggle AI state', e);
+            // Revert on failure
+            setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, bot_paused_until: previousState } : c));
+            alert('Failed to toggle AI state. Please try again.');
+        }
+    };
+
+    const handleAssignAi = async (agentId: string) => {
+        if (!activeChatId) return;
+        
+        const previousAgentId = activeChat?.assigned_ai_agent_id;
+        
+        // Optimistic UI update
+        setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, assigned_ai_agent_id: agentId || null } : c));
+        
+        try {
+            const response = await fetch(`/api/inbox/messages/${activeChatId}/assign-ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenService.getAccessToken()}` },
+                body: JSON.stringify({ agentId })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        } catch (e) {
+            console.error('Failed to assign AI agent', e);
+            // Revert on failure
+            setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, assigned_ai_agent_id: previousAgentId } : c));
+            alert('Failed to assign AI agent. Please try again.');
+        }
+    };
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
@@ -1015,10 +1093,24 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             assignedTo: c.assigned_to || 'Unassigned'
         }));
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+        const headers = ['Name', 'Phone', 'Status', 'Tags', 'Assigned To'];
+        const csvContent = [
+            headers.join(','),
+            ...exportData.map(row => 
+                [
+                    `"${(row.name || '').replace(/"/g, '""')}"`,
+                    `"${(row.phone || '').replace(/"/g, '""')}"`,
+                    `"${(row.status || '').replace(/"/g, '""')}"`,
+                    `"${(row.tags || '').replace(/"/g, '""')}"`,
+                    `"${(row.assignedTo || '').replace(/"/g, '""')}"`
+                ].join(',')
+            )
+        ].join('\n');
+
+        const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `contact_list_export_${new Date().toISOString().split('T')[0]}.json`);
+        downloadAnchorNode.setAttribute("download", `contact_list_export_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
@@ -1037,10 +1129,23 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             exportedAt: new Date().toISOString()
         };
 
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contactData, null, 2));
+        const headers = ['ID', 'Name', 'Phone', 'Tags', 'Status', 'Exported At'];
+        const csvContent = [
+            headers.join(','),
+            [
+                `"${(contactData.id || '').replace(/"/g, '""')}"`,
+                `"${(contactData.name || '').replace(/"/g, '""')}"`,
+                `"${(contactData.phone || '').replace(/"/g, '""')}"`,
+                `"${(contactData.tags?.join(', ') || '').replace(/"/g, '""')}"`,
+                `"${(contactData.status || '').replace(/"/g, '""')}"`,
+                `"${(contactData.exportedAt || '').replace(/"/g, '""')}"`
+            ].join(',')
+        ].join('\n');
+
+        const dataStr = "data:text/csv;charset=utf-8," + encodeURIComponent(csvContent);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `${(activeChat.contact_name || 'contact').replace(/\s+/g, '_')}_contact.json`);
+        downloadAnchorNode.setAttribute("download", `${(activeChat.contact_name || 'contact').replace(/\s+/g, '_')}_contact.csv`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
@@ -1983,8 +2088,32 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'Unassigned', 'Quick Reply'].map(f => {
+                        {['All', 'AI Chats', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
+
+                            if (f === 'AI Chats') {
+                                return (
+                                    <button
+                                        key={f}
+                                        onClick={() => window.location.href = '/?view=AI+Buddy'}
+                                        className="relative inline-flex h-7 overflow-hidden rounded-full p-[1.5px] hover:scale-105 transition-transform shadow-sm group"
+                                    >
+                                        <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#FF61D2_0%,#393BB2_50%,#FF61D2_100%)]" />
+                                        <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-white px-4 text-[11px] font-black text-slate-800 backdrop-blur-3xl gap-1.5 transition-colors group-hover:bg-slate-50">
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="url(#ai-gradient)" />
+                                                <defs>
+                                                    <linearGradient id="ai-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                                        <stop stopColor="#FF61D2" />
+                                                        <stop offset="1" stopColor="#393BB2" />
+                                                    </linearGradient>
+                                                </defs>
+                                            </svg>
+                                            AI Chats
+                                        </span>
+                                    </button>
+                                );
+                            }
 
                             return (
                                 <button
@@ -2206,7 +2335,52 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     })()}
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1 lg:mr-24">
+                            <div className="flex items-center gap-2 lg:mr-24">
+                                {/* AI Pause Toggle */}
+                                {(() => {
+                                    const isPaused = !!activeChat.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
+                                    return (
+                                        <div 
+                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold border-2 transition-all shadow-sm ${
+                                                isPaused 
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' 
+                                                    : 'bg-white border-purple-200 hover:border-purple-300 hover:shadow-md'
+                                            }`}
+                                            onClick={toggleAiPause}
+                                        >
+                                            {isPaused ? (
+                                                <>
+                                                    <span className="text-[14px]">⏸️</span>
+                                                    <span>AI Paused</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                    </svg>
+                                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500">AI Active</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                                
+                                {/* Assign AI Dropdown */}
+                                <div className="hidden md:flex items-center">
+                                    <select
+                                        value={activeChat.assigned_ai_agent_id || ''}
+                                        onChange={(e) => handleAssignAi(e.target.value)}
+                                        className="text-xs font-medium border-2 border-slate-200 rounded-full px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-purple-300 focus:ring-2 focus:ring-purple-100 shadow-sm transition-all cursor-pointer"
+                                    >
+                                        <option value="">No AI Assigned</option>
+                                        {aiAgents.map(agent => (
+                                            <option key={agent.id} value={agent.id}>
+                                                {agent.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
                                 {/* 24h Window Timer */}
                                 {(() => {
                                     const lastIncoming = [...messages].reverse().find(m => m.direction === 'in');
@@ -2357,6 +2531,15 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 </div>
                             </div>
                         </header>
+
+                        {/* Opted Out Alert Banner */}
+                        {isOptedOut && (
+                            <div className="bg-red-50 border-b border-red-200 px-4 py-2 flex items-center justify-center shadow-sm relative z-20 w-full animate-fade-in shrink-0">
+                                <span className="text-red-700 text-xs md:text-sm font-bold flex items-center gap-2 text-center">
+                                    <span className="text-base">🛑</span> This user has opted out. Messaging is paused.
+                                </span>
+                            </div>
+                        )}
 
                         {/* Messages Area */}
                         <div
@@ -2573,6 +2756,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 } else if (e.key === 'Escape') {
                                                     setIsQuickReplyOpen(false);
                                                 }
+                                            } else if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
                                             }
                                         }}
                                         className="bg-transparent w-full border-none focus:ring-0 p-0 text-sm text-slate-800 placeholder-slate-400 resize-none max-h-32 outline-none"
@@ -2774,6 +2960,96 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                             <DownloadIcon className="w-4 h-4" /> <span>Export</span>
                                         </button>
                                     </div>
+                                    
+                                    <button 
+                                        onClick={() => setShowLocalReminder(!showLocalReminder)}
+                                        className="w-full flex items-center justify-center space-x-2 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 transition-colors"
+                                    >
+                                        <ClockIcon className="w-4 h-4" /> <span>⏰ Custom Reminder</span>
+                                    </button>
+
+                                    {showLocalReminder && (
+                                        <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-2 animate-fade-in shadow-sm relative z-50">
+                                            <p className="text-[10px] font-bold text-amber-800 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
+                                                Custom Reminder
+                                            </p>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Reminder message (e.g. Call back)"
+                                                value={localReminderMessage}
+                                                onChange={(e) => setLocalReminderMessage(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <input 
+                                                type="datetime-local" 
+                                                value={localReminderTime}
+                                                onChange={(e) => setLocalReminderTime(e.target.value)}
+                                                className="w-full px-3 py-1.5 text-xs border border-amber-200 rounded outline-none focus:border-amber-500 bg-white"
+                                            />
+                                            <div className="flex gap-2 mt-1">
+                                                <button 
+                                                    onClick={() => setShowLocalReminder(false)}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-amber-100 rounded transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button 
+                                                    onClick={async () => {
+                                                        if (!activeLeadId) {
+                                                            setToastConfig({
+                                                                type: 'error',
+                                                                title: 'Cannot Set Alarm',
+                                                                message: 'Please click "Enable Team Assignment" above to register this contact before setting an alarm.'
+                                                            });
+                                                            return;
+                                                        }
+                                                        if (localReminderTime) {
+                                                            // Ask for desktop notification permission right when they set the alarm
+                                                            if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+                                                                Notification.requestPermission();
+                                                            }
+
+                                                            try {
+                                                                const targetTime = new Date(localReminderTime).getTime();
+                                                                await followUpService.createFollowUp({
+                                                                    contact_id: activeLeadId,
+                                                                    title: `[QUICK_ALARM] Reminder: ${activeChat.contact_name || 'Contact'}`,
+                                                                    description: localReminderMessage,
+                                                                    scheduled_at: new Date(targetTime).toISOString(),
+                                                                    type: 'TASK'
+                                                                });
+                                                                setShowLocalReminder(false);
+                                                                setLocalReminderMessage('');
+                                                                setLocalReminderTime('');
+                                                                setToastConfig({
+                                                                    type: 'success',
+                                                                    title: 'Reminder Set',
+                                                                    message: 'Reminder saved successfully!'
+                                                                });
+                                                            } catch (err) {
+                                                                console.error('Failed to create quick alarm', err);
+                                                                setToastConfig({
+                                                                    type: 'error',
+                                                                    title: 'Error',
+                                                                    message: 'Failed to save reminder'
+                                                                });
+                                                            }
+                                                        } else {
+                                                            setToastConfig({
+                                                                type: 'warning',
+                                                                title: 'Time Required',
+                                                                message: 'Please select a time'
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="flex-1 py-1.5 text-[11px] font-bold bg-amber-500 text-white hover:bg-amber-600 rounded transition-colors shadow-sm"
+                                                >
+                                                    Save Alarm
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-3 relative z-40">
@@ -2924,7 +3200,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 onClose={() => setIsTemplateModalOpen(false)}
                 onSend={handleSendTemplate}
             />
+            {toastConfig && (
+                <Toast
+                    type={toastConfig.type}
+                    title={toastConfig.title}
+                    message={toastConfig.message}
+                    onClose={() => setToastConfig(null)}
+                />
+            )}
         </div>
     );
 };
+
 export default Inbox;

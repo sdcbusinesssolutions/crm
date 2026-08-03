@@ -4,6 +4,7 @@ import { Flow } from '../types';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import { UploadIcon, PlusIcon, CopyIcon, DownloadIcon, TrashIcon, SearchIcon, FilterIcon, EditIcon, TriggerIcon, MenuIcon } from './icons';
 import Modal from './Modal';
+import VideoGuideModal from './VideoGuideModal';
 
 interface FlowListProps {
     onNavigateToFlow: (flowId: string) => void;
@@ -55,6 +56,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [flowToDelete, setFlowToDelete] = useState<string | null>(null);
+    const [showVideo, setShowVideo] = useState(false);
 
     useEffect(() => {
         loadFlows();
@@ -291,6 +293,16 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                         {canWrite && (
                             <>
                                 <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
+                                <button 
+                                    onClick={() => setShowVideo(true)}
+                                    className="flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-md hover:shadow-lg transition-all animate-pulse mr-2"
+                                    title="Watch Video"
+                                >
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
+                                    </svg>
+                                    VIEW
+                                </button>
                                 <button onClick={handleImportClick} className="flex-1 sm:flex-none flex items-center justify-center space-x-2 bg-[var(--color-brand)] hover:opacity-90 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-brand-200 transition-all transform hover:-translate-y-0.5 text-sm font-bold active:scale-95">
                                     <UploadIcon /> <span className="hidden sm:inline">Import</span>
                                 </button>
@@ -633,6 +645,13 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
                     </div>
                 </div>
             </Modal>
+            
+            <VideoGuideModal 
+                isOpen={showVideo} 
+                onClose={() => setShowVideo(false)} 
+                videoId="iSiRl_hoahg" 
+                title="Watch Guide" 
+            />
         </div>
     );
 };

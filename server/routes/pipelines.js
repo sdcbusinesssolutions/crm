@@ -353,16 +353,29 @@ router.get('/:id/kanban', requirePermission('Pipelines', 'read'), async (req, re
                 query = query.lt('created_at', d.toISOString());
             }
 
+            if (req.query.fromDate) {
+                query = query.gte('created_at', new Date(req.query.fromDate).toISOString());
+            }
+            if (req.query.toDate) {
+                const toD = new Date(req.query.toDate);
+                toD.setHours(23, 59, 59, 999);
+                query = query.lte('created_at', toD.toISOString());
+            }
+
             // Sorting
-            const sortBy = req.query.sortBy || 'created_at_desc';
-            if (sortBy === 'created_at_asc') {
+            const sortBy = req.query.sortBy || 'updated_at_desc';
+            if (sortBy === 'updated_at_desc') {
+                query = query.order('updated_at', { ascending: false });
+            } else if (sortBy === 'created_at_desc') {
+                query = query.order('created_at', { ascending: false });
+            } else if (sortBy === 'created_at_asc') {
                 query = query.order('created_at', { ascending: true });
             } else if (sortBy === 'value_desc') {
                 query = query.order('estimated_value', { ascending: false });
             } else if (sortBy === 'value_asc') {
                 query = query.order('estimated_value', { ascending: true });
             } else {
-                query = query.order('created_at', { ascending: false });
+                query = query.order('updated_at', { ascending: false });
             }
 
             // Per-Stage Pagination (Initial Load: 20)

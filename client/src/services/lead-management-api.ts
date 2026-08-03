@@ -215,9 +215,12 @@ export const getLeads = async (pipelineId?: string, stageId?: string, page: numb
         params.append('limit', limit.toString());
 
         if (filters) {
+            if (filters.exactPhone) params.append('exactPhone', filters.exactPhone);
             if (filters.search) params.append('search', filters.search);
             if (filters.sortBy) params.append('sortBy', filters.sortBy);
             if (filters.quickFilter && filters.quickFilter !== 'all') params.append('quickFilter', filters.quickFilter);
+            if (filters.fromDate) params.append('fromDate', filters.fromDate);
+            if (filters.toDate) params.append('toDate', filters.toDate);
         }
 
         const url = `/api/leads${params.toString() ? '?' + params.toString() : ''}`;
@@ -314,7 +317,10 @@ export const getKanbanBoard = async (pipelineId: string, page: number = 1, limit
             if (filters.search) params.append('search', filters.search);
             if (filters.sortBy) params.append('sortBy', filters.sortBy);
             if (filters.quickFilter && filters.quickFilter !== 'all') params.append('quickFilter', filters.quickFilter);
+            if (filters.fromDate) params.append('fromDate', filters.fromDate);
+            if (filters.toDate) params.append('toDate', filters.toDate);
         }
+        params.append('t', Date.now().toString()); // Cache busting
 
         const res = await fetch(`/api/pipelines/${pipelineId}/kanban?${params.toString()}`, { headers });
         if (!res.ok) throw new Error('Failed to fetch kanban board');
@@ -527,7 +533,8 @@ export const deleteNote = async (id: string): Promise<boolean> => {
 export const getTasks = async (leadId?: string): Promise<any[]> => {
     try {
         const headers = await getHeaders();
-        const url = leadId ? `/api/tasks?lead_id=${leadId}` : '/api/tasks';
+        // Add cache buster to prevent browser from returning stale tasks
+        const url = leadId ? `/api/tasks?lead_id=${leadId}&_t=${Date.now()}` : `/api/tasks?_t=${Date.now()}`;
         const res = await fetch(url, { headers });
         if (!res.ok) throw new Error('Failed to fetch tasks');
         return await res.json();

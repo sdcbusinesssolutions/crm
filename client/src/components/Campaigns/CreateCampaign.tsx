@@ -108,6 +108,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     const [sendNow, setSendNow] = useState(true);
     const [scheduledAt, setScheduledAt] = useState('');
     const [selectedPhoneNumber, setSelectedPhoneNumber] = useState('');
+    const [messageDelayUnit, setMessageDelayUnit] = useState<'seconds' | 'minutes'>('seconds');
+    const [messageDelayValue, setMessageDelayValue] = useState(0);
     const [mediaUrl, setMediaUrl] = useState('');
     const [headerType, setHeaderType] = useState<string | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -134,6 +136,10 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
     const [recipientType, setRecipientType] = useState<'group' | 'manual' | 'tags'>('group');
     const [manualInput, setManualInput] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    
+    // Date Filters
+    const [fromDate, setFromDate] = useState('');
+    const [toDate, setToDate] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -421,6 +427,17 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
             return;
         }
 
+        if (recipientType === 'group' || recipientType === 'tags') {
+            if (fromDate && toDate) {
+                const from = new Date(fromDate);
+                const to = new Date(toDate);
+                if (from > to) {
+                    setToast({ type: 'error', title: 'Validation Error', message: '"From Date" cannot be later than "To Date".' });
+                    return;
+                }
+            }
+        }
+
         let processedManualNumbers: string[] = [];
         if (recipientType === 'manual') {
             if (!manualInput.trim()) {
@@ -473,6 +490,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 contactGroupId: recipientType === 'group' ? selectedGroup : null,
                 manualNumbers: recipientType === 'manual' ? processedManualNumbers : [],
                 selectedTags: recipientType === 'tags' ? selectedTags : [],
+                fromDate: (recipientType === 'group' || recipientType === 'tags') && fromDate ? fromDate : null,
+                toDate: (recipientType === 'group' || recipientType === 'tags') && toDate ? toDate : null,
 
                 scheduledAt: sendNow || !scheduledAt ? null : new Date(scheduledAt).toISOString(),
                 sendNow,
@@ -483,7 +502,8 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                 mediaUrl: headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) ? mediaUrl : null,
                 carouselMediaUrls: carouselCards.length > 0 ? carouselMediaUrls : null,
                 mediaType: headerType,
-                locationHeader: headerType === 'LOCATION' ? locationHeader : null
+                locationHeader: headerType === 'LOCATION' ? locationHeader : null,
+                messageDelay: messageDelayUnit === 'minutes' ? messageDelayValue * 60 : messageDelayValue
             };
 
             const response = await fetch('/api/campaigns/create', {
@@ -667,6 +687,37 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         )}
                                     </div>
                                 )}
+
+                                {(recipientType === 'group' || recipientType === 'tags') && (
+                                    <div className="mt-4 pt-4 border-t border-[var(--color-border)]">
+                                        <div className="mb-3">
+                                            <label className="block text-sm font-bold text-[var(--color-text)] mb-1">Filter by Date Added (Optional)</label>
+                                            <p className="text-xs text-[var(--color-text)] opacity-60">
+                                                Only send to contacts that were added between these dates. Leave blank to include all contacts in the selected {recipientType === 'group' ? 'group' : 'tags'}.
+                                            </p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">From Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={fromDate}
+                                                    onChange={(e) => setFromDate(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all text-[var(--color-text)]"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">To Date</label>
+                                                <input
+                                                    type="date"
+                                                    value={toDate}
+                                                    onChange={(e) => setToDate(e.target.value)}
+                                                    className="w-full px-4 py-2 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-[var(--radius-btn)] focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] outline-none transition-all text-[var(--color-text)]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center gap-3 p-3 bg-[var(--color-bg)] rounded-[var(--radius-btn)] border border-[var(--color-border)]">
@@ -716,6 +767,39 @@ const CreateCampaign: React.FC<CreateCampaignProps> = ({ onBack, initialData }) 
                                         className="w-full px-4 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm mt-2 text-[var(--color-text)] focus:border-[var(--color-brand)] outline-none"
                                     />
                                 )}
+                            </div>
+
+                            {/* Message Delay */}
+                            <div className="space-y-3 p-4 bg-[var(--color-bg)] rounded-[var(--radius-btn)] border border-[var(--color-border)]">
+                                <label className="block text-xs font-bold text-[var(--color-text)] opacity-50 uppercase tracking-wider">Message Delay</label>
+                                <p className="text-xs text-[var(--color-text)] opacity-60">
+                                    Set a delay between each message to control the delivery rate of your campaign.
+                                </p>
+                                <div className="flex items-center gap-4 mt-2">
+                                    <select
+                                        value={messageDelayUnit}
+                                        onChange={(e) => {
+                                            setMessageDelayUnit(e.target.value as 'seconds' | 'minutes');
+                                            setMessageDelayValue(0);
+                                        }}
+                                        className="px-3 py-2 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-[calc(var(--radius-btn)-4px)] text-sm text-[var(--color-text)] focus:border-[var(--color-brand)] outline-none"
+                                    >
+                                        <option value="seconds">Seconds</option>
+                                        <option value="minutes">Minutes</option>
+                                    </select>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={messageDelayUnit === 'seconds' ? '60' : '15'}
+                                        step="1"
+                                        value={messageDelayValue}
+                                        onChange={(e) => setMessageDelayValue(parseInt(e.target.value))}
+                                        className="flex-1 h-2 bg-[var(--color-border)] rounded-lg appearance-none cursor-pointer accent-[var(--color-brand)]"
+                                    />
+                                    <span className="text-sm font-bold text-[var(--color-text)] min-w-[3ch] text-right">
+                                        {messageDelayValue} {messageDelayUnit === 'seconds' ? 's' : 'm'}
+                                    </span>
+                                </div>
                             </div>
 
                             <div className="space-y-1">

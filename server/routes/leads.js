@@ -23,7 +23,7 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
 
         let query = supabase
             .from('leads')
-            .select('*', { count: 'exact' })
+            .select('*')
             .eq('user_id', req.user.id);
 
         if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -40,6 +40,10 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
 
         if (status) {
             query = query.eq('status', status);
+        }
+
+        if (req.query.exactPhone) {
+            query = query.eq('phone', req.query.exactPhone.replace(/,/g, ''));
         }
 
         // Search Support
@@ -63,16 +67,29 @@ router.get('/', requirePermission('LeadCRM', 'read'), async (req, res) => {
             query = query.lt('created_at', d.toISOString());
         }
 
+        if (req.query.fromDate) {
+            query = query.gte('created_at', new Date(req.query.fromDate).toISOString());
+        }
+        if (req.query.toDate) {
+            const toD = new Date(req.query.toDate);
+            toD.setHours(23, 59, 59, 999);
+            query = query.lte('created_at', toD.toISOString());
+        }
+
         // Sorting
-        const sortBy = req.query.sortBy || 'created_at_desc';
-        if (sortBy === 'created_at_asc') {
+        const sortBy = req.query.sortBy || 'updated_at_desc';
+        if (sortBy === 'updated_at_desc') {
+            query = query.order('updated_at', { ascending: false });
+        } else if (sortBy === 'created_at_desc') {
+            query = query.order('created_at', { ascending: false });
+        } else if (sortBy === 'created_at_asc') {
             query = query.order('created_at', { ascending: true });
         } else if (sortBy === 'value_desc') {
             query = query.order('estimated_value', { ascending: false });
         } else if (sortBy === 'value_asc') {
             query = query.order('estimated_value', { ascending: true });
         } else {
-            query = query.order('created_at', { ascending: false });
+            query = query.order('updated_at', { ascending: false });
         }
 
         // Range Pagination
@@ -114,13 +131,35 @@ router.get('/:id', requirePermission('LeadCRM', 'read'), async (req, res) => {
             query = query.contains('assigned_staff_ids', [req.staff.staffId]);
         }
 
-        const { data, error } = await query.single();
+        let { data, error } = await query.maybeSingle();
 
-        if (error) {
-            if (error.code === 'PGRST116') {
-                return res.status(404).json({ error: 'Lead not found' });
-            }
+        if (error && error.code !== 'PGRST116') {
             throw error;
+        }
+
+        // AUTO-RESOLVE: If not found as a lead, it might be a contact_id passed from FollowUps
+        if (!data) {
+            const { data: contact } = await supabase.from('contacts').select('phone').eq('id', req.params.id).maybeSingle();
+            if (contact && contact.phone) {
+                let phoneQuery = supabase
+                    .from('leads')
+                    .select('*')
+                    .eq('phone', contact.phone)
+                    .eq('user_id', req.user.id);
+                
+                if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
+                    phoneQuery = phoneQuery.contains('assigned_staff_ids', [req.staff.staffId]);
+                }
+                
+                const { data: leadByPhone } = await phoneQuery.maybeSingle();
+                if (leadByPhone) {
+                    data = leadByPhone;
+                }
+            }
+        }
+
+        if (!data) {
+            return res.status(404).json({ error: 'Lead not found' });
         }
 
         if (data) {
@@ -191,7 +230,7 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                 type: type || 'Lead',
                 assigned_staff_ids: staffIds
             }])
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -229,14 +268,9 @@ router.post('/', requirePermission('LeadCRM', 'read_write'), async (req, res) =>
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }
@@ -261,7 +295,7 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         // 1. Verify lead exists and belongs to this tenant/user
         let checkQuery = supabase
             .from('leads')
-            .select('user_id, custom_data, phone')
+            .select('user_id, custom_data, phone, pipeline_id, stage_id')
             .eq('id', req.params.id);
 
         if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
@@ -304,11 +338,27 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
             }
         }
 
+        // Sync basic info changes to the contacts table so Follow-up tasks (which link to contacts) reflect the update
+        if ((updates.name !== undefined || updates.phone !== undefined || updates.email !== undefined) && leadCheck.phone) {
+            const contactUpdates = {};
+            if (updates.name !== undefined) contactUpdates.name = updates.name;
+            if (updates.phone !== undefined) contactUpdates.phone = updates.phone;
+            if (updates.email !== undefined) contactUpdates.email = updates.email;
+            
+            supabase.from('contacts')
+                .update(contactUpdates)
+                .eq('phone', leadCheck.phone)
+                .eq('user_id', req.user.id)
+                .then(({ error }) => {
+                    if (error) console.error('Failed to sync lead update to contact:', error.message);
+                });
+        }
+
         const { data, error } = await supabase
             .from('leads')
             .update(updates)
             .eq('id', req.params.id)
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -331,18 +381,16 @@ router.put('/:id', requirePermission('LeadCRM', 'read_write'), async (req, res) 
         } catch (e) { }
 
         try {
-            if ((updates.pipeline_id || updates.stage_id) && data.phone) {
+            const pipelineChanged = updates.pipeline_id !== undefined && updates.pipeline_id !== leadCheck.pipeline_id;
+            const stageChanged = updates.stage_id !== undefined && updates.stage_id !== leadCheck.stage_id;
+
+            if ((pipelineChanged || stageChanged) && data.phone) {
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }
@@ -392,7 +440,7 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
                 updated_at: new Date().toISOString()
             })
             .eq('id', req.params.id)
-            .select()
+            .select('*, pipelines(name), pipeline_stages(name)')
             .single();
 
         if (error) throw error;
@@ -417,14 +465,9 @@ router.put('/:id/move', requirePermission('LeadCRM', 'read_write'), async (req, 
                 flowEngine.triggerFlowByEvent(req.user.id, data.phone, 'pipeline_change', {
                     pipelineId: data.pipeline_id,
                     stageId: data.stage_id,
-                    leadId: data.id,
-                    contact: {
-                        name: data.name,
-                        phone: data.phone,
-                        email: data.email,
-                        company: data.company,
-                        custom_data: data.custom_data
-                    }
+                    pipelineName: data.pipelines ? data.pipelines.name : '',
+                    stageName: data.pipeline_stages ? data.pipeline_stages.name : '',
+                    leadId: data.id
                 });
             }
         } catch (ignored) { }

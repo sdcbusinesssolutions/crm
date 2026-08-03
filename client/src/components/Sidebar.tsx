@@ -48,7 +48,10 @@ export type MenuItem =
     | 'My Plan'
     | 'Wallet & Billing'
     | 'G Automation'
-    | 'Quick Reply';
+    | 'Click to WhatsApp Ads'
+    | 'Campaign Analytics'
+    | 'Quick Reply'
+    | 'Custom Menu';
 
 interface SidebarProps {
     activeItem: MenuItem;
@@ -483,7 +486,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">AI & Tools</p>}
                         {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
 
-                        {renderItem('Gallery', <GalleryIcon className="w-5 h-5" />, false, false, true)}
+                        {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />, false, false, true)}
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Wallet & Billing', <CreditCardIcon className="w-5 h-5" />)}

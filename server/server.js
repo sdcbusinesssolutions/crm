@@ -330,10 +330,12 @@ app.use('/api/integrations', requireAuth, integrationsRoutes);
 app.use('/api/sheet-automations', requireAuth, require('./routes/sheet_automations'));
 app.use('/api/ai-agents', requireAuth, require('./routes/ai_agents'));
 app.use('/api/quick-replies', requireAuth, require('./routes/quick_replies'));
+app.use('/api/click-to-whatsapp', requireAuth, require('./routes/clickToWhatsApp'));
 app.use('/api', router);
 
 app.use('/api/auth-notifications', authNotificationsRoutes); // Triggered post-signup for whatsapp config
 app.use('/api/external', require('./routes/external_api')); // Dedicated External API Endpoint
+app.use('/api/custom-menus', requireAuth, require('./routes/customMenus'));
 app.use('/.netlify/functions/server', router);
 // app.use('/', router); // DISABLED: This causes conflict with SPA routing (e.g. /admin/users hits API instead of React)
 

@@ -538,7 +538,7 @@ const WhatsAppScannerCard: React.FC<{
     // Use Meta's display phone if available, else fallback to formatted local phone
     const formattedPhone = displayPhone || (phone ? phone.replace(/\D/g, '').replace(/(\d{2})(\d{5})(\d{5})/, '+$1 $2 $3') : 'Not Connected');
     // Link for the QR code: wa.me/<number>
-    const qrLink = phone ? `https://wa.me/${phone.replace(/\D/g, '')}` : 'https://whatsapp.com';
+    const qrLink = phone ? `https://wa.me/${phone.replace(/\D/g, '')}?text=Hi!%20I%20want%20to%20know%20more.` : 'https://whatsapp.com';
 
     // Map tier to readable string
     // Uses whatsapp_business_manager_messaging_limit field values (non-deprecated Meta API)

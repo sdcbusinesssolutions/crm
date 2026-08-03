@@ -45,13 +45,14 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
         }
     }, [canRead]);
 
-    const fetchTemplates = async () => {
+    const fetchTemplates = async (forceSync = false) => {
         setIsLoading(true);
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return;
 
-            const response = await fetch('/api/whatsapp/templates', {
+            const url = forceSync ? '/api/whatsapp/templates?sync=true' : '/api/whatsapp/templates';
+            const response = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${session.access_token}` }
             });
 
@@ -158,20 +159,33 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">WhatsApp Templates</h1>
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage your message templates.</p>
                     </div>
-                    {canWrite ? (
+                    <div className="flex items-center gap-3">
                         <button
-                            onClick={() => onNavigateToBuilder(null)}
-                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                            onClick={() => fetchTemplates(true)}
+                            disabled={isLoading}
+                            className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                            title="Force Sync with Meta"
                         >
-                            <PlusIcon className="w-5 h-5" />
-                            Create New Template
+                            <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {isLoading ? 'Syncing...' : 'Sync'}
                         </button>
-                    ) : (
-                        <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
-                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            Read Only Mode
-                        </div>
-                    )}
+                        {canWrite ? (
+                            <button
+                                onClick={() => onNavigateToBuilder(null)}
+                                className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                            >
+                                <PlusIcon className="w-5 h-5" />
+                                Create New Template
+                            </button>
+                        ) : (
+                            <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                Read Only Mode
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 

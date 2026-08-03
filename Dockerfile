@@ -1,15 +1,5 @@
 # ==========================================
-# 🏗️ Stage 1: Build the Frontend
-# ==========================================
-FROM node:20-alpine AS frontend-builder
-WORKDIR /app/client
-COPY client/package*.json ./
-RUN npm install --legacy-peer-deps --quiet
-COPY client/ ./
-RUN npm run build
-
-# ==========================================
-# 🚀 Stage 2: Production Image (High Performance)
+# 🚀 Production Image (High Performance)
 # ==========================================
 FROM node:20-slim
 
@@ -35,8 +25,8 @@ RUN apt-get update && apt-get install -y python3 make g++ \
 # 2. Copy Server source code
 COPY server/ ./
 
-# 3. Copy the Built Client from Stage 1
-COPY --from=frontend-builder /app/client/dist ./public_html
+# 3. Copy the Built Client directly from local context
+COPY client/dist ./public_html
 
 # 4. Create necessary mutable directories
 RUN mkdir -p logs uploads

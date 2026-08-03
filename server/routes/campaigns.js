@@ -114,36 +114,54 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
             // 1. Normalize Numbers
             const normalized = manualNumbers.map(num => {
-                const clean = num.toString().trim().replace(/\D/g, '');
-                return `+${clean}`;
-            }).filter(isValidE164);
+                let clean = num.toString().trim().replace(/\D/g, '');
+                if (clean.length === 10) clean = '91' + clean;
+                return clean;
+            }).filter(clean => isValidE164(`+${clean}`));
 
             if (!normalized.length) return res.status(400).json({ error: 'No valid manual numbers found.' });
 
             // 2. Deduplicate
             const uniquePhones = [...new Set(normalized)];
 
-            // 3. Find Existing in DB
-            const { data: existingContacts, error: fetchErr } = await supabase
-                .from('contacts')
-                .select('id, phone, name, email')
-                .eq('user_id', user.id)
-                .in('phone', uniquePhones);
+            // 3. Find Existing in DB (Safely chunked to avoid URL Too Long errors for 500+ contacts)
+            const existingContacts = [];
+            const SEARCH_CHUNK_SIZE = 200; // Safe limit for URL parameters in PostgREST
 
-            if (fetchErr) throw fetchErr;
+            for (let i = 0; i < uniquePhones.length; i += SEARCH_CHUNK_SIZE) {
+                const phoneChunk = uniquePhones.slice(i, i + SEARCH_CHUNK_SIZE);
+                const { data: chunkData, error: fetchErr } = await supabase
+                    .from('contacts')
+                    .select('id, phone, name, email, is_blocked, custom_data')
+                    .eq('user_id', user.id)
+                    .in('phone', phoneChunk);
+
+                if (fetchErr) throw fetchErr;
+                if (chunkData) existingContacts.push(...chunkData);
+            }
 
             const existingMap = new Map(existingContacts.map(c => [c.phone, c]));
-            allContacts = uniquePhones.map(phone => {
-                if (existingMap.has(phone)) return existingMap.get(phone);
-                return {
-                    id: null, // Virtual Contact
-                    user_id: user.id,
-                    phone: phone,
-                    name: 'Guest',
-                    email: null,
-                    is_virtual: true
-                };
-            });
+            allContacts = [];
+            
+            for (const phone of uniquePhones) {
+                if (existingMap.has(phone)) {
+                    const existing = existingMap.get(phone);
+                    // Filter out opted-out or blocked contacts
+                    if (existing.is_blocked || existing.custom_data?.opted_out) {
+                        continue;
+                    }
+                    allContacts.push(existing);
+                } else {
+                    allContacts.push({
+                        id: null, // Virtual Contact
+                        user_id: user.id,
+                        phone: phone,
+                        name: 'Guest',
+                        email: null,
+                        is_virtual: true
+                    });
+                }
+            }
         } else {
             // Group, Tags or All
             let pageIndex = 0;
@@ -156,7 +174,7 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
                 // Optimization: Only select columns needed for the campaign queue
                 let query = supabase.from('contacts')
-                    .select('id, phone, name, is_blocked, tags, group_ids, custom_data')
+                    .select('id, phone, is_blocked, custom_data')
                     .eq('user_id', user.id)
                     .range(from, to);
                 
@@ -167,6 +185,16 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                     const selectedTags = req.body.selectedTags || [];
                     if (selectedTags.length > 0) {
                         query = query.overlaps('tags', selectedTags);
+                    }
+                }
+                
+                // Optional Date Filtering
+                if (recipientType === 'group' || recipientType === 'tags') {
+                    if (req.body.fromDate) {
+                        query = query.gte('created_at', req.body.fromDate + 'T00:00:00Z');
+                    }
+                    if (req.body.toDate) {
+                        query = query.lte('created_at', req.body.toDate + 'T23:59:59Z');
                     }
                 }
 
@@ -188,7 +216,8 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                         });
                     }
 
-                    allContacts = allContacts.concat(finalChunk);
+                    // Memory optimization: Use push instead of concat
+                    allContacts.push(...finalChunk);
                     if (chunk.length < chunkSize) hasMore = false;
                     else pageIndex++;
                 } else {
@@ -200,22 +229,36 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             // (Remaining filters were pushed to DB or handled in the chunk loop above)
         }
 
-        // Final normalization and deduplication
-        let validContacts = allContacts.map(c => ({
-            ...c,
-            phone: c.phone.toString().trim().replace(/\D/g, '')
-        })).map(c => ({
-            ...c,
-            phone: c.phone.startsWith('+') ? c.phone : `+${c.phone}`
-        })).filter(c => isValidE164(c.phone));
-
-        // Deduplicate Contacts (Keep unique phones)
+        // Optimization: Single-pass normalization and deduplication
         const uniqueContactsMap = new Map();
-        validContacts.forEach(c => {
-            if (!uniqueContactsMap.has(c.phone)) {
-                uniqueContactsMap.set(c.phone, c);
+        
+        for (const c of allContacts) {
+            let phoneStr = c.phone ? c.phone.toString().trim() : '';
+            
+            // Handle Excel scientific notation corruption (best effort recovery)
+            if (phoneStr.toUpperCase().includes('E+')) {
+                const num = Number(phoneStr);
+                if (!isNaN(num)) {
+                    phoneStr = num.toLocaleString('fullwide', { useGrouping: false });
+                }
             }
-        });
+
+            let cleanPhone = phoneStr.replace(/\D/g, '');
+            
+            // Auto-fix missing country code for 10-digit Indian numbers
+            if (cleanPhone.length === 10) {
+                cleanPhone = '91' + cleanPhone;
+            }
+
+            const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
+            
+            if (isValidE164(formattedPhone) && !uniqueContactsMap.has(formattedPhone)) {
+                uniqueContactsMap.set(formattedPhone, {
+                    ...c,
+                    phone: formattedPhone
+                });
+            }
+        }
         const uniqueContacts = Array.from(uniqueContactsMap.values());
 
         if (!uniqueContacts.length) return res.status(400).json({ error: 'No valid phone numbers.' });
@@ -228,12 +271,12 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
             });
         }
 
-        // Create Campaign
+        // Create Campaign as 'CREATING' to prevent worker from picking it up before queue is ready
         const { data: campaign, error: cErr } = await supabase.from('campaigns').insert({
             user_id: user.id, title, template_id: templateId, template_name: templateName,
             language_code: languageCode, contact_group_id: contactGroupId,
             scheduled_at: sendNow ? new Date() : scheduledAt,
-            status: sendNow ? 'PROCESSING' : 'SCHEDULED',
+            status: 'CREATING',
             total_contacts: uniqueContacts.length,
             variable_mapping: variableMapping,
             media_url: mediaUrl, media_type: mediaType, location_header: locationHeader
@@ -243,11 +286,15 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
         // Add to Queue (With Fallback for Chunking & Performance)
         const QUEUE_BATCH_SIZE = 2000;
-        let queue = uniqueContacts.map(c => ({
+        const baseTime = sendNow ? Date.now() : new Date(scheduledAt).getTime();
+        const delayMs = parseInt(req.body.messageDelay) * 1000 || 0;
+
+        let queue = uniqueContacts.map((c, idx) => ({
             campaign_id: campaign.id,
             contact_id: c.id,
             phone_number: c.phone,
-            status: 'PENDING'
+            status: 'PENDING',
+            next_retry_at: delayMs > 0 ? new Date(baseTime + (idx * delayMs)).toISOString() : null
         }));
 
         let insertError = null;
@@ -321,6 +368,11 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
                 scheduledAt: sendNow ? 'NOW' : scheduledAt
             });
         } catch (ignore) { }
+
+        // Finally, activate the campaign so the worker can pick it up
+        await supabase.from('campaigns').update({ 
+            status: sendNow ? 'PROCESSING' : 'SCHEDULED' 
+        }).eq('id', campaign.id);
 
         res.json({ success: true, campaignId: campaign.id });
 

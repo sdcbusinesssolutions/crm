@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { MicrophoneIcon, RobotIcon, PhoneIcon, TrashIcon, DocumentFileIcon as DocumentIcon } from '../icons';
 import { aiAgentService, Agent } from '../../services/aiAgentService';
 import CreateAgentModal from './CreateAgentModal';
+import AgentChatModal from './AgentChatModal';
+import AiAgentAnalytics from './AiAgentAnalytics';
 import { format } from 'date-fns';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
@@ -14,61 +16,24 @@ const AiVoiceAgentView: React.FC = () => {
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
+    const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [chattingWith, setChattingWith] = useState<Agent | null>(null);
 
     // Upload State
     const [uploadingFor, setUploadingFor] = useState<string | null>(null);
 
-    // Demo State
-    const [selectedDemo, setSelectedDemo] = useState('Admission Operation');
-    const [isPlayingDemo, setIsPlayingDemo] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+    // Delete Modal State
+    const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
 
-    const audioFiles: Record<string, string> = {
-        'Admission Operation': '/assets/1007073305828481-1773854364318.mp4',
-        'Ecommerce': '/assets/ecommerse.m4a',
-        'Customer Support': '/assets/demo_support.mp3',
-    };
+    // Success Modal State
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    const handlePlayDemo = () => {
-        if (isPlayingDemo) {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-            }
-            setIsPlayingDemo(false);
-            return;
-        }
+    // Create Modal State with Type
+    const [createType, setCreateType] = useState<'chat' | 'voice' | null>(null);
 
-        const audioSrc = audioFiles[selectedDemo];
-        if (audioSrc) {
-            const audio = new Audio(audioSrc);
-            audioRef.current = audio;
-            audio.play();
-            setIsPlayingDemo(true);
-
-            audio.onended = () => {
-                setIsPlayingDemo(false);
-            };
-        }
-    };
-
-    useEffect(() => {
-        if (audioRef.current && isPlayingDemo) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlayingDemo(false);
-        }
-    }, [selectedDemo]);
-
-    useEffect(() => {
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = "";
-            }
-        };
-    }, []);
+    // Tab State for View Mode
+    const [activeViewTab, setActiveViewTab] = useState<'agents' | 'analytics'>('agents');
 
     useEffect(() => {
         if (canRead) {
@@ -88,20 +53,106 @@ const AiVoiceAgentView: React.FC = () => {
         }
     };
 
-    const handleCreate = async (data: any) => {
+    const handleSave = async (data: any) => {
         if (!canWrite) return;
-        await aiAgentService.createAgent(data);
-        setRefreshTrigger(prev => prev + 1);
+        try {
+            const { knowledgeFiles, ...agentData } = data;
+            
+            let targetAgentId = '';
+
+            if (editingAgent) {
+                const updated = await aiAgentService.updateAgent(editingAgent.id, agentData);
+                targetAgentId = updated.id;
+            } else {
+                const newAgent = await aiAgentService.createAgent(agentData);
+                targetAgentId = newAgent.id;
+            }
+            
+            // Upload knowledge base files if any
+            if (knowledgeFiles && knowledgeFiles.length > 0) {
+                setUploadingFor(targetAgentId);
+                for (const file of knowledgeFiles) {
+                    try {
+                        await aiAgentService.uploadKnowledge(targetAgentId, file);
+                    } catch (err) {
+                        console.error(`Failed to upload file ${file.name}:`, err);
+                    }
+                }
+                setUploadingFor(null);
+            }
+            
+            setRefreshTrigger(prev => prev + 1);
+            setEditingAgent(null);
+            setIsCreating(false);
+            setCreateType(null);
+        } catch (err: any) {
+            console.error(err);
+            alert('Failed to save agent: ' + (err.message || 'Unknown error'));
+        }
     };
 
-    const handleDelete = async (id: string) => {
+    const performDelete = async (id: string) => {
         if (!canDelete) return;
-        if (!confirm('Delete this agent?')) return;
         try {
             await aiAgentService.deleteAgent(id);
             setRefreshTrigger(prev => prev + 1);
+            setAgentToDelete(null);
         } catch (e) {
             alert('Failed to delete');
+        }
+    };
+
+    const handleCreateDemoSalesAgent = async () => {
+        if (!canWrite) return;
+        try {
+            setLoading(true);
+            const agentData = {
+                name: "Demo Sales Rep (Alex)",
+                description: "An aggressive but polite B2B SDR that qualifies leads and books meetings.",
+                system_prompt: "You are Alex, an expert Sales Development Representative. Your goal is to qualify the prospect and book a demo. Be extremely polite, very concise, and always drive the conversation toward a meeting. Use the 'book_demo' tool if they agree to a meeting.",
+                type: "chat" as const,
+                model_config: {
+                    provider: "openai",
+                    api_key: "",
+                    model_id: "gpt-4o",
+                    temperature: 0.7,
+                    knowledge_urls: [],
+                    faqs: [
+                        { question: "How much does it cost?", answer: "Our pricing starts at $499/mo, but I'd love to set up a demo to get you a custom quote." },
+                        { question: "What do you do?", answer: "We build advanced AI voice agents that automate customer service and sales." }
+                    ],
+                    webhook_url: "",
+                    transfer_number: "+18005550199",
+                    max_messages: 20,
+                    stop_keywords: "stop, unsubscribe, cancel",
+                    use_emojis: true,
+                    use_bullet_points: true,
+                    bot_tone: "professional",
+                    response_length: "short",
+                    bot_gender: "neutral",
+                    custom_tools: [
+                        {
+                            name: "book_demo",
+                            description: "Trigger this tool ONLY when the user explicitly agrees to book a meeting or a demo. Extract their requested time and send it as the payload.",
+                            url: "https://webhook.site/demo-url"
+                        },
+                        {
+                            name: "qualify_lead",
+                            description: "Trigger this tool after you learn the user's budget and company size to log them into the CRM.",
+                            url: "https://webhook.site/demo-url"
+                        }
+                    ]
+                }
+            };
+            
+            await aiAgentService.createAgent(agentData);
+            setRefreshTrigger(prev => prev + 1);
+            setShowSuccessModal(true);
+        } catch (err: any) {
+            console.error(err);
+            alert('Failed to create demo agent: ' + (err.message || 'Unknown error'));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -119,6 +170,11 @@ const AiVoiceAgentView: React.FC = () => {
             }
         }
     };
+    const handleCopyEmbed = (agentId: string) => {
+        const snippet = `<script src="${window.location.origin}/widget.js" async defer></script>\n<agent-widget id="${agentId}"></agent-widget>`;
+        navigator.clipboard.writeText(snippet);
+        alert('Widget embed code copied to clipboard! You can paste this into your website HTML.');
+    };
 
     if (!canRead) {
         return (
@@ -134,7 +190,7 @@ const AiVoiceAgentView: React.FC = () => {
 
     return (
         <div className="flex-1 flex flex-col h-full bg-slate-50 p-8 overflow-y-auto">
-            <div className="max-w-6xl mx-auto w-full">
+            <div className="max-w-[1800px] mx-auto w-full">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <div className="flex items-center gap-2">
@@ -149,23 +205,61 @@ const AiVoiceAgentView: React.FC = () => {
                         <p className="text-slate-500 mt-1">Create and manage your AI-powered assistants</p>
                     </div>
                     <div className="flex gap-3">
-                        <a href="#" className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 font-medium transition-colors shadow-sm flex items-center gap-2">
-                            <span>📚</span> Documentation
-                        </a>
                         {canWrite && (
-                            <button
-                                onClick={() => setIsCreating(true)}
-                                className="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-medium transition-colors shadow-lg shadow-brand-200 flex items-center gap-2"
-                            >
-                                <span>+</span> Create Agent
-                            </button>
+                            <div className="relative">
+                                <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20">NEW</div>
+                                <button
+                                    onClick={handleCreateDemoSalesAgent}
+                                    className="relative px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-100 font-bold transition-colors shadow-sm flex items-center gap-2 overflow-hidden group"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                    <span>🪄</span> Demo Sales Agent
+                                </button>
+                            </div>
+                        )}
+
+                        {canWrite && (
+                            <div className="relative">
+                                <div className="absolute -top-2.5 -right-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-bounce shadow-md z-10 border border-white/20" style={{ animationDelay: '0.2s' }}>NEW</div>
+                                <button
+                                    onClick={() => setIsCreating(true)}
+                                    className="relative px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 font-bold transition-colors shadow-sm shadow-brand-500/30 flex items-center gap-2 overflow-hidden group"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]" />
+                                    <span>+</span> Create Agent
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Dashboard Stats / Types Info (Static for now) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                {/* Tabs */}
+                <div className="flex items-center gap-6 mb-8 border-b border-slate-200">
+                    <button 
+                        onClick={() => setActiveViewTab('agents')}
+                        className={`pb-4 font-bold text-sm transition-colors border-b-2 ${activeViewTab === 'agents' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    >
+                        Active Agents
+                    </button>
+                    <button 
+                        onClick={() => setActiveViewTab('analytics')}
+                        className={`pb-4 font-bold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeViewTab === 'analytics' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                    >
+                        Analytics & Leads
+                        <span className="bg-brand-100 text-brand-700 text-[10px] px-2 py-0.5 rounded-full">New</span>
+                    </button>
+                </div>
+
+                {activeViewTab === 'analytics' ? (
+                    <AiAgentAnalytics />
+                ) : (
+                    <>
+                        {/* Dashboard Stats / Types Info (Static for now) */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div 
+                        onClick={() => window.open('https://techfree.in/#agent', '_blank')}
+                        className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden"
+                    >
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             <img
                                 src="/assets/cute_orange_robot_voice.png"
@@ -179,7 +273,7 @@ const AiVoiceAgentView: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             {/* 3rd Party Badge */}
                             <div className="absolute top-0 right-0 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200 z-20">
@@ -197,7 +291,7 @@ const AiVoiceAgentView: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
+                    <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-400 flex flex-col items-center text-center hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 cursor-pointer group relative overflow-hidden">
                         <div className="w-40 h-40 mb-4 relative transition-transform group-hover:scale-110 duration-300 z-10 flex items-center justify-center">
                             <img
                                 src="/assets/cute_orange_robot_task.png"
@@ -207,126 +301,6 @@ const AiVoiceAgentView: React.FC = () => {
                         </div>
                         <h3 className="font-black text-slate-800 mb-2 text-xl tracking-tight z-10">Task Management</h3>
                         <p className="text-sm text-slate-500 font-medium z-10 max-w-[200px]">Organize, track, and automate your daily tasks</p>
-                    </div>
-                </div>
-
-                {/* Automation & Integration Info Banner */}
-                <div className="bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 p-6 rounded-2xl mb-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
-                    <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent"></div>
-                    </div>
-                    
-                    <div className="flex-1 relative z-10 text-center md:text-left">
-                        <h2 className="text-xl font-bold text-white mb-2 flex items-center justify-center md:justify-start gap-2">
-                            <span className="p-1.5 bg-red-500/20 rounded-lg">🛡️</span>
-                            Dependency Notice
-                        </h2>
-                        <p className="text-slate-300 text-sm leading-relaxed max-w-2xl font-medium">
-                            Please note: We provide the integration interface. <span className="text-red-400 font-bold underline">You must bring your own 3rd-party tools or website subscriptions</span> (e.g., N8N, OpenAI, or Voice APIs). We do not provide these underlying services — they must be configured independently to work within this dashboard.
-                        </p>
-                    </div>
-
-                    <div className="flex shrink-0 gap-3 relative z-10">
-                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
-                            <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                                <svg className="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                            </div>
-                            <span className="text-[10px] font-bold text-orange-400 tracking-tighter uppercase whitespace-nowrap">N8N External</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-1.5 p-3 px-4 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
-                            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-xs">🛠️</div>
-                            <span className="text-[10px] font-bold text-red-400 tracking-tighter uppercase whitespace-nowrap">User Provided</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Voice Experience Zone - Enhanced with Calling Indicators and Premium Border */}
-                <div className="bg-black text-white p-12 rounded-[3.5rem] mb-12 border-[6px] border-slate-900/80 shadow-[0_0_60px_rgba(147,51,234,0.2)] relative overflow-hidden ring-1 ring-white/5">
-                    {/* Atmospheric lighting */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
-                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
-
-                    <div className="text-center mb-12 relative z-10">
-                        <h2 className="text-4xl font-extrabold mb-4 text-white tracking-tight">Step Into The Voicebot Experience Zone</h2>
-                        <p className="text-slate-400 max-w-3xl mx-auto text-base leading-relaxed font-medium">
-                            From sales to support – experience how Smartping's GenAI Voicebot handles real conversations across sectors and languages with precision and ease.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row items-stretch gap-12 max-w-5xl mx-auto relative z-10">
-                        <div className="flex flex-col gap-4 w-full md:w-4/12">
-                            {['Admission Operation', 'Ecommerce', 'Customer Support'].map((option) => (
-                                <button
-                                    key={option}
-                                    onClick={() => setSelectedDemo(option)}
-                                    className={`px-8 py-4 rounded-full text-sm font-bold transition-all duration-300 text-center border-2 ${selectedDemo === option 
-                                        ? 'bg-purple-600 border-purple-500 text-white shadow-[0_0_25px_rgba(147,51,234,0.4)] scale-105' 
-                                        : 'bg-transparent border-white/20 text-white hover:border-white hover:bg-white/5'}`}
-                                >
-                                    {option}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Right: Interaction Panel */}
-                        <div className="flex-1 bg-slate-900/30 rounded-[2.5rem] p-10 border border-white/10 flex flex-col items-center justify-between relative overflow-hidden backdrop-blur-xl">
-                            <div className="flex items-center justify-between w-full relative z-10">
-                                {/* Professional Enterprise AI Assistant */}
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className={`w-28 h-28 rounded-full border-[3px] transition-all duration-700 flex items-center justify-center p-0.5 bg-gradient-to-b from-slate-800 to-black relative overflow-hidden ${isPlayingDemo ? 'border-purple-400 shadow-[0_0_50px_rgba(147,51,234,0.6)] scale-110' : 'border-white/20 hover:border-white/40 shadow-inner'}`}>
-                                        <div className="absolute inset-0 bg-purple-500/5 backdrop-blur-3xl"></div>
-                                        <img src="/assets/professional_calling_bot.png" alt="AI Agent" className={`w-full h-full object-cover relative z-10 transition-all duration-700 ${isPlayingDemo ? 'scale-105 saturate-100' : 'opacity-60 saturate-50'}`} />
-                                        
-                                        {isPlayingDemo && (
-                                            <div className="absolute top-0 right-0 bg-purple-600 text-white p-2 rounded-full border-2 border-black animate-pulse shadow-xl z-20">
-                                                <PhoneIcon className="w-4 h-4 relative z-10" />
-                                                <div className="absolute inset-0 bg-white/40 rounded-full animate-ping"></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all duration-700 ${isPlayingDemo ? 'text-purple-300' : 'text-slate-500'}`}>
-                                        {isPlayingDemo ? 'VOICE CONNECTED' : 'AI ASSISTANT'}
-                                    </span>
-                                </div>
-
-                                {/* Central Action Control */}
-                                <div className="flex flex-col items-center gap-6">
-                                    <button 
-                                        onClick={handlePlayDemo}
-                                        className={`w-28 h-28 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl relative group ${isPlayingDemo ? 'bg-red-500/20 border-4 border-red-500/50 text-red-500' : 'bg-slate-100 text-black hover:bg-white'}`}
-                                    >
-                                        {isPlayingDemo ? (
-                                            <PhoneIcon className="w-12 h-12 rotate-[135deg]" />
-                                        ) : (
-                                            <MicrophoneIcon className="w-12 h-12 transition-transform group-hover:scale-110" />
-                                        )}
-                                        {isPlayingDemo && <div className="absolute -inset-6 border-2 border-purple-500/30 rounded-full animate-ping"></div>}
-                                    </button>
-                                    <span className={`text-xs font-black tracking-[0.2em] uppercase transition-all ${isPlayingDemo ? 'text-purple-400 animate-pulse' : 'text-slate-500'}`}>
-                                        {isPlayingDemo ? 'Simulation Active' : 'Tap To Experience'}
-                                    </span>
-                                </div>
-
-                                {/* Customer Portrait */}
-                                <div className="flex flex-col items-center gap-4">
-                                    <div className={`w-28 h-28 rounded-full border-4 transition-all duration-500 overflow-hidden bg-slate-900 relative ${isPlayingDemo ? 'border-purple-500 scale-110 shadow-[0_0_30px_rgba(147,51,234,0.3)]' : 'border-white/10 opacity-40'}`}>
-                                        <img src="/assets/indian_customer_avatar.png" alt="User" className={`w-full h-full object-cover transition-all duration-700 ${isPlayingDemo ? 'grayscale-0' : 'grayscale'}`} />
-                                    </div>
-                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Customer</span>
-                                </div>
-                            </div>
-
-                            {/* Audio Waveform Visualization */}
-                            <div className="w-full h-16 flex items-center justify-center gap-[4px] mt-10 px-6">
-                                {[...Array(28)].map((_, i) => (
-                                    <div 
-                                        key={i}
-                                        className={`w-1 rounded-full transition-all duration-300 ${isPlayingDemo ? 'bg-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.6)] animate-audio-bar-' + ((i % 3) + 1) : 'h-1.5 bg-white/10'}`}
-                                        style={{ height: isPlayingDemo ? `${15 + Math.random() * 85}%` : '8px' }}
-                                    ></div>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -349,51 +323,93 @@ const AiVoiceAgentView: React.FC = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-                        {agents.map(agent => (
-                            <div key={agent.id} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow relative group">
-                                {canDelete && (
-                                    <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                        {agents.map((agent, index) => (
+                            <div key={agent.id} className={`group relative overflow-hidden rounded-3xl bg-white p-6 border-2 shadow-sm transition-all duration-300 ${['border-[#5b52e5]/70 hover:border-[#5b52e5] hover:shadow-[#5b52e5]/20', 'border-[#fe466a]/70 hover:border-[#fe466a] hover:shadow-[#fe466a]/20', 'border-[#fa9c05]/70 hover:border-[#fa9c05] hover:shadow-[#fa9c05]/20', 'border-[#00a3e0]/70 hover:border-[#00a3e0] hover:shadow-[#00a3e0]/20', 'border-[#10a37f]/70 hover:border-[#10a37f] hover:shadow-[#10a37f]/20'][index % 5]} hover:shadow-md`}>
+                                
+                                {canWrite && (
+                                    <div className="absolute top-4 right-4 flex gap-2 z-50">
                                         <button
-                                            onClick={() => handleDelete(agent.id)}
-                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                                            title="Delete"
+                                            onClick={() => setEditingAgent(agent)}
+                                            className="p-2 text-brand-600 hover:text-brand-700 hover:bg-brand-100 bg-brand-50 border border-brand-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
+                                            title="Edit Agent"
                                         >
-                                            <TrashIcon className="w-4 h-4" />
+                                            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                                         </button>
+                                        <button
+                                            onClick={() => handleCopyEmbed(agent.id)}
+                                            className="p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100 bg-indigo-50 border border-indigo-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
+                                            title="Copy Embed Code"
+                                        >
+                                            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                                        </button>
+                                        {canDelete && (
+                                            <button
+                                                onClick={() => setAgentToDelete(agent)}
+                                                className="p-2 text-red-500 hover:text-red-600 hover:bg-red-100 bg-red-50 border border-red-100 rounded-xl transition-all shadow-sm flex items-center justify-center"
+                                                title="Delete Agent"
+                                            >
+                                                <TrashIcon className="w-[18px] h-[18px]" />
+                                            </button>
+                                        )}
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${agent.type === 'voice' ? 'bg-blue-100 text-blue-600' :
-                                        agent.type === 'call' ? 'bg-emerald-100 text-emerald-600' : 'bg-purple-100 text-purple-600'
-                                        }`}>
-                                        {agent.type === 'voice' ? <MicrophoneIcon className="w-6 h-6" /> :
-                                            agent.type === 'call' ? <PhoneIcon className="w-6 h-6" /> : <RobotIcon className="w-6 h-6" />}
+                                <div className="flex items-center gap-5 mb-5 relative z-10">
+                                    <div className={`w-16 h-16 rounded-[20px] flex items-center justify-center ${
+                                        agent.type === 'voice' ? 'bg-[#5b52e5] shadow-lg shadow-[#5b52e5]/40' :
+                                        agent.type === 'call' ? 'bg-[#fe466a] shadow-lg shadow-[#fe466a]/40' : 
+                                        ['bg-[#5b52e5] shadow-lg shadow-[#5b52e5]/40', 'bg-[#fe466a] shadow-lg shadow-[#fe466a]/40', 'bg-[#fa9c05] shadow-lg shadow-[#fa9c05]/40', 'bg-[#00a3e0] shadow-lg shadow-[#00a3e0]/40', 'bg-[#10a37f] shadow-lg shadow-[#10a37f]/40'][index % 5]
+                                    }`}>
+                                        {agent.type === 'voice' ? <MicrophoneIcon className="w-8 h-8 text-white" /> :
+                                            agent.type === 'call' ? <PhoneIcon className="w-8 h-8 text-white" /> : 
+                                            [
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a7 7 0 0 0-7 7v4a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V9a7 7 0 0 0-7-7z"/><path d="M9 12h.01M15 12h.01"/><path d="M12 16c-1.5 0-2-.5-2-.5s.5-.5 2-.5 2 .5 2 .5-.5.5-2 .5z"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8"/><path d="M8 11h.01M16 11h.01"/><path d="M9 15h6"/></svg>,
+                                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="5" y="5" rx="3"/><path d="M2 9h3v6H2zM19 9h3v6h-3z"/><path d="M9 11h.01M15 11h.01M10 15h4"/></svg>
+                                            ][index % 5]}
                                     </div>
                                     <div>
-                                        <h3 className="font-bold text-slate-800">{agent.name}</h3>
-                                        <span className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full capitalize">{agent.type} Agent</span>
+                                        <h3 className="font-black text-transparent bg-clip-text bg-gradient-to-r from-brand-600 via-indigo-500 to-purple-600 text-[22px] tracking-tight mb-1">{agent.name}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <span className="w-[7px] h-[7px] rounded-full bg-brand-500"></span>
+                                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{agent.type} Agent</span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <p className="text-sm text-slate-500 mb-4 line-clamp-2 h-10">
-                                    {agent.description || 'No description provided.'}
-                                </p>
+                                <div className="mb-8 p-3.5 rounded-xl bg-gradient-to-r from-brand-50/80 to-indigo-50/80 border border-brand-100/50 relative z-10 shadow-sm">
+                                    <p className="text-[13.5px] text-slate-700 font-medium leading-[1.6] line-clamp-2">
+                                        {agent.description || 'No description provided.'}
+                                    </p>
+                                </div>
 
-                                <div className="border-t border-slate-100 pt-4 mt-2">
-                                    <div className="flex justify-between items-center text-xs text-slate-400 mb-3">
-                                        <span>Created {format(new Date(agent.created_at), 'MMM d, yyyy')}</span>
-                                        <span className="font-mono bg-slate-50 px-1 rounded flex items-center gap-1">
-                                            <span>ID:</span>
-                                            <span className="select-all">{agent.id.slice(0, 8)}...</span>
+                                <div className="border-t border-slate-100/70 pt-5 relative z-10">
+                                    <div className="flex justify-between items-center text-[12px] text-slate-400/90 mb-5 font-medium">
+                                        <div className="flex items-center gap-1.5 text-brand-700 bg-brand-50 px-2.5 py-1 rounded-lg font-bold text-[11px] uppercase tracking-wide border border-brand-200 shadow-sm">
+                                            <svg className="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <span>{format(new Date(agent.created_at), 'MMM d, yyyy')}</span>
+                                        </div>
+                                        <span className="font-mono bg-[#f8fafc] px-2 py-[3px] rounded-md flex items-center gap-1.5 text-slate-500">
+                                            <span className="uppercase text-[10px] tracking-wider text-slate-400">ID:</span>
+                                            <span className="font-semibold text-slate-700">{agent.id.slice(0, 8)}...</span>
                                         </span>
                                     </div>
 
                                     {canWrite && (
-                                        <div className="flex gap-2">
-                                            <label className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium cursor-pointer hover:bg-slate-50 transition-colors ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                                <DocumentIcon className="w-4 h-4 text-slate-500" />
-                                                <span>{uploadingFor === agent.id ? 'Uploading...' : 'Add Knowledge'}</span>
+                                        <div className="flex gap-3">
+                                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] rounded-xl text-[14px] font-bold cursor-pointer transition-all shadow-sm ${[
+                                                'bg-[#5b52e5]/10 hover:bg-[#5b52e5]/20 text-[#5b52e5] border border-[#5b52e5]/30',
+                                                'bg-[#fe466a]/10 hover:bg-[#fe466a]/20 text-[#fe466a] border border-[#fe466a]/30',
+                                                'bg-[#fa9c05]/10 hover:bg-[#fa9c05]/20 text-[#fa9c05] border border-[#fa9c05]/30',
+                                                'bg-[#00a3e0]/10 hover:bg-[#00a3e0]/20 text-[#00a3e0] border border-[#00a3e0]/30',
+                                                'bg-[#10a37f]/10 hover:bg-[#10a37f]/20 text-[#10a37f] border border-[#10a37f]/30'
+                                            ][index % 5]} ${uploadingFor === agent.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                <DocumentIcon className={`w-5 h-5 ${[
+                                                    'text-[#5b52e5]', 'text-[#fe466a]', 'text-[#fa9c05]', 'text-[#00a3e0]', 'text-[#10a37f]'
+                                                ][index % 5]}`} />
+                                                <span>{uploadingFor === agent.id ? 'Uploading...' : 'Knowledge'}</span>
                                                 <input
                                                     type="file"
                                                     className="hidden"
@@ -401,6 +417,18 @@ const AiVoiceAgentView: React.FC = () => {
                                                     onChange={(e) => handleFileUpload(e, agent.id)}
                                                 />
                                             </label>
+                                            <button 
+                                                onClick={() => setChattingWith(agent)}
+                                                className={`flex-1 flex items-center justify-center gap-2 px-4 py-[11px] text-white rounded-xl text-[14px] font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${[
+                                                    'bg-[#5b52e5] hover:bg-[#5b52e5]/90 shadow-[#5b52e5]/30',
+                                                    'bg-[#fe466a] hover:bg-[#fe466a]/90 shadow-[#fe466a]/30',
+                                                    'bg-[#fa9c05] hover:bg-[#fa9c05]/90 shadow-[#fa9c05]/30',
+                                                    'bg-[#00a3e0] hover:bg-[#00a3e0]/90 shadow-[#00a3e0]/30',
+                                                    'bg-[#10a37f] hover:bg-[#10a37f]/90 shadow-[#10a37f]/30'
+                                                ][index % 5]}`}
+                                            >
+                                                <span>💬 Test Chat</span>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -408,13 +436,78 @@ const AiVoiceAgentView: React.FC = () => {
                         ))}
                     </div>
                 )}
+                    </>
+                )}
             </div>
 
-            {isCreating && (
+            {(isCreating || editingAgent || createType) && (
                 <CreateAgentModal
-                    onClose={() => setIsCreating(false)}
-                    onSave={handleCreate}
+                    onClose={() => {
+                        setIsCreating(false);
+                        setEditingAgent(null);
+                        setCreateType(null);
+                    }}
+                    onSave={handleSave}
+                    initialData={editingAgent || (createType ? { type: createType } : null)}
                 />
+            )}
+
+            {chattingWith && (
+                <AgentChatModal
+                    agentId={chattingWith.id}
+                    agentName={chattingWith.name}
+                    onClose={() => setChattingWith(null)}
+                />
+            )}
+
+
+
+            {/* Delete Confirmation Modal */}
+            {agentToDelete && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-100 text-center border border-slate-100">
+                        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <TrashIcon className="w-10 h-10 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">Delete this agent?</h3>
+                        <p className="text-sm text-slate-500 mb-8 leading-relaxed">Are you sure you want to delete <strong className="text-slate-700">{agentToDelete.name}</strong>? This action cannot be undone.</p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setAgentToDelete(null)}
+                                className="flex-1 py-3 px-4 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => performDelete(agentToDelete.id)}
+                                className="flex-1 py-3 px-4 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-colors shadow-lg shadow-red-200"
+                            >
+                                Yes, Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-100 text-center border border-slate-100">
+                        <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <span className="text-4xl">🎉</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2">Agent Created!</h3>
+                        <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+                            Your Demo Sales Agent is ready. Please click the <strong>Edit</strong> button on its card to add your <strong className="text-brand-600">OpenAI API Key</strong>.
+                        </p>
+                        <button
+                            onClick={() => setShowSuccessModal(false)}
+                            className="w-full py-3 px-4 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-colors shadow-lg shadow-brand-200"
+                        >
+                            Got it, thanks!
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

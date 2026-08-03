@@ -157,7 +157,7 @@ class FlowEngine {
                     // Only fetch sessions that are actually ready to be resumed based on current status
                     const { data: delayedSessions, error } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'delayed')
                         .order('last_interaction_at', { ascending: true })
                         .limit(20); // Smaller batches for faster cluster distribution
@@ -208,7 +208,7 @@ class FlowEngine {
                     // We only fetch 100 to prevent massive egress if there are thousands of stuck sessions.
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
-                        .select('id, status, current_node_id, variables, flow_id, user_id')
+                        .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'waiting_input')
                         .order('last_interaction_at', { ascending: true }) // CRITICAL: Must be true to fetch oldest (timed out) first
                         .limit(100);
@@ -320,6 +320,50 @@ class FlowEngine {
 
         console.log(`[FlowEngine] Processing message from ${contactPhone}: ${messageText} (Interaction: ${interactionId})`);
         const rpcClient = supabaseAdmin || supabase;
+        
+        // 0. Check Manual AI Assignment
+        try {
+            const { data: convData, error: convError } = await rpcClient.from('conversations')
+                .select('assigned_ai_agent_id, bot_paused_until')
+                .eq('user_id', userId)
+                .eq('contact_phone', contactPhone)
+                .maybeSingle();
+                
+            if (convError) throw convError;
+                
+            if (convData && convData.assigned_ai_agent_id) {
+                // Check if paused
+                if (convData.bot_paused_until) {
+                    const pausedUntil = new Date(convData.bot_paused_until);
+                    if (pausedUntil > new Date()) {
+                        console.log(`[FlowEngine] AI is manually paused for ${contactPhone}. Bypassing AI assignment.`);
+                        return null; 
+                    }
+                }
+            
+            console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
+            
+            const aiAgentExecutor = require('./flow/executors/aiAgent');
+            const fakeSession = { user_id: userId, contact_phone: contactPhone };
+            const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
+            
+            try {
+                const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
+                if (result && result.success && result.response) {
+                    const whatsappService = require('./whatsappService');
+                    await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                }
+                return; // Stop processing further flows
+            } catch (err) {
+                console.error('[FlowEngine] Error executing assigned AI agent:', err);
+                return;
+            }
+        }
+        } catch (dbErr) {
+            console.error('[FlowEngine] Error checking manual AI assignment (DB):', dbErr);
+            // Swallow error and fallback to standard flow
+        }
+
         const keyword = typeof messageText === 'string' ? messageText.toLowerCase().trim() : '';
 
         // 1. Check for Keywords (Priority: High)
@@ -469,7 +513,7 @@ class FlowEngine {
                         }
                     };
 
-                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id);
+                    await this.startFlow(userId, contactPhone, flow, triggerVars, node.id, true);
                 } else {
                     console.log(`   > No match.`);
                 }
@@ -507,7 +551,7 @@ class FlowEngine {
                         ...eventData,
                         triggerType: 'pipeline_change',
                         source: 'crm'
-                    }, node.id);
+                    }, node.id, true);
                 }
             }
         }
@@ -516,7 +560,7 @@ class FlowEngine {
     /**
      * Start a new flow session
      */
-    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null) {
+    async startFlow(userId, contactPhone, flow, initialInput, explicitStartNodeId = null, isSystemEvent = false) {
         // TRIGGER TYPING INDICATOR (Confirmation that we are handling this flow)
         if (this._currentWaMessageId) {
             console.log(`[FlowEngine] Bot starting flow '${flow.name}'. Sending Typing Indicator/Read Status.`);
@@ -592,14 +636,19 @@ class FlowEngine {
                 .maybeSingle();
 
             // 2. Get Lead Details (Pipeline Status)
-            const { data: leadData } = await rpcClient
+            let leadQuery = rpcClient
                 .from('leads')
                 .select('*')
-                .eq('user_id', userId)
-                .eq('phone', contactPhone) // Assuming phone is unique identifier for simplicity here
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
+                .eq('user_id', userId);
+
+            // Use exact leadId if provided by the trigger, otherwise fallback to phone
+            if (initialInput && initialInput.leadId) {
+                leadQuery = leadQuery.eq('id', initialInput.leadId);
+            } else {
+                leadQuery = leadQuery.eq('phone', contactPhone).order('created_at', { ascending: false }).limit(1);
+            }
+
+            const { data: leadData } = await leadQuery.maybeSingle();
 
             leadContext = {
                 contact: contactData || {},
@@ -638,17 +687,25 @@ class FlowEngine {
 
         // CRITICAL: Cancel any existing active sessions for this user to avoid "ghost" sessions
         // This ensures that if the user restarts a flow, the old one doesn't interfere later.
-        console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
-        await rpcClient.rpc('cancel_active_sessions', {
-            p_contact_phone: contactPhone
-        });
+        // BYPASS: If this is a system event (e.g. pipelineTrigger), do NOT cancel ongoing user flows.
+        let dbContactPhone = contactPhone;
+        if (!isSystemEvent) {
+            console.log(`[FlowEngine] Cancelling active sessions for ${contactPhone}...`);
+            await rpcClient.rpc('cancel_active_sessions', {
+                p_contact_phone: contactPhone
+            });
 
-        // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
-        await new Promise(r => setTimeout(r, 5));
+            // Small safeguard delay to ensure DB transaction commits (Reduced to minimum)
+            await new Promise(r => setTimeout(r, 5));
+        } else {
+            console.log(`[FlowEngine] System Event Flow Started. Bypassing active session cancellation for ${contactPhone}.`);
+            // BYPASS DB CONSTRAINT: Append unique suffix so the DB allows parallel active sessions
+            dbContactPhone = `${contactPhone}_sys_${Date.now()}`;
+        }
 
         const { data: session, error } = await rpcClient.rpc('create_flow_session', {
             p_user_id: userId,
-            p_contact_phone: contactPhone,
+            p_contact_phone: dbContactPhone,
             p_flow_id: flow.id,
             p_current_node_id: startNode.id,
             p_variables: initialContext
@@ -1007,13 +1064,17 @@ class FlowEngine {
 
         // 3. Fallback: If still no edge, look for default edge or any edge
         if (!edge) {
-            // Prefer explicitly defaults first
-            edge = flow.edges.find(e => e.source === currentNodeId && e.sourceHandle === 'default');
+            const node = flow.nodes.find(n => n.id === currentNodeId);
+            
+            // Do not let 'unresponsive' timeouts fall back to the default success edge on askInput
+            if (!(node && node.type === 'askInput' && interactionId === 'unresponsive')) {
+                // Prefer explicitly defaults first
+                edge = flow.edges.find(e => e.source === currentNodeId && e.sourceHandle === 'default');
+            }
 
             // If absolutely nothing else, take whatever is connected (Legacy behavior)
             // EXCEPTION: Do not do this for logic nodes that have distinct outputs (newLead, condition, etc)
             // This prevents "Existing Contact" falling back to "New Lead" path if "Existing Contact" is unconnected.
-            const node = flow.nodes.find(n => n.id === currentNodeId);
             if (!edge && node && !['newLead', 'checkCondition', 'switch', 'askInput'].includes(node.type)) {
                 edge = flow.edges.find(e => e.source === currentNodeId);
             }
@@ -1089,8 +1150,13 @@ class FlowEngine {
             console.log(`[FlowEngine] Resolved Data for Node ${node.id}:`, JSON.stringify(resolvedData, null, 2));
             const resolvedNode = { ...node, data: resolvedData };
 
+            // STRIP _sys_ SUFFIX BEFORE PASSING TO EXECUTOR
+            // This ensures WhatsApp service and CRM tools use the real phone number.
+            const realPhone = session.contact_phone.split('_sys_')[0];
+            const safeSession = { ...session, contact_phone: realPhone };
+
             // 2. Execute
-            const output = await executor.execute(session, resolvedNode, session.variables);
+            const output = await executor.execute(safeSession, resolvedNode, safeSession.variables);
 
             // --- FLOW LOG: NODE EXECUTION ---
             try {
@@ -1099,10 +1165,10 @@ class FlowEngine {
                     timestamp: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata', hour12: false }),
                     flowName: flow.name,
                     from: phoneNumber,
-                    to: session.contact_phone,
+                    to: realPhone,
                     phoneNumberId: phoneNumberId,
                     whatsappNumber: phoneNumber,
-                    contact: session.contact_phone,
+                    contact: realPhone,
                     sessionId: session.id,
                     nodeId: node.id,
                     nodeType: node.type,
@@ -1246,6 +1312,17 @@ class FlowEngine {
                 ...session.variables,
                 [node.id]: { ...(session.variables[node.id] || {}), ...output }
             };
+
+            // NEW: Fire Events explicitly triggered by the executor
+            if (output && output.__triggerEvent) {
+                // Run asynchronously without blocking flow execution
+                this.triggerFlowByEvent(
+                    session.user_id, 
+                    session.contact_phone, 
+                    output.__triggerEvent.type, 
+                    output.__triggerEvent.payload
+                ).catch(e => console.error('[FlowEngine] Error triggering event from node:', e));
+            }
 
             // 🚀 SCALE OPTIMIZATION:
             // We specifically SKIP hitting the Database ('flow_sessions' .update) right here!

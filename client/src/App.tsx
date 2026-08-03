@@ -13,13 +13,8 @@ import AdminSettings from './pages/admin/settings/Settings';
 import AdminLayout from './layouts/admin/AdminLayout';
 import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
 import { Session } from '@supabase/supabase-js';
-import Dashboard from './components/Dashboard';
-import FlowEditor from './components/FlowEditor';
 import Sidebar, { MenuItem } from './components/Sidebar';
 
-import Contacts from './components/Contacts';
-import InputFields from './components/InputFields';
-import Inbox from './components/Inbox';
 import GlobalSettings from './components/GlobalSettings';
 import AuthPage from './components/AuthPage';
 import { MenuIcon } from './components/icons';
@@ -27,15 +22,9 @@ import { themeService } from './services/themeService';
 import FormPublicView from './components/FormPublicView';
 import WhatsAppManagement from './components/WhatsAppManagement';
 import AuthBridge from './components/WhatsAppManagement/AuthBridge';
-import WhatsAppForms from './components/WhatsAppForms';
-import WhatsAppFormBuilder from './components/WhatsAppFormBuilder';
 import { tokenService } from './services/tokenService';
-import TemplateList from './components/WhatsAppTemplates/TemplateList';
-import TemplateBuilder from './components/WhatsAppTemplates/TemplateBuilder';
-import CampaignList from './components/Campaigns/CampaignList';
 import IntegrationsView from './components/Integrations/IntegrationsView';
 import CampaignDetails from './components/Campaigns/CampaignDetails';
-import FlowList from './components/FlowList';
 import ImpersonationBanner from './components/ImpersonationBanner';
 import MyPlan from './components/MyPlan';
 import { ContactForms } from './components/ContactForms/ContactForms';
@@ -44,14 +33,31 @@ import WhatsAppApiSettings from './components/WhatsAppApiSettings';
 import CreateCampaignComponent from './components/Campaigns/CreateCampaign';
 import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAutomation';
 import DripCampaignManager from './components/DripCampaigns/DripCampaignManager';
-import QuickReply from './components/QuickReply';
-import FormBuilder from './components/FormBuilder';
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
-import AiVoiceAgentView from './components/AiVoiceAgent/AiVoiceAgentView';
 import StaffManagement from './modules/teamStaff/pages/StaffManagement';
 import StaffLogin from './modules/teamStaff/pages/StaffLogin';
 import WalletReport from './pages/dashboard/WalletReport';
+import ContactGroups from './components/ContactGroups';
+import CampaignAnalytics from './components/CampaignAnalytics';
+import ReminderNotification from './components/ReminderNotification';
+import FollowUpGlobalSync from './components/FollowUpGlobalSync';
+
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const ClickToWhatsAppDashboard = React.lazy(() => import('./components/ClickToWhatsAppDashboard'));
+const Contacts = React.lazy(() => import('./components/Contacts'));
+const InputFields = React.lazy(() => import('./components/InputFields'));
+const Inbox = React.lazy(() => import('./components/Inbox'));
+const WhatsAppForms = React.lazy(() => import('./components/WhatsAppForms'));
+const WhatsAppFormBuilder = React.lazy(() => import('./components/WhatsAppFormBuilder'));
+const TemplateList = React.lazy(() => import('./components/WhatsAppTemplates/TemplateList'));
+const TemplateBuilder = React.lazy(() => import('./components/WhatsAppTemplates/TemplateBuilder'));
+const CampaignList = React.lazy(() => import('./components/Campaigns/CampaignList'));
+const FlowList = React.lazy(() => import('./components/FlowList'));
+const FlowEditor = React.lazy(() => import('./components/FlowEditor'));
+const QuickReply = React.lazy(() => import('./components/QuickReply'));
+const FormBuilder = React.lazy(() => import('./components/FormBuilder'));
+const AiVoiceAgentView = React.lazy(() => import('./components/AiVoiceAgent/AiVoiceAgentView'));
 
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
@@ -588,6 +594,14 @@ const MainApp: React.FC = () => {
             );
         }
 
+        if (activeMenuItem === 'Click to WhatsApp Ads') {
+            return <ClickToWhatsAppDashboard />;
+        }
+
+        if (activeMenuItem === 'Campaign Analytics') {
+            return <CampaignAnalytics />;
+        }
+
         if (activeMenuItem === 'Dashboard') {
             return <Dashboard onNavigateToFlow={handleNavigateToFlow} onNavigate={handleMenuNavigation} onNavigateToPipeline={handleNavigateToPipeline} onToggleSidebar={() => setSidebarOpen(true)} />;
         }
@@ -759,6 +773,10 @@ const MainApp: React.FC = () => {
         if (activeMenuItem === 'Team Staff') {
             return <StaffManagement />;
         }
+        
+        if (activeMenuItem === 'Custom Menu') {
+            return <Contacts initialTab="custom-menu" onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
+        }
 
         return (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 h-full p-8 text-center animate-fade-in">
@@ -819,6 +837,8 @@ const MainApp: React.FC = () => {
     return (
         <div className="flex h-screen w-screen overflow-hidden">
             <ImpersonationBanner />
+            <ReminderNotification />
+            <FollowUpGlobalSync />
             <Sidebar
                 activeItem={activeMenuItem}
                 onNavigate={handleMenuNavigation}
@@ -828,7 +848,11 @@ const MainApp: React.FC = () => {
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
+<<<<<<< HEAD
                     !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+=======
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Custom Menu'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+>>>>>>> 7a57d0bb60ae75e1a811b66cb5cbeb185fa0c74e
                     (
                         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
                             <div className="flex items-center space-x-3">
@@ -850,7 +874,9 @@ const MainApp: React.FC = () => {
                 {/* Logout Button (Temporary placement or accessible via Settings in real app) */}
                 {/* Logout Button removed - moved to Sidebar User Menu */}
 
-                {renderContent()}
+                    <React.Suspense fallback={<div className="flex-1 flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div></div>}>
+                        {renderContent()}
+                    </React.Suspense>
             </div>
         </div>
     );

@@ -5,6 +5,8 @@ import { contactGroupService } from '../services/contactGroupService';
 import { inputFieldService } from '../services/inputFieldService';
 import { Contact, ContactGroup, InputField } from '../types';
 import { tagService, Tag } from '../services/tagService';
+import { getPipelines, getPipelineStages, updateLead, createLead, getLeads } from '../services/lead-management-api';
+import { Pipeline, PipelineStage } from '../types/lead-management';
 import {
     PlusIcon, EditIcon, TrashIcon, SearchIcon, UploadIcon, DownloadIcon,
     CloseIcon, BadgeIcon, ChevronDownIcon, UsersIcon, CheckIcon, BriefcaseIcon, GmailIcon, PhoneIcon, CalendarIcon, EyeIcon, EyeOffIcon
@@ -17,6 +19,8 @@ import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePerm
 import { countries } from '../utils/countries';
 import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PipelineAssignment from '../modules/teamStaff/components/PipelineAssignment';
+import SendWhatsAppMessageModal from './SendWhatsAppMessageModal';
+import EmailModal from './EmailModal';
 
 interface ContactListProps {
     initialGroupFilter?: string | null;
@@ -39,6 +43,17 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
     const [isNumberMasked, setIsNumberMasked] = useState(true);
+
+    // WhatsApp Modal State
+    const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [selectedChatPhone, setSelectedChatPhone] = useState('');
+    const [selectedChatName, setSelectedChatName] = useState('');
+
+    // Email Modal State
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [selectedEmail, setSelectedEmail] = useState('');
+    const [selectedEmailName, setSelectedEmailName] = useState('');
+
 
     const formatPhone = (phone: string | undefined | null) => {
         if (!phone) return '';
@@ -100,6 +115,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     // Delete Modal State
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; type: 'single' | 'bulk'; id?: string; count?: number }>({ isOpen: false, type: 'single' });
 
+    // Pipeline State in Modal
+    const [modalPipelines, setModalPipelines] = useState<Pipeline[]>([]);
+    const [modalStages, setModalStages] = useState<PipelineStage[]>([]);
+    const [modalPipelineId, setModalPipelineId] = useState<string>('');
+    const [modalStageId, setModalStageId] = useState<string>('');
+    const [existingLeadsForModal, setExistingLeadsForModal] = useState<any[]>([]);
+    const [isPipelineLoading, setIsPipelineLoading] = useState(false);
+
     // Inline Creation State
     const [isCreatingGroup, setIsCreatingGroup] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
@@ -115,6 +138,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     // Filter State
     const [selectedGroupFilter, setSelectedGroupFilter] = useState<string | null>(null);
     const [selectedTagFilter, setSelectedTagFilter] = useState<string | null>(null);
+    const [selectedOptStatus, setSelectedOptStatus] = useState<string | null>(null);
 
     // SERVER-SIDE FILTERING: We no longer filter in memory.
     // The 'contacts' state now only holds the current page of records.
@@ -171,7 +195,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         if (canRead) {
             loadContacts();
         }
-    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, startDate, endDate, canRead]);
+    }, [currentPage, entriesPerPage, searchTerm, selectedGroupFilter, selectedTagFilter, selectedOptStatus, startDate, endDate, canRead]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -214,6 +238,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -233,6 +258,54 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
     const [localPhone, setLocalPhone] = useState('');
     const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
     const [countrySearchTerm, setCountrySearchTerm] = useState('');
+
+    useEffect(() => {
+        if (isModalOpen) {
+            const loadPipelinesData = async () => {
+                setIsPipelineLoading(true);
+                try {
+                    const pData = await getPipelines();
+                    setModalPipelines(pData);
+                    
+                    if (editingContact && editingContact.phone) {
+                        const leadsRes: any = await getLeads(undefined, undefined, 1, 100, { search: editingContact.phone });
+                        const leadsData = leadsRes?.data || leadsRes || [];
+                        if (Array.isArray(leadsData) && leadsData.length > 0) {
+                            setExistingLeadsForModal(leadsData);
+                            // Set initial selection to the first pipeline if none selected
+                            if (!modalPipelineId && leadsData[0].pipeline_id) {
+                                setModalPipelineId(leadsData[0].pipeline_id);
+                                setModalStageId(leadsData[0].stage_id);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading pipelines', e);
+                } finally {
+                    setIsPipelineLoading(false);
+                }
+            };
+            loadPipelinesData();
+        } else {
+            setModalPipelineId('');
+            setModalStageId('');
+            setExistingLeadsForModal([]);
+            setModalStages([]);
+        }
+    }, [isModalOpen, editingContact]);
+
+    useEffect(() => {
+        if (modalPipelineId) {
+            getPipelineStages(modalPipelineId).then(setModalStages).catch(console.error);
+            // Auto-select stage if this pipeline is already assigned
+            const existingLead = existingLeadsForModal.find(l => l.pipeline_id === modalPipelineId);
+            if (existingLead && existingLead.stage_id) {
+                setModalStageId(existingLead.stage_id);
+            }
+        } else {
+            setModalStages([]);
+        }
+    }, [modalPipelineId, existingLeadsForModal]);
 
     const handleOpenModal = (contact?: Contact) => {
         if (contact) {
@@ -318,9 +391,41 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             groupIds: formData.groupIds || [],
             customData: formData.customData || {}
         };
-        await contactService.saveContact(newContact);
-        await loadContacts();
-        setIsModalOpen(false);
+        try {
+            await contactService.saveContact(newContact);
+
+            // Save Lead Pipeline/Stage
+            if (modalPipelineId && modalStageId) {
+                const existingLead = existingLeadsForModal.find(l => l.pipeline_id === modalPipelineId);
+                if (existingLead) {
+                    await updateLead(existingLead.id, {
+                        pipeline_id: modalPipelineId,
+                        stage_id: modalStageId,
+                        name: newContact.name,
+                        email: newContact.email || '',
+                        phone: newContact.phone,
+                        tags: newContact.tags || []
+                    });
+                } else {
+                    await createLead({
+                        name: newContact.name,
+                        email: newContact.email || '',
+                        phone: newContact.phone,
+                        pipeline_id: modalPipelineId,
+                        stage_id: modalStageId,
+                        source: ((newContact.source || 'manual').toLowerCase() as any),
+                        tags: newContact.tags || []
+                    });
+                }
+            }
+
+            setToast({ type: 'success', title: 'Success', message: 'Contact saved successfully!' });
+            await loadContacts();
+            setIsModalOpen(false);
+        } catch (error: any) {
+            console.error("Failed to save contact or assign lead to pipeline", error);
+            setToast({ type: 'error', title: 'Error', message: error.message || 'Failed to save contact. Please try again.' });
+        }
     };
 
     const handleDelete = (id: string) => {
@@ -403,6 +508,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             search: searchTerm,
                             groupId: selectedGroupFilter || undefined,
                             tag: selectedTagFilter || undefined,
+                            optStatus: selectedOptStatus || undefined,
                             startDate,
                             endDate
                         });
@@ -559,6 +665,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 search: searchTerm,
                 groupId: selectedGroupFilter || undefined,
                 tag: selectedTagFilter || undefined,
+                optStatus: selectedOptStatus || undefined,
                 startDate,
                 endDate
             });
@@ -569,11 +676,25 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             }
 
             // 2. If user has specifically selected IDs, filter the export list to those
-            const finalData = selectedIds.size > 0 
-                ? contactsToExport.filter(c => selectedIds.has(c.id))
-                : contactsToExport;
+            let finalData = contactsToExport;
+            if (selectedIds.size > 0) {
+                const allVisibleSelected = currentEntries.length > 0 && currentEntries.every(c => selectedIds.has(c.id));
+                
+                // If they selected all visible rows but there are more on the server, ask them
+                if (allVisibleSelected && contactsToExport.length > selectedIds.size) {
+                    const confirmAll = window.confirm(`You selected the ${selectedIds.size} currently loaded contacts.\\n\\nDo you want to export ALL ${contactsToExport.length} contacts instead? (Click OK for ALL)`);
+                    if (!confirmAll) {
+                        finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                    }
+                } else {
+                    finalData = contactsToExport.filter(c => selectedIds.has(c.id));
+                }
+            }
 
-            if (finalData.length === 0) return;
+            if (finalData.length === 0) {
+                setIsLoading(false);
+                return;
+            }
 
             // 3. Convert to CSV
             const csvData = finalData.map(c => {
@@ -589,6 +710,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     Status: c.status,
                     Tags: (c.tags || []).join(', '),
                     Groups: groupNames,
+                    Pipelines: (c as any).pipelines_string || '',
                     Source: c.source || ''
                 };
 
@@ -626,19 +748,35 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             header: true,
             skipEmptyLines: true,
             complete: async (results) => {
+                if (results.data.length > 5000) {
+                    setToast({
+                        type: 'error',
+                        title: 'Upload Limit Exceeded',
+                        message: `You can only upload a maximum of 5,000 records at a time. Your file contains ${results.data.length} records. Please split your file and upload in batches.`
+                    });
+                    if (fileInputRef.current) fileInputRef.current.value = '';
+                    return;
+                }
+
                 setIsLoading(true);
-                const importedContacts: Partial<Contact>[] = [];
+                const importedContacts: any[] = [];
 
                 try {
                     // 1. Refresh Metadata
                     let currentGroups = await contactGroupService.getGroups();
                     let currentFields = await inputFieldService.getInputs();
+                    let currentPipelines = await getPipelines();
+                    let currentStages: Record<string, any[]> = {};
+                    for (const p of currentPipelines) {
+                        currentStages[p.id] = await getPipelineStages(p.id);
+                    }
+
                     setAvailableGroups(currentGroups);
                     setCustomInputFields(currentFields);
 
                     // 2. Identify Custom Columns
                     const headers = results.meta.fields || [];
-                    const standardHeaders = ['name', 'phone', 'email', 'status', 'tags', 'groups', 'source'];
+                    const standardHeaders = ['name', 'phone', 'email', 'status', 'tags', 'groups', 'pipelines', 'source'];
                     const customHeaders = headers.filter(h => !standardHeaders.includes(h.toLowerCase()));
 
                     // 3. Auto-create missing Custom Fields
@@ -709,6 +847,33 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             }
                         }
 
+                        // Handle Pipelines
+                        const pipelinesStr = row.Pipelines || row.pipelines || '';
+                        const importPipelines: { pipelineId: string, stageId: string }[] = [];
+
+                        if (pipelinesStr) {
+                            const entries = pipelinesStr.split('|').flatMap((n: string) => n.split(',')).map((n: string) => n.trim()).filter(Boolean);
+                            for (const entry of entries) {
+                                // Match: "Pipeline Name (Stage Name)" or just "Pipeline Name"
+                                const match = entry.match(/^(.+?)(?:\s*\((.+?)\))?$/);
+                                if (match) {
+                                    const pName = match[1].trim();
+                                    const sName = match[2] ? match[2].trim() : null;
+
+                                    const pipeline = currentPipelines.find((p: any) => p.name.toLowerCase() === pName.toLowerCase());
+                                    if (pipeline) {
+                                        const pStages = currentStages[pipeline.id] || [];
+                                        let stage = sName ? pStages.find((s: any) => s.name.toLowerCase() === sName.toLowerCase()) : pStages[0];
+                                        if (!stage && pStages.length > 0) stage = pStages[0];
+
+                                        if (stage) {
+                                            importPipelines.push({ pipelineId: pipeline.id, stageId: stage.id });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Handle Custom Data
                         const customData: Record<string, any> = {};
                         customHeaders.forEach(header => {
@@ -725,8 +890,9 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                             tags: row.Tags ? row.Tags.split(',').map((t: string) => t.trim()) : [],
                             groupIds: groupIds,
                             customData: customData,
+                            importPipelines: importPipelines,
                             source: 'Import'
-                        });
+                        } as any);
                     }
 
                     console.log('📋 Parsed contacts from CSV:', importedContacts.length);
@@ -806,7 +972,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
         <>
         <div className="p-4 sm:p-8 space-y-6 animate-fade-in">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3 flex-1 lg:max-w-4xl">
+                <div className="flex flex-wrap items-center gap-3 flex-1 xl:flex-nowrap lg:max-w-none">
                     {/* Compact Search Bar */}
                     <div className="relative group w-full sm:w-64">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[var(--color-brand)] transition-colors">
@@ -821,6 +987,62 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         />
 
 
+                    </div>
+
+                    {/* Group Filter */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <UsersIcon className="w-4 h-4" />
+                        </div>
+                        <select
+                            value={selectedGroupFilter || ''}
+                            onChange={(e) => { setSelectedGroupFilter(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-9 pr-8 py-2 w-full sm:w-40 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">All Groups</option>
+                            {availableGroups.map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
+
+                    {/* Tag Filter */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <BadgeIcon className="w-4 h-4" />
+                        </div>
+                        <select
+                            value={selectedTagFilter || ''}
+                            onChange={(e) => { setSelectedTagFilter(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-9 pr-8 py-2 w-full sm:w-36 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">All Tags</option>
+                            {availableTags.map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
+                    </div>
+
+                    {/* Opt-in/Out Filter */}
+                    <div className="relative">
+                        <select
+                            value={selectedOptStatus || ''}
+                            onChange={(e) => { setSelectedOptStatus(e.target.value || null); setCurrentPage(1); }}
+                            className="pl-3 pr-8 py-2 w-full sm:w-36 bg-white border border-[var(--color-brand)] rounded-xl focus:ring-2 focus:ring-[var(--color-brand)]/20 focus:border-[var(--color-brand)] text-sm shadow-sm outline-none transition-all appearance-none text-slate-600 font-medium cursor-pointer"
+                        >
+                            <option value="">Opt Status: All</option>
+                            <option value="opted_in">Opted In</option>
+                            <option value="opted_out">Opted Out</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                            <ChevronDownIcon className="w-3 h-3" />
+                        </div>
                     </div>
                     
                     {/* Proper Date Range Picker UI */}
@@ -862,7 +1084,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         {isBulkDropdownOpen && (
                             <div className="absolute left-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-30 overflow-hidden animate-fade-in py-1">
                                 {/* Delete Selection */}
-                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                     <button 
                                         onClick={handleBulkDelete} 
                                         disabled={selectedIds.size === 0}
@@ -875,8 +1097,8 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                 <div className="h-px bg-slate-100 my-1"></div>
 
                                 {/* Delete by Filter (Contextual) */}
-                                {(searchTerm || selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
-                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                {(searchTerm || selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
+                                    <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                         <button 
                                             onClick={handleDeleteAllFiltered}
                                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center transition-colors"
@@ -909,6 +1131,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 search: searchTerm,
                                                 groupId: selectedGroupFilter || undefined,
                                                 tag: selectedTagFilter || undefined,
+                                                optStatus: selectedOptStatus || undefined,
                                                 startDate,
                                                 endDate
                                             });
@@ -986,7 +1209,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             </div>
 
             {/* Active Filters */}
-            {(selectedGroupFilter || selectedTagFilter || startDate || endDate) && (
+            {(selectedGroupFilter || selectedTagFilter || selectedOptStatus || startDate || endDate) && (
                 <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Active Filters:</span>
                     {startDate && (
@@ -1027,7 +1250,7 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                         </span>
                     )}
                     <button
-                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
+                        onClick={() => { setSelectedGroupFilter(null); setSelectedTagFilter(null); setSelectedOptStatus(null); setStartDate(''); setEndDate(''); setCurrentPage(1); }}
                         className="text-xs text-slate-500 hover:text-slate-700 font-medium underline"
                     >
                         Clear all
@@ -1050,9 +1273,10 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Phone</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Email</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Created</th>
-                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Status</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Lead Status</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Tags</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Groups</th>
+                                        <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Pipeline</th>
                                         <th className="px-6 py-4 text-left text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Assigned To</th>
                                         <th className="px-6 py-4 text-right text-xs font-black uppercase tracking-wider text-white drop-shadow-sm !bg-brand-600">Actions</th>
                                     </tr>
@@ -1082,7 +1306,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         <div className="w-9 h-9 rounded-full bg-[var(--color-brand)] flex items-center justify-center text-white font-bold text-sm shadow-sm uppercase">
                                                             {(contact.name || '?').charAt(0)}
                                                         </div>
-                                                        <div className="text-sm font-bold text-slate-800">{contact.name}</div>
+                                                        <div className="flex flex-col">
+                                                            <div className="text-sm font-bold text-slate-800">{contact.name}</div>
+                                                            {contact.customData?.opted_out && (
+                                                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 mt-0.5 w-max uppercase tracking-wider">
+                                                                    Opted Out
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 border-b !border-black">
@@ -1125,6 +1356,12 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td className="px-6 py-4 border-b !border-black min-w-[150px]">
+                                                    <PipelineAssignment 
+                                                        leadId={undefined} 
+                                                        contact={contact} 
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4 border-b !border-black min-w-[200px]">
                                                     <LeadAssignment 
                                                         leadId={contact.id} 
@@ -1137,9 +1374,41 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 <td className="px-6 py-4 border-b !border-black">
                                                     <div className="flex items-center justify-end space-x-2 transition-opacity">
                                                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
-                                                            <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
+                                                            <button 
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    setSelectedChatPhone(contact.phone); 
+                                                                    setSelectedChatName(contact.name); 
+                                                                    setIsWhatsAppModalOpen(true); 
+                                                                }} 
+                                                                className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200 shadow-sm"
+                                                                title="Send WhatsApp Message"
+                                                            >
+                                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                                            </button>
                                                         </PermissionGate>
                                                         <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button 
+                                                                onClick={(e) => { 
+                                                                    e.stopPropagation(); 
+                                                                    if (!contact.email) {
+                                                                        setToast({ type: 'error', title: 'No Email', message: 'This contact does not have an email address.' });
+                                                                        return;
+                                                                    }
+                                                                    setSelectedEmail(contact.email); 
+                                                                    setSelectedEmailName(contact.name); 
+                                                                    setIsEmailModalOpen(true); 
+                                                                }} 
+                                                                className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 shadow-sm"
+                                                                title="Send Email"
+                                                            >
+                                                                <GmailIcon className="w-4 h-4" />
+                                                            </button>
+                                                        </PermissionGate>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.READ_WRITE}>
+                                                            <button onClick={(e) => { e.stopPropagation(); handleOpenModal(contact); }} className="p-2 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 shadow-sm"><EditIcon className="w-4 h-4" /></button>
+                                                        </PermissionGate>
+                                                        <PermissionGate moduleName="Contact+List" requiredAccess={ACCESS_TYPES.ALL_ACCESS}>
                                                             <button onClick={(e) => { e.stopPropagation(); handleDelete(contact.id); }} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors border border-rose-200 shadow-sm"><TrashIcon className="w-4 h-4" /></button>
                                                         </PermissionGate>
                                                     </div>
@@ -1156,7 +1425,14 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
             <div className="absolute top-5 right-5">
                 <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500 h-5 w-5" checked={selectedIds.has(contact.id)} onChange={() => handleSelectRow(contact.id)} />
             </div>
-            <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+            <div className="flex items-center gap-2">
+                <h3 className="font-bold text-slate-900 text-lg">{contact.name}</h3>
+                {contact.customData?.opted_out && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700 uppercase tracking-wider">
+                        Opted Out
+                    </span>
+                )}
+            </div>
             <p className="text-sm text-slate-500 font-mono">{formatPhone(contact.phone)}</p>
             {contact.email && <p className="text-sm text-slate-500 mb-2">{contact.email}</p>}
             
@@ -1171,9 +1447,37 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                 />
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 mt-2 border-t border-slate-100">
-                <button onClick={() => handleOpenModal(contact)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200">
-                    <EditIcon className="w-4 h-4" />
+            <div className="flex gap-2 pt-3 mt-2 border-t border-slate-100">
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSelectedChatPhone(contact.phone); 
+                        setSelectedChatName(contact.name); 
+                        setIsWhatsAppModalOpen(true); 
+                    }} 
+                    className="flex-1 py-1 flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                    WhatsApp
+                </button>
+                <button 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (!contact.email) {
+                            setToast({ type: 'error', title: 'No Email', message: 'This contact does not have an email address.' });
+                            return;
+                        }
+                        setSelectedEmail(contact.email); 
+                        setSelectedEmailName(contact.name); 
+                        setIsEmailModalOpen(true); 
+                    }} 
+                    className="flex-1 py-1 flex items-center justify-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                >
+                    <GmailIcon className="w-3.5 h-3.5" />
+                    Email
+                </button>
+                <button onClick={() => handleOpenModal(contact)} className="flex-1 py-1 flex items-center justify-center gap-1.5 bg-slate-50 rounded-lg text-slate-500 hover:text-brand-600 border border-slate-200 hover:border-brand-200 text-xs font-bold">
+                    <EditIcon className="w-3.5 h-3.5" /> Edit
                 </button>
                 <button onClick={() => handleDelete(contact.id)} className="p-2 bg-slate-50 rounded-lg text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200">
                     <TrashIcon className="w-4 h-4" />
@@ -1326,8 +1630,6 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                                 onChange={e => {
                                                     const val = e.target.value.replace(/\D/g, ''); // Only allow digits
                                                     setLocalPhone(val);
-                                                    // Update formData immediately for preview/state consistency, though final save uses combined
-                                                    // We'll construct full phone on save, but keeping formData in sync helps if needed elsewhere
                                                     setFormData({ ...formData, phone: val });
                                                 }}
                                             />
@@ -1336,7 +1638,66 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                                     </div>
                                     <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Email Address</label><input type="email" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="john@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div></div></div>
                                 <div className="h-px bg-slate-200 w-full"></div>
-                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Organization</h4><div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5"><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label><div className="relative"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })}>{['New', 'Contacted', 'Qualified', 'Converted', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="e.g. Website, Referral" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} /></div></div>
+                                
+                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><BriefcaseIcon className="w-4 h-4" /> Pipeline Assignment</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                        <div>
+                                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pipeline</label>
+                                            <div className="relative">
+                                                <select disabled={isPipelineLoading} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={modalPipelineId} onChange={e => { setModalPipelineId(e.target.value); setModalStageId(''); }}>
+                                                    <option value="">{isPipelineLoading ? 'Loading...' : 'Select Pipeline...'}</option>
+                                                    {modalPipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div>
+                                            </div>
+                                        </div>
+                                        {modalPipelineId && (
+                                            <div className="animate-in fade-in slide-in-from-top-2">
+                                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Stage</label>
+                                                <div className="relative">
+                                                    <select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={modalStageId} onChange={e => setModalStageId(e.target.value)}>
+                                                        <option value="">Select Stage...</option>
+                                                        {modalStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                    </select>
+                                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="h-px bg-slate-200 w-full"></div>
+
+                                <div><h4 className="text-xs font-bold text-brand-600 uppercase tracking-wider mb-4 flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Organization</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label><div className="relative"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })}>{['New', 'Contacted', 'Qualified', 'Converted', 'Lost'].map(s => <option key={s} value={s}>{s}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div></div>
+                                        <div><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Source</label><input type="text" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium" placeholder="e.g. Website, Referral" value={formData.source} onChange={e => setFormData({ ...formData, source: e.target.value })} /></div>
+                                        
+                                        {/* OPT OUT TOGGLE */}
+                                        <div className="sm:col-span-2 p-4 bg-red-50 rounded-xl border border-red-100 flex items-center justify-between">
+                                            <div>
+                                                <h4 className="text-sm font-bold text-red-700">Messaging Opt-Out</h4>
+                                                <p className="text-xs text-red-600 mt-0.5 font-medium">If enabled, this contact will be blocked from receiving campaigns and manual messages.</p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only peer"
+                                                    checked={!!formData.customData?.opted_out}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            customData: {
+                                                                ...(prev.customData || {}),
+                                                                opted_out: checked
+                                                            }
+                                                        }));
+                                                    }}
+                                                />
+                                                <div className="w-11 h-6 bg-red-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
                                     <div className="space-y-5">
                                         <div><div className="flex justify-between items-center mb-2"><label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Groups</label>{!isCreatingGroup && (<button type="button" onClick={() => { setIsCreatingGroup(true); setNewGroupName(''); }} className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 hover:bg-brand-50 px-2 py-1 rounded transition-colors"><PlusIcon className="w-3 h-3" /> New Group</button>)}</div>
                                             {!isCreatingGroup ? (<div className="relative mb-3"><select className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 text-slate-900 outline-none transition-all font-medium appearance-none" onChange={handleGroupSelect}><option value="">Select a group to add...</option>{availableGroups.filter(g => !(formData.groupIds || []).includes(g.id)).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select><div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500"><ChevronDownIcon className="w-4 h-4" /></div></div>) : (<div className="flex gap-2 mb-3 animate-fade-in p-2 bg-brand-50/50 rounded-xl border border-brand-100"><input type="text" autoFocus placeholder="Enter new group name" className="flex-1 px-4 py-2 bg-white border-2 border-brand-500 rounded-lg focus:outline-none text-slate-900 font-medium text-sm" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleCreateGroup())} /><button type="button" onClick={handleCreateGroup} className="px-3 py-2 bg-brand-600 text-white rounded-lg font-bold hover:bg-brand-700 shadow-sm"><CheckIcon className="w-4 h-4" /></button><button type="button" onClick={() => setIsCreatingGroup(false)} className="px-3 py-2 bg-white border border-slate-200 text-slate-500 rounded-lg font-bold hover:bg-slate-50"><CloseIcon className="w-4 h-4" /></button></div>)}
@@ -1426,6 +1787,20 @@ const ContactList: React.FC<ContactListProps> = ({ initialGroupFilter, onClearGr
                     </div>
                 </div>
             )}
+
+            <SendWhatsAppMessageModal
+                isOpen={isWhatsAppModalOpen}
+                onClose={() => setIsWhatsAppModalOpen(false)}
+                contactPhone={selectedChatPhone}
+                contactName={selectedChatName}
+            />
+
+            <EmailModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                recipientEmail={selectedEmail}
+                recipientName={selectedEmailName}
+            />
 
             {/* Toast Notification */}
             {toast && (

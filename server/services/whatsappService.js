@@ -89,6 +89,23 @@ class WhatsAppService {
             const fromPhoneId = config.phone_number_id;
             const accessToken = config.meta_access_token;
 
+            // --- OPT-OUT CHECK ---
+            try {
+                const { data: contactData } = await supabaseAdmin
+                    .from('contacts')
+                    .select('custom_data')
+                    .eq('user_id', userId)
+                    .eq('phone', to)
+                    .maybeSingle();
+
+                if (contactData && contactData.custom_data && contactData.custom_data.opted_out) {
+                    console.warn(`[WhatsAppService] Blocked sending message to ${to}. Contact has opted out.`);
+                    return { status: 'skipped', reason: 'opted_out' };
+                }
+            } catch (optCheckErr) {
+                console.error('[WhatsAppService] Error checking opt-out status:', optCheckErr);
+            }
+
             const body = {
                 messaging_product: 'whatsapp',
                 recipient_type: 'individual',

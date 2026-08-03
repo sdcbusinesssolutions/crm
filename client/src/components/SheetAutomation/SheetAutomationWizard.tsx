@@ -28,7 +28,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
         schedule_day_of_month: 1,
         recurring: false, // New Field
 
-        triggers: [{ column: '', operator: 'equals', value: '' }] as { column: string, operator: string, value: string }[],
+        triggerGroups: [{ id: 'group-1', conditions: [{ column: '', operator: 'equals', value: '' }] }] as any[],
         template_id: '',
         mapping: {} as Record<string, { type: 'static' | 'column', value: string }>
     });
@@ -94,7 +94,18 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             schedule_days: sched.days || [],
             schedule_day_of_month: sched.day_of_month || 1,
             recurring: sched.recurring || false,
-            triggers: data.trigger_condition || [],
+            triggerGroups: (() => {
+                if (data.trigger_condition?.logic === 'OR' && Array.isArray(data.trigger_condition.groups)) {
+                    return data.trigger_condition.groups;
+                }
+                if (Array.isArray(data.trigger_condition)) {
+                    return [{ id: 'group-legacy', conditions: data.trigger_condition }];
+                }
+                if (data.trigger_condition) {
+                    return [{ id: 'group-legacy', conditions: [data.trigger_condition] }];
+                }
+                return [{ id: 'group-1', conditions: [{ column: '', operator: 'equals', value: '' }] }];
+            })(),
             template_id: matchedTemplate ? matchedTemplate.id : '',
             mapping: {
                 ...(data.mapping_config?.params || {}),
@@ -348,8 +359,8 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             if (!formData.sheet_name) return alert('Please select a Sheet Tab');
         }
         if (step === 3) {
-            if (formData.triggers.length === 0) return alert('Please add at least one trigger condition');
-            const invalidInfo = formData.triggers.find(t => !t.column || !t.operator);
+            if (!formData.triggerGroups || formData.triggerGroups.length === 0) return alert('Please add at least one trigger condition group');
+            const invalidInfo = formData.triggerGroups.some((g: any) => g.conditions.find((t: any) => !t.column || !t.operator));
             if (invalidInfo) return alert('Please complete all trigger conditions (Column and Operator are required)');
         }
         if (step === 4) {
@@ -393,7 +404,10 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 day_of_month: formData.schedule_day_of_month, // 1-31
                 recurring: formData.recurring // New Flag
             },
-            trigger_condition: formData.triggers, // Send array directly
+            trigger_condition: {
+                logic: 'OR',
+                groups: formData.triggerGroups
+            }, // Advanced Logic Support
             template_config: {
                 template_name: templates.find(t => t.id === formData.template_id)?.name,
                 language: templates.find(t => t.id === formData.template_id)?.language || 'en',
@@ -428,16 +442,19 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
     // --- Render ---
     return (
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border-2 border-[#00684A] overflow-hidden relative isolate">
+            {/* Subtle background glow effect */}
+            <div className="absolute inset-0 -z-10 bg-gradient-to-br from-brand-50/50 via-transparent to-brand-100/20 pointer-events-none" />
+            
             {/* Header Steps */}
-            <div className="flex items-center justify-between border-b border-slate-100 p-6">
-                <div className="flex space-x-4">
+            <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-slate-50/50 to-white/50 p-6 backdrop-blur-sm">
+                <div className="flex space-x-6">
                     {[1, 2, 3, 4, 5].map(s => (
-                        <div key={s} className={`flex items-center space-x-2 ${step >= s ? 'opacity-100' : 'opacity-40'}`}>
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === s ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                        <div key={s} className={`flex items-center space-x-3 group ${step >= s ? 'opacity-100' : 'opacity-40 grayscale'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm transition-all duration-300 ${step === s ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white ring-4 ring-brand-100 scale-110' : 'bg-white text-slate-500 border border-slate-200 group-hover:bg-slate-50'}`}>
                                 {s}
                             </div>
-                            <span className="text-sm font-medium text-slate-700">
+                            <span className={`text-sm font-semibold transition-colors ${step === s ? 'text-brand-700' : 'text-slate-600'}`}>
                                 {['Schedule', 'Sheet', 'Trigger', 'Message', 'Cell Map'][s - 1]}
                             </span>
                         </div>
@@ -451,23 +468,23 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 {step === 1 && (
                     <div className="max-w-md mx-auto space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Schedule Title</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Schedule Title</label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all" placeholder="e.g. Monthly Reminder"
+                                className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300 placeholder:text-slate-400" placeholder="e.g. Monthly Reminder"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Frequency</label>
-                            <div className="flex border border-slate-300 rounded overflow-hidden">
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Frequency</label>
+                            <div className="flex border border-slate-200/80 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm shadow-sm p-1 gap-1">
                                 {['daily', 'weekly', 'monthly', 'custom'].map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => setFormData({ ...formData, schedule_type: t })}
-                                        className={`flex-1 py-2 text-sm font-medium transition-colors border-r last:border-r-0 border-slate-300
-                                            ${formData.schedule_type === t ? '!bg-brand-600 !text-white !border-brand-600' : 'bg-white text-slate-600 hover:text-brand-600 hover:bg-brand-50'}
+                                        className={`flex-1 py-2.5 text-sm font-semibold transition-all rounded-lg
+                                            ${formData.schedule_type === t ? 'bg-brand-600 text-white shadow-md' : 'text-slate-600 hover:text-brand-600 hover:bg-brand-50'}
                                         `}
                                     >
                                         {t === 'custom' ? 'One-Time' : t.charAt(0).toUpperCase() + t.slice(1)}
@@ -479,7 +496,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         {/* Weekly Day Selector */}
                         {formData.schedule_type === 'weekly' && (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Run on Days</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Run on Days</label>
                                 <div className="flex gap-2">
                                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                                         <button
@@ -491,9 +508,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                                     : [...currentDays, day];
                                                 setFormData({ ...formData, schedule_days: newDays });
                                             }}
-                                            className={`w-10 h-10 rounded-full text-xs font-bold transition-all border ${(formData.schedule_days || []).includes(day)
-                                                ? '!bg-brand-600 !text-white !border-brand-600'
-                                                : 'bg-white text-slate-500 border-slate-300 hover:border-brand-600 hover:text-brand-600'
+                                            className={`w-10 h-10 rounded-full text-xs font-bold transition-all border shadow-sm ${(formData.schedule_days || []).includes(day)
+                                                ? 'bg-brand-600 text-white border-brand-600 shadow-brand-500/30'
+                                                : 'bg-white/50 backdrop-blur-sm text-slate-500 border-slate-200/80 hover:border-brand-500 hover:text-brand-600'
                                                 }`}
                                         >
                                             {day}
@@ -506,9 +523,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         {/* Monthly Day Selector */}
                         {formData.schedule_type === 'monthly' && (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Day of Month</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Day of Month</label>
                                 <select
-                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                    className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300"
                                     value={formData.schedule_day_of_month || 1}
                                     onChange={e => setFormData({ ...formData, schedule_day_of_month: parseInt(e.target.value) })}
                                 >
@@ -521,10 +538,10 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
 
                         {formData.schedule_type === 'custom' ? (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Date & Time</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Date & Time</label>
                                 <input
                                     type="datetime-local"
-                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                    className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300"
                                     onChange={e => {
                                         setFormData({ ...formData, schedule_time: e.target.value });
                                     }}
@@ -532,12 +549,12 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             </div>
                         ) : (
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Time of day</label>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Time of day</label>
                                 <input
                                     type="time"
                                     value={formData.schedule_time}
                                     onChange={e => setFormData({ ...formData, schedule_time: e.target.value })}
-                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                    className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300"
                                 />
                             </div>
                         )}
@@ -570,9 +587,9 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                 {step === 2 && (
                     <div className="max-w-md mx-auto space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Use Integration</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Use Integration</label>
                             <select
-                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300"
                                 value={formData.connection_id}
                                 onChange={e => setFormData({ ...formData, connection_id: e.target.value })}
                             >
@@ -588,10 +605,10 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Spreadsheet ID</label>
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5 ml-1">Spreadsheet ID</label>
                             <div className="flex gap-2">
                                 <input
-                                    className="flex-1 border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                    className="flex-1 bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300 placeholder:text-slate-400"
                                     placeholder="Paste Spreadsheet ID here"
                                     value={formData.spreadsheet_id}
                                     onChange={e => setFormData({ ...formData, spreadsheet_id: e.target.value })}
@@ -599,20 +616,20 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 <button
                                     onClick={() => handleSheetSelect(formData.spreadsheet_id)}
                                     disabled={isFetchingSheets || !formData.spreadsheet_id}
-                                    className="px-4 py-2 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 text-sm font-medium whitespace-nowrap focus:ring-1 focus:ring-brand-600 outline-none"
+                                    className="px-5 py-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 shadow-sm text-sm font-semibold whitespace-nowrap focus:ring-2 focus:ring-brand-500/50 outline-none transition-all text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isFetchingSheets ? 'Fetching...' : 'Fetch Sheets'}
                                 </button>
                             </div>
-                            <p className="text-xs text-slate-400 mt-1">Paste ID from URL: docs.google.com/spreadsheets/d/<b>SpreadsheetID</b>/edit</p>
+                            <p className="text-xs text-slate-400 mt-2 ml-1">Paste ID from URL: docs.google.com/spreadsheets/d/<b className="text-slate-500">SpreadsheetID</b>/edit</p>
                         </div>
-                        {isFetchingSheets && <p className="text-sm text-center text-slate-500 italic">Finding sheets...</p>}
+                        {isFetchingSheets && <p className="text-sm text-center text-slate-500 italic mt-2">Finding sheets...</p>}
 
-                        <div className="flex justify-between items-end mb-1">
-                            <label className="block text-sm font-medium text-slate-700">Sheet Tab</label>
+                        <div className="flex justify-between items-end mb-1.5 ml-1">
+                            <label className="block text-sm font-semibold text-slate-700">Sheet Tab</label>
                             <button
                                 onClick={() => setManualSheetEntry(!manualSheetEntry)}
-                                className="text-xs text-brand-600 hover:text-brand-700 underline pb-1"
+                                className="text-xs font-semibold text-brand-600 hover:text-brand-700 underline pb-0.5 transition-colors"
                             >
                                 {manualSheetEntry ? 'Select from list' : 'Enter manually'}
                             </button>
@@ -621,7 +638,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                         {manualSheetEntry ? (
                             <div>
                                 <input
-                                    className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                    className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300 placeholder:text-slate-400"
                                     placeholder="Type exactly as it appears (e.g. Sheet1)"
                                     value={formData.sheet_name}
                                     onChange={e => setFormData({ ...formData, sheet_name: e.target.value })}
@@ -629,11 +646,11 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                         if (formData.sheet_name) handleTabSelect(formData.sheet_name);
                                     }}
                                 />
-                                <p className="text-xs text-slate-500 mt-1">Press tab or click away to load columns.</p>
+                                <p className="text-xs text-slate-400 mt-2 ml-1">Press tab or click away to load columns.</p>
                             </div>
                         ) : (
                             <select
-                                className="w-full border border-slate-300 rounded px-3 py-2 focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                className="w-full bg-white/50 backdrop-blur-sm border border-slate-200/80 rounded-xl px-4 py-3 text-slate-700 focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 outline-none transition-all shadow-sm hover:border-slate-300"
                                 value={formData.sheet_name}
                                 onChange={e => handleTabSelect(e.target.value)}
                                 disabled={!manualSheetEntry && sheetTabs.length === 0}
@@ -657,7 +674,7 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                     </div>
                 )}
 
-                {/* STEP 3: TRIGGER */}
+                                {/* STEP 3: TRIGGER */}
                 {step === 3 && (
                     <div className="max-w-3xl mx-auto space-y-4">
                         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-sm text-blue-800 mb-4">
@@ -666,188 +683,248 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
                                 Condition Logic & Date Formats
                             </h4>
                             <ul className="list-disc pl-5 space-y-1 opacity-90">
-                                <li>All conditions in this list must be met (AND logic).</li>
-                                <li><b>Supported Dates:</b> DD/MM/YYYY (21/01/2026), YYYY-MM-DD or numeric values from Sheet.</li>
+                                <li><b>Groups:</b> Conditions within a group use <b>AND</b> (all must match). Multiple groups use <b>OR</b> (any group can match).</li>
+                                <li><b>Supported Dates:</b> <code className="bg-blue-100 px-1 rounded text-blue-900">DD/MM/YYYY</code> (e.g. 21/01/2026), <code className="bg-blue-100 px-1 rounded text-blue-900">DD-MM-YYYY</code>, <code className="bg-blue-100 px-1 rounded text-blue-900">YYYY-MM-DD</code>, or <code className="bg-blue-100 px-1 rounded text-blue-900">DD-Mon-YYYY</code> (e.g. 20-Jan-2026).</li>
                                 <li><b>Day & Month (Annual):</b> Compares only Day and Month (Year is ignored).</li>
                                 <li><b>Month/Year:</b> System automatically extracts Month (1-12) or Year (YYYY) from your dates.</li>
                             </ul>
                         </div>
 
-                        {formData.triggers?.map((trigger, index) => (
-                            <div key={index} className="flex items-start gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                {isLoading ? (
-                                    <div className="text-sm text-slate-500 animate-pulse py-2 px-3">Loading columns...</div>
-                                ) : (
-                                    <select
-                                        className="flex-1 w-1/3 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
-                                        value={trigger.column}
-                                        onChange={e => {
-                                            const newTriggers = [...formData.triggers];
-                                            newTriggers[index].column = e.target.value;
-                                            setFormData({ ...formData, triggers: newTriggers });
-                                        }}
-                                    >
-                                        <option value="">Select Column</option>
-                                        {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select>
-                                )}
-
-                                <select
-                                    className="w-1/3 border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
-                                    value={trigger.operator}
-                                    onChange={e => {
-                                        const newTriggers = [...formData.triggers];
-                                        newTriggers[index].operator = e.target.value;
-                                        // Reset value if operator doesn't need it
-                                        if (['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal'].includes(e.target.value)) {
-                                            newTriggers[index].value = '';
-                                        }
-                                        setFormData({ ...formData, triggers: newTriggers });
-                                    }}
-                                >
-                                    <optgroup label="General">
-                                        <option value="equals">Equals</option>
-                                        <option value="not_equals">Does Not Equal</option>
-                                        <option value="contains">Contains</option>
-                                        <option value="does_not_contain">Does Not Contain</option>
-                                        <option value="starts_with">Starts With</option>
-                                        <option value="ends_with">Ends With</option>
-                                        <option value="is_empty">Is Empty</option>
-                                        <option value="is_not_empty">Is Not Empty</option>
-                                    </optgroup>
-                                    <optgroup label="Date & Time (Dynamic)">
-                                        <option value="is_today">Is Today</option>
-                                        <option value="is_yesterday">Is Yesterday</option>
-                                        <option value="is_tomorrow">Is Tomorrow</option>
-                                        <option value="in_last_x_days">In Last X Days</option>
-                                        <option value="in_next_x_days">In Next X Days</option>
-                                        <option value="date_equals">Date Equals (Exact)</option>
-                                        <option value="date_before">Date Before</option>
-                                        <option value="date_after">Date After</option>
-                                        <option value="date_between">Date Between</option>
-                                    </optgroup>
-                                    <optgroup label="Day & Month (Annual)">
-                                        <option value="day_month_equal">Day & Month is Today</option>
-                                        <option value="day_month_before">Day & Month has passed</option>
-                                        <option value="day_month_after">Day & Month is coming</option>
-                                    </optgroup>
-                                    <optgroup label="Month & Year">
-                                        <option value="month_equals">Month Equals (1-12)</option>
-                                        <option value="is_current_month">Is Current Month</option>
-                                        <option value="is_next_month">Is Next Month</option>
-                                        <option value="year_equals">Year Equals (YYYY)</option>
-                                        <option value="is_current_year">Is Current Year</option>
-                                    </optgroup>
-                                    <optgroup label="Number">
-                                        <option value="greater_than">Greater Than</option>
-                                        <option value="less_than">Less Than</option>
-                                        <option value="greater_than_or_equal">Greater or Equal</option>
-                                        <option value="less_than_or_equal">Less or Equal</option>
-                                    </optgroup>
-                                </select>
-
-                                {/* Value Input - Dynamic based on operator */}
-                                {!['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'is_current_month', 'is_next_month', 'is_current_year'].includes(trigger.operator) && (
-                                    <div className="w-1/3">
-                                        {['date_equals', 'date_before', 'date_after'].includes(trigger.operator) ? (
-                                            <input
-                                                type="date"
-                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
-                                                value={trigger.value}
-                                                onChange={e => {
-                                                    const newTriggers = [...formData.triggers];
-                                                    newTriggers[index].value = e.target.value;
-                                                    setFormData({ ...formData, triggers: newTriggers });
+                        <div className="space-y-6">
+                            {formData.triggerGroups.map((group, groupIndex) => (
+                                <React.Fragment key={groupIndex}>
+                                    <div className="border border-slate-200/60 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="bg-gradient-to-r from-slate-50 to-white px-4 py-3 border-b border-slate-200/60 flex justify-between items-center">
+                                        <span className="font-semibold text-slate-700">Condition Group {groupIndex + 1}</span>
+                                        {formData.triggerGroups.length > 1 && (
+                                            <button
+                                                onClick={() => {
+                                                    const newGroups = formData.triggerGroups.filter((_, i) => i !== groupIndex);
+                                                    setFormData({ ...formData, triggerGroups: newGroups });
                                                 }}
-                                            />
-                                        ) : ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? (
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm pr-10"
-                                                    placeholder="Days"
-                                                    value={trigger.value}
-                                                    onChange={e => {
-                                                        const newTriggers = [...formData.triggers];
-                                                        newTriggers[index].value = e.target.value;
-                                                        setFormData({ ...formData, triggers: newTriggers });
-                                                    }}
-                                                />
-                                                <span className="absolute right-3 top-2 text-xs text-slate-400">Days</span>
-                                            </div>
-                                        ) : ['date_between'].includes(trigger.operator) ? (
-                                            <input
-                                                type="text"
-                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                                                placeholder="YYYY-MM-DD,YYYY-MM-DD"
-                                                title="Format: StartDate,EndDate"
-                                                value={trigger.value}
-                                                onChange={e => {
-                                                    const newTriggers = [...formData.triggers];
-                                                    newTriggers[index].value = e.target.value;
-                                                    setFormData({ ...formData, triggers: newTriggers });
-                                                }}
-                                            />
-                                        ) : (
-                                            <input
-                                                type="text"
-                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
-                                                placeholder="Value"
-                                                value={trigger.value}
-                                                onChange={e => {
-                                                    const newTriggers = [...formData.triggers];
-                                                    newTriggers[index].value = e.target.value;
-                                                    setFormData({ ...formData, triggers: newTriggers });
-                                                }}
-                                            />
+                                                className="text-red-500 hover:text-red-700 text-sm font-medium hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                            >
+                                                Remove Group
+                                            </button>
                                         )}
-                                        {/* Helper Text Hint */}
-                                        <p className="text-[10px] text-slate-400 mt-1 pl-1">
-                                            {trigger.operator.includes('month') ? 'Compares month (1-12) extracted from date' :
-                                                trigger.operator.includes('year') ? 'Compares year (YYYY) extracted from date' :
-                                                    trigger.operator.includes('date') ? 'Format: DD/MM/YYYY or YYYY-MM-DD' :
-                                                        trigger.operator.includes('day_month') ? 'Ignores year: matches if the day and month match today' :
-                                                            trigger.operator.includes('equals') ? 'Exact match (case-insensitive)' :
-                                                                trigger.operator.includes('contains') ? 'Partial text match' :
-                                                                    ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? 'Enter number of days (e.g. 7)' :
-                                                                        'Enter value to match'}
-                                        </p>
+                                    </div>
+                                    <div className="p-5 space-y-4 bg-slate-50/30">
+                                        {group.conditions.map((trigger, index) => (
+                                            <div key={index} className="flex items-start gap-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm relative group hover:border-brand-300 transition-colors">
+                                                {/* AND Label inside group */}
+                                                {index > 0 && (
+                                                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-slate-100 text-slate-600 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200 z-10 shadow-sm">
+                                                        AND
+                                                    </div>
+                                                )}
+                                                
+                                                {isLoading ? (
+                                                    <div className="text-sm text-slate-500 animate-pulse py-2 px-3">Loading columns...</div>
+                                                ) : (
+                                                    <select
+                                                        className="flex-1 w-1/3 border border-slate-200 bg-slate-50/50 rounded-lg px-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all shadow-sm"
+                                                        value={trigger.column}
+                                                        onChange={e => {
+                                                            const newGroups = [...formData.triggerGroups];
+                                                            newGroups[groupIndex].conditions[index].column = e.target.value;
+                                                            setFormData({ ...formData, triggerGroups: newGroups });
+                                                        }}
+                                                    >
+                                                        <option value="">Select Column</option>
+                                                        {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                )}
+
+                                                <select
+                                                    className="w-1/3 border border-slate-200 bg-slate-50/50 rounded-lg px-3 py-2.5 text-sm focus:bg-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all shadow-sm"
+                                                    value={trigger.operator}
+                                                    onChange={e => {
+                                                        const newGroups = [...formData.triggerGroups];
+                                                        newGroups[groupIndex].conditions[index].operator = e.target.value;
+                                                        if (['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal'].includes(e.target.value)) {
+                                                            newGroups[groupIndex].conditions[index].value = '';
+                                                        }
+                                                        setFormData({ ...formData, triggerGroups: newGroups });
+                                                    }}
+                                                >
+                                                    <optgroup label="General">
+                                                        <option value="equals">Equals</option>
+                                                        <option value="not_equals">Does Not Equal</option>
+                                                        <option value="contains">Contains</option>
+                                                        <option value="does_not_contain">Does Not Contain</option>
+                                                        <option value="starts_with">Starts With</option>
+                                                        <option value="ends_with">Ends With</option>
+                                                        <option value="is_empty">Is Empty</option>
+                                                        <option value="is_not_empty">Is Not Empty</option>
+                                                    </optgroup>
+                                                    <optgroup label="Date & Time (Dynamic)">
+                                                        <option value="is_today">Is Today</option>
+                                                        <option value="is_yesterday">Is Yesterday</option>
+                                                        <option value="is_tomorrow">Is Tomorrow</option>
+                                                        <option value="in_last_x_days">In Last X Days</option>
+                                                        <option value="in_next_x_days">In Next X Days</option>
+                                                        <option value="date_equals">Date Equals (Exact)</option>
+                                                        <option value="date_before">Date Before</option>
+                                                        <option value="date_after">Date After</option>
+                                                        <option value="date_between">Date Between</option>
+                                                    </optgroup>
+                                                    <optgroup label="Day & Month (Annual)">
+                                                        <option value="day_month_equal">Day & Month is Today</option>
+                                                        <option value="day_month_before">Day & Month has passed</option>
+                                                        <option value="day_month_after">Day & Month is coming</option>
+                                                    </optgroup>
+                                                    <optgroup label="Month & Year">
+                                                        <option value="month_equals">Month Equals (1-12)</option>
+                                                        <option value="is_current_month">Is Current Month</option>
+                                                        <option value="is_next_month">Is Next Month</option>
+                                                        <option value="year_equals">Year Equals (YYYY)</option>
+                                                        <option value="is_current_year">Is Current Year</option>
+                                                    </optgroup>
+                                                    <optgroup label="Number">
+                                                        <option value="greater_than">Greater Than</option>
+                                                        <option value="less_than">Less Than</option>
+                                                        <option value="greater_than_or_equal">Greater or Equal</option>
+                                                        <option value="less_than_or_equal">Less or Equal</option>
+                                                    </optgroup>
+                                                </select>
+
+                                                {!['is_empty', 'is_not_empty', 'is_today', 'is_yesterday', 'is_tomorrow', 'day_month_equal', 'is_current_month', 'is_next_month', 'is_current_year'].includes(trigger.operator) && (
+                                                    <div className="w-1/3">
+                                                        {['date_equals', 'date_before', 'date_after'].includes(trigger.operator) ? (
+                                                            <input
+                                                                type="date"
+                                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-brand-600 focus:border-brand-600 outline-none transition-all"
+                                                                value={trigger.value}
+                                                                onChange={e => {
+                                                                    const newGroups = [...formData.triggerGroups];
+                                                                    newGroups[groupIndex].conditions[index].value = e.target.value;
+                                                                    setFormData({ ...formData, triggerGroups: newGroups });
+                                                                }}
+                                                            />
+                                                        ) : ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? (
+                                                            <div className="relative">
+                                                                <input
+                                                                    type="number"
+                                                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm pr-10"
+                                                                    placeholder="Days"
+                                                                    value={trigger.value}
+                                                                    onChange={e => {
+                                                                        const newGroups = [...formData.triggerGroups];
+                                                                        newGroups[groupIndex].conditions[index].value = e.target.value;
+                                                                        setFormData({ ...formData, triggerGroups: newGroups });
+                                                                    }}
+                                                                />
+                                                                <span className="absolute right-3 top-2 text-xs text-slate-400">Days</span>
+                                                            </div>
+                                                        ) : ['date_between'].includes(trigger.operator) ? (
+                                                            <input
+                                                                type="text"
+                                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                                placeholder="YYYY-MM-DD,YYYY-MM-DD"
+                                                                title="Format: StartDate,EndDate"
+                                                                value={trigger.value}
+                                                                onChange={e => {
+                                                                    const newGroups = [...formData.triggerGroups];
+                                                                    newGroups[groupIndex].conditions[index].value = e.target.value;
+                                                                    setFormData({ ...formData, triggerGroups: newGroups });
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
+                                                                placeholder="Value"
+                                                                value={trigger.value}
+                                                                onChange={e => {
+                                                                    const newGroups = [...formData.triggerGroups];
+                                                                    newGroups[groupIndex].conditions[index].value = e.target.value;
+                                                                    setFormData({ ...formData, triggerGroups: newGroups });
+                                                                }}
+                                                            />
+                                                        )}
+                                                        {/* Helper Text Hint */}
+                                                        <p className="text-[10px] text-slate-400 mt-1 pl-1">
+                                                            {trigger.operator.includes('month') ? 'Compares month (1-12)' :
+                                                                trigger.operator.includes('year') ? 'Compares year (YYYY)' :
+                                                                    trigger.operator.includes('date') ? 'Format: DD/MM/YYYY or YYYY-MM-DD' :
+                                                                        trigger.operator.includes('day_month') ? 'Ignores year' :
+                                                                            trigger.operator.includes('equals') ? 'Exact match (case-insensitive)' :
+                                                                                trigger.operator.includes('contains') ? 'Partial text match' :
+                                                                                    ['in_last_x_days', 'in_next_x_days'].includes(trigger.operator) ? 'Enter number of days' :
+                                                                                        'Enter value to match'}
+                                                        </p>
+                                                    </div>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        const newGroups = [...formData.triggerGroups];
+                                                        newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter((_, i) => i !== index);
+                                                        setFormData({ ...formData, triggerGroups: newGroups });
+                                                    }}
+                                                    className="p-2 text-red-500 hover:bg-red-50 rounded"
+                                                    title="Remove Condition"
+                                                    disabled={group.conditions.length === 1}
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${group.conditions.length === 1 ? 'opacity-30' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <button
+                                            onClick={() => {
+                                                const newGroups = [...formData.triggerGroups];
+                                                newGroups[groupIndex].conditions.push({ column: '', operator: 'equals', value: '' });
+                                                setFormData({ ...formData, triggerGroups: newGroups });
+                                            }}
+                                            className="flex items-center gap-1 text-sm text-brand-600 font-medium hover:text-brand-700 mt-2 ml-1 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                            </svg>
+                                            Add Condition (AND)
+                                        </button>
+                                    </div>
+                                    
+                                    {/* OR Divider inside the space-y-6 container but outside the group border? No, let's put it after the group div */}
+                                </div>
+                                
+                                {/* OR Divider */}
+                                {groupIndex < formData.triggerGroups.length - 1 && (
+                                    <div className="flex justify-center my-6 relative">
+                                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                            <div className="w-full border-t border-slate-200/80"></div>
+                                        </div>
+                                        <div className="relative flex justify-center">
+                                            <span className="px-4 bg-slate-50/80 backdrop-blur text-xs font-black text-slate-400 uppercase tracking-widest border border-slate-200/80 rounded-full py-1 shadow-sm">OR</span>
+                                        </div>
                                     </div>
                                 )}
-
-                                <button
-                                    onClick={() => {
-                                        const newTriggers = formData.triggers.filter((_, i) => i !== index);
-                                        setFormData({ ...formData, triggers: newTriggers });
-                                    }}
-                                    className="p-2 text-red-500 hover:bg-red-50 rounded"
-                                    title="Remove Condition"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                </button>
-                            </div>
+                            </React.Fragment>
                         ))}
 
-                        <button
-                            onClick={() => {
-                                setFormData({
-                                    ...formData,
-                                    triggers: [...formData.triggers, { column: '', operator: 'equals', value: '' }]
-                                });
-                            }}
-                            className="flex items-center gap-2 text-sm text-brand-600 font-medium hover:text-brand-700 font"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                            </svg>
-                            Add Another Condition
-                        </button>
+                        <div className="pt-2">
+                            <button
+                                onClick={() => {
+                                    setFormData({
+                                        ...formData,
+                                        triggerGroups: [...formData.triggerGroups, { id: 'group-' + Date.now(), conditions: [{ column: '', operator: 'equals', value: '' }] }]
+                                    });
+                                }}
+                                className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-sm text-slate-600 font-bold hover:border-brand-500 hover:text-brand-600 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                </svg>
+                                Add Alternative Group (OR)
+                            </button>
+                        </div>
+                        </div>
                     </div>
                 )}
-
-                {/* STEP 4: MESSAGE */}
+{/* STEP 4: MESSAGE */}
                 {step === 4 && (
                     <div className="max-w-md mx-auto space-y-6">
                         <div>
@@ -1008,22 +1085,22 @@ const SheetAutomationWizard: React.FC<SheetAutomationWizardProps> = ({ onClose, 
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
+            <div className="p-5 border-t border-slate-100/50 flex justify-end gap-3 bg-slate-50/50 backdrop-blur-md">
                 {step > 1 && (
-                    <button onClick={() => setStep(step - 1)} className="px-4 py-2 border border-slate-300 rounded hover:bg-slate-100 text-slate-600">
+                    <button onClick={() => setStep(step - 1)} className="px-5 py-2.5 bg-white border border-slate-200 rounded-lg shadow-sm hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-medium transition-all duration-200 focus:ring-2 focus:ring-slate-200 outline-none">
                         Previous
                     </button>
                 )}
 
                 {step < 5 ? (
-                    <button onClick={handleNext} className="px-6 py-2 bg-brand-600 text-white rounded hover:bg-brand-700">
+                    <button onClick={handleNext} className="px-6 py-2.5 bg-gradient-to-r from-brand-500 to-brand-600 text-white rounded-lg shadow-md hover:shadow-lg hover:from-brand-600 hover:to-brand-700 font-medium transition-all duration-200 focus:ring-2 focus:ring-brand-500/50 outline-none transform active:scale-[0.98]">
                         Next
                     </button>
                 ) : (
                     canWrite ? (
                         <button
                             onClick={handleFinalSubmit}
-                            className={`px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`px-6 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 font-medium transition-all duration-200 focus:ring-2 focus:ring-green-500/50 outline-none transform active:scale-[0.98] ${isLoading ? 'opacity-70 cursor-not-allowed shadow-none' : ''}`}
                             disabled={isLoading}
                         >
                             {isLoading ? 'Saving...' : 'Finish & Save'}

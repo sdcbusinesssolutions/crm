@@ -3,6 +3,9 @@ import { followUpService, FollowUp } from '../../services/followUpService';
 import { getTasks, updateTask, deleteTask } from '../../services/lead-management-api';
 import FollowUpForm from './FollowUpForm';
 import { format, isToday, isPast, isFuture, parseISO, isSameDay } from 'date-fns';
+import SendWhatsAppMessageModal from '../SendWhatsAppMessageModal';
+import EmailModal from '../EmailModal';
+import LeadEditModal from '../LeadEditModal';
 import { TriggerIcon } from '../icons';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
@@ -28,12 +31,27 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     const [followUps, setFollowUps] = useState<UnifiedTask[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'today' | 'upcoming' | 'overdue' | 'completed'>('all');
+    const [sourceFilter, setSourceFilter] = useState<'all' | 'crm_task' | 'follow_up'>('all');
     const [searchTerm, setSearchTerm] = useState('');
+    const [dateFilterStart, setDateFilterStart] = useState('');
+    const [dateFilterEnd, setDateFilterEnd] = useState('');
     const [editingFollowUp, setEditingFollowUp] = useState<UnifiedTask | null>(null);
-
-    // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    // WhatsApp Modal State
+    const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [selectedChatPhone, setSelectedChatPhone] = useState('');
+    const [selectedChatName, setSelectedChatName] = useState('');
+    
+    // Email Modal State
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [selectedEmail, setSelectedEmail] = useState('');
+    const [selectedEmailName, setSelectedEmailName] = useState('');
+
+    // Lead Edit Modal State
+    const [isLeadEditModalOpen, setIsLeadEditModalOpen] = useState(false);
+    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
     useEffect(() => {
         if (canRead) {
@@ -61,7 +79,9 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 getTasks()
             ]);
 
-            const normalizedFollowUps: UnifiedTask[] = followUpData.map(f => ({
+            const filteredFollowUpData = followUpData.filter(f => !(f.title || '').startsWith('[QUICK_ALARM]'));
+
+            const normalizedFollowUps: UnifiedTask[] = filteredFollowUpData.map(f => ({
                 ...f,
                 source: 'follow_up'
             }));
@@ -75,11 +95,12 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     contact_id: t.lead_id, // Use lead_id as contact_id for keying purposes
                     title: t.title,
                     description: t.description,
-                    scheduled_at: t.due_date,
+                    scheduled_at: (t.due_date && !t.due_date.endsWith('Z')) ? t.due_date + 'Z' : t.due_date,
                     status: t.is_completed ? 'COMPLETED' : 'PENDING',
                     priority: 'MEDIUM',
                     type: 'TASK',
                     created_at: t.created_at || new Date().toISOString(),
+                    created_by_name: t.created_by_name,
                     source: 'crm_task',
                     original_data: t,
                     pipeline_name: pipelineName,
@@ -90,13 +111,32 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                 };
             });
 
-            // Merge and Sort by Date (scheduled_at)
-            const merged = [...normalizedFollowUps, ...normalizedTasks].sort((a, b) => {
-                const dateA = new Date(a.scheduled_at || 0).getTime();
-                const dateB = new Date(b.scheduled_at || 0).getTime();
-                return dateA - dateB;
+            // Sort by created_at descending first to find the latest
+            const allTasks = [...normalizedFollowUps, ...normalizedTasks].sort((a, b) => {
+                const dateA = new Date(a.created_at || 0).getTime();
+                const dateB = new Date(b.created_at || 0).getTime();
+                return dateB - dateA; // Descending
             });
 
+            // Deduplicate PENDING tasks by contact_id + source, keeping only the latest per category
+            const seenContactSource = new Set();
+            const deduplicated = [];
+
+            for (const task of allTasks) {
+                if (task.status !== 'COMPLETED' && task.contact_id) {
+                    const key = `${task.contact_id}_${task.source}`;
+                    if (seenContactSource.has(key)) {
+                        continue; // Skip older pending task of the same type
+                    }
+                    seenContactSource.add(key);
+                }
+                deduplicated.push(task);
+            }
+
+            // Tasks are already sorted by created_at descending from the deduplication step above.
+            // This ensures newly created/updated tasks appear at the top in all tabs.
+            const merged = deduplicated;
+            
             setFollowUps(merged);
         } catch (error) {
             console.error('Failed to load tasks', error);
@@ -192,20 +232,71 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
         }
     };
 
-    const handleExport = () => {
-        if (followUps.length === 0) return;
+    // --- Filtering & Searching ---
+    const filteredItems = followUps.filter(item => {
+        // 0. Source Filter
+        if (sourceFilter === 'crm_task' && item.source !== 'crm_task') return false;
+        if (sourceFilter === 'follow_up' && item.source !== 'follow_up') return false;
 
-        const headers = ['Status', 'Title', 'Description', 'Contact Name', 'Contact Phone', 'Due Date', 'Source', 'Pipeline'];
+        // 1. Filter Tab
+        if (filter === 'all' && item.status === 'COMPLETED') return false;
+        if (filter === 'completed' && item.status !== 'COMPLETED') return false;
+        if (filter === 'today' && (item.status === 'COMPLETED' || !item.scheduled_at || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'overdue' && (item.status === 'COMPLETED' || !item.scheduled_at || !isPast(parseISO(item.scheduled_at)))) return false;
+        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !item.scheduled_at || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
+
+        // 1.5 Date Range Filter
+        if (dateFilterStart || dateFilterEnd) {
+            if (!item.scheduled_at) return false;
+            try {
+                const itemDateStr = format(parseISO(item.scheduled_at), 'yyyy-MM-dd');
+                
+                if (dateFilterStart && itemDateStr < dateFilterStart) {
+                    return false;
+                }
+                if (dateFilterEnd && itemDateStr > dateFilterEnd) {
+                    return false;
+                }
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // 2. Search
+        if (searchTerm) {
+            const query = searchTerm.toLowerCase();
+            return (
+                item.title?.toLowerCase().includes(query) ||
+                item.description?.toLowerCase().includes(query) ||
+                item.contacts?.name?.toLowerCase().includes(query) ||
+                item.contacts?.phone?.includes(query) ||
+                item.contacts?.email?.toLowerCase().includes(query) ||
+                item.created_by_name?.toLowerCase().includes(query) ||
+                (item.source === 'crm_task' && 'pipeline task'.includes(query)) ||
+                item.pipeline_name?.toLowerCase().includes(query)
+            );
+        }
+        return true;
+    });
+
+    const handleExport = () => {
+        if (filteredItems.length === 0) {
+            alert('No tasks to export.');
+            return;
+        }
+
+        const headers = ['Status', 'Title', 'Description', 'Contact Name', 'Contact Phone', 'Contact Email', 'Due Date', 'Source', 'Pipeline'];
         const csvRows = [headers.join(',')];
 
-        followUps.forEach(item => {
+        filteredItems.forEach(item => {
             const row = [
                 item.status,
                 `"${(item.title || '').replace(/"/g, '""')}"`,
                 `"${(item.description || '').replace(/"/g, '""')}"`,
                 `"${(item.contacts?.name || '').replace(/"/g, '""')}"`,
                 `"${(item.contacts?.phone || '').replace(/"/g, '""')}"`,
-                `"${new Date(item.scheduled_at).toLocaleString()}"`,
+                `"${(item.contacts?.email || '').replace(/"/g, '""')}"`,
+                `"${item.scheduled_at ? new Date(item.scheduled_at).toLocaleString() : ''}"`,
                 item.source === 'crm_task' ? 'Pipeline Task' : 'Follow-Up',
                 `"${(item.pipeline_name || '-').replace(/"/g, '""')}"`
             ];
@@ -224,35 +315,11 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
     // --- Statistics Calculations ---
     const stats = {
         all: followUps.filter(i => i.status !== 'COMPLETED').length,
-        today: followUps.filter(i => i.status !== 'COMPLETED' && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
-        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
-        overdue: followUps.filter(i => i.status !== 'COMPLETED' && isPast(parseISO(i.scheduled_at))).length,
+        today: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isToday(parseISO(i.scheduled_at)) && !isPast(parseISO(i.scheduled_at))).length,
+        upcoming: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isFuture(parseISO(i.scheduled_at)) && !isToday(parseISO(i.scheduled_at))).length,
+        overdue: followUps.filter(i => i.status !== 'COMPLETED' && i.scheduled_at && isPast(parseISO(i.scheduled_at))).length,
         completed: followUps.filter(i => i.status === 'COMPLETED').length
     };
-
-    // --- Filtering & Searching ---
-    const filteredItems = followUps.filter(item => {
-        // 1. Filter Tab
-        if (filter === 'all' && item.status === 'COMPLETED') return false;
-        if (filter === 'completed' && item.status !== 'COMPLETED') return false;
-        if (filter === 'today' && (item.status === 'COMPLETED' || !isToday(parseISO(item.scheduled_at)) || isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'overdue' && (item.status === 'COMPLETED' || !isPast(parseISO(item.scheduled_at)))) return false;
-        if (filter === 'upcoming' && (item.status === 'COMPLETED' || !isFuture(parseISO(item.scheduled_at)) || isToday(parseISO(item.scheduled_at)))) return false;
-
-        // 2. Search
-        if (searchTerm) {
-            const query = searchTerm.toLowerCase();
-            return (
-                item.title?.toLowerCase().includes(query) ||
-                item.description?.toLowerCase().includes(query) ||
-                item.contacts?.name?.toLowerCase().includes(query) ||
-                item.contacts?.phone?.includes(query) ||
-                (item.source === 'crm_task' && 'pipeline task'.includes(query)) ||
-                item.pipeline_name?.toLowerCase().includes(query)
-            );
-        }
-        return true;
-    });
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -393,19 +460,72 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
             {/* Table Section */}
             <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {/* Table Top Bar */}
-                <div className="p-4 flex justify-between items-center border-b border-slate-100">
-                    <h3 className="font-bold text-lg text-slate-800">All Tasks</h3>
-                    <div className="relative w-64">
-                        <input
-                            type="text"
-                            placeholder="Search tasks..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 transition"
-                        />
-                        <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
+                <div className="p-4 flex flex-col xl:flex-row gap-4 justify-between items-center border-b border-slate-100">
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setSourceFilter('all')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'all' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            All Tasks
+                        </button>
+                        <button
+                            onClick={() => setSourceFilter('crm_task')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'crm_task' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Pipeline Tasks
+                        </button>
+                        <button
+                            onClick={() => setSourceFilter('follow_up')}
+                            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${sourceFilter === 'follow_up' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            General Reminders
+                        </button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
+                        <div className="flex flex-row items-center gap-2 w-full sm:w-auto">
+                            <div className="flex items-center gap-1 border border-slate-300 rounded-lg bg-white overflow-hidden">
+                                <span className="px-2 py-2 text-xs font-medium text-slate-500 bg-slate-50 border-r border-slate-300">From</span>
+                                <input
+                                    type="date"
+                                    value={dateFilterStart}
+                                    onChange={(e) => setDateFilterStart(e.target.value)}
+                                    className="px-2 py-2 text-sm focus:outline-none text-slate-600 cursor-pointer"
+                                    title="Start Date"
+                                />
+                            </div>
+                            <div className="flex items-center gap-1 border border-slate-300 rounded-lg bg-white overflow-hidden">
+                                <span className="px-2 py-2 text-xs font-medium text-slate-500 bg-slate-50 border-r border-slate-300">To</span>
+                                <input
+                                    type="date"
+                                    value={dateFilterEnd}
+                                    onChange={(e) => setDateFilterEnd(e.target.value)}
+                                    className="px-2 py-2 text-sm focus:outline-none text-slate-600 cursor-pointer"
+                                    title="End Date"
+                                />
+                            </div>
+                            
+                            {(dateFilterStart || dateFilterEnd) && (
+                                <button 
+                                    onClick={() => { setDateFilterStart(''); setDateFilterEnd(''); }}
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition"
+                                    title="Clear date filters"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            )}
+                        </div>
+                        <div className="relative w-full sm:w-72">
+                            <input
+                                type="text"
+                                placeholder="Search by name, phone, email, or staff..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-green-500 focus:border-green-500 transition"
+                            />
+                            <svg className="w-5 h-5 text-slate-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
                     </div>
                 </div>
 
@@ -424,7 +544,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {paginatedItems.map(item => {
-                                const isOverdue = item.status !== 'COMPLETED' && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
+                                const isOverdue = item.status !== 'COMPLETED' && !!item.scheduled_at && isPast(parseISO(item.scheduled_at)) && !isToday(parseISO(item.scheduled_at));
                                 const activeDrip = item.contacts?.drip_enrollments?.find(d => d.status === 'ACTIVE');
 
                                 return (
@@ -446,6 +566,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                 )}
                                             </div>
                                             <div className="text-xs text-slate-500 line-clamp-1">{item.description || 'No description'}</div>
+                                            <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                Created by: <span className="font-semibold text-slate-500">{item.created_by_name || 'System'}</span> at {format(parseISO(item.created_at), 'MMM d, yyyy h:mm a')}
+                                            </div>
                                             {item.recurrence_rule && (
                                                 <div className="text-[10px] text-green-600 font-bold flex items-center gap-1 mt-1 uppercase">
                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -460,7 +584,32 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                         {getInitials(item.contacts.name)}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-bold text-slate-800">{item.contacts.name}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div 
+                                                                className="text-sm font-bold text-slate-800 cursor-pointer hover:text-green-600 hover:underline transition-colors"
+                                                                onClick={() => {
+                                                                    if (item.contact_id) {
+                                                                        setSelectedLeadId(item.contact_id);
+                                                                        setIsLeadEditModalOpen(true);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {item.contacts.name}
+                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (item.contact_id) {
+                                                                        setSelectedLeadId(item.contact_id);
+                                                                        setIsLeadEditModalOpen(true);
+                                                                    }
+                                                                }}
+                                                                className="flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                                title="Edit Contact Info"
+                                                            >
+                                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                                                            </button>
+                                                        </div>
                                                         <div className="text-xs text-slate-500">{item.contacts.phone}</div>
                                                         {activeDrip && (
                                                             <div className="mt-1 flex flex-col gap-0.5">
@@ -486,9 +635,10 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                             <span className={`px-3 py-1 rounded text-xs font-bold
                                                 ${isOverdue ? 'bg-red-100 text-red-600' :
                                                     item.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                                        !item.scheduled_at ? 'bg-slate-100 text-slate-600' :
                                                         isToday(parseISO(item.scheduled_at)) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}
                                              `}>
-                                                {format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a')}
+                                                {item.scheduled_at ? format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a') : 'No Date Set'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -499,12 +649,44 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                     </button>
                                                 )}
                                                 {canWrite && (
-                                                    <button onClick={() => { setEditingFollowUp(item); setView('form'); }} className="text-slate-400 hover:text-blue-600">
+                                                    <button onClick={() => { setEditingFollowUp(item); setView('form'); }} className="p-1.5 rounded-md text-slate-500 bg-slate-100 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit Task">
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                                     </button>
                                                 )}
+                                                {canWrite && (
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (!item.contacts?.phone) return;
+                                                            setSelectedChatPhone(item.contacts.phone); 
+                                                            setSelectedChatName(item.contacts.name || ''); 
+                                                            setIsWhatsAppModalOpen(true); 
+                                                        }} 
+                                                        className={`p-1.5 rounded-md transition-colors ${item.contacts?.phone ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:text-emerald-700' : 'text-slate-300 bg-slate-50 cursor-not-allowed'}`}
+                                                        title={item.contacts?.phone ? "Send WhatsApp Message" : "No phone number"}
+                                                        disabled={!item.contacts?.phone}
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                                    </button>
+                                                )}
+                                                {canWrite && (
+                                                    <button 
+                                                        onClick={(e) => { 
+                                                            e.stopPropagation(); 
+                                                            if (!item.contacts?.email) return;
+                                                            setSelectedEmail(item.contacts.email); 
+                                                            setSelectedEmailName(item.contacts.name || ''); 
+                                                            setIsEmailModalOpen(true); 
+                                                        }} 
+                                                        className={`p-1.5 rounded-md transition-colors ${item.contacts?.email ? 'text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700' : 'text-slate-300 bg-slate-50 cursor-not-allowed'}`}
+                                                        title={item.contacts?.email ? "Send Email" : "No email address"}
+                                                        disabled={!item.contacts?.email}
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                    </button>
+                                                )}
                                                 {canDelete && (
-                                                    <button onClick={() => handleDelete(item.id, item.source)} className="text-slate-400 hover:text-red-500">
+                                                    <button onClick={() => handleDelete(item.id, item.source)} className="p-1.5 rounded-md text-slate-500 bg-slate-100 hover:text-red-600 hover:bg-red-50 transition-colors" title="Delete Task">
                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                     </button>
                                                 )}
@@ -547,6 +729,27 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                     </div>
                 </div>
             </div>
+            <SendWhatsAppMessageModal
+                isOpen={isWhatsAppModalOpen}
+                onClose={() => setIsWhatsAppModalOpen(false)}
+                contactPhone={selectedChatPhone}
+                contactName={selectedChatName}
+            />
+            <EmailModal
+                isOpen={isEmailModalOpen}
+                onClose={() => setIsEmailModalOpen(false)}
+                recipientEmail={selectedEmail}
+                recipientName={selectedEmailName}
+            />
+            <LeadEditModal
+                isOpen={isLeadEditModalOpen}
+                onClose={() => {
+                    setIsLeadEditModalOpen(false);
+                    setSelectedLeadId(null);
+                }}
+                leadId={selectedLeadId}
+                onUpdate={loadFollowUps}
+            />
         </div>
     );
 };

@@ -28,8 +28,14 @@ router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
                         )
                 )
             `)
-            .eq('user_id', req.user.id)
-            .order('scheduled_at', { ascending: true });
+            .eq('user_id', req.user.id);
+            
+        // Staff can only see their own follow-ups
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        query = query.order('scheduled_at', { ascending: true });
 
         if (contact_id) {
             query = query.eq('contact_id', contact_id);
@@ -47,6 +53,61 @@ router.get('/', requirePermission('Follow-up', 'read'), async (req, res) => {
         const { data, error } = await query;
 
         if (error) throw error;
+        
+        // --- RESOLVE CREATOR NAMES ---
+        // Collect staff IDs from created_by_staff_id, and owner IDs from user_id if no staff ID is present.
+        const staffIds = [...new Set(data.map(f => f.created_by_staff_id).filter(Boolean))];
+        const ownerIds = [...new Set(data.map(f => !f.created_by_staff_id ? f.user_id : null).filter(Boolean))];
+        
+        if (staffIds.length > 0 || ownerIds.length > 0) {
+            const { supabaseAdmin } = require('../lib/supabaseClient');
+            if (supabaseAdmin) {
+                const memberMap = {};
+                
+                // 1. Fetch Staff Names
+                if (staffIds.length > 0) {
+                    const { data: teamStaff } = await supabaseAdmin.from('team_staff').select('id, name').in('id', staffIds);
+                    if (teamStaff) teamStaff.forEach(ts => memberMap[`staff_${ts.id}`] = ts.name);
+                }
+
+                // 2. Fetch Owner/Agent Names (Fallback)
+                if (ownerIds.length > 0) {
+                    const { data: teamStaffOwners } = await supabaseAdmin.from('team_staff').select('tenant_id, name').in('tenant_id', ownerIds);
+                    if (teamStaffOwners) teamStaffOwners.forEach(ts => memberMap[`user_${ts.tenant_id}`] = ts.name);
+                    
+                    const { data: teamMembers } = await supabaseAdmin.from('team_members').select('user_id, first_name, last_name').in('user_id', ownerIds);
+                    if (teamMembers) {
+                        teamMembers.forEach(tm => {
+                            if (!memberMap[`user_${tm.user_id}`]) memberMap[`user_${tm.user_id}`] = `${tm.first_name || ''} ${tm.last_name || ''}`.trim();
+                        });
+                    }
+                    
+                    const { data: profiles } = await supabaseAdmin.from('profiles').select('id, email').in('id', ownerIds);
+                    if (profiles) {
+                        profiles.forEach(p => {
+                            if (!memberMap[`user_${p.id}`]) memberMap[`user_${p.id}`] = p.email;
+                        });
+                    }
+                }
+
+                data.forEach(f => {
+                    let name = null;
+                    if (f.created_by_staff_id) {
+                        name = memberMap[`staff_${f.created_by_staff_id}`];
+                        if (name && f.created_by_staff_id === req.user.staffId) {
+                             name = name + ' (You)';
+                        }
+                    } else {
+                        name = memberMap[`user_${f.user_id}`];
+                        if (!name && f.user_id === req.user.id) {
+                            name = req.user.user_metadata?.name || req.user.user_metadata?.full_name || req.user.email || req.user.phone || 'Owner';
+                        }
+                    }
+                    f.created_by_name = name || 'System';
+                });
+            }
+        }
+        
         res.json(data);
     } catch (err) {
         console.error('Error fetching follow-ups:', err);
@@ -60,24 +121,49 @@ router.post('/', requirePermission('Follow-up', 'read_write'), async (req, res) 
         const supabase = await getAuthenticatedSupabase(req);
         const { contact_id, title, description, scheduled_at, priority, type, timezone, recurrence_rule } = req.body;
         
-        if (!contact_id) {
+        let resolved_contact_id = contact_id;
+        
+        if (!resolved_contact_id) {
             return res.status(400).json({ error: 'Contact ID is required' });
+        }
+
+        // AUTO-CORRECT: If the frontend passed a lead_id instead of a contact_id, resolve it
+        const { data: contactCheck } = await supabase.from('contacts').select('id').eq('id', resolved_contact_id).maybeSingle();
+        if (!contactCheck) {
+            // Check if it's a lead
+            const { data: lead } = await supabase.from('leads').select('phone').eq('id', resolved_contact_id).maybeSingle();
+            if (lead && lead.phone) {
+                const { data: realContact } = await supabase.from('contacts').select('id').eq('phone', lead.phone).maybeSingle();
+                if (realContact) {
+                    resolved_contact_id = realContact.id;
+                } else {
+                    return res.status(400).json({ error: 'Lead has no associated contact to attach follow-up to.' });
+                }
+            } else {
+                 return res.status(400).json({ error: 'Contact not found.' });
+            }
+        }
+
+        const insertData = {
+            user_id: req.user.id,
+            contact_id: resolved_contact_id,
+            title,
+            description,
+            scheduled_at,
+            priority: priority || 'MEDIUM',
+            type: type || 'TASK',
+            timezone: timezone || 'UTC',
+            recurrence_rule,
+            status: 'PENDING'
+        };
+
+        if (req.user.isStaff && req.user.staffId) {
+            insertData.created_by_staff_id = req.user.staffId;
         }
 
         const { data, error } = await supabase
             .from('follow_ups')
-            .insert({
-                user_id: req.user.id,
-                contact_id,
-                title,
-                description,
-                scheduled_at,
-                priority: priority || 'MEDIUM',
-                type: type || 'TASK',
-                timezone: timezone || 'UTC',
-                recurrence_rule,
-                status: 'PENDING'
-            })
+            .insert(insertData)
             .select()
             .single();
 
@@ -95,6 +181,18 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
         const supabase = await getAuthenticatedSupabase(req);
         const { title, description, scheduled_at, status, priority, type, contact_id, recurrence_rule } = req.body;
 
+        let resolved_contact_id = contact_id;
+        if (resolved_contact_id) {
+            const { data: contactCheck } = await supabase.from('contacts').select('id').eq('id', resolved_contact_id).maybeSingle();
+            if (!contactCheck) {
+                const { data: lead } = await supabase.from('leads').select('phone').eq('id', resolved_contact_id).maybeSingle();
+                if (lead && lead.phone) {
+                    const { data: realContact } = await supabase.from('contacts').select('id').eq('phone', lead.phone).maybeSingle();
+                    if (realContact) resolved_contact_id = realContact.id;
+                }
+            }
+        }
+
         const updates = {};
         if (title !== undefined) updates.title = title;
         if (description !== undefined) updates.description = description;
@@ -102,17 +200,21 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
         if (status !== undefined) updates.status = status;
         if (priority !== undefined) updates.priority = priority;
         if (type !== undefined) updates.type = type;
-        if (contact_id !== undefined) updates.contact_id = contact_id;
+        if (resolved_contact_id !== undefined) updates.contact_id = resolved_contact_id;
         if (recurrence_rule !== undefined) updates.recurrence_rule = recurrence_rule;
         updates.updated_at = new Date();
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('follow_ups')
             .update(updates)
             .eq('id', req.params.id)
-            .eq('user_id', req.user.id)
-            .select()
-            .single();
+            .eq('user_id', req.user.id);
+
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        const { data, error } = await query.select().single();
 
         if (error) throw error;
         res.json(data);
@@ -126,11 +228,17 @@ router.put('/:id', requirePermission('Follow-up', 'read_write'), async (req, res
 router.delete('/:id', requirePermission('Follow-up', 'all_access'), async (req, res) => {
     try {
         const supabase = await getAuthenticatedSupabase(req);
-        const { error } = await supabase
+        let query = supabase
             .from('follow_ups')
             .delete()
             .eq('id', req.params.id)
             .eq('user_id', req.user.id);
+
+        if (req.user.isStaff && req.user.staffId) {
+            query = query.eq('created_by_staff_id', req.user.staffId);
+        }
+
+        const { error } = await query;
 
         if (error) throw error;
         res.json({ success: true });

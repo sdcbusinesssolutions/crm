@@ -11,8 +11,46 @@ const multer = require('multer');
 const getUserId = (req) => req.user.id;
 
 // ==========================================
-// 1. Get Conversations (Paginated)
+// 1. Fetch Conversations with optional Search/Filters
 // ==========================================
+router.post('/conversations', requirePermission('Inbox', 'read_write'), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const supabase = getAuthenticatedSupabase(req);
+        const { contactPhone } = req.body;
+        
+        const cleanPhone = contactPhone.replace(/\D/g, '');
+
+        const { data: existing } = await supabase
+            .from('conversations')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('contact_phone', cleanPhone)
+            .single();
+
+        if (existing) {
+            return res.json(existing);
+        }
+
+        const { data: newConv, error } = await supabase
+            .from('conversations')
+            .insert({
+                user_id: userId,
+                contact_phone: cleanPhone,
+                status: 'open',
+                updated_at: new Date().toISOString()
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(newConv);
+    } catch (error) {
+        console.error('Error creating conversation:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res) => {
     try {
         const userId = getUserId(req);
@@ -29,7 +67,7 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
 
         let query = supabase
             .from('conversations')
-            .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to', { count: 'exact' })
+            .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to, bot_paused_until, assigned_ai_agent_id', { count: 'exact' })
             .eq('user_id', userId);
 
         // Filter by assigned leads if restricted
@@ -290,6 +328,25 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // 2. Prepare Content for WhatsApp Service
         let content = {};
         if (type === 'template') {
+            // Explicitly check for WhatsApp Templates permission to send templates
+            if (req.staff && req.staff.permissions) {
+                const permissions = req.staff.permissions;
+                const cleanName = (name) => name.replace(/[\s+]/g, '').toLowerCase();
+                const targetClean = cleanName('WhatsApp Templates');
+                let hasTemplateAccess = false;
+                for (const key of Object.keys(permissions)) {
+                    if (cleanName(key) === targetClean) {
+                        const level = permissions[key];
+                        if (['read', 'read_write', 'all_access'].includes(level)) {
+                            hasTemplateAccess = true;
+                            break;
+                        }
+                    }
+                }
+                if (!hasTemplateAccess) {
+                    return res.status(403).json({ error: 'Forbidden', message: 'You need WhatsApp Templates access to send templates.' });
+                }
+            }
             content = req.body.template;
         } else if (type === 'text') {
             content = { body: text };
@@ -418,13 +475,15 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
 
         if (msgError) throw msgError;
 
-        // 5. Update conversation last_message
+        // 5. Update conversation last_message and pause AI
         const previewText = type === 'template' ? `📄 Template: ${content.name}` : (text || `[${type}]`);
+        const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
         await supabase
             .from('conversations')
             .update({
                 last_message: previewText,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                bot_paused_until: pauseUntil
             })
             .eq('id', conversationId);
 
@@ -432,6 +491,52 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
 
     } catch (error) {
         console.error('Error sending message:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Toggle AI Pause Status
+router.post('/messages/:conversationId/toggle-ai', requirePermission('Inbox', 'read_write'), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { supabaseAdmin } = require('../lib/supabaseClient');
+        const { conversationId } = req.params;
+        const { paused } = req.body;
+        
+        const pauseUntil = paused ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
+        
+        const { error } = await supabaseAdmin
+            .from('conversations')
+            .update({ bot_paused_until: pauseUntil })
+            .eq('id', conversationId)
+            .eq('user_id', userId);
+            
+        if (error) throw error;
+        res.json({ success: true, bot_paused_until: pauseUntil });
+    } catch (error) {
+        console.error('Error toggling AI status:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Assign AI Agent to Conversation
+router.post('/messages/:conversationId/assign-ai', requirePermission('Inbox', 'read_write'), async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { supabaseAdmin } = require('../lib/supabaseClient');
+        const { conversationId } = req.params;
+        const { agentId } = req.body;
+        
+        const { error } = await supabaseAdmin
+            .from('conversations')
+            .update({ assigned_ai_agent_id: agentId || null })
+            .eq('id', conversationId)
+            .eq('user_id', userId);
+            
+        if (error) throw error;
+        res.json({ success: true, assigned_ai_agent_id: agentId || null });
+    } catch (error) {
+        console.error('Error assigning AI:', error);
         res.status(500).json({ error: error.message });
     }
 });

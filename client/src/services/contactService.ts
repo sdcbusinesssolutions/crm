@@ -17,6 +17,17 @@ const getHeaders = async () => {
 };
 
 export const contactService = {
+    getContact: async (id: string): Promise<Contact | null> => {
+        try {
+            const headers = await getHeaders();
+            const res = await fetch(`/api/contacts/${id}`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch contact');
+            return await res.json();
+        } catch (e) {
+            console.error('Failed to load contact', e);
+            return null;
+        }
+    },
     getContacts: async (): Promise<Contact[]> => {
         try {
             const headers = await getHeaders();
@@ -32,7 +43,7 @@ export const contactService = {
     getContactsPaginated: async (
         page: number, 
         limit: number, 
-        filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}
+        filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string, optStatus?: string } = {}
     ): Promise<{ data: Contact[], total: number }> => {
         try {
             const headers = await getHeaders();
@@ -43,6 +54,7 @@ export const contactService = {
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
             if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+            if (filters.optStatus) url += `&optStatus=${encodeURIComponent(filters.optStatus)}`;
 
             const res = await fetch(url, { headers });
             if (!res.ok) throw new Error('Failed to fetch paginated contacts');
@@ -53,7 +65,7 @@ export const contactService = {
         }
     },
 
-    exportContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<Contact[]> => {
+    exportContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string, optStatus?: string } = {}): Promise<Contact[]> => {
         try {
             const headers = await getHeaders();
             let url = `/api/contacts/export?`;
@@ -62,6 +74,7 @@ export const contactService = {
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
             if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+            if (filters.optStatus) url += `&optStatus=${encodeURIComponent(filters.optStatus)}`;
 
             const res = await fetch(url, { headers });
             if (!res.ok) throw new Error('Failed to export contacts');
@@ -169,7 +182,7 @@ export const contactService = {
         }
     },
 
-    deleteFilteredContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<number> => {
+    deleteFilteredContacts: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string, optStatus?: string } = {}): Promise<number> => {
         try {
             const headers = await getHeaders();
             let url = `/api/contacts/bulk-delete-filtered?`;
@@ -178,6 +191,7 @@ export const contactService = {
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
             if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+            if (filters.optStatus) url += `&optStatus=${encodeURIComponent(filters.optStatus)}`;
 
             const res = await fetch(url, { method: 'POST', headers });
             if (!res.ok) {
@@ -216,7 +230,7 @@ export const contactService = {
         }
     },
 
-    getFilteredPhones: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string } = {}): Promise<string[]> => {
+    getFilteredPhones: async (filters: { search?: string, groupId?: string, tag?: string, startDate?: string, endDate?: string, optStatus?: string } = {}): Promise<string[]> => {
         try {
             const headers = await getHeaders();
             let url = `/api/contacts/phones?`;
@@ -225,6 +239,7 @@ export const contactService = {
             if (filters.tag) url += `&tag=${encodeURIComponent(filters.tag)}`;
             if (filters.startDate) url += `&startDate=${encodeURIComponent(filters.startDate)}`;
             if (filters.endDate) url += `&endDate=${encodeURIComponent(filters.endDate)}`;
+            if (filters.optStatus) url += `&optStatus=${encodeURIComponent(filters.optStatus)}`;
 
             const res = await fetch(url, { headers });
             if (!res.ok) throw new Error('Failed to fetch filtered phones');

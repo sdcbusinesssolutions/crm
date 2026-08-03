@@ -49,14 +49,22 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('whatsapp_templates')
-                .select('*')
-                .eq('status', 'APPROVED')
-                .order('name', { ascending: true });
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return;
 
-            if (error) throw error;
-            setTemplates(data || []);
+            const response = await fetch('/api/whatsapp/templates', {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch templates');
+
+            const result = await response.json();
+            const approvedTemplates = (result.data || []).filter((t: any) => t.status === 'APPROVED');
+            
+            // Sort templates by name ascending
+            approvedTemplates.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+            
+            setTemplates(approvedTemplates);
         } catch (error) {
             console.error('Error fetching templates:', error);
         } finally {
@@ -363,34 +371,34 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-[#0f172a] rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border border-slate-800">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-100/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-slide-up border border-slate-200">
                 {/* Header */}
-                <div className="px-6 py-5 border-b border-slate-800 flex items-center justify-between bg-[#1e293b]/40">
+                <div className="px-6 py-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-brand-500/10 flex items-center justify-center border border-brand-500/20">
-                            <BadgeIcon className="w-5 h-5 text-brand-500" />
+                        <div className="w-10 h-10 rounded-2xl bg-[#c0f7e7]/40 flex items-center justify-center border border-[#00684a]/20">
+                            <BadgeIcon className="w-5 h-5 text-[#00684a]" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white tracking-tight">Send WhatsApp Template</h2>
-                            <p className="text-xs text-slate-400 font-medium tracking-wide">Select and configure your message for dispatch</p>
+                            <h2 className="text-xl font-bold text-slate-800 tracking-tight">Send WhatsApp Template</h2>
+                            <p className="text-sm text-slate-600 font-medium tracking-wide">Select and configure your message for dispatch</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-500 hover:text-white">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-600 hover:text-slate-800">
                         <CloseIcon className="w-5 h-5" />
                     </button>
                 </div>
 
                 <div className="flex-1 flex overflow-hidden">
                     {/* Left Side: Template List */}
-                    <div className="w-1/3 border-r border-slate-800 flex flex-col bg-[#1e293b]/20">
+                    <div className="w-1/3 border-r border-slate-200 flex flex-col bg-slate-50">
                         <div className="p-6">
                             <div className="relative group">
-                                <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-brand-500 transition-colors" />
+                                <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-[#00684a] transition-colors" />
                                 <input
                                     type="text"
                                     placeholder="Search templates..."
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-[15px] text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/20 focus:border-[#00684a] transition-all outline-none"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -399,27 +407,27 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
 
                         <div className="flex-1 overflow-y-auto px-4 pb-6 h-[500px] custom-scrollbar">
                             {loading ? (
-                                <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-3">
-                                    <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-[10px] font-bold uppercase tracking-widest">Loading Library...</span>
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-600 space-y-3">
+                                    <div className="w-8 h-8 border-2 border-[#00684a] border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-xs font-bold uppercase tracking-widest">Loading Library...</span>
                                 </div>
                             ) : filteredTemplates.length > 0 ? (
                                 filteredTemplates.map(t => (
                                     <button
                                         key={t.id}
                                         onClick={() => handleSelectTemplate(t)}
-                                        className={`w-full text-left p-4 rounded-2xl mb-2 transition-all duration-300 group relative border ${selectedTemplate?.id === t.id ? 'bg-brand-500/10 border-brand-500/30 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'hover:bg-slate-800/40 border-transparent'}`}
+                                        className={`w-full text-left p-4 rounded-2xl mb-2 transition-all duration-300 group relative border ${selectedTemplate?.id === t.id ? 'bg-[#c0f7e7] border-[#00684a]/30 shadow-[0_0_20px_rgba(16,185,129,0.05)]' : 'hover:bg-slate-100/40 border-transparent'}`}
                                     >
                                         {selectedTemplate?.id === t.id && (
-                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-brand-500 rounded-r-full"></div>
+                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-[#00684a] rounded-r-full"></div>
                                         )}
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${selectedTemplate?.id === t.id ? 'bg-brand-500/20 text-brand-400' : 'bg-slate-800 text-slate-400'}`}>
+                                            <span className={`text-[11px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${selectedTemplate?.id === t.id ? 'bg-[#00684a]/20 text-[#00684a]' : 'bg-slate-100 text-slate-600'}`}>
                                                 {(t.category || 'OTHER').replace(/_/g, ' ')}
                                             </span>
-                                            <span className="text-[9px] text-slate-600 font-mono font-bold">{t.language}</span>
+                                            <span className="text-[11px] text-slate-600 font-mono font-bold">{t.language}</span>
                                         </div>
-                                        <span className={`text-xs font-bold block truncate tracking-tight ${selectedTemplate?.id === t.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                        <span className={`text-sm font-bold block truncate tracking-tight ${selectedTemplate?.id === t.id ? 'text-slate-800' : 'text-slate-600 group-hover:text-slate-200'}`}>
                                             {t.name}
                                         </span>
                                     </button>
@@ -427,19 +435,19 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                             ) : (
                                 <div className="text-center py-20 px-6">
                                     <SearchIcon className="w-10 h-10 text-slate-800 mx-auto mb-3" />
-                                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">No matching templates found</p>
+                                    <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">No matching templates found</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Right Side: Preview & Variables */}
-                    <div className="flex-1 flex flex-col bg-[#0f172a]">
+                    <div className="flex-1 flex flex-col bg-white">
                         {selectedTemplate ? (
-                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-[#0f172a]">
+                            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white">
                                 {/* Preview Card */}
                                 {components.length > 0 ? (
-                                    <div className="bg-slate-900 shadow-2xl rounded-[32px] p-6 border border-slate-800 max-w-sm mx-auto relative overflow-hidden group animate-fade-in">
+                                    <div className="bg-white shadow-2xl rounded-[32px] p-6 border border-slate-200 max-w-sm mx-auto relative overflow-hidden group animate-fade-in">
                                         <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-brand-500/5 to-transparent pointer-events-none"></div>
                                         <div className="bg-white rounded-2xl p-4 shadow-xl relative z-10">
                                             {/* Dynamic Header Preview */}
@@ -450,8 +458,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                             <img src={URL.createObjectURL(headerFile)} className="w-full h-full object-cover" />
                                                         ) : (
                                                             <div className="flex flex-col items-center gap-2">
-                                                                {headerFile.type.startsWith('video/') ? <VideoFileIcon className="w-8 h-8 text-brand-500" /> : <DocumentFileIcon className="w-8 h-8 text-red-500" />}
-                                                                <span className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">{headerFile.name}</span>
+                                                                {headerFile.type.startsWith('video/') ? <VideoFileIcon className="w-8 h-8 text-[#00684a]" /> : <DocumentFileIcon className="w-8 h-8 text-red-500" />}
+                                                                <span className="text-xs font-bold text-slate-600 truncate max-w-[150px]">{headerFile.name}</span>
                                                             </div>
                                                         )
                                                     ) : (
@@ -468,7 +476,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                         {format === 'IMAGE' ? <ImageFileIcon className="w-8 h-8" /> : 
                                                                          format === 'VIDEO' ? <VideoFileIcon className="w-8 h-8" /> : 
                                                                          <DocumentFileIcon className="w-8 h-8" />}
-                                                                        <span className="text-[10px] font-bold">HEADER {format}</span>
+                                                                        <span className="text-xs font-bold">HEADER {format}</span>
                                                                     </>
                                                                 );
                                                             })()}
@@ -481,8 +489,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             {components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL') && (
                                                 <div className="flex gap-3 overflow-x-auto pb-4 px-1 -mx-1 custom-scrollbar-horizontal mb-2 snap-x">
                                                     {(components.find(c => (c.type || '').toUpperCase() === 'CAROUSEL')?.cards || []).map((card: any, cIdx: number) => (
-                                                        <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm snap-start">
-                                                            <div className="aspect-square bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800">
+                                                        <div key={cIdx} className="min-w-[180px] max-w-[180px] bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm snap-start">
+                                                            <div className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden border-b border-slate-200">
                                                                 {(() => {
                                                                     const h = (card.components || []).find((cc: any) => cc.type === 'HEADER');
                                                                     const mUrl = h?.example?.header_url?.[0] || h?.example?.header_handle?.[0];
@@ -502,7 +510,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                                 text = text.replace(m, variables[`CARD_${cIdx + 1}_HEADER_${num}`] || `[V${num}]`);
                                                                             });
                                                                         }
-                                                                        return <div key={ccIdx} className="text-[10px] font-bold truncate leading-tight text-white/90">{text}</div>;
+                                                                        return <div key={ccIdx} className="text-xs font-bold truncate leading-tight text-slate-800/90">{text}</div>;
                                                                     }
                                                                     if (type === 'BODY') {
                                                                         let text = String(cc.text || '');
@@ -513,7 +521,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                                 text = text.replace(m, variables[`CARD_${cIdx + 1}_BODY_${num}`] || `[V${num}]`);
                                                                             });
                                                                         }
-                                                                        return <div key={ccIdx} className="text-[9px] text-slate-400 line-clamp-2 leading-snug">{text}</div>;
+                                                                        return <div key={ccIdx} className="text-[11px] text-slate-600 line-clamp-2 leading-snug">{text}</div>;
                                                                     }
                                                                     return null;
                                                                 })}
@@ -547,16 +555,16 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                             text = text.replace(match, variables[`BODY_${num}`] || `[Variable ${num}]`);
                                                         });
                                                     }
-                                                    return <p key={idx} className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
+                                                    return <p key={idx} className="text-[15px] text-slate-600 whitespace-pre-wrap leading-relaxed">{text}</p>;
                                                 }
                                                 if (type === 'FOOTER') {
-                                                    return <p key={idx} className="text-[10px] text-slate-400 mt-2 uppercase tracking-tighter">{String(comp.text || '')}</p>;
+                                                    return <p key={idx} className="text-xs text-slate-600 mt-2 uppercase tracking-tighter">{String(comp.text || '')}</p>;
                                                 }
                                                 if (type === 'BUTTONS' && Array.isArray(comp.buttons)) {
                                                     return (
                                                         <div key={idx} className="mt-5 space-y-2 border-t border-slate-100 -mx-4 pt-1">
                                                             {comp.buttons.map((btn: any, bIdx: number) => (
-                                                                <div key={bIdx} className="w-full py-2.5 text-center text-brand-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-default">
+                                                                <div key={bIdx} className="w-full py-2.5 text-center text-[#00684a] text-sm font-bold hover:bg-slate-50 transition-colors cursor-default">
                                                                     {btn.text}
                                                                 </div>
                                                             ))}
@@ -567,20 +575,20 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             })}
                                             
                                             <div className="absolute bottom-1.5 right-3">
-                                                <span className="text-[10px] text-slate-300 font-medium tracking-tighter">12:00 PM</span>
+                                                <span className="text-xs text-slate-300 font-medium tracking-tighter">12:00 PM</span>
                                             </div>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="bg-slate-900/50 rounded-3xl p-12 border border-slate-800/50 flex flex-col items-center justify-center text-center animate-pulse">
-                                        <div className="w-12 h-12 border-2 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
+                                    <div className="bg-white/50 rounded-3xl p-12 border border-slate-200/50 flex flex-col items-center justify-center text-center animate-pulse">
+                                        <div className="w-12 h-12 border-2 border-[#00684a]/20 border-t-brand-500 rounded-full animate-spin"></div>
                                     </div>
                                 )}
 
                                 {/* Variable Inputs */}
                                 <div className="space-y-6">
-                                    <h3 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-[0.2em] ml-1">
-                                        <div className="w-1.5 h-4 bg-brand-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                    <h3 className="text-sm font-bold text-slate-600 flex items-center gap-2 uppercase tracking-[0.2em] ml-1">
+                                        <div className="w-1.5 h-4 bg-[#00684a] rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
                                         Fill Variables
                                     </h3>
                                     
@@ -594,8 +602,8 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                             if (!hasMediaHeader || hasCarousel) return null;
                                             
                                             return (
-                                                <div className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-4 shadow-sm">
-                                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Header Media ({hasMediaHeader.format})</label>
+                                                <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4 shadow-sm">
+                                                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-widest mb-2">Header Media ({hasMediaHeader.format})</label>
                                                     <div className="flex gap-3">
                                                         <input
                                                             type="file"
@@ -603,18 +611,18 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                             className="hidden"
                                                             onChange={(e) => setHeaderFile(e.target.files?.[0] || null)}
                                                         />
-                                                        <label htmlFor="template-media" className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white rounded-xl cursor-pointer hover:bg-brand-500 transition-all text-[10px] font-bold shadow-lg shadow-brand-500/20 active:scale-95">
+                                                        <label htmlFor="template-media" className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#00684a] text-white rounded-xl cursor-pointer hover:bg-[#005c42] transition-all text-xs font-bold shadow-lg shadow-brand-500/20 active:scale-95">
                                                             <UploadIcon className="w-3.5 h-3.5" />
                                                             Choose File
                                                         </label>
-                                                        <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-[10px] text-slate-400 truncate flex items-center">
+                                                        <div className="flex-1 bg-slate-100 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-600 truncate flex items-center">
                                                             {headerFile?.name || 'No file selected...'}
                                                         </div>
                                                     </div>
 
                                                     <input
                                                         type="text"
-                                                        className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                        className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/20 focus:border-[#00684a] transition-all outline-none"
                                                         placeholder="Or paste direct media URL..."
                                                         value={headerUrl}
                                                         onChange={(e) => setHeaderUrlState(e.target.value)}
@@ -630,17 +638,17 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
 
                                             return (
                                                 <div className="space-y-4 mt-6">
-                                                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Carousel Cards Media</h4>
+                                                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] ml-1">Carousel Cards Media</h4>
                                                     {carousel.cards.map((card: any, idx: number) => {
                                                         const cardIndex = idx + 1;
                                                         const h = (card.components || []).find((cc: any) => (cc.type || '').toUpperCase() === 'HEADER');
                                                         const format = (h?.format || card.header_type || 'IMAGE').toUpperCase();
                                                         
                                                         return (
-                                                            <div key={idx} className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-4 shadow-sm group/card">
+                                                            <div key={idx} className="p-5 bg-white rounded-2xl border border-slate-200 space-y-4 shadow-sm group/card">
                                                                 <div className="flex justify-between items-center">
-                                                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Card {cardIndex} Content ({format})</label>
-                                                                    <span className="text-[9px] bg-slate-800 text-brand-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">{format}</span>
+                                                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-widest">Card {cardIndex} Content ({format})</label>
+                                                                    <span className="text-[11px] bg-slate-100 text-[#00684a] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">{format}</span>
                                                                 </div>
                                                                 
                                                                 <div className="flex gap-3">
@@ -653,18 +661,18 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                                             setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], file } }));
                                                                         }}
                                                                     />
-                                                                    <label htmlFor={`card-media-${cardIndex}`} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600/10 text-brand-400 border border-brand-500/20 rounded-xl cursor-pointer hover:bg-brand-600 hover:text-white transition-all text-[10px] font-bold active:scale-95">
+                                                                    <label htmlFor={`card-media-${cardIndex}`} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#00684a]/10 text-[#00684a] border border-[#00684a]/20 rounded-xl cursor-pointer hover:bg-[#00684a] hover:text-slate-800 transition-all text-xs font-bold active:scale-95">
                                                                         <UploadIcon className="w-3.5 h-3.5" />
                                                                         Upload
                                                                     </label>
-                                                                    <div className="flex-1 bg-slate-800/50 border border-slate-700/50 rounded-xl px-4 py-2.5 text-[10px] text-slate-500 truncate flex items-center">
+                                                                    <div className="flex-1 bg-slate-100/50 border border-slate-300/50 rounded-xl px-4 py-2.5 text-xs text-slate-600 truncate flex items-center">
                                                                         {cardMedia[cardIndex]?.file?.name || 'No file selected'}
                                                                     </div>
                                                                 </div>
 
                                                                 <input
                                                                     type="text"
-                                                                    className="w-full px-4 py-3 bg-slate-930 border border-slate-700 rounded-xl text-xs text-white placeholder:text-slate-600 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
+                                                                    className="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-brand-500/20 focus:border-[#00684a] transition-all outline-none"
                                                                     placeholder={`Or Card ${cardIndex} Media URL...`}
                                                                     value={cardMedia[cardIndex]?.url || ''}
                                                                     onChange={(e) => setCardMedia(prev => ({ ...prev, [cardIndex]: { ...prev[cardIndex], url: e.target.value } }))}
@@ -679,7 +687,7 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                         {/* Variable Mapping Section (Reference Style) */}
                                         {Object.keys(variables).length > 0 && (
                                             <div className="space-y-5 pt-4">
-                                                <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Variable mapping</h4>
+                                                <h4 className="text-xs font-bold text-slate-600 uppercase tracking-[0.2em] ml-1">Variable mapping</h4>
                                                 {Object.keys(variables).sort((a, b) => {
                                                     const partsA = a.split('_');
                                                     const partsB = b.split('_');
@@ -698,12 +706,12 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                                                     return a.localeCompare(b);
                                                 }).map(key => (
                                                     <div key={key} className="space-y-2 group/var">
-                                                        <label className="block text-[11px] font-bold text-slate-400 ml-1 transition-colors group-focus-within/var:text-brand-400">
+                                                        <label className="block text-[11px] font-bold text-slate-600 ml-1 transition-colors group-focus-within/var:text-[#00684a]">
                                                             {key.startsWith('CARD_') ? `Card ${key.split('_')[1]} {{${key.split('_').pop()}}}` : `{{${key}}}`}
                                                         </label>
                                                         <input
                                                             type="text"
-                                                            className="w-full px-5 py-3.5 bg-slate-900 border border-slate-800 rounded-2xl text-sm text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none placeholder:text-slate-700"
+                                                            className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-[15px] text-slate-800 focus:ring-2 focus:ring-brand-500/20 focus:border-[#00684a] transition-all outline-none placeholder:text-slate-700"
                                                             placeholder={`Value for ${key.startsWith('CARD_') ? `{{${key.split('_').pop()}}}` : `{{${key}}}`}`}
                                                             value={variables[key]}
                                                             onChange={(e) => handleVariableChange(key, e.target.value)}
@@ -717,11 +725,11 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                             </div>
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-700 p-20 text-center">
-                                <div className="w-24 h-24 rounded-[32px] bg-slate-900 flex items-center justify-center mb-6 border border-slate-800 shadow-xl overflow-hidden relative group">
-                                    <div className="absolute inset-0 bg-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                <div className="w-24 h-24 rounded-[32px] bg-white flex items-center justify-center mb-6 border border-slate-200 shadow-xl overflow-hidden relative group">
+                                    <div className="absolute inset-0 bg-[#c0f7e7]/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                     <BadgeIcon className="w-10 h-10 text-slate-800 transition-transform group-hover:scale-110" />
                                 </div>
-                                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-[0.3em] mb-3">Initialize Preview</h3>
+                                <h3 className="text-[15px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3">Initialize Preview</h3>
                                 <p className="text-[11px] text-slate-600 font-medium leading-relaxed max-w-[280px]">
                                     Select an approved WhatsApp template from the library to begin configuring your message.
                                 </p>
@@ -729,17 +737,17 @@ const InboxTemplateModal: React.FC<InboxTemplateModalProps> = ({ isOpen, onClose
                         )}
 
                         {/* Footer Actions */}
-                        <div className="p-6 border-t border-slate-800 flex items-center justify-end gap-4 bg-slate-900/40">
+                        <div className="p-6 border-t border-slate-200 flex items-center justify-end gap-4 bg-white/40">
                             <button
                                 onClick={onClose}
-                                className="px-6 py-3 text-xs font-bold text-slate-500 hover:text-white transition-all uppercase tracking-widest"
+                                className="px-6 py-3 text-sm font-bold text-slate-600 hover:text-slate-800 transition-all uppercase tracking-widest"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSend}
                                 disabled={!selectedTemplate || uploading}
-                                className={`px-10 py-3 rounded-2xl text-xs font-bold text-white shadow-xl transition-all flex items-center gap-2 group relative overflow-hidden ${!selectedTemplate || uploading ? 'bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700' : 'bg-brand-600 hover:bg-brand-500 active:scale-95 shadow-brand-500/20'}`}
+                                className={`px-10 py-3 rounded-2xl text-sm font-bold text-white shadow-xl transition-all flex items-center gap-2 group relative overflow-hidden ${!selectedTemplate || uploading ? 'bg-slate-100 text-slate-600 cursor-not-allowed border border-slate-300' : 'bg-[#00684a] hover:bg-[#005c42] active:scale-95 shadow-brand-500/20'}`}
                             >
                                 {uploading ? (
                                     <>

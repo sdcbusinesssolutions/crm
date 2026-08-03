@@ -114,11 +114,11 @@ module.exports = {
                         const varName = match.replace(/{{|}}/g, '');
                         // RESOLVE: Map -> then Resolve (recursively if needed)
                         const rawVal = variableMapping ? variableMapping[varName] : '';
-                        const resolvedVal = contextManager.resolve(String(rawVal || ''), context);
+                        const resolvedVal = contextManager.resolve(String(rawVal || ''), context, true);
 
                         hParams.push({
                             type: 'text',
-                            text: resolvedVal
+                            text: resolvedVal || '-'
                         });
                     });
                 }
@@ -159,11 +159,11 @@ module.exports = {
                 for (let i = 1; i <= maxIndex; i++) {
                     const rawVal = variableMapping[String(i)];
                     // RESOLVE!
-                    const resolvedVal = contextManager.resolve(String(rawVal !== undefined && rawVal !== null ? rawVal : ''), context);
+                    const resolvedVal = contextManager.resolve(String(rawVal !== undefined && rawVal !== null ? rawVal : ''), context, true);
 
                     params.push({
                         type: 'text',
-                        text: resolvedVal
+                        text: resolvedVal || '-'
                     });
                 }
             } else {
@@ -175,11 +175,11 @@ module.exports = {
                         const varName = match.replace(/{{|}}/g, '');
                         const rawVal = variableMapping ? variableMapping[varName] : '';
                         // RESOLVE!
-                        const resolvedVal = contextManager.resolve(String(rawVal || ''), context);
+                        const resolvedVal = contextManager.resolve(String(rawVal || ''), context, true);
 
                         params.push({
                             type: 'text',
-                            text: resolvedVal
+                            text: resolvedVal || '-'
                         });
                     });
                 }
@@ -233,10 +233,11 @@ module.exports = {
                             const bParams = [];
                             uMatches.forEach(m => {
                                 const vName = m.replace(/{{|}}/g, '');
-                                const val = variableMapping ? variableMapping[vName] : '';
+                                const rawVal = variableMapping ? variableMapping[vName] : '';
+                                const resolvedVal = contextManager.resolve(String(rawVal || ''), context, true);
                                 bParams.push({
                                     type: 'text',
-                                    text: String(val || '')
+                                    text: resolvedVal || '-'
                                 });
                             });
 

@@ -42,7 +42,8 @@ router.post('/:agentId/knowledge', upload.single('file'), async (req, res) => {
 
         // Upload to Supabase Storage
         const fileContent = fs.readFileSync(file.path);
-        const storagePath = `agents/${agentId}/${Date.now()}_${file.originalname}`;
+        const dateStr = new Date().toISOString().split('T')[0];
+        const storagePath = `knowledgebase/${user_id}/${dateStr}/${Date.now()}_${file.originalname}`;
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from('agent_documents')
@@ -51,9 +52,47 @@ router.post('/:agentId/knowledge', upload.single('file'), async (req, res) => {
                 upsert: false
             });
 
-        fs.unlinkSync(file.path); // Clean up temp
-
         if (uploadError) throw uploadError;
+
+        // --- NEW: Extract text and upload as .txt ---
+        let extractedText = '';
+        try {
+            if (fileExt === '.pdf') {
+                const pdfParse = require('pdf-parse');
+                const data = await pdfParse(fileContent);
+                extractedText = data.text;
+            } else if (fileExt === '.docx') {
+                const mammoth = require('mammoth');
+                const result = await mammoth.extractRawText({ buffer: fileContent });
+                extractedText = result.value;
+            } else if (fileExt === '.csv') {
+                const { parse } = require('csv-parse/sync');
+                const records = parse(fileContent, { columns: true, skip_empty_lines: true });
+                extractedText = JSON.stringify(records, null, 2);
+            } else if (fileExt === '.txt' || fileExt === '.md') {
+                extractedText = fileContent.toString('utf-8');
+            }
+            
+            // Limit text to ~30k characters to prevent token overflow
+            if (extractedText.length > 30000) {
+                extractedText = extractedText.substring(0, 30000) + '... (truncated)';
+            }
+            
+            if (extractedText) {
+                const textStoragePath = storagePath + '.txt';
+                await supabaseAdmin.storage
+                    .from('agent_documents')
+                    .upload(textStoragePath, Buffer.from(extractedText, 'utf-8'), {
+                        contentType: 'text/plain',
+                        upsert: false
+                    });
+            }
+        } catch (parseErr) {
+            console.error('Failed to parse document text:', parseErr);
+            // Non-fatal, continue so at least the original file is stored
+        }
+
+        fs.unlinkSync(file.path); // Clean up temp
 
         // Insert into DB
         const { data: doc, error: dbError } = await supabaseAdmin
