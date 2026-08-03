@@ -848,11 +848,7 @@ const MainApp: React.FC = () => {
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
-<<<<<<< HEAD
-                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
-=======
-                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Custom Menu'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
->>>>>>> 7a57d0bb60ae75e1a811b66cb5cbeb185fa0c74e
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing', 'Custom Menu'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
                     (
                         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
                             <div className="flex items-center space-x-3">
