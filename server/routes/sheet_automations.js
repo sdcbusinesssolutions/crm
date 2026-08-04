@@ -188,15 +188,21 @@ router.get('/:id/report', requirePermission('G+Automation', 'read'), async (req,
         if (historyError) throw historyError;
 
         // Build CSV
-        const headers = ['Sent At', 'Phone Number', 'Status', 'Row Hash'];
+        const headers = ['Sent At', 'Phone Number', 'Status', 'Row Hash', 'Row Data'];
         const csvRows = [headers.join(',')];
 
         (history || []).forEach(row => {
+            let rowDataStr = '';
+            if (row.meta && row.meta.row_data) {
+                rowDataStr = JSON.stringify(row.meta.row_data).replace(/"/g, '""');
+            }
+
             csvRows.push([
                 `"${row.sent_at || ''}"`,
                 `"+${row.phone_number || ''}"`,
                 `"${row.status || ''}"`,
-                `"${row.row_hash || ''}"`
+                `"${row.row_hash || ''}"`,
+                `"${rowDataStr}"`
             ].join(','));
         });
 
