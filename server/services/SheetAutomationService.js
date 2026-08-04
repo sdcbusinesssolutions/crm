@@ -1340,7 +1340,46 @@ class SheetAutomationService {
         // --- OLD LOGIC: Template Message ---
 
         // Prepare Template Parameters
-        const { template_name, language, components } = auto.template_config; // Stored struct
+        let { template_name, language, components } = auto.template_config; // Stored struct
+
+        if (!components || components.length === 0) {
+            console.log('[DEBUG] Components array is empty, fetching from DB for template:', template_name, 'language:', language);
+            const { data: dbTemplates, error: dbErr } = await supabaseAdmin
+                .from('whatsapp_templates')
+                .select('body_text, header_text, template_type, footer_text, buttons')
+                .eq('user_id', auto.user_id)
+                .eq('name', template_name)
+                // Use limit(1) instead of single() to avoid errors if multiple exist
+                .limit(1);
+                
+            if (dbErr) {
+                console.error('[DEBUG] DB fetch error for template:', dbErr);
+            }
+                
+            if (dbTemplates && dbTemplates.length > 0) {
+                const dbTemplate = dbTemplates[0];
+                components = dbTemplate.components && dbTemplate.components.length > 0 
+                    ? dbTemplate.components 
+                    : [
+                        ...(dbTemplate.body_text ? [{ type: 'BODY', text: dbTemplate.body_text }] : []),
+                        ...(dbTemplate.header_text || (dbTemplate.template_type && dbTemplate.template_type !== 'TEXT') 
+                            ? [{ 
+                                type: 'HEADER', 
+                                format: dbTemplate.template_type === 'TEXT' || !dbTemplate.template_type ? 'TEXT' : dbTemplate.template_type, 
+                                text: dbTemplate.header_text 
+                            }] : []),
+                        ...(dbTemplate.footer_text ? [{ type: 'FOOTER', text: dbTemplate.footer_text }] : []),
+                        ...(dbTemplate.buttons && dbTemplate.buttons.type !== 'NONE' ? [
+                            dbTemplate.buttons.type === 'MEDIA_CARD_CAROUSEL' 
+                                ? { type: 'CAROUSEL', cards: dbTemplate.buttons.cards }
+                                : { type: 'BUTTONS', buttons: dbTemplate.buttons.buttons || [] }
+                        ] : [])
+                    ];
+                auto.template_config.components = components; // Update in memory so rest of code works
+                console.log('[DEBUG] Reconstructed components length:', components.length);
+            }
+        }
+
         const finalComponents = [];
 
         // We need to map the stored "params" to actual values from rowObj

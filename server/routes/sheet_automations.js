@@ -161,5 +161,56 @@ router.post('/:id/trigger', requirePermission('G+Automation', 'read_write'), asy
     }
 });
 
+// Download CSV Report
+router.get('/:id/report', requirePermission('G+Automation', 'read'), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verify ownership
+        const { data: auto, error: autoError } = await supabaseAdmin
+            .from('sheet_automations')
+            .select('id, name')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (autoError || !auto) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        // Fetch history
+        const { data: history, error: historyError } = await supabaseAdmin
+            .from('sheet_automation_history')
+            .select('*')
+            .eq('automation_id', id)
+            .order('triggered_at', { ascending: false });
+
+        if (historyError) throw historyError;
+
+        // Build CSV
+        const headers = ['Triggered At', 'Status', 'Dedupe Mode', 'Reason', 'Row Hash'];
+        const csvRows = [headers.join(',')];
+
+        (history || []).forEach(row => {
+            csvRows.push([
+                `"${row.triggered_at}"`,
+                `"${row.status}"`,
+                `"${row.dedupe_mode || ''}"`,
+                `"${(row.reason || '').replace(/"/g, '""')}"`,
+                `"${row.row_data_hash || ''}"`
+            ].join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="automation_report_${id}.csv"`);
+        res.send(csvContent);
+
+    } catch (error) {
+        console.error('[SheetAuto] Report Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;
