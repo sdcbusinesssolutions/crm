@@ -4,7 +4,25 @@ import { followUpService } from '../services/followUpService';
 
 export const ReminderNotification: React.FC = () => {
     const [activeReminders, setActiveReminders] = useState<ReminderConfig[]>([]);
-    const [currentPage, setCurrentPage] = useState(0);
+    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    };
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDragging) return;
+        setPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+    };
+
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        setIsDragging(false);
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    };
 
     useEffect(() => {
         // Request desktop notification permission on load
@@ -77,10 +95,10 @@ export const ReminderNotification: React.FC = () => {
 
     const handleSnooze = (reminder: ReminderConfig) => {
         handleDismiss(reminder.id);
-        // Re-add it 10 minutes from now. (10 mins + 15 min offset for the manager)
+        // Re-add it 10 minutes from now. (10 mins + 5 min offset for the manager)
         reminderManager.addReminder({
             ...reminder,
-            scheduledAt: new Date(Date.now() + 25 * 60 * 1000),
+            scheduledAt: new Date(Date.now() + 15 * 60 * 1000),
             persistLocally: true // Ensure snoozed items persist
         });
     };
@@ -117,15 +135,24 @@ export const ReminderNotification: React.FC = () => {
     if (activeReminders.length === 0) return null;
 
     return (
-        <div className="fixed top-20 right-8 z-[100] flex flex-col gap-4 w-[360px] pointer-events-none">
+        <div 
+            className="fixed top-20 right-8 z-[100] flex flex-col gap-4 w-[360px] pointer-events-none transition-transform duration-75"
+            style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
+        >
             {activeReminders.length > 1 && (
-                <div className="pointer-events-auto bg-white/90 backdrop-blur shadow-lg border border-brand-100 rounded-xl p-3 flex justify-between items-center animate-fade-in">
+                <div 
+                    className="pointer-events-auto bg-white/90 backdrop-blur shadow-lg border border-brand-100 rounded-xl p-3 flex justify-between items-center animate-fade-in cursor-move"
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                >
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></div>
-                        <span className="font-bold text-slate-700 text-sm">{activeReminders.length} Reminders</span>
+                        <span className="font-bold text-slate-700 text-sm pointer-events-none">{activeReminders.length} Reminders</span>
                     </div>
                     <button 
                         onClick={handleDismissAll}
+                        onPointerDown={e => e.stopPropagation()}
                         className="text-xs font-semibold text-slate-500 hover:text-red-500 transition-colors bg-slate-100 hover:bg-red-50 px-3 py-1.5 rounded-lg"
                     >
                         Dismiss All
@@ -157,13 +184,19 @@ export const ReminderNotification: React.FC = () => {
                 
                 {activeReminders.map(reminder => (
                     <div key={reminder.id} className="bg-white rounded-xl shadow-2xl border border-brand-200 overflow-hidden animate-slide-in-right flex-shrink-0">
-                        <div className="bg-brand-50 px-4 py-3 flex items-center justify-between border-b border-brand-100">
-                            <div className="flex items-center gap-2">
+                        <div 
+                            className="bg-brand-50 px-4 py-3 flex items-center justify-between border-b border-brand-100 cursor-move"
+                            onPointerDown={handlePointerDown}
+                            onPointerMove={handlePointerMove}
+                            onPointerUp={handlePointerUp}
+                        >
+                            <div className="flex items-center gap-2 pointer-events-none">
                                 <span className="text-xl">⏰</span>
                                 <span className="font-bold text-brand-900 text-sm">Reminder</span>
                             </div>
                             <button 
                                 onClick={() => handleDismiss(reminder.id)}
+                                onPointerDown={e => e.stopPropagation()}
                                 className="text-brand-400 hover:text-slate-600 transition-colors"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

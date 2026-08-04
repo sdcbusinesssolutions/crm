@@ -655,7 +655,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                                     onChange={(e) => setEnablePopup(e.target.checked)}
                                                 />
                                                 <label htmlFor="enablePopup" className="ml-2 text-sm font-medium text-blue-900 cursor-pointer flex-1">
-                                                    Enable Popup Alarm (15 mins before)
+                                                    Enable Popup Alarm (5 mins before)
                                                 </label>
                                             </div>
                                             <div className="flex gap-2 items-center w-full sm:w-auto">
