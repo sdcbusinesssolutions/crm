@@ -50,7 +50,6 @@ mkdir -p "$BUILD_DIR/client"
 if command -v rsync >/dev/null 2>&1; then
     rsync -a \
         --exclude='node_modules' \
-        --exclude='dist' \
         --exclude='coverage' \
         --exclude='local_testing' \
         --exclude='doc' \
@@ -65,7 +64,7 @@ else
     echo "⚠️  rsync not found, using cp fallback (slower)..."
     cp -R client/* "$BUILD_DIR/client/"
     # Cleanup excludes manually
-    find "$BUILD_DIR/client" -type d \( -name "node_modules" -o -name "dist" -o -name "coverage" -o -name "local_testing" -o -name "doc" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null || true
+    find "$BUILD_DIR/client" -type d \( -name "node_modules" -o -name "coverage" -o -name "local_testing" -o -name "doc" -o -name "docs" \) -exec rm -rf {} + 2>/dev/null || true
     find "$BUILD_DIR/client" -type f \( -name "*.log" -o -name ".env*" -o -name "*.md" -o -name "*.txt" -o -name "*.sql" \) -delete 2>/dev/null || true
 fi
 

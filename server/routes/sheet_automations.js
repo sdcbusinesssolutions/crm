@@ -183,21 +183,20 @@ router.get('/:id/report', requirePermission('G+Automation', 'read'), async (req,
             .from('sheet_automation_history')
             .select('*')
             .eq('automation_id', id)
-            .order('triggered_at', { ascending: false });
+            .order('sent_at', { ascending: false });
 
         if (historyError) throw historyError;
 
         // Build CSV
-        const headers = ['Triggered At', 'Status', 'Dedupe Mode', 'Reason', 'Row Hash'];
+        const headers = ['Sent At', 'Phone Number', 'Status', 'Row Hash'];
         const csvRows = [headers.join(',')];
 
         (history || []).forEach(row => {
             csvRows.push([
-                `"${row.triggered_at}"`,
-                `"${row.status}"`,
-                `"${row.dedupe_mode || ''}"`,
-                `"${(row.reason || '').replace(/"/g, '""')}"`,
-                `"${row.row_data_hash || ''}"`
+                `"${row.sent_at || ''}"`,
+                `"+${row.phone_number || ''}"`,
+                `"${row.status || ''}"`,
+                `"${row.row_hash || ''}"`
             ].join(','));
         });
 
