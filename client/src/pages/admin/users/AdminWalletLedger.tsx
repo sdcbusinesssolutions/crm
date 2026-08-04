@@ -108,7 +108,7 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
 
     const exportCSV = () => {
         if (!transactions.length) return;
-        const headers = ['Date', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance After (₹)', 'Meta Cost', 'Contact', 'WA Msg ID', 'Conv ID', 'Description'];
+        const headers = ['Date', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance After (₹)', 'Meta Cost (₹)', 'Markup (₹)', 'Contact', 'WA Msg ID', 'Conv ID', 'Description'];
         const rows = transactions.map(tx => [
             new Date(tx.created_at).toLocaleString('en-IN'),
             tx.type,
@@ -116,7 +116,8 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
             tx.wa_category || '',
             tx.amount,
             tx.balance_after,
-            tx.meta_cost || '',
+            tx.meta_cost !== null ? tx.meta_cost : '',
+            tx.type === 'DEBIT' && tx.meta_cost !== null ? (Number(tx.amount) - Number(tx.meta_cost)).toFixed(4) : '',
             tx.contact_phone || '',
             tx.wa_message_id || '',
             tx.wa_conversation_id || '',
@@ -223,8 +224,8 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                         <table className="min-w-full divide-y divide-slate-100 text-sm">
                             <thead className="bg-slate-50 sticky top-0">
                                 <tr>
-                                    {['Date & Time','Type','Source','Category','Amount','Balance After','Meta Cost','Contact','WA Msg ID','Conv ID','Description'].map(h => (
-                                        <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                    {['Date & Time','Type','Source','Category','Amount','Balance After','Meta Cost','Markup','Contact','WA Msg ID','Conv ID','Description'].map(h => (
+                                        <th key={h} className="px-3 py-1.5 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
@@ -237,14 +238,14 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                                             ? 'border-l-2 border-l-amber-400'
                                             : 'border-l-2 border-l-rose-300'
                                     }`}>
-                                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap font-mono">
+                                        <td className="px-3 py-1 text-[11px] text-slate-500 whitespace-nowrap font-mono">
                                             {new Date(tx.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' })}
-                                            <div className="text-[10px] text-slate-400">
+                                            <div className="text-[9px] text-slate-400">
                                                 {new Date(tx.created_at).toLocaleTimeString('en-IN', { hour12: false })}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-black uppercase ${
+                                        <td className="px-3 py-1">
+                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black uppercase ${
                                                 tx.type === 'CREDIT'
                                                     ? 'bg-emerald-100 text-emerald-700'
                                                     : 'bg-rose-100 text-rose-700'
@@ -252,44 +253,49 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
                                                 {tx.type === 'CREDIT' ? '+' : '−'} {tx.type}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-xs font-medium text-slate-600 whitespace-nowrap">
+                                        <td className="px-3 py-1 text-[11px] font-medium text-slate-600 whitespace-nowrap">
                                             {SOURCE_LABELS[tx.source] || tx.source}
                                         </td>
-                                        <td className="px-4 py-3">
+                                        <td className="px-3 py-1">
                                             {tx.wa_category ? (
-                                                <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-bold ${CATEGORY_COLORS[tx.wa_category] || 'bg-slate-100 text-slate-600'}`}>
+                                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${CATEGORY_COLORS[tx.wa_category] || 'bg-slate-100 text-slate-600'}`}>
                                                     {tx.wa_category}
                                                 </span>
-                                            ) : <span className="text-slate-300 text-xs">—</span>}
+                                            ) : <span className="text-slate-300 text-[11px]">—</span>}
                                         </td>
-                                        <td className={`px-4 py-3 text-sm font-black tabular-nums whitespace-nowrap ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        <td className={`px-3 py-1 text-[12px] font-black tabular-nums whitespace-nowrap ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                             {tx.type === 'CREDIT' ? '+' : '−'}₹{Number(tx.amount).toFixed(2)}
                                         </td>
-                                        <td className="px-4 py-3 text-sm font-bold tabular-nums text-slate-700 whitespace-nowrap">
+                                        <td className="px-3 py-1 text-[12px] font-bold tabular-nums text-slate-700 whitespace-nowrap">
                                             ₹{Number(tx.balance_after).toFixed(2)}
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500 font-mono tabular-nums">
-                                            {tx.meta_cost ? `₹${Number(tx.meta_cost).toFixed(2)}` : '—'}
+                                        <td className="px-3 py-1 text-[11px] text-slate-500 font-mono tabular-nums">
+                                            {tx.meta_cost !== null ? `₹${Number(tx.meta_cost).toFixed(4)}` : '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-xs font-mono text-slate-600">
+                                        <td className="px-3 py-1 text-[11px] font-bold text-brand-600 font-mono tabular-nums bg-brand-50/50">
+                                            {tx.type === 'DEBIT' && tx.meta_cost !== null
+                                                ? `₹${(Math.abs(Number(tx.amount)) - Number(tx.meta_cost)).toFixed(4)}`
+                                                : '—'}
+                                        </td>
+                                        <td className="px-3 py-1 text-[11px] font-mono text-slate-600">
                                             {tx.contact_phone || '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_message_id || ''}>
+                                        <td className="px-3 py-1 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_message_id || ''}>
                                             {tx.wa_message_id ? tx.wa_message_id.slice(-12) : '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_conversation_id || ''}>
+                                        <td className="px-3 py-1 text-[10px] font-mono text-slate-400 max-w-[120px] truncate" title={tx.wa_conversation_id || ''}>
                                             {tx.wa_conversation_id ? tx.wa_conversation_id.slice(-12) : '—'}
                                         </td>
-                                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">
-                                            <div className="flex flex-col gap-1">
+                                        <td className="px-3 py-1 text-[11px] text-slate-500 max-w-[200px]">
+                                            <div className="flex flex-col gap-0.5">
                                                 <span className="line-clamp-2" title={tx.description || ''}>
                                                     {(tx.description || '—')
                                                         .replace(/Pre-debit at MAX RISK \([^)]+\) rate for requested ([^.]+)\. Will refund at webhook if cheaper.*/, 'Estimated charge for $1. Refund if cheaper.')
                                                         .replace(/Markup only charge: Message was free from Meta. Pre-debit [^,]+, markup [^.]+Refund: [0-9.]+/, 'Refund: Message was delivered for free.')}
                                                 </span>
                                                 {tx.type === 'CREDIT' && tx.source === 'ADMIN_TOPUP' && tx.admin_profile && (
-                                                    <div className="text-[10px] font-medium text-brand-600 flex items-center gap-1 bg-brand-50 w-fit px-1.5 rounded border border-brand-100">
-                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                                    <div className="text-[9px] font-medium text-brand-600 flex items-center gap-1 bg-brand-50 w-fit px-1.5 rounded border border-brand-100 mt-0.5">
+                                                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                                         {tx.admin_profile.name || tx.admin_profile.email}
                                                     </div>
                                                 )}

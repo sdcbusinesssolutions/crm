@@ -193,44 +193,43 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                         <p className="text-xs text-slate-500 mb-3">
                             When a new user signs up under this domain, they will automatically be assigned this billing mode.
                         </p>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             {BILLING_MODE_OPTIONS.map(mode => (
                                 <div key={mode.value} className="flex flex-col gap-2">
                                     <label
-                                        className={`flex items-start gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                                        className={`flex flex-col items-start gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all h-full ${
                                             defaultBillingMode === mode.value ? mode.color + ' border-opacity-100' : 'border-slate-200 bg-white hover:bg-slate-50'
                                         }`}
                                     >
-                                        <input
-                                            type="radio"
-                                            name="default_billing_mode"
-                                            value={mode.value}
-                                            checked={defaultBillingMode === mode.value}
-                                            onChange={() => setDefaultBillingMode(mode.value)}
-                                            className="mt-1"
-                                        />
-                                        <div>
-                                            <div className="text-sm font-bold text-slate-900">{mode.label}</div>
-                                            <div className="text-xs text-slate-500 mt-0.5">{mode.description}</div>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="radio"
+                                                name="default_billing_mode"
+                                                value={mode.value}
+                                                checked={defaultBillingMode === mode.value}
+                                                onChange={() => setDefaultBillingMode(mode.value)}
+                                            />
+                                            <div className="text-xs font-bold text-slate-900 leading-tight">{mode.label}</div>
                                         </div>
+                                        <div className="text-[10px] text-slate-500 mt-1 pl-5">{mode.description}</div>
                                     </label>
                                     
                                     {/* Nested Checkbox for specific modes */}
                                     {defaultBillingMode === mode.value && mode.value !== 'CREDIT_LINE_TENANT' && (
-                                        <div className="ml-8 p-3 bg-white border border-slate-200 rounded-lg shadow-sm">
-                                            <label className="flex items-start gap-3 cursor-pointer">
-                                                <div className="flex items-center h-5">
+                                        <div className="p-2.5 bg-white border border-slate-200 rounded-lg shadow-sm mt-1">
+                                            <label className="flex items-start gap-2 cursor-pointer">
+                                                <div className="flex items-center h-4">
                                                     <input
                                                         type="checkbox"
                                                         checked={allowTenantControl}
                                                         onChange={(e) => setAllowTenantControl(e.target.checked)}
-                                                        className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                                        className="w-3.5 h-3.5 text-brand-600 border-gray-300 rounded focus:ring-brand-500 mt-0.5"
                                                     />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-bold text-slate-900">Allow Tenant to Switch Users to Their Own Card</span>
-                                                    <span className="text-xs text-slate-500">
-                                                        If enabled, the Tenant Admin can manually migrate their users away from this default setting and put them on their own Tenant Meta account.
+                                                    <span className="text-[10px] font-bold text-slate-900 leading-tight">Allow Tenant Override</span>
+                                                    <span className="text-[9px] text-slate-500 leading-tight mt-0.5">
+                                                        Tenant can migrate users to their own Meta account.
                                                     </span>
                                                 </div>
                                             </label>

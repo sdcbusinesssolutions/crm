@@ -151,7 +151,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                     <div>
                         <h2 className="text-xl font-black text-white">Master Ledger Report 📊</h2>
                         <p className="text-sm text-slate-300 mt-0.5">
-                            {isSuperAdmin && domainFilter !== 'all' ? `Filtered Domain: ${domainFilter}` : isSuperAdmin ? 'Platform-wide Transactions' : 'Domain-wide Transactions'}
+                            {isSuperAdmin && domainFilter && domainFilter !== 'all' ? `Filtered Domain: ${domainFilter}` : isSuperAdmin ? 'Platform-wide Transactions' : 'Domain-wide Transactions'}
                         </p>
                     </div>
                     <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors text-xl">✕</button>

@@ -220,8 +220,6 @@ class WalletService {
             // V2: If Tenant Agency Credit Line, we must collect the software markup fee from the Tenant Admin's Master Wallet
             if (billingMode === 'CREDIT_LINE_TENANT') {
                 try {
-                    const markupFee = Math.max(roundMoney(rate.platform_rate - rate.meta_cost), 0.01);
-                    
                     // Find the Tenant Admin Master Wallet for this user's domain
                     const { data: userProfile } = await supabaseAdmin
                         .from('profiles')
@@ -247,10 +245,15 @@ class WalletService {
                                 .maybeSingle();
                                 
                             if (masterWallet) {
-                                const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0,8)}...). Msg: ${waMessageId}`;
-                                const { error: markupErr } = await supabaseAdmin.rpc('adjust_wallet_balance', {
-                                    p_user_id: masterWallet.user_id,
-                                    p_amount: markupFee,
+                                // Fetch the specific rate the Super Admin set for this Tenant Admin
+                                const tenantRate = await this.getRate(masterWallet.user_id, actualCategory, countryCode);
+                                const markupFee = Math.max(roundMoney(tenantRate.platform_rate - tenantRate.meta_cost), 0);
+                                
+                                if (markupFee > 0) {
+                                    const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0,8)}...). Msg: ${waMessageId}`;
+                                    const { error: markupErr } = await supabaseAdmin.rpc('adjust_wallet_balance', {
+                                        p_user_id: masterWallet.user_id,
+                                        p_amount: markupFee,
                                     p_type: 'DEBIT',
                                     p_source: 'AGENCY_MARKUP',
                                     p_wa_category: actualCategory,
@@ -268,10 +271,11 @@ class WalletService {
                                     p_ip_address: null
                                 });
                                 
-                                if (markupErr) {
-                                    logWalletEvent('AGENCY_MARKUP_ERROR', { masterUserId: masterWallet.user_id, waMessageId, error: markupErr.message });
-                                } else {
-                                    logWalletEvent('AGENCY_MARKUP_SUCCESS', { masterUserId: masterWallet.user_id, waMessageId, amount: markupFee });
+                                    if (markupErr) {
+                                        logWalletEvent('AGENCY_MARKUP_ERROR', { masterUserId: masterWallet.user_id, waMessageId, error: markupErr.message });
+                                    } else {
+                                        logWalletEvent('AGENCY_MARKUP_SUCCESS', { masterUserId: masterWallet.user_id, waMessageId, amount: markupFee });
+                                    }
                                 }
                             }
                         }

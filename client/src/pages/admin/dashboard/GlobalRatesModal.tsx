@@ -59,15 +59,15 @@ const GlobalRatesModal: React.FC<GlobalRatesModalProps> = ({ isOpen, onClose, on
         }
     };
 
-    const handleRateChange = (category: string, value: string) => {
+    const handleRateChange = (category: string, field: 'platform_rate' | 'meta_cost', value: string) => {
         const val = parseFloat(value);
         setRates(prev => ({
             ...prev,
             [category]: {
                 ...prev[category],
-                platform_rate: isNaN(val) ? 0 : val,
+                [field]: isNaN(val) ? 0 : val,
                 category,
-                scope: 'GLOBAL' 
+                scope: 'GLOBAL'
             }
         }));
     };
@@ -136,18 +136,36 @@ const GlobalRatesModal: React.FC<GlobalRatesModalProps> = ({ isOpen, onClose, on
                                     </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-slate-400">₹</span>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        required
-                                        value={rate?.platform_rate !== undefined ? rate.platform_rate : ''}
-                                        onChange={e => handleRateChange(cat, e.target.value)}
-                                        className="w-24 px-3 py-1.5 border border-slate-200 rounded-lg text-right font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow"
-                                    />
-                                </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="text-[10px] font-bold text-slate-500 mr-1">Platform Rate</div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-slate-400">₹</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                required
+                                                value={rate?.platform_rate !== undefined ? rate.platform_rate : ''}
+                                                onChange={e => handleRateChange(cat, 'platform_rate', e.target.value)}
+                                                className="w-24 px-3 py-1.5 border border-slate-200 rounded-lg text-right font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1 pl-4 border-l border-slate-100">
+                                        <div className="text-[10px] font-bold text-slate-500 mr-1">Meta Cost</div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-slate-400">₹</span>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                min="0"
+                                                required
+                                                value={rate?.meta_cost !== undefined ? rate.meta_cost : ''}
+                                                onChange={e => handleRateChange(cat, 'meta_cost', e.target.value)}
+                                                className="w-24 px-3 py-1.5 border border-slate-200 rounded-lg text-right font-bold text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow"
+                                            />
+                                        </div>
+                                    </div>
                             </div>
                         );
                     })}

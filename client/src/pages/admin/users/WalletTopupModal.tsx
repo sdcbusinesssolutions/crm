@@ -233,40 +233,38 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                 {/* Billing Mode Selector */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-3">Credit Line / Billing Mode</label>
-                    <div className="space-y-3">
-                        {BILLING_MODE_OPTIONS.filter(mode => {
-                            // STRICT ISOLATION: Show the EXACT billing mode assigned to the domain.
-                            // However, if the Super Admin enabled "allowTenantControl", also allow the Tenant to switch users to DIRECT_META (User Pays Meta).
-                            if (mode.value === domainDefaultBillingMode) return true;
-                            if (allowTenantControl && mode.value === 'DIRECT_META') return true;
-                            
-                            return false;
-                        }).map(mode => (
-                            <label
-                                key={mode.value}
-                                className={`relative flex items-start gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 ${
-                                    billingMode === mode.value 
-                                        ? `${mode.color} border-opacity-100 shadow-sm ring-4 ring-opacity-20 ${mode.color.split(' ')[0].replace('border', 'ring')}` 
-                                        : 'border-slate-200 bg-white hover:border-slate-300'
-                                }`}
-                            >
-                                <div className="flex items-center h-5 mt-0.5">
-                                    <input
-                                        type="radio"
-                                        name="billing_mode"
-                                        value={mode.value}
-                                        checked={billingMode === mode.value}
-                                        onChange={() => setBillingMode(mode.value)}
-                                        className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 transition-colors"
-                                    />
-                                </div>
-                                <div className="flex-1">
-                                    <div className="text-sm font-bold text-slate-900">{mode.label}</div>
-                                    <div className="text-xs text-slate-500 mt-1 leading-relaxed">{mode.description}</div>
-                                </div>
-                            </label>
-                        ))}
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {BILLING_MODE_OPTIONS.filter(mode => {
+                                // STRICT ISOLATION: Show the EXACT billing mode assigned to the domain.
+                                // However, if the Super Admin enabled "allowTenantControl", also allow the Tenant to switch users to DIRECT_META (User Pays Meta).
+                                if (mode.value === domainDefaultBillingMode) return true;
+                                if (allowTenantControl && mode.value === 'DIRECT_META') return true;
+                                
+                                return false;
+                            }).map(mode => (
+                                <label
+                                    key={mode.value}
+                                    className={`relative flex flex-col items-start gap-2 p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 h-full ${
+                                        billingMode === mode.value 
+                                            ? `${mode.color} border-opacity-100 shadow-sm ring-4 ring-opacity-20 ${mode.color.split(' ')[0].replace('border', 'ring')}` 
+                                            : 'border-slate-200 bg-white hover:border-slate-300'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-2 w-full">
+                                        <input
+                                            type="radio"
+                                            name="billing_mode"
+                                            value={mode.value}
+                                            checked={billingMode === mode.value}
+                                            onChange={() => setBillingMode(mode.value)}
+                                            className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500 transition-colors shrink-0"
+                                        />
+                                        <div className="text-xs font-bold text-slate-900 leading-tight">{mode.label}</div>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 mt-1 pl-6 leading-relaxed w-full">{mode.description}</div>
+                                </label>
+                            ))}
+                        </div>
                 </div>
 
                 {/* Reseller Warning */}

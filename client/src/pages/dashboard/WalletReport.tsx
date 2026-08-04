@@ -107,7 +107,7 @@ const WalletReport = () => {
     };
 
     return (
-        <div className="space-y-6 animate-fade-in p-6">
+        <div className="space-y-4 animate-fade-in p-4">
             <div className="flex items-center gap-3">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">Wallet & Billing</h1>
                 <button
@@ -129,7 +129,8 @@ const WalletReport = () => {
                         <p className="text-3xl font-black text-blue-900 tracking-tight">
                             ₹{typeof balanceData.balance === 'number' ? balanceData.balance.toFixed(2) : balanceData.balance}
                         </p>
-                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Current Balance</p>
+                        <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Wallet Balance</p>
+                        <p className="text-[9px] font-medium text-blue-400 mt-0.5">Available funds right now</p>
                     </div>
                 </div>
 
@@ -141,7 +142,8 @@ const WalletReport = () => {
                         <p className="text-3xl font-black text-rose-900 tracking-tight">
                             ₹{typeof balanceData.thisMonthExpense === 'number' ? balanceData.thisMonthExpense.toFixed(2) : '0.00'}
                         </p>
-                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">This Month's Spend</p>
+                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">This Month's Expense</p>
+                        <p className="text-[9px] font-medium text-rose-400 mt-0.5">Cumulative deductions this month</p>
                     </div>
                 </div>
 
@@ -256,57 +258,57 @@ const WalletReport = () => {
                         <p className="text-sm text-slate-500 mt-1">When you send messages or receive top-ups, they will appear here.</p>
                     </div>
                 ) : (
-                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[400px]">
+                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
                         <table className="w-full divide-y divide-slate-100 min-w-[900px]">
-                            <thead className="bg-slate-50/80">
+                            <thead className="bg-slate-50/80 sticky top-0 z-10">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Date & Tx ID</th>
-                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Type / Source</th>
-                                    <th className="px-6 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Message Details</th>
-                                    <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Amount</th>
-                                    <th className="px-6 py-3 text-right text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">Balance After</th>
+                                    <th className="px-3 py-1.5 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date & Tx ID</th>
+                                    <th className="px-3 py-1.5 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Type / Source</th>
+                                    <th className="px-3 py-1.5 text-left text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Message Details</th>
+                                    <th className="px-3 py-1.5 text-right text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Amount</th>
+                                    <th className="px-3 py-1.5 text-right text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Balance After</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {transactions.map((tx) => (
                                     <tr key={tx.id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="text-sm font-medium text-slate-900">
+                                        <td className="px-3 py-1">
+                                            <div className="text-xs font-medium text-slate-900">
                                                 {new Date(tx.created_at).toLocaleDateString()}
                                             </div>
-                                            <div className="text-xs text-slate-500 mb-1">
+                                            <div className="text-[11px] text-slate-500 mb-0.5">
                                                 {new Date(tx.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                             </div>
                                             <div className="text-[10px] font-mono text-slate-400 truncate max-w-[120px]" title={`Tx ID: ${tx.id}`}>
                                                 TX: {tx.id.split('-')[0]}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                        <td className="px-3 py-1">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className={`inline-flex w-fit px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                                                     }`}>
                                                     {tx.type}
                                                 </span>
-                                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 w-fit">
+                                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 w-fit">
                                                     {tx.source}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 max-w-sm">
-                                            <div className="flex flex-wrap gap-2 mb-2">
+                                        <td className="px-3 py-1 max-w-sm">
+                                            <div className="flex flex-wrap gap-1 mb-0.5">
                                                 {tx.wa_category && (
-                                                    <div className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${CATEGORY_COLORS[tx.wa_category] || 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
+                                                    <div className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border ${CATEGORY_COLORS[tx.wa_category] || 'bg-indigo-50 text-indigo-700 border-indigo-100'}`}>
                                                         {tx.wa_category}
                                                     </div>
                                                 )}
                                                 {tx.description?.includes('MAX RISK') && (
-                                                    <div className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="System reserves the estimated rate until delivery confirmation.">
+                                                    <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title="System reserves the estimated rate until delivery confirmation.">
                                                         ⏳ ESTIMATED COST
                                                     </div>
                                                 )}
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-1">
+                                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 mt-0.5">
                                                 {tx.contact_phone && (
                                                     <div className="text-[11px] text-slate-600"><span className="font-semibold text-slate-400">To:</span> {tx.contact_phone}</div>
                                                 )}
@@ -329,7 +331,7 @@ const WalletReport = () => {
                                             </div>
 
                                             {tx.description && (
-                                                <div className="text-[11px] text-slate-600 mt-2 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed font-medium">
+                                                <div className="text-[10px] text-slate-600 mt-1 bg-slate-50 p-1.5 rounded border border-slate-100 leading-snug font-medium">
                                                     {tx.description
                                                         .replace(/Pre-debit at MAX RISK \([^)]+\) rate for requested ([^.]+)\. Will refund at webhook if cheaper.*/, 'Estimated charge for $1 message. If Meta charges less upon delivery, the difference will be automatically refunded.')
                                                         .replace(/Markup only charge: Message was free from Meta. Pre-debit [^,]+, markup [^.]+Refund: [0-9.]+/, 'Refund: Message was delivered for free (No markup applied).')}
@@ -344,13 +346,13 @@ const WalletReport = () => {
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className={`text-sm font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                        <td className="px-3 py-1 text-right">
+                                            <span className={`text-[12px] font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
                                                 {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(2)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <span className="text-sm font-bold text-slate-600 tabular-nums bg-slate-50 px-2 py-1 rounded">
+                                        <td className="px-3 py-1 text-right">
+                                            <span className="text-[12px] font-bold text-slate-600 tabular-nums bg-slate-50 px-1.5 py-0.5 rounded">
                                                 ₹{Number(tx.balance_after).toFixed(2)}
                                             </span>
                                         </td>
@@ -362,8 +364,8 @@ const WalletReport = () => {
                 )}
 
                 {/* Pagination */}
-                <div className="px-6 py-4 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-4 justify-between items-center rounded-b-2xl">
-                    <div className="text-xs font-medium text-slate-500">
+                <div className="px-4 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-3 justify-between items-center rounded-b-2xl">
+                    <div className="text-[11px] font-medium text-slate-500">
                         Showing page <span className="font-bold text-slate-700">{page}</span> of <span className="font-bold text-slate-700">{Math.max(1, totalPages)}</span> · {totalTransactions} total
                     </div>
                     <div className="flex gap-1.5 items-center">

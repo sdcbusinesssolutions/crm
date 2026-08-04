@@ -7,12 +7,11 @@ router.get('/', async (req, res) => {
         const adminDomain = req.admin?.managed_domain || req.admin?.domain;
         const adminRole = req.admin?.role;
         
-        // Fallback for older tokens: if role is missing, but email is the known super admin email or matches standard pattern.
-        // Actually, just check if the email matches the primary super admin or if the role is super_admin.
+        const MASTER_DOMAIN = process.env.VITE_MASTER_URL ? new URL(process.env.VITE_MASTER_URL).hostname : 'clickube.com';
         const isSuperAdmin = adminRole === 'super_admin' || 
-            adminDomain === 'cloudospire.in' ||
-            (req.admin?.email === 'user7@gmail.com') ||
-            (req.admin?.email && req.admin.email.toLowerCase() === 'admin@localhost.com');
+            adminDomain === MASTER_DOMAIN || 
+            adminDomain === 'localhost' ||
+            req.admin?.email === 'user7@gmail.com';
             
         console.log(`[Finance Report] email: ${req.admin?.email}, role: ${adminRole}, domain: ${adminDomain}, isSuperAdmin: ${isSuperAdmin}`);
 
@@ -23,7 +22,15 @@ router.get('/', async (req, res) => {
 
         // Apply tenant isolation
         if (!isSuperAdmin) {
-            query = query.eq('tenant_domain', adminDomain);
+            const { data: validProfiles } = await supabaseAdmin.from('profiles').select('id').eq('signup_domain', adminDomain);
+            const validIds = (validProfiles || []).map(p => p.id);
+            if (validIds.length === 0) return res.json({ data: [] });
+            query = query.in('user_id', validIds);
+        } else if (req.query.domain) {
+            const { data: validProfiles } = await supabaseAdmin.from('profiles').select('id').eq('signup_domain', req.query.domain);
+            const validIds = (validProfiles || []).map(p => p.id);
+            if (validIds.length === 0) return res.json({ data: [] });
+            query = query.in('user_id', validIds);
         }
 
         // Apply date filters
@@ -53,10 +60,12 @@ router.get('/', async (req, res) => {
         // Fetch users (profiles)
         let profilesQuery = supabaseAdmin
             .from('profiles')
-            .select('id, name, email, phone, signup_domain');
+            .select('id, name, email, contact_number, signup_domain');
 
         if (!isSuperAdmin) {
             profilesQuery = profilesQuery.eq('signup_domain', adminDomain);
+        } else if (req.query.domain) {
+            profilesQuery = profilesQuery.eq('signup_domain', req.query.domain);
         }
 
         const { data: profiles, error: profileError } = await profilesQuery;
@@ -85,7 +94,7 @@ router.get('/', async (req, res) => {
             // Fetch configs
             let configsQuery = supabaseAdmin
                 .from('whatsapp_config')
-                .select('user_id, whatsapp_account_id, phone_number');
+                .select('user_id, whatsapp_business_account_id, phone_number');
             if (!isSuperAdmin) {
                 configsQuery = configsQuery.in('user_id', profileIds);
             }
@@ -107,15 +116,15 @@ router.get('/', async (req, res) => {
             
             const wabaConfig = configMap[p.id] || {};
             
-            // For phone number, prefer WABA phone, fallback to profile phone
-            const phoneNumber = wabaConfig.phone_number || p.phone || '—';
+            // For phone number, prefer WABA phone, fallback to profile contact_number
+            const phoneNumber = wabaConfig.phone_number || p.contact_number || '—';
 
             return {
                 user_id: p.id,
                 email: p.email,
                 name: p.name,
                 phone: phoneNumber,
-                waba_id: wabaConfig.whatsapp_account_id || '—',
+                waba_id: wabaConfig.whatsapp_business_account_id || '—',
                 current_balance,
                 deposited_balance: agg.deposited,
                 spend_balance: agg.spend,

@@ -25,6 +25,58 @@ const FinanceReport = () => {
     // Suspicious Filter
     const [showSuspiciousOnly, setShowSuspiciousOnly] = useState(false);
 
+    // Super Admin Domain Filter
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+    const [domains, setDomains] = useState<any[]>([]);
+    const [domainFilter, setDomainFilter] = useState('all');
+
+    useEffect(() => {
+        const checkSuperAdmin = async () => {
+            let isMaster = false;
+            try {
+                const token = localStorage.getItem('adminToken');
+                if (token) {
+                    const res = await fetch('/api/admin/auth/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const adminData = await res.json();
+                        isMaster = adminData.role === 'super_admin';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to verify admin role', e);
+            }
+            if (!isMaster) {
+                // @ts-ignore
+                const MASTER_URL = (import.meta as any).env.VITE_MASTER_URL || '';
+                const hostname = window.location.hostname;
+                isMaster = MASTER_URL.includes(hostname) || hostname.includes('localhost');
+            }
+            setIsSuperAdmin(isMaster);
+            if (isMaster) {
+                fetchDomains();
+            }
+        };
+
+        const fetchDomains = async () => {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const res = await fetch('/api/admin/dashboard/tenants', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setDomains(data);
+                }
+            } catch (e) {
+                console.error("Failed to load domains", e);
+            }
+        };
+
+        checkSuperAdmin();
+    }, []);
+
     const fetchReport = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -32,6 +84,9 @@ const FinanceReport = () => {
             const params = new URLSearchParams();
             if (filterDateFrom) params.set('date_from', filterDateFrom);
             if (filterDateTo) params.set('date_to', filterDateTo);
+            if (isSuperAdmin && domainFilter && domainFilter !== 'all') {
+                params.set('domain', domainFilter);
+            }
 
             const res = await fetch(`/api/wallet/admin/finance-report?${params}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -49,7 +104,7 @@ const FinanceReport = () => {
 
     useEffect(() => {
         fetchReport();
-    }, [fetchReport]);
+    }, [fetchReport, isSuperAdmin, domainFilter]);
 
     const getRiskStatus = (row: UserFinanceRow) => {
         if (row.billing_mode === 'DIRECT_META') {
@@ -118,9 +173,8 @@ const FinanceReport = () => {
     const suspiciousCount = data.filter(r => getRiskStatus(r).isSuspicious).length;
 
     return (
-        <div className="flex-1 overflow-auto bg-slate-50 p-4 sm:p-6 relative">
-            <div className="w-full mx-auto space-y-5">
-                {/* Header */}
+        <div className="space-y-5">
+            {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <h1 className="text-xl font-black text-slate-900 tracking-tight">Financial Analytics 📈</h1>
@@ -139,6 +193,19 @@ const FinanceReport = () => {
                         <option value="last_month">Last Month</option>
                         <option value="this_year">This Year</option>
                     </select>
+
+                    {isSuperAdmin && domains.length > 0 && (
+                        <select
+                            value={domainFilter}
+                            onChange={(e) => setDomainFilter(e.target.value)}
+                            className="border border-slate-200 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                        >
+                            <option value="all">All Domains</option>
+                            {domains.map(d => (
+                                <option key={d.domain} value={d.domain}>{d.domain}</option>
+                            ))}
+                        </select>
+                    )}
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">From</span>
                         <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
@@ -291,7 +358,6 @@ const FinanceReport = () => {
                         </table>
                     </div>
                 </div>
-            </div>
         </div>
     );
 };

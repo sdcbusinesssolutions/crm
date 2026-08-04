@@ -864,6 +864,7 @@ const Users = () => {
                                                             ) : (
                                                                 <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">{user.billing_mode === 'DIRECT_META' ? 'Billing' : 'Top-up'}</span></button>
                                                             )}
+                                                            <button onClick={() => handleAction('WalletRates', user)} className="flex items-center gap-1 px-1.5 py-1 text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"><TagIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Rates</span></button>
                                                             <button onClick={() => handleAction('WalletLedger', user)} className="flex items-center gap-1 px-1.5 py-1 text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><ListIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Ledger</span></button>
                                                         </>
                                                     )}
