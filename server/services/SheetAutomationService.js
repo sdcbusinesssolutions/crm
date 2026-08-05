@@ -281,7 +281,8 @@ class SheetAutomationService {
         const currentYear = getISTPart('year');
         const currentMonth = getISTPart('month') - 1; // JS months are 0-11
         const currentDateNum = getISTPart('day');
-        const currentHour = getISTPart('hour');
+        let currentHour = getISTPart('hour');
+        if (currentHour === 24) currentHour = 0;
         const currentMinute = getISTPart('minute');
         // Weekday: "Mon", "Tue"
         const currentDayStr = getISTString({ weekday: 'short' });
@@ -1163,14 +1164,14 @@ class SheetAutomationService {
             const days = parseInt(targetVal) || 0;
             const thresholdObs = getRelativeIST(-days);
             const thresholdInt = thresholdObs.year * 10000 + (thresholdObs.month + 1) * 100 + thresholdObs.day;
-            return valInt >= thresholdInt && valInt <= istNowInt;
+            return valInt === thresholdInt;
         }
 
         if (op === 'in_next_x_days') {
             const days = parseInt(targetVal) || 0;
             const thresholdObs = getRelativeIST(days);
             const thresholdInt = thresholdObs.year * 10000 + (thresholdObs.month + 1) * 100 + thresholdObs.day;
-            return valInt >= istNowInt && valInt <= thresholdInt;
+            return valInt === thresholdInt;
         }
 
         if (['date_equals', 'date_before', 'date_after', 'date_between'].includes(op)) {
