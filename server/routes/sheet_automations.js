@@ -230,7 +230,7 @@ router.get('/:id/report', requirePermission('G+Automation', 'read'), async (req,
 });
 // GET /api/sheet-automations/:id/report-json
 // Download/View CSV Data as JSON for Data Table
-router.get('/:id/report-json', authMiddleware, async (req, res) => {
+router.get('/:id/report-json', requirePermission('G+Automation', 'read'), async (req, res) => {
     try {
         const { id } = req.params;
         const page = parseInt(req.query.page) || 1;
