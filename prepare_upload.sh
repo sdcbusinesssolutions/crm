@@ -42,7 +42,19 @@ GIT_DATE=$(date +'%Y%m%d')
 IMAGE_TAG="${GIT_BRANCH_CLEAN}-${GIT_DATE}-${GIT_COMMIT}"
 echo "   Tag: $IMAGE_TAG"
 
-# 2. Copy CLIENT (Only Source Code)
+# 1b. Automatically Build the Client
+echo "🏗️  Building Client (Automated)..."
+OLD_PWD=$(pwd)
+cd client
+echo "   Running npm install..."
+npm install > /dev/null 2>&1 || { echo "❌ Failed to run npm install in client!"; exit 1; }
+echo "   Running npm run build..."
+npm run build > /dev/null 2>&1 || { echo "❌ Failed to build client!"; exit 1; }
+cd "$OLD_PWD"
+echo "✅ Client built successfully!"
+echo ""
+
+# 2. Copy CLIENT (Only Source Code and Dist)
 echo "📂 Copying Client..."
 mkdir -p "$BUILD_DIR/client"
 
