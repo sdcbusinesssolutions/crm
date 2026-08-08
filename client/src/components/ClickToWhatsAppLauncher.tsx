@@ -1250,9 +1250,36 @@ const ClickToWhatsAppLauncher = () => {
                   )}
             {currentStep === 1 && (
               <div className="ctwa-step-content">
-                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', borderRadius: '10px', borderLeft: '4px solid #3b82f6' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', letterSpacing: '0.08em', textTransform: 'uppercase' }}>📋 Campaign</div>
-                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Set your campaign name, objective, and ad account.</div>
+                <div style={{ 
+                  marginBottom: '20px', 
+                  padding: '20px 24px', 
+                  background: 'linear-gradient(90deg, #09172A 0%, #064E3B 100%)', 
+                  borderRadius: '16px', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', letterSpacing: '0.02em', marginBottom: '2px' }}>CAMPAIGN</div>
+                    <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Set your campaign name, objective, and ad account.</div>
+                  </div>
                 </div>
                 {/* Row 1: Ad Account + Facebook Page */}
                 <div className="ctwa-form-row">
