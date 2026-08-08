@@ -304,13 +304,23 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                         <p className="text-slate-500 mt-2 text-lg font-medium">Manage your WhatsApp Flows and Forms.</p>
                     </div>
                     {canWrite ? (
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="px-5 py-2.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
-                        >
-                            <PlusIcon className="w-5 h-5" />
-                            Create New
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={fetchFlows}
+                                disabled={isLoading}
+                                className="px-4 py-2.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                                <svg className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                {isLoading ? 'Syncing...' : 'Sync with Meta'}
+                            </button>
+                            <button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="px-5 py-2.5 bg-[var(--color-brand)] hover:opacity-90 text-white rounded-xl text-sm font-bold shadow-lg shadow-brand-200 transition-all flex items-center gap-2"
+                            >
+                                <PlusIcon className="w-5 h-5" />
+                                Create New
+                            </button>
+                        </div>
                     ) : (
                         <div className="px-4 py-2.5 bg-slate-100 text-slate-500 text-xs font-bold rounded-xl border border-slate-200 shadow-sm flex items-center gap-2">
                             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -427,7 +437,7 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right flex justify-end gap-2">
-                                                 <button
+                                                <button
                                                     onClick={() => handlePreview(flow)}
                                                     className="text-slate-400 hover:text-blue-600 transition-colors p-1"
                                                     title="Preview"
@@ -665,9 +675,9 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                 size="4xl"
             >
                 <div className="flex-1 bg-slate-100 flex items-center justify-center p-4 min-h-[60vh]">
-                    {(previewFlow as any)?.preview?.preview_url ? (
+                    {((previewFlow as any)?.preview?.url || (previewFlow as any)?.preview?.preview_url) ? (
                         <iframe
-                            src={(previewFlow as any).preview.preview_url}
+                            src={((previewFlow as any).preview.url || (previewFlow as any).preview.preview_url)}
                             className="w-full h-full rounded-xl border border-slate-200 bg-white shadow-sm min-h-[600px]"
                             title="Flow Preview"
                         />
@@ -687,28 +697,28 @@ const WhatsAppForms: React.FC<WhatsAppFormsProps> = ({ onNavigateToBuilder }) =>
                 title={`Send Flow: ${sendFlowData?.name}`}
                 size="lg"
                 footer={
-                         <div className="flex justify-end gap-3 w-full">
+                    <div className="flex justify-end gap-3 w-full">
+                        <button
+                            onClick={() => setSendFlowData(null)}
+                            className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                            {canWrite ? 'Cancel' : 'Close'}
+                        </button>
+                        {canWrite && (
                             <button
-                                onClick={() => setSendFlowData(null)}
-                                className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors"
+                                onClick={handleSendSubmit}
+                                disabled={isSending || !sendFormData.phoneNumbers || !sendFormData.bodyText}
+                                className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 shadow-md shadow-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                {canWrite ? 'Cancel' : 'Close'}
+                                {isSending ? 'Sending...' : (
+                                    <>
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                                        Send Flow
+                                    </>
+                                )}
                             </button>
-                            {canWrite && (
-                                <button
-                                    onClick={handleSendSubmit}
-                                    disabled={isSending || !sendFormData.phoneNumbers || !sendFormData.bodyText}
-                                    className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 shadow-md shadow-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                                >
-                                    {isSending ? 'Sending...' : (
-                                        <>
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                            Send Flow
-                                        </>
-                                    )}
-                                </button>
-                            )}
-                        </div>
+                        )}
+                    </div>
                 }
             >
                 <div className="space-y-4">

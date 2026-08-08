@@ -107,6 +107,71 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [flowId]);
 
+    const parseMetaJson = (flowJson: any): FlowScreen[] => {
+        if (!flowJson || !flowJson.screens) return [];
+
+        return flowJson.screens.map((screen: any) => {
+            const formComponent = screen.layout?.children?.find((c: any) => c.type === 'Form');
+            const metaChildren = formComponent ? formComponent.children : [];
+
+            // Filter out Footer, it's used for the next screen config
+            const components = metaChildren.filter((c: any) => c.type !== 'Footer');
+            const footer = metaChildren.find((c: any) => c.type === 'Footer');
+
+            const children: FlowComponent[] = components.map((c: any) => {
+                let type: ComponentType = 'ShortAnswer';
+                let options: any = undefined;
+                let inputType: any = undefined;
+
+                switch (c.type) {
+                    case 'TextHeading': type = 'TextHeading'; break;
+                    case 'TextSubheading': type = 'TextSubheading'; break;
+                    case 'TextBody': type = 'TextBody'; break;
+                    case 'TextCaption': type = 'TextCaption'; break;
+                    case 'TextInput':
+                        type = 'ShortAnswer';
+                        inputType = c['input-type'] || 'text';
+                        break;
+                    case 'TextArea': type = 'Paragraph'; break;
+                    case 'DatePicker': type = 'DatePicker'; break;
+                    case 'RadioButtonsGroup':
+                        type = 'SingleChoice';
+                        options = c['data-source'];
+                        break;
+                    case 'CheckboxGroup':
+                        type = 'MultipleChoice';
+                        options = c['data-source'];
+                        break;
+                    case 'Dropdown':
+                        type = 'Dropdown';
+                        options = c['data-source'];
+                        break;
+                    case 'OptIn': type = 'OptIn'; break;
+                }
+
+                return {
+                    id: `cmp_${generateRandomId()}`,
+                    type,
+                    label: c.label,
+                    text: c.text,
+                    name: c.name,
+                    required: c.required || false,
+                    options: options,
+                    inputType: inputType,
+                    helperText: c['helper-text']
+                };
+            });
+
+            return {
+                id: screen.id,
+                title: screen.title || screen.id,
+                terminal: screen.terminal || false,
+                children: children,
+                footerLabel: footer ? footer.label : 'Continue'
+            };
+        });
+    };
+
     const fetchFlowDetails = async () => {
         try {
             const { data: { session } } = await supabase.auth.getSession();
@@ -117,10 +182,24 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
             });
             if (response.ok) {
                 const data = await response.json();
-                if (data.preview && data.preview.preview_url) {
-                    setPreviewUrl(data.preview.preview_url);
+                if (data.preview && (data.preview.url || data.preview.preview_url)) {
+                    setPreviewUrl(data.preview.url || data.preview.preview_url);
                 }
             }
+
+            // Fetch JSON
+            const jsonResponse = await fetch(`/api/whatsapp/forms/${flowId}/json`, {
+                headers: { 'Authorization': `Bearer ${session.access_token}` }
+            });
+            if (jsonResponse.ok) {
+                const flowJson = await jsonResponse.json();
+                if (flowJson && flowJson.screens && flowJson.screens.length > 0) {
+                    const parsedScreens = parseMetaJson(flowJson);
+                    setScreens(parsedScreens);
+                    setActiveScreenId(parsedScreens[0].id);
+                }
+            }
+
         } catch (error) {
             console.error("Error fetching flow details:", error);
         }
@@ -521,7 +600,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
 
             <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                 {/* Left Panel: Screens */}
-                <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0">
+                <div className="w-full lg:w-64 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 min-h-0">
                     <div className="p-4 border-b border-slate-100">
                         <h2 className="font-bold text-slate-800">Screens</h2>
                     </div>
@@ -539,7 +618,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                     </span>
                                     <span>{screen.title}</span>
                                 </div>
-                                 {screens.length > 1 && canWrite && (
+                                {screens.length > 1 && canWrite && (
                                     <span onClick={(e) => { e.stopPropagation(); deleteScreen(screen.id); }} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 p-1">
                                         <TrashIcon className="w-4 h-4" />
                                     </span>
@@ -547,7 +626,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                             </button>
                         ))}
                     </div>
-                     {canWrite && (
+                    {canWrite && (
                         <div className="p-3 border-t border-slate-100">
                             <button onClick={addScreen} className="w-full py-2 flex items-center justify-center gap-2 text-sm font-bold text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
                                 <PlusIcon className="w-4 h-4" /> Add new
@@ -557,7 +636,7 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                 </div>
 
                 {/* Middle Panel: Edit Contents */}
-                <div className="w-full lg:w-96 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0">
+                <div className="w-full lg:w-96 bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 min-h-0">
                     <div className="p-4 border-b border-slate-100">
                         <h2 className="font-bold text-slate-800">Edit Contents</h2>
                     </div>
@@ -620,38 +699,38 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                 )}
                             </div>
                         )}
-                        </div>
+                    </div>
 
-                        {/* Components List */}
-                        <div className="space-y-3">
-                            {activeScreen.children.map((child) => (
-                                <div key={child.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden">
-                                    {/* Header */}
-                                    <div
-                                        className="flex items-center justify-between px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
-                                        onClick={() => setExpandedComponentId(expandedComponentId === child.id ? null : child.id)}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-slate-400">
-                                                {React.createElement(COMPONENT_TYPES[child.type].icon, { className: "w-4 h-4" })}
-                                            </div>
-                                            <span className="text-sm font-bold text-slate-700">{COMPONENT_TYPES[child.type].label}</span>
+                    {/* Components List */}
+                    <div className="space-y-3">
+                        {activeScreen.children.map((child) => (
+                            <div key={child.id} className="border border-slate-200 rounded-lg bg-white overflow-hidden">
+                                {/* Header */}
+                                <div
+                                    className="flex items-center justify-between px-4 py-3 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                                    onClick={() => setExpandedComponentId(expandedComponentId === child.id ? null : child.id)}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-slate-400">
+                                            {React.createElement(COMPONENT_TYPES[child.type].icon, { className: "w-4 h-4" })}
                                         </div>
-                                         <div className="flex items-center gap-2">
-                                            {canWrite && (
-                                                <button onClick={(e) => { e.stopPropagation(); deleteComponent(child.id); }} className="p-1 text-slate-400 hover:text-red-500">
-                                                    <TrashIcon className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            {expandedComponentId === child.id ? <ChevronDownIcon className="w-4 h-4 text-slate-400" /> : <ChevronRightIcon className="w-4 h-4 text-slate-400" />}
-                                        </div>
+                                        <span className="text-sm font-bold text-slate-700">{COMPONENT_TYPES[child.type].label}</span>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        {canWrite && (
+                                            <button onClick={(e) => { e.stopPropagation(); deleteComponent(child.id); }} className="p-1 text-slate-400 hover:text-red-500">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        {expandedComponentId === child.id ? <ChevronDownIcon className="w-4 h-4 text-slate-400" /> : <ChevronRightIcon className="w-4 h-4 text-slate-400" />}
+                                    </div>
+                                </div>
 
-                                     {/* Body (Expanded) */}
-                                    {expandedComponentId === child.id && (
-                                        <div className="p-4 space-y-4 border-t border-slate-100 animate-fade-in">
-                                            <fieldset disabled={!canWrite} className="space-y-4 contents">
-                                                {child.type.startsWith('Text') ? (
+                                {/* Body (Expanded) */}
+                                {expandedComponentId === child.id && (
+                                    <div className="p-4 space-y-4 border-t border-slate-100 animate-fade-in">
+                                        <fieldset disabled={!canWrite} className="space-y-4 contents">
+                                            {child.type.startsWith('Text') ? (
                                                 <div>
                                                     <label className="block text-xs font-bold text-slate-500 mb-1">Text</label>
                                                     <textarea
@@ -801,12 +880,12 @@ const WhatsAppFormBuilder: React.FC<WhatsAppFlowBuilderProps> = ({ onBack, flowI
                                                         </div>
                                                     </div>
                                                 </>
-                                                )}
-                                            </fieldset>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                            )}
+                                        </fieldset>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
