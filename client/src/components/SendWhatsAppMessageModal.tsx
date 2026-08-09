@@ -13,6 +13,7 @@ import { quickReplyService } from '../services/quickReplyService';
 import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
 import { contactService } from '../services/contactService';
+import { socket } from '../lib/socket';
 
 
 const formatTime = (dateString: string) => {
@@ -215,6 +216,66 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
     };
+
+    // Socket.IO Room Join
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && socket) {
+                socket.emit('join_room', user.id);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        }
+        socket.on('connect', joinSocketRoom);
+
+        return () => {
+            socket.off('connect', joinSocketRoom);
+        };
+    }, [isOpen]);
+
+    // Socket.IO Real-time Updates
+    useEffect(() => {
+        if (!isOpen || !conversation?.id) return;
+
+        const handleMessageUpdate = (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+                const newMessage = payload.new as Message;
+                if (newMessage.conversation_id !== conversation.id) return;
+
+                setMessages(prev => {
+                    if (prev.some(m => m.id === newMessage.id)) return prev;
+
+                    const filtered = prev.filter(m => {
+                        if (!String(m.id).startsWith('temp-')) return true;
+                        const isMatch = m.type === newMessage.type &&
+                            m.direction === newMessage.direction &&
+                            (m.text === newMessage.text || m.media_url === newMessage.media_url);
+                        return !isMatch;
+                    });
+
+                    return [...filtered, newMessage].sort((a, b) =>
+                        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                    );
+                });
+                setTimeout(scrollToBottom, 100);
+            } else if (payload.eventType === 'UPDATE') {
+                const updatedMsg = payload.new as Message;
+                if (updatedMsg.conversation_id !== conversation.id) return;
+                setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+            }
+        };
+
+        socket.on('postgres_changes_messages', handleMessageUpdate);
+
+        return () => {
+            socket.off('postgres_changes_messages', handleMessageUpdate);
+        };
+    }, [isOpen, conversation?.id]);
 
     const filteredQuickReplies = useMemo(() => {
         if (!quickReplySearch.trim()) return quickReplies;
