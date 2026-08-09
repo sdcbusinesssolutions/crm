@@ -749,7 +749,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
 
         isSendingRef.current = true;
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const tempId = crypto.randomUUID();
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,
@@ -765,12 +765,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         setMessageInput('');
 
         try {
-            const sentMsg = await inboxService.sendMessage(activeChatId, { text: textToSend, type: 'text' });
+            const sentMsg = await inboxService.sendMessage(activeChatId, { id: tempId, text: textToSend, type: 'text' });
             if (sentMsg) {
                 setMessages(prev => {
-                    const existingRealMsg = prev.find(m => m.id === sentMsg.id);
-                    if (existingRealMsg) {
-                        return prev.filter(m => m.id !== tempId);
+                    const existingMsg = prev.find(m => m.id === tempId);
+                    if (existingMsg && (existingMsg.status === 'read' || existingMsg.status === 'delivered')) {
+                        // Socket.IO already updated the status, do not downgrade it back to 'sent'!
+                        return prev;
                     }
                     const updated = prev.map(m => m.id === tempId ? sentMsg : m);
                     return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
@@ -886,7 +887,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             }
 
             // Optimistic UI
-            const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const tempId = crypto.randomUUID();
 
             // Determine type: Use user selection if 'document', otherwise auto-detect to ensure consistency
             let type = attachmentTypeRef.current;
@@ -961,7 +962,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         const file = new File([audioBlob], `voice_message_${Date.now()}.webm`, { type: 'audio/webm' });
 
         // Optimistic UI
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const tempId = crypto.randomUUID();
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,

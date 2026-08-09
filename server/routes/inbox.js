@@ -453,6 +453,7 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // 4. Save to DB
         const whatsappMessageId = waResponse.messages?.[0]?.id;
         const newMessage = {
+            id: req.body.id || undefined,
             conversation_id: conversationId,
             type,
             text,
