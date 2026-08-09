@@ -1409,9 +1409,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 }}
                             />
                         ) : (
-                            <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                                <ImageFileIcon className="w-8 h-8 mb-2 opacity-50" />
-                                <span>Media Unavailable</span>
+                            <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="font-medium">Loading Media...</span>
                             </div>
                         )}
                         {msg.text && type !== 'sticker' && <p className="text-sm text-slate-800 mt-2">{formatWhatsAppText(msg.text)}</p>}
@@ -1433,9 +1433,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 />
                             </div>
                         ) : (
-                            <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                                <VideoFileIcon className="w-8 h-8 mb-2 opacity-50" />
-                                <span>Video Unavailable</span>
+                            <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="font-medium">Loading Video...</span>
                             </div>
                         )}
                         {msg.text && <p className="text-sm text-slate-800 mt-2">{formatWhatsAppText(msg.text)}</p>}
