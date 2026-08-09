@@ -867,19 +867,23 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 } else {
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
-                        
-                        // Fetch the updated message to emit via Socket.IO so ticks update in real-time
-                        const { data: updatedMsg } = await supabaseAdmin
-                            .from('messages')
-                            .select('*')
-                            .eq('whatsapp_message_id', waMessageId)
-                            .maybeSingle();
-                            
-                        if (updatedMsg) {
-                            realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
-                        }
                     } else {
-                        console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);
+                        console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}', but RPC returned false (likely not a campaign message).`);
+                    }
+                    
+                    // Fetch the updated message to emit via Socket.IO so ticks update in real-time
+                    // We do this even if updateSuccess is false, because the message table update might have succeeded
+                    // while the campaign_queue update affected 0 rows (returning false).
+                    const { data: updatedMsg } = await supabaseAdmin
+                        .from('messages')
+                        .select('*')
+                        .eq('whatsapp_message_id', waMessageId)
+                        .maybeSingle();
+                        
+                    if (updatedMsg) {
+                        realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
+                    } else {
+                        console.warn(`[Webhook] Message ${waMessageId} NOT found in DB when trying to emit status update.`);
                     }
 
                     // =========================================================================
