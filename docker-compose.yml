@@ -120,11 +120,11 @@ services:
       replicas: 1
       resources:
         limits:
-          cpus: '0.2'      # Max 20% of a single CPU core
-          memory: 150M     # Max 150MB RAM
+          cpus: '0.8'      # Max 80% of a single CPU core
+          memory: 1000M    # Max 1GB RAM
         reservations:
-          cpus: '0.05'     # Reserve 5% of a CPU core
-          memory: 50M      # Reserve 50MB RAM
+          cpus: '0.1'      # Reserve 10% of a CPU core
+          memory: 200M     # Reserve 200MB RAM
     networks:
       - internal_network
 
