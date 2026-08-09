@@ -856,8 +856,26 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 const waMessageId = status.id;
                 const newStatus = status.status; // 'sent', 'delivered', 'read', 'failed'
 
+                // PREVENT DOWNGRADES (Out of Order Webhooks)
+                const statusRanks = { 'sent': 1, 'delivered': 2, 'read': 3, 'failed': 4 };
+                const newRank = statusRanks[newStatus] || 0;
+                
+                const { data: currentMessage } = await supabaseAdmin
+                    .from('messages')
+                    .select('status')
+                    .eq('whatsapp_message_id', waMessageId)
+                    .maybeSingle();
+                    
+                if (currentMessage) {
+                    const currentRank = statusRanks[currentMessage.status] || 0;
+                    if (newRank <= currentRank && currentRank > 0) {
+                        console.log(`[Webhook] Ignoring out-of-order status update for ${waMessageId}: ${currentMessage.status} -> ${newStatus}`);
+                        continue; // Skip updating DB and skip Socket.IO emit!
+                    }
+                }
+
                 // Update DB via RPC
-                const { data: updateSuccess, error: statusError } = await supabase.rpc('update_message_status', {
+                let { data: updateSuccess, error: statusError } = await supabase.rpc('update_message_status', {
                     p_whatsapp_message_id: waMessageId,
                     p_status: newStatus
                 });
