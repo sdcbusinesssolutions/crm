@@ -342,6 +342,89 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [isQuickReplyOpen]);
 
     // Load Messages & Mark as Read
+    const activeChatIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    // --- GLOBAL REALTIME SOCKET (Runs once) ---
+    useEffect(() => {
+        const handleMessageUpdate = (payload: any) => {
+            if (!payload.new) return;
+            const updatedMsg = payload.new as Message;
+            const currentActiveChatId = activeChatIdRef.current;
+
+            if (payload.eventType === 'INSERT') {
+                // 1. Update Messages List (ONLY if this is the active chat)
+                if (updatedMsg.conversation_id === currentActiveChatId) {
+                    console.log('[Socket.IO] New message received:', updatedMsg.id);
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === updatedMsg.id)) return prev;
+
+                        const filtered = prev.filter(m => {
+                            if (!m.id.startsWith('temp-')) return true;
+                            let isMatch = m.type === updatedMsg.type && m.direction === updatedMsg.direction;
+                            if (isMatch) {
+                                if (m.type === 'template' as any) {
+                                    const mName = (m as any).template_name || (m as any).template?.name;
+                                    const newName = (updatedMsg as any).template_name || (updatedMsg as any).template?.name;
+                                    isMatch = mName === newName;
+                                } else {
+                                    isMatch = (m.text === updatedMsg.text || m.media_url === updatedMsg.media_url);
+                                }
+                            }
+                            return !isMatch;
+                        });
+
+                        return [...filtered, updatedMsg].sort((a, b) =>
+                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                        );
+                    });
+                }
+
+                // 2. Update Sidebar (ALWAYS)
+                setConversations(prev => {
+                    const exists = prev.find(c => c.id === updatedMsg.conversation_id);
+                    if (!exists) return prev; 
+
+                    return prev.map(c => {
+                        if (c.id === updatedMsg.conversation_id) {
+                            const currentLastTime = new Date(c.updated_at || 0).getTime();
+                            const newTime = new Date(updatedMsg.created_at).getTime();
+                            
+                            if (newTime >= currentLastTime) {
+                                return {
+                                    ...c,
+                                    last_message: updatedMsg.text || (updatedMsg.type === 'image' ? '[image]' : `[${updatedMsg.type}]`),
+                                    updated_at: updatedMsg.created_at,
+                                    unread_count: ((updatedMsg.direction as string) === 'in' || (updatedMsg.direction as string) === 'inbound') && c.id !== currentActiveChatId 
+                                        ? (c.unread_count || 0) + 1 
+                                        : c.unread_count
+                                };
+                            }
+                        }
+                        return c;
+                    }).sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                });
+
+            } else if (payload.eventType === 'UPDATE') {
+                // 1. Update Messages List
+                if (updatedMsg.conversation_id === currentActiveChatId) {
+                    setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+                }
+                
+                // 2. Update Sidebar (if we had status tracking we would update it here, but Conversation doesn't track it)
+                setConversations(prev => prev.map(c => c));
+            }
+        };
+
+        socket.on('postgres_changes_messages', handleMessageUpdate);
+        return () => {
+            socket.off('postgres_changes_messages', handleMessageUpdate);
+        };
+    }, []); // Run once
+
+    // Load Messages & Mark as Read
     useEffect(() => {
         if (!activeChatId) return;
 
@@ -385,72 +468,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
         loadMessages();
 
-        // --- REALTIME OPTIMIZATION: Socket.IO ---
-        // Subscribe to messages via Socket.IO
-        const handleMessageUpdate = (payload: any) => {
-            if (payload.new && payload.new.conversation_id === activeChatId) {
-                if (payload.eventType === 'INSERT') {
-                    const newMessage = payload.new as Message;
-                    console.log('[Socket.IO] New message received:', newMessage.id);
-
-                    setMessages(prev => {
-                        if (prev.some(m => m.id === newMessage.id)) return prev;
-
-                        const filtered = prev.filter(m => {
-                            if (!m.id.startsWith('temp-')) return true;
-                            let isMatch = m.type === newMessage.type && m.direction === newMessage.direction;
-                            if (isMatch) {
-                                if (m.type === 'template' as any) {
-                                    const mName = (m as any).template_name || (m as any).template?.name;
-                                    const newName = (newMessage as any).template_name || (newMessage as any).template?.name;
-                                    isMatch = mName === newName;
-                                } else {
-                                    isMatch = (m.text === newMessage.text || m.media_url === newMessage.media_url);
-                                }
-                            }
-                            return !isMatch;
-                        });
-
-                        return [...filtered, newMessage].sort((a, b) =>
-                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                        );
-                    });
-                } else if (payload.eventType === 'UPDATE') {
-                    const updatedMsg = payload.new as Message;
-                    setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-                    
-                    // Also update the sidebar preview!
-                    setConversations(prev => prev.map(c => {
-                        if (c.id === updatedMsg.conversation_id && c.last_message_id === updatedMsg.id) {
-                            return { ...c, last_message_status: updatedMsg.status };
-                        }
-                        return c;
-                    }));
-                }
-            }
-        };
-
-        socket.on('postgres_changes_messages', handleMessageUpdate);
-
-        // --- TEMPORARY FALLBACK POLLING ---
-        // const fallbackInterval = setInterval(() => {
-        //     setMessages(currentMessages => {
-        //         if (currentMessages.length > 50) return currentMessages; 
-                
-        //         inboxService.getMessages(activeChatId, 50, 0).then(data => {
-        //             const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-        //             setMessages(prev => {
-        //                 if (prev.length === uniqueMessages.length && prev[0]?.id === uniqueMessages[0]?.id) return prev;
-        //                 return uniqueMessages;
-        //             });
-        //         }).catch(e => console.error("Polling error:", e));
-                
-        //         return currentMessages;
-        //     });
-        // }, 5000); // 5 seconds for fast chat updates
+        // --- TEMPORARY FALLBACK POLLING (removed) ---
 
         return () => {
-            socket.off('postgres_changes_messages', handleMessageUpdate);
             // clearInterval(fallbackInterval);
         };
     }, [activeChatId]);
@@ -780,7 +800,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         setMessageInput('');
 
         try {
-            const sentMsg = await inboxService.sendMessage(activeChatId, { id: tempId, text: textToSend, type: 'text' });
+            const sentMsg = await inboxService.sendMessage(activeChatId, { text: textToSend, type: 'text' });
             if (sentMsg) {
                 setMessages(prev => {
                     const existingMsg = prev.find(m => m.id === tempId);
