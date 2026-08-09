@@ -1459,23 +1459,44 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
                 );
 
-            case 'document':
+            case 'document': {
+                const getDocExtension = (filename?: string, mime?: string) => {
+                    if (filename && filename.includes('.')) return filename.split('.').pop()?.toUpperCase() || 'FILE';
+                    if (mime) {
+                        if (mime.includes('spreadsheetml') || mime.includes('excel')) return 'XLSX';
+                        if (mime.includes('wordprocessingml') || mime.includes('word')) return 'DOCX';
+                        if (mime.includes('presentationml') || mime.includes('powerpoint')) return 'PPTX';
+                        if (mime.includes('pdf')) return 'PDF';
+                        if (mime.includes('csv')) return 'CSV';
+                        return mime.split('/')[1]?.toUpperCase().substring(0, 5) || 'FILE';
+                    }
+                    return 'FILE';
+                };
+                
+                const ext = getDocExtension(msg.filename, msg.mime_type);
+                let iconColor = 'text-slate-500';
+                if (['XLSX', 'XLS', 'CSV'].includes(ext)) iconColor = 'text-green-600';
+                else if (['DOCX', 'DOC'].includes(ext)) iconColor = 'text-blue-600';
+                else if (['PPTX', 'PPT'].includes(ext)) iconColor = 'text-orange-600';
+                else if (ext === 'PDF') iconColor = 'text-red-500';
+
                 return (
                     <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group/doc" onClick={() => msg.media_url && window.open(msg.media_url, '_blank')}>
-                        <div className="w-10 h-10 bg-white border border-slate-200 text-red-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
+                        <div className={`w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${iconColor}`}>
                             <DocumentFileIcon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">{msg.filename || 'Document'}</p>
-                            <p className="text-[10px] text-slate-500 uppercase font-medium flex items-center gap-1">
-                                {msg.mime_type?.split('/')[1] || 'FILE'} • {msg.media_url ? 'CLICK TO OPEN' : (
-                                    <span className="text-emerald-500 animate-pulse">DOWNLOADING...</span>
+                            <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                                <span className="uppercase">{ext}</span> • {msg.media_url ? 'CLICK TO OPEN' : (
+                                    <span className="text-emerald-500 animate-pulse uppercase">DOWNLOADING...</span>
                                 )}
                             </p>
                         </div>
                         {msg.media_url && <DownloadIcon className="w-5 h-5 text-slate-400 group-hover/doc:text-[#00a884]" />}
                     </div>
                 );
+            }
 
             case 'location':
                 return (
