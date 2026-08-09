@@ -496,7 +496,7 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // WhatsApp webhooks are extremely fast and may update the message to 'delivered' or 'read'
         // before we even return to the frontend. If we return the old 'sent' status, the frontend
         // will overwrite the real-time socket updates. Let's delay slightly and fetch the latest state.
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 2500));
         
         const { data: latestMessage } = await supabase
             .from('messages')
