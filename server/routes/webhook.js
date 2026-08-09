@@ -865,6 +865,17 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 if (statusError) {
                     console.error(`[Webhook] Failed to update status for ${waMessageId}:`, statusError);
                 } else {
+                    if (!updateSuccess) {
+                        // RACE CONDITION MITIGATION: WhatsApp often fires webhooks BEFORE our backend finishes inserting the message!
+                        // If it's false, wait 1.5 seconds and retry.
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        const { data: retrySuccess } = await supabase.rpc('update_message_status', {
+                            p_whatsapp_message_id: waMessageId,
+                            p_status: newStatus
+                        });
+                        updateSuccess = retrySuccess;
+                    }
+
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
                     } else {
