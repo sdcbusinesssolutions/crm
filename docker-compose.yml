@@ -103,10 +103,11 @@ services:
       - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
 
-      # Sticker / Session Stickiness (Optional)
-      # Keeps a user connected to the same container if needed
-      # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
-    
+      # Sticky Session Configuration (CRITICAL for Socket.IO multi-container)
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.name=sticky_${ROUTER_NAME}"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.secure=true"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.httpOnly=true"
     networks:
       - traefik_network
       - internal_network
