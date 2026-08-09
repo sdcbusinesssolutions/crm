@@ -774,20 +774,46 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                                 : 'bg-white text-slate-800 rounded-tl-sm border border-slate-100'
                                         }`}>
                                             {/* Media Content */}
-                                            {msg.type === 'image' && msg.media_url && (
+                                            {msg.type === 'image' && (
                                                 <div className="mb-2 -mx-1 -mt-1 relative group/img overflow-hidden rounded-xl">
-                                                    <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" />
+                                                    {msg.media_url ? (
+                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                                            <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                                            <span className="font-medium">Loading Media...</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
-                                            {msg.type === 'document' && msg.media_url && (
-                                                <a href={msg.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-black/5 rounded-xl mb-2 hover:bg-black/10 transition-colors">
-                                                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-sm"><DocumentFileIcon className="w-5 h-5 text-red-500" /></div>
-                                                    <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-700 truncate">Document</p></div>
-                                                </a>
+                                            {msg.type === 'document' && (
+                                                <div className="mb-2">
+                                                    {msg.media_url ? (
+                                                        <a href={msg.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-black/5 rounded-xl hover:bg-black/10 transition-colors">
+                                                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-sm"><DocumentFileIcon className="w-5 h-5 text-red-500" /></div>
+                                                            <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-700 truncate">Document</p></div>
+                                                        </a>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 animate-pulse mb-1 mt-1">
+                                                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-xs font-semibold text-emerald-600">DOWNLOADING...</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
-                                            {msg.type === 'audio' && msg.media_url && (
-                                                <div className="mb-1 mt-1 w-64">
-                                                    <audio src={msg.media_url} controls className="w-full h-10" />
+                                            {msg.type === 'audio' && (
+                                                <div className="mb-1 mt-1 flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100 w-max">
+                                                    <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white shrink-0">
+                                                        <AudioFileIcon className="w-5 h-5" />
+                                                    </div>
+                                                    {msg.media_url ? (
+                                                        <audio src={msg.media_url} controls className="max-w-[240px] h-8" />
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 px-4 py-1">
+                                                            <div className="w-4 h-4 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-xs font-bold text-slate-500">Downloading...</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             {msg.type === 'template' && (
