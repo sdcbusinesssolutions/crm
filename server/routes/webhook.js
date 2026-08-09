@@ -1457,11 +1457,15 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                             if (mediaData && mediaData.url) {
                                 // 1. Update Message Record
-                                await supabaseAdmin.from('messages').update({
+                                const { data: updatedMsg } = await supabaseAdmin.from('messages').update({
                                     media_url: mediaData.url,
                                     mime_type: mediaData.mime_type || null,
                                     filename: extracted.filename || mediaData.filename || null
-                                }).eq('id', savedMessageId);
+                                }).eq('id', savedMessageId).select().single();
+
+                                if (updatedMsg) {
+                                    realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
+                                }
 
                                 // 2. Trigger Flow Engine (NOW WITH URL)
                                 if (inputPayload && !isStale && !isOptOut) {
