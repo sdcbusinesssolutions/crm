@@ -305,8 +305,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             )
             .subscribe();
 
+        // --- TEMPORARY FALLBACK POLLING ---
+        // Added back so you don't have to refresh the page right now.
+        // NOTE: Please switch to Supabase Custom Domains before scaling to 1 Lakh users!
+        const fallbackInterval = setInterval(() => {
+            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
+        }, 8000); // 8 seconds
+
         return () => {
             supabase.removeChannel(channel);
+            clearInterval(fallbackInterval);
         };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
 
@@ -427,8 +435,26 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             )
             .subscribe();
 
+        // --- TEMPORARY FALLBACK POLLING ---
+        const fallbackInterval = setInterval(() => {
+            setMessages(currentMessages => {
+                if (currentMessages.length > 50) return currentMessages; 
+                
+                inboxService.getMessages(activeChatId, 50, 0).then(data => {
+                    const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+                    setMessages(prev => {
+                        if (prev.length === uniqueMessages.length && prev[0]?.id === uniqueMessages[0]?.id) return prev;
+                        return uniqueMessages;
+                    });
+                }).catch(e => console.error("Polling error:", e));
+                
+                return currentMessages;
+            });
+        }, 5000); // 5 seconds for fast chat updates
+
         return () => {
             supabase.removeChannel(channel);
+            clearInterval(fallbackInterval);
         };
     }, [activeChatId]);
 
