@@ -411,6 +411,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                 } else if (payload.eventType === 'UPDATE') {
                     const updatedMsg = payload.new as Message;
                     setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+                    
+                    // Also update the sidebar preview!
+                    setConversations(prev => prev.map(c => {
+                        if (c.id === updatedMsg.conversation_id && c.last_message_id === updatedMsg.id) {
+                            return { ...c, last_message_status: updatedMsg.status };
+                        }
+                        return c;
+                    }));
                 }
             }
         };
