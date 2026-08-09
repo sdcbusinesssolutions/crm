@@ -768,8 +768,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             const sentMsg = await inboxService.sendMessage(activeChatId, { text: textToSend, type: 'text' });
             if (sentMsg) {
                 setMessages(prev => {
+                    const existingRealMsg = prev.find(m => m.id === sentMsg.id);
+                    if (existingRealMsg) {
+                        return prev.filter(m => m.id !== tempId);
+                    }
                     const updated = prev.map(m => m.id === tempId ? sentMsg : m);
-                    // Critical Deduplication: Ensure no duplicate IDs exist
                     return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
                 });
             } else {
@@ -925,6 +928,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     });
                     if (sentMsg) {
                         setMessages(prev => {
+                            const existingRealMsg = prev.find(m => m.id === sentMsg.id);
+                            if (existingRealMsg) {
+                                return prev.filter(m => m.id !== tempId);
+                            }
                             const updated = prev.map(m => m.id === tempId ? sentMsg : m);
                             // Critical Deduplication: Ensure no duplicate IDs exist
                             return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);

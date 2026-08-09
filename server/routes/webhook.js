@@ -867,6 +867,17 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 } else {
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
+                        
+                        // Fetch the updated message to emit via Socket.IO so ticks update in real-time
+                        const { data: updatedMsg } = await supabaseAdmin
+                            .from('messages')
+                            .select('*')
+                            .eq('whatsapp_message_id', waMessageId)
+                            .maybeSingle();
+                            
+                        if (updatedMsg) {
+                            realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
+                        }
                     } else {
                         console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);
                     }
