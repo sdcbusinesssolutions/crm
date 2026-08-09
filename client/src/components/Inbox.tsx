@@ -757,7 +757,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
 
         isSendingRef.current = true;
-        const tempId = `temp-${crypto.randomUUID()}`;
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,
@@ -895,7 +895,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             }
 
             // Optimistic UI
-            const tempId = `temp-${crypto.randomUUID()}`;
+            const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
             // Determine type: Use user selection if 'document', otherwise auto-detect to ensure consistency
             let type = attachmentTypeRef.current;
@@ -970,7 +970,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         const file = new File([audioBlob], `voice_message_${Date.now()}.webm`, { type: 'audio/webm' });
 
         // Optimistic UI
-        const tempId = `temp-${crypto.randomUUID()}`;
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,
