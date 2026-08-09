@@ -1065,7 +1065,10 @@ class SheetAutomationService {
     checkSingleCondition(condition, rowObj) {
         if (!condition || !condition.column) return true;
 
-        const val = rowObj[condition.column];
+        const targetCol = condition.column.toLowerCase().trim();
+        const actualKey = Object.keys(rowObj).find(k => k.toLowerCase().trim() === targetCol);
+        const val = actualKey ? rowObj[actualKey] : undefined;
+        
         const op = condition.operator;
         const targetVal = condition.value;
 
