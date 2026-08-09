@@ -1451,7 +1451,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         {msg.media_url ? (
                             <audio src={msg.media_url} controls className="max-w-[240px] h-8" />
                         ) : (
-                            <div className="text-xs text-slate-500 italic">Audio Unavailable</div>
+                            <div className="flex items-center gap-2 animate-pulse">
+                                <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-xs text-slate-500 italic font-medium">Downloading...</span>
+                            </div>
                         )}
                     </div>
                 );
@@ -1464,7 +1467,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">{msg.filename || 'Document'}</p>
-                            <p className="text-[10px] text-slate-500 uppercase font-medium">{msg.mime_type?.split('/')[1] || 'FILE'} • {msg.media_url ? 'CLICK TO OPEN' : 'UNAVAILABLE'}</p>
+                            <p className="text-[10px] text-slate-500 uppercase font-medium flex items-center gap-1">
+                                {msg.mime_type?.split('/')[1] || 'FILE'} • {msg.media_url ? 'CLICK TO OPEN' : (
+                                    <span className="text-emerald-500 animate-pulse">DOWNLOADING...</span>
+                                )}
+                            </p>
                         </div>
                         {msg.media_url && <DownloadIcon className="w-5 h-5 text-slate-400 group-hover/doc:text-[#00a884]" />}
                     </div>
