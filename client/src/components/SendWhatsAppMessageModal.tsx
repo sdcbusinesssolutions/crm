@@ -252,9 +252,16 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
 
                     const filtered = prev.filter(m => {
                         if (!String(m.id).startsWith('temp-')) return true;
-                        const isMatch = m.type === newMessage.type &&
-                            m.direction === newMessage.direction &&
-                            (m.text === newMessage.text || m.media_url === newMessage.media_url);
+                        let isMatch = m.type === newMessage.type && m.direction === newMessage.direction;
+                        if (isMatch) {
+                            if (m.type === 'template' as any) {
+                                const mName = (m as any).template_name || (m as any).template?.name;
+                                const newName = (newMessage as any).template_name || (newMessage as any).template?.name;
+                                isMatch = mName === newName;
+                            } else {
+                                isMatch = (m.text === newMessage.text || m.media_url === newMessage.media_url);
+                            }
+                        }
                         return !isMatch;
                     });
 
