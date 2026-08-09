@@ -6,6 +6,7 @@ const whatsappService = require('../services/whatsappService');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const realtimeSync = require('../services/realtimeSync');
 
 // Helper to get user ID from request
 const getUserId = (req) => req.user.id;
@@ -470,17 +471,26 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
 
         if (msgError) throw msgError;
 
+        // Emit new message event via local Socket emitter
+        realtimeSync.emitMessage(userId, savedMessage, 'INSERT');
+
         // 5. Update conversation last_message and pause AI
         const previewText = type === 'template' ? `📄 Template: ${content.name}` : (text || `[${type}]`);
         const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        await supabase
+        const { data: updatedConv } = await supabase
             .from('conversations')
             .update({
                 last_message: previewText,
                 updated_at: new Date().toISOString(),
                 bot_paused_until: pauseUntil
             })
-            .eq('id', conversationId);
+            .eq('id', conversationId)
+            .select()
+            .single();
+
+        if (updatedConv) {
+            realtimeSync.emitConversation(userId, updatedConv, 'UPDATE');
+        }
 
         res.json(savedMessage);
 

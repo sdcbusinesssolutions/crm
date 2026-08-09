@@ -59,6 +59,7 @@ services:
       - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_MASTER_URL=${VITE_MASTER_URL}
+      - REDIS_URL=redis://redis:6379
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
       # MEMORY OPTIMIZATION: Maximize usage of 2.5GB container limit
@@ -95,6 +96,7 @@ services:
       
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK}"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
       
       # Define the HTTP to HTTPS redirect middleware
@@ -107,8 +109,27 @@ services:
     
     networks:
       - traefik_network
+      - internal_network
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.2'      # Max 20% of a single CPU core
+          memory: 150M     # Max 150MB RAM
+        reservations:
+          cpus: '0.05'     # Reserve 5% of a CPU core
+          memory: 50M      # Reserve 50MB RAM
+    networks:
+      - internal_network
 
 networks:
+  internal_network:
+    driver: bridge
   traefik_network:
     external: true
     name: ${TRAEFIK_NETWORK}

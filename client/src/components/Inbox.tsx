@@ -27,6 +27,7 @@ import { tokenService } from '../services/tokenService';
 import { aiAgentService, Agent } from '../services/aiAgentService';
 import { reminderManager } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
+import { socket } from '../lib/socket';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -284,37 +285,38 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         setHasMoreConvs(true);
         loadConversations(1, false, searchTerm, quickFilter, filterTag);
 
-        // --- REALTIME OPTIMIZATION: Replacement for 10s Polling ---
-        // Instead of polling, we subscribe to the 'conversations' table for updates.
-        // This makes the sidebar refresh instantly when a new message arrives.
-        const channel = supabase
-            .channel('conversations-channel')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*', // Listen for ALL events (insert, update, delete)
-                    schema: 'public',
-                    table: 'conversations'
-                },
-                (payload) => {
-                    // Only process if it belongs to the current view/filter context
-                    // For simplicity, we just trigger a fresh first-page load to keep it consistent
-                    console.log('[Realtime] Conversation update detected:', payload.eventType);
-                    loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-                }
-            )
-            .subscribe();
+        // --- REALTIME OPTIMIZATION: Socket.IO ---
+        // Instead of polling or Supabase Websockets, we use our own Socket.IO server
+        // This makes the sidebar refresh instantly when a new message arrives and scales perfectly.
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && socket) {
+                console.log('[Socket.IO] Emitting join_room for:', user.id);
+                socket.emit('join_room', user.id);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        }
+        socket.on('connect', joinSocketRoom);
+        const handleConvUpdate = (payload: any) => {
+            console.log('[Socket.IO] Conversation update detected:', payload.eventType);
+            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
+        };
+        
+        socket.on('postgres_changes_conversations', handleConvUpdate);
 
         // --- TEMPORARY FALLBACK POLLING ---
-        // Added back so you don't have to refresh the page right now.
-        // NOTE: Please switch to Supabase Custom Domains before scaling to 1 Lakh users!
-        const fallbackInterval = setInterval(() => {
-            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-        }, 8000); // 8 seconds
+        // Retained as a secondary fail-safe just in case
+        // const fallbackInterval = setInterval(() => {
+        //     loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
+        // }, 8000); // 8 seconds
 
         return () => {
-            supabase.removeChannel(channel);
-            clearInterval(fallbackInterval);
+            socket.off('connect', joinSocketRoom);
+            socket.off('postgres_changes_conversations', handleConvUpdate);
+            // clearInterval(fallbackInterval);
         };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
 
@@ -383,28 +385,17 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
         loadMessages();
 
-        // --- REALTIME OPTIMIZATION: Replacement for 3s Polling ---
-        // We subscribe to messages specifically for THIS conversation.
-        // This is 100x more efficient than polling.
-        const channel = supabase
-            .channel(`chat:${activeChatId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeChatId}`
-                },
-                (payload) => {
+        // --- REALTIME OPTIMIZATION: Socket.IO ---
+        // Subscribe to messages via Socket.IO
+        const handleMessageUpdate = (payload: any) => {
+            if (payload.new && payload.new.conversation_id === activeChatId) {
+                if (payload.eventType === 'INSERT') {
                     const newMessage = payload.new as Message;
-                    console.log('[Realtime] New message received:', newMessage.id);
+                    console.log('[Socket.IO] New message received:', newMessage.id);
 
                     setMessages(prev => {
-                        // Avoid duplicates if we already have it (e.g. from optimistic UI)
                         if (prev.some(m => m.id === newMessage.id)) return prev;
 
-                        // Deduplicate optimistic "twins" (same text/type/direction)
                         const filtered = prev.filter(m => {
                             if (!m.id.startsWith('temp-')) return true;
                             const isMatch = m.type === newMessage.type &&
@@ -417,44 +408,35 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                         );
                     });
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeChatId}`
-                },
-                (payload) => {
-                    // Handle status updates (Sent -> Delivered -> Read)
+                } else if (payload.eventType === 'UPDATE') {
                     const updatedMsg = payload.new as Message;
                     setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
                 }
-            )
-            .subscribe();
+            }
+        };
+
+        socket.on('postgres_changes_messages', handleMessageUpdate);
 
         // --- TEMPORARY FALLBACK POLLING ---
-        const fallbackInterval = setInterval(() => {
-            setMessages(currentMessages => {
-                if (currentMessages.length > 50) return currentMessages; 
+        // const fallbackInterval = setInterval(() => {
+        //     setMessages(currentMessages => {
+        //         if (currentMessages.length > 50) return currentMessages; 
                 
-                inboxService.getMessages(activeChatId, 50, 0).then(data => {
-                    const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-                    setMessages(prev => {
-                        if (prev.length === uniqueMessages.length && prev[0]?.id === uniqueMessages[0]?.id) return prev;
-                        return uniqueMessages;
-                    });
-                }).catch(e => console.error("Polling error:", e));
+        //         inboxService.getMessages(activeChatId, 50, 0).then(data => {
+        //             const uniqueMessages = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+        //             setMessages(prev => {
+        //                 if (prev.length === uniqueMessages.length && prev[0]?.id === uniqueMessages[0]?.id) return prev;
+        //                 return uniqueMessages;
+        //             });
+        //         }).catch(e => console.error("Polling error:", e));
                 
-                return currentMessages;
-            });
-        }, 5000); // 5 seconds for fast chat updates
+        //         return currentMessages;
+        //     });
+        // }, 5000); // 5 seconds for fast chat updates
 
         return () => {
-            supabase.removeChannel(channel);
-            clearInterval(fallbackInterval);
+            socket.off('postgres_changes_messages', handleMessageUpdate);
+            // clearInterval(fallbackInterval);
         };
     }, [activeChatId]);
 

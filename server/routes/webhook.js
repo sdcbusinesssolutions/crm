@@ -16,6 +16,7 @@ const axios = require('axios');
 const https = require('https');
 const { execFile } = require('child_process'); // curl subprocess for media download
 const flowEngine = require('../services/flowEngine');
+const realtimeSync = require('../services/realtimeSync');
 const DripTriggerService = require('../services/DripTriggerService');
 
 // --- CONCURRENCY & NETWORK AGENTS ---
@@ -1412,6 +1413,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     const { data: newConv } = await supabaseAdmin.from('conversations').insert({ user_id: userId, contact_phone: contactPhone, contact_name: contactName, last_message: lastMessagePreview, unread_count: 1, updated_at: new Date(extracted.timestamp * 1000).toISOString() }).select().single();
                     conversationId = newConv?.id;
                 }
+                
+                if (conversationId) {
+                    realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
+                }
 
                 // Global Auto Assignment for new or unassigned conversations
                 if (!convData || !convData.assigned_to) {
@@ -1438,6 +1443,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
                 const savedMessageId = result?.id;
+                
+                if (result) {
+                    realtimeSync.emitMessage(userId, result, 'INSERT');
+                }
 
                 // --- FIRE-AND-FORGET: Download media in the background, then update results ---
                 if (isMedia && extracted.mediaId && accessToken && savedMessageId) {

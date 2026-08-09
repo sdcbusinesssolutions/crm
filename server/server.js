@@ -83,19 +83,13 @@ try {
     const supabaseProxy = createProxyMiddleware({
       target: proxyTarget,
       changeOrigin: true,
-      ws: true,
+      ws: false, // Disabled to prevent clash with local Socket.IO server
       pathRewrite: { '^/api/supabase-proxy': '' },
       logLevel: 'error',
       onProxyReq: (proxyReq, req, res) => {
         // Force uncompressed responses from Supabase to prevent double-compression/corruption
         // issues when passing through compression middleware or reverse proxies.
         proxyReq.setHeader('accept-encoding', 'identity');
-      },
-      onProxyReqWs: (proxyReq, req, socket, options, head) => {
-        // Essential for WebSocket protocol mirroring
-        if (req.headers['sec-websocket-protocol']) {
-          proxyReq.setHeader('sec-websocket-protocol', req.headers['sec-websocket-protocol']);
-        }
       },
       onProxyRes: (proxyRes, req, res) => {
         // Ensure CORS headers are always present to override restrictive Supabase defaults if needed
@@ -373,6 +367,44 @@ if (require.main === module) {
       console.log(`🔌 Attached WebSocket proxy for Supabase Realtime.`);
     }
 
+    // --- Socket.IO + Redis Realtime Sync ---
+    const { Server } = require("socket.io");
+    const io = new Server(server, {
+      cors: {
+        origin: "*", // allow all origins for now (adjust for prod)
+        methods: ["GET", "POST"]
+      }
+    });
+
+    const redisAdapter = require("@socket.io/redis-adapter");
+    const { createClient } = require("redis");
+
+    if (process.env.REDIS_URL) {
+      const pubClient = createClient({ url: process.env.REDIS_URL });
+      const subClient = pubClient.duplicate();
+      Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+        io.adapter(redisAdapter.createAdapter(pubClient, subClient));
+        console.log('[Socket.IO] Redis adapter connected via', process.env.REDIS_URL);
+      }).catch(err => console.error('[Socket.IO] Redis connection error:', err));
+    } else {
+      console.log('[Socket.IO] No REDIS_URL provided, running in in-memory mode.');
+    }
+
+    io.on("connection", (socket) => {
+      console.log(`[Socket.IO] Client connected: ${socket.id}`);
+      
+      socket.on("join_room", (userId) => {
+        if (userId) {
+          socket.join(userId);
+          console.log(`[Socket.IO] Client ${socket.id} joined room: ${userId}`);
+        }
+      });
+
+      socket.on("disconnect", () => {
+        console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
+      });
+    });
+
     // Start Campaign Worker
     // Note: In production, this should ideally be a separate process.
     // For this setup, we run it alongside the API.
@@ -385,6 +417,10 @@ if (require.main === module) {
     console.log('-------------------------');
 
     if (supabaseUrl && serviceKey) {
+      // Start RealtimeSync (Local Socket Emitter)
+      const realtimeSync = require('./services/realtimeSync');
+      realtimeSync.init(io);
+
       const CampaignWorker = require('./workers/campaignWorker');
       const worker = new CampaignWorker(supabaseUrl, serviceKey);
       worker.start();
