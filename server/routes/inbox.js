@@ -492,7 +492,18 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
             realtimeSync.emitConversation(userId, updatedConv, 'UPDATE');
         }
 
-        res.json(savedMessage);
+        // WhatsApp webhooks are extremely fast and may update the message to 'delivered' or 'read'
+        // before we even return to the frontend. If we return the old 'sent' status, the frontend
+        // will overwrite the real-time socket updates. Let's delay slightly and fetch the latest state.
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        const { data: latestMessage } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', savedMessage.id)
+            .single();
+
+        res.json(latestMessage || savedMessage);
 
     } catch (error) {
         console.error('Error sending message:', error);
