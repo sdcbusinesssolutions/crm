@@ -2198,7 +2198,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1 pt-2">
+                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1 pt-2 pr-2">
                         {['All', 'Unread', 'AI Chats', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
 
@@ -2214,8 +2214,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 <button
                                     key={f}
                                     onClick={handleClick}
-                                    className={`h-7 px-3.5 shrink-0 rounded-full text-[11px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 shadow-sm ${isActive
-                                            ? 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-105 border border-[#00684a]'
+                                    className={`h-7 px-2 shrink-0 rounded-full text-[10.5px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1 shadow-sm ${isActive
+                                            ? 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-[1.02] border border-[#00684a]'
                                             : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800'
                                         }`}
                                 >
