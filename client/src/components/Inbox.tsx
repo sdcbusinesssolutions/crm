@@ -2280,7 +2280,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <div>
                                             <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || formatPhone(chat.contact_phone)}</h3>
                                             <div className="flex items-center gap-1.5 mt-0.5">
-                                                <span className="text-[11px] text-slate-500 font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
+                                                <span className="text-[11px] text-[#0DBD5F] font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
                                                 <div onClick={(e) => e.stopPropagation()} className="flex items-center shrink-0">
                                                     <LeadAssignment 
                                                         contact={{ ...chat, assigned_staff_ids: chat.assigned_to ? [chat.assigned_to] : [] }} 
@@ -2288,14 +2288,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         showNames={false}
                                                         isConversationId={true}
                                                         onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
-                                                        className="p-1 rounded-full transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
+                                                        className="p-1 rounded-full transition-all group/btn relative hover:bg-[#00523b] bg-[#00684a] text-white shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-slate-400 font-medium">{formatTime(chat.updated_at)}</span>
+                                        <span className="text-[10px] text-[#202C33] font-medium">{formatTime(chat.updated_at)}</span>
                                         {chat.unread_count > 0 && (
                                             <span className="mt-1 bg-brand-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center">{chat.unread_count}</span>
                                         )}
