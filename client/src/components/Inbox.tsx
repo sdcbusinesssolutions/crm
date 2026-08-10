@@ -596,7 +596,17 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
     const scrollToBottom = (instant = false) => {
         if (instant && chatContainerRef.current) {
-            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            const container = chatContainerRef.current;
+            const originalBehavior = container.style.scrollBehavior;
+            container.style.scrollBehavior = 'auto';
+            container.scrollTop = container.scrollHeight;
+            
+            // Force a reflow before restoring to ensure the browser applies the jump instantly
+            void container.offsetHeight; 
+            
+            setTimeout(() => {
+                if (container) container.style.scrollBehavior = originalBehavior;
+            }, 0);
             return;
         }
         if (messagesEndRef.current) {

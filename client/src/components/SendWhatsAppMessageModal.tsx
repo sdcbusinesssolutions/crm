@@ -217,7 +217,16 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         if (messagesEndRef.current) {
             const container = messagesEndRef.current.parentElement;
             if (instant && container) {
+                const originalBehavior = container.style.scrollBehavior;
+                container.style.scrollBehavior = 'auto';
                 container.scrollTop = container.scrollHeight;
+                
+                // Force a reflow before restoring to ensure the browser applies the jump instantly
+                void container.offsetHeight; 
+                
+                setTimeout(() => {
+                    if (container) container.style.scrollBehavior = originalBehavior;
+                }, 0);
             } else {
                 messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
             }
@@ -851,6 +860,23 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             {msg.type === 'interactive' && msg.text && (() => {
                                                 try {
                                                     const interactive = JSON.parse(msg.text);
+                                                    
+                                                    // INBOUND: Interactive Reply (Button or List)
+                                                    if (interactive.type === 'button_reply' || interactive.button_reply) {
+                                                        return <div className="text-[15px] font-medium leading-relaxed">{interactive.button_reply?.title || interactive.title}</div>;
+                                                    }
+                                                    if (interactive.type === 'list_reply' || interactive.list_reply) {
+                                                        return (
+                                                            <div className="flex flex-col gap-1 min-w-[200px]">
+                                                                <div className="text-[15px] font-bold">{interactive.list_reply?.title || interactive.title}</div>
+                                                                {(interactive.list_reply?.description || interactive.description) && (
+                                                                    <div className="text-xs text-slate-500">{interactive.list_reply?.description || interactive.description}</div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    // OUTBOUND: Normal Interactive Message
                                                     return (
                                                         <div className="flex flex-col gap-2 min-w-[200px]">
                                                             {interactive.body?.text && (
