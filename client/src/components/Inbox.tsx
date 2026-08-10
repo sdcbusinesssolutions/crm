@@ -319,9 +319,26 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         // This makes the sidebar refresh instantly when a new message arrives and scales perfectly.
         const joinSocketRoom = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user && socket) {
-                console.log('[Socket.IO] Emitting join_room for:', user.id);
-                socket.emit('join_room', user.id);
+            
+            // Fix for Staff Members: Webhooks emit events to the Owner's ID.
+            // Staff members must join the Owner's room to receive real-time updates.
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) {
+                        roomToJoin = staffData.owner_id;
+                    }
+                } catch (e) {
+                    console.error('Error parsing staffData for socket connection', e);
+                }
+            }
+
+            if (roomToJoin && socket) {
+                console.log('[Socket.IO] Emitting join_room for:', roomToJoin);
+                socket.emit('join_room', roomToJoin);
             }
         };
 
