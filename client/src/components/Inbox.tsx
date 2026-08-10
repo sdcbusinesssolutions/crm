@@ -82,6 +82,29 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [recordingDuration, setRecordingDuration] = useState(0);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Browser Back Button Support for Mobile View
+    const prevActiveChatIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (activeChatId && !prevActiveChatIdRef.current) {
+            window.history.pushState({ chatOpen: true }, '');
+        } else if (activeChatId && prevActiveChatIdRef.current) {
+            window.history.replaceState({ chatOpen: true }, '');
+        }
+        prevActiveChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (activeChatId) {
+                setActiveChatId(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [activeChatId]);
+
     // Track user intent for attachment type (e.g. sending image as 'document')
     const attachmentTypeRef = useRef<string>('document');
     const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
@@ -2409,7 +2432,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}
                             >
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setActiveChatId(null); }}
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        if (window.history.state?.chatOpen) {
+                                            window.history.back();
+                                        } else {
+                                            setActiveChatId(null);
+                                        }
+                                    }}
                                     className="md:hidden p-1 -ml-1 text-slate-500 hover:text-slate-800 shrink-0"
                                 >
                                     <ChevronLeftIcon className="w-6 h-6" />

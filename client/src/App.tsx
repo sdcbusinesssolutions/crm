@@ -438,7 +438,7 @@ const MainApp: React.FC = () => {
         // Only update if changed to avoid loops (though replaceState is cheap)
         if (newSearch !== currentSearch) {
             const newUrl = `${window.location.pathname}${newSearch ? '?' + newSearch : ''}${window.location.hash}`;
-            window.history.replaceState(null, '', newUrl);
+            window.history.pushState(null, '', newUrl);
         }
 
     }, [
@@ -447,6 +447,28 @@ const MainApp: React.FC = () => {
         currentPipelineId, isCreatingSheetAutomation, editingSheetAutomationId,
         isAuthLoading, session, staffSession
     ]);
+
+    // --- BROWSER BACK BUTTON SUPPORT (GLOBAL POPSTATE) ---
+    useEffect(() => {
+        const handlePopState = () => {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Re-sync all state variables from the new URL
+            setActiveMenuItem((params.get('view') as MenuItem) || 'Dashboard');
+            setCurrentFlowId(params.get('flowId'));
+            setCurrentWhatsAppFlowId(params.get('waFlowId'));
+            setCurrentTemplateId(params.get('templateId'));
+            setIsTemplateBuilderOpen(params.get('templateBuilder') === 'true');
+            setCurrentCampaignId(params.get('campaignId'));
+            setIsCreatingCampaign(params.get('createCampaign') === 'true');
+            setCurrentPipelineId(params.get('pipelineId'));
+            setIsCreatingSheetAutomation(params.get('createSheetAuto') === 'true');
+            setEditingSheetAutomationId(params.get('editSheetAutoId'));
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
 
     const handleNavigateToFlow = useCallback((flowId: string) => {
         setCurrentFlowId(flowId);
