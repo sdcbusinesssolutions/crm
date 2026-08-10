@@ -2210,19 +2210,34 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 }
                             };
 
+                            let activeClasses = 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-[1.02] border border-[#00684a]';
+                            let inactiveClasses = 'bg-[#00684a]/10 text-[#00684a] border border-[#00684a]/20 hover:bg-[#00684a]/20';
+                            let badgeActiveText = 'text-[#00684a]';
+                            let badgeInactiveBg = 'bg-[#00684a]';
+
+                            if (f === 'Unread') {
+                                activeClasses = 'bg-[#F97316] text-white shadow-md shadow-[#F97316]/20 scale-[1.02] border border-[#F97316]';
+                                inactiveClasses = 'bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20 hover:bg-[#F97316]/20';
+                                badgeActiveText = 'text-[#F97316]';
+                                badgeInactiveBg = 'bg-[#F97316]';
+                            } else if (f === 'AI Chats') {
+                                activeClasses = 'bg-[#AD46FF] text-white shadow-md shadow-[#AD46FF]/20 scale-[1.02] border border-[#AD46FF]';
+                                inactiveClasses = 'bg-[#AD46FF]/10 text-[#AD46FF] border border-[#AD46FF]/20 hover:bg-[#AD46FF]/20';
+                            } else if (f === 'Quick Reply') {
+                                activeClasses = 'bg-[#3B82F6] text-white shadow-md shadow-[#3B82F6]/20 scale-[1.02] border border-[#3B82F6]';
+                                inactiveClasses = 'bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20 hover:bg-[#3B82F6]/20';
+                            }
+
                             return (
                                 <button
                                     key={f}
                                     onClick={handleClick}
-                                    className={`h-7 px-2 shrink-0 rounded-full text-[10.5px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1 shadow-sm ${isActive
-                                            ? 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-[1.02] border border-[#00684a]'
-                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800'
-                                        }`}
+                                    className={`h-7 px-2 shrink-0 rounded-full text-[10.5px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1 shadow-sm ${isActive ? activeClasses : inactiveClasses}`}
                                 >
                                     {f}
                                     
                                     {f === 'Unread' && totalUnreadCount > 0 && (
-                                        <span className={`px-1.5 py-0.5 min-w-[1.25rem] flex items-center justify-center rounded-full text-[9px] font-bold shadow-sm ${isActive ? 'bg-white text-[#00684a]' : 'bg-[#00684a] text-white'}`}>
+                                        <span className={`px-1.5 py-0.5 min-w-[1.25rem] flex items-center justify-center rounded-full text-[9px] font-bold shadow-sm ${isActive ? `bg-white ${badgeActiveText}` : `${badgeInactiveBg} text-white`}`}>
                                             {totalUnreadCount}
                                         </span>
                                     )}
