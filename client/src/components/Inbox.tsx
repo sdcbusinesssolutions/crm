@@ -4,7 +4,7 @@ import {
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
     UserCircleIcon, ChevronLeftIcon, PhoneIcon, EditIcon, CloseIcon,
     UsersIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon,
+    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon, ZapIcon,
     EyeIcon, EyeOffIcon
 } from './icons';
 
@@ -72,6 +72,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
     const [isNumberMasked, setIsNumberMasked] = useState(true);
     const [convPage, setConvPage] = useState(1);
+    const [totalFilteredCount, setTotalFilteredCount] = useState<number>(0);
+    const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
     const [hasMoreConvs, setHasMoreConvs] = useState(true);
     const [isLoadingMoreConvs, setIsLoadingMoreConvs] = useState(false);
 
@@ -155,7 +157,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (append) setIsLoadingMoreConvs(true);
         try {
             const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
-            const newData = result || [];
+            const newData = result.data || [];
+            if (!append) {
+                setTotalFilteredCount(result.count || 0);
+                setTotalUnreadCount(result.unreadTotal || 0);
+            }
 
             // Only update hasMoreConvs if we are NOT polling
             if (!isPoll) {
@@ -2192,44 +2198,34 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'AI Chats', 'Quick Reply'].map(f => {
+                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1 pt-2">
+                        {['All', 'Unread', 'AI Chats', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
 
-                            if (f === 'AI Chats') {
-                                return (
-                                    <button
-                                        key={f}
-                                        onClick={() => window.location.href = '/?view=AI+Buddy'}
-                                        className="relative inline-flex h-7 overflow-hidden rounded-full p-[1.5px] hover:scale-105 transition-transform shadow-sm group"
-                                    >
-                                        <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#FF61D2_0%,#393BB2_50%,#FF61D2_100%)]" />
-                                        <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-white px-4 text-[11px] font-black text-slate-800 backdrop-blur-3xl gap-1.5 transition-colors group-hover:bg-slate-50">
-                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="url(#ai-gradient)" />
-                                                <defs>
-                                                    <linearGradient id="ai-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                                                        <stop stopColor="#FF61D2" />
-                                                        <stop offset="1" stopColor="#393BB2" />
-                                                    </linearGradient>
-                                                </defs>
-                                            </svg>
-                                            AI Chats
-                                        </span>
-                                    </button>
-                                );
-                            }
+                            const handleClick = () => {
+                                if (f === 'AI Chats') {
+                                    window.location.href = '/?view=AI+Buddy';
+                                } else {
+                                    setQuickFilter(f as any);
+                                }
+                            };
 
                             return (
                                 <button
                                     key={f}
-                                    onClick={() => setQuickFilter(f as any)}
-                                    className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${isActive
-                                            ? 'bg-[#00684a] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px] border border-[#00684a]'
-                                            : 'bg-emerald-50 text-[#00684a] border border-emerald-100 hover:bg-emerald-100 hover:scale-105'
+                                    onClick={handleClick}
+                                    className={`h-7 px-3.5 shrink-0 rounded-full text-[11px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1.5 shadow-sm ${isActive
+                                            ? 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-105 border border-[#00684a]'
+                                            : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800'
                                         }`}
                                 >
                                     {f}
+                                    
+                                    {f === 'Unread' && totalUnreadCount > 0 && (
+                                        <span className={`px-1.5 py-0.5 min-w-[1.25rem] flex items-center justify-center rounded-full text-[9px] font-bold shadow-sm ${isActive ? 'bg-white text-[#00684a]' : 'bg-[#00684a] text-white'}`}>
+                                            {totalUnreadCount}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}

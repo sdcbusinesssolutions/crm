@@ -91,7 +91,9 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`);
         }
 
-        if (quickFilter === 'Unassigned') {
+        if (quickFilter === 'Unread') {
+            query = query.gt('unread_count', 0);
+        } else if (quickFilter === 'Unassigned') {
             query = query.is('assigned_to', null);
         } else if (quickFilter === 'Mine') {
             const currentUserId = req.staff ? req.staff.staffId : userId;
@@ -208,9 +210,34 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             };
         });
 
+        // Calculate total unread count for this user
+        let unreadQuery = supabase
+            .from('conversations')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .gt('unread_count', 0);
+            
+        if (req.staff && req.staff.role !== 'admin') {
+            const { data: assignedLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [req.staff.staffId]);
+            
+            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+            if (assignedPhones.length > 0) {
+                unreadQuery = unreadQuery.in('contact_phone', assignedPhones);
+            } else {
+                unreadQuery = unreadQuery.in('contact_phone', ['dummy-no-phone']);
+            }
+        }
+        
+        const { count: unreadTotal } = await unreadQuery;
+
         res.json({
             data: mergedData,
             total: count || 0,
+            unreadTotal: unreadTotal || 0,
             page,
             limit
         });
