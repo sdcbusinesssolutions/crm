@@ -1,10 +1,10 @@
-const { supabase } = require('../../../lib/supabaseClient');
+const { supabaseAdmin } = require('../../../lib/supabaseClient');
 const contextManager = require('../context');
-
-const executeCheckForm = async (node, state, context) => {
-    try {
-        let formId = node.data.formId;
-        let contactPhone = state.contactPhone || state.contact_phone;
+module.exports = {
+    async execute(session, node, context) {
+        try {
+            let formId = node.data.formId;
+            let contactPhone = session.contact_phone || session.phone;
         
         // If manual contact phone is provided, it overrides the default
         if (node.data.manualContactPhone) {
@@ -30,19 +30,28 @@ const executeCheckForm = async (node, state, context) => {
         const cleanPhone = contactPhone.replace(/\D/g, '');
         const searchPhone = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
 
-        // Check if a submission exists for this form and phone using LIKE for flexible matching
-        const { data, error } = await supabase
+        // Fetch recent submissions for this form and search inside the JSON data
+        const { data, error } = await supabaseAdmin
             .from('form_submissions')
-            .select('id')
+            .select('submission_data')
             .eq('form_id', formId)
-            .like('phone', `%${searchPhone}%`)
-            .limit(1);
+            .order('submitted_at', { ascending: false })
+            .limit(500);
 
         if (error) {
             throw new Error(`Database error checking form submission: ${error.message}`);
         }
 
-        const hasSubmitted = data && data.length > 0;
+        let hasSubmitted = false;
+        if (data && data.length > 0) {
+            for (const sub of data) {
+                const subStr = JSON.stringify(sub.submission_data || {});
+                if (subStr.includes(searchPhone)) {
+                    hasSubmitted = true;
+                    break;
+                }
+            }
+        }
 
         // How does checkCondition return the next node? Let's check.
         // Returning outcome maps to interactionId in executeNextStep.
@@ -50,10 +59,9 @@ const executeCheckForm = async (node, state, context) => {
             status: 'success',
             outcome: hasSubmitted ? 'true' : 'false',
         };
-    } catch (err) {
-        console.error('[CheckFormExecutor] Execution failed:', err);
-        throw err; // Let flowEngine handle the error state
+        } catch (err) {
+            console.error('[CheckFormExecutor] Execution failed:', err);
+            throw err; // Let flowEngine handle the error state
+        }
     }
 };
-
-module.exports = executeCheckForm;

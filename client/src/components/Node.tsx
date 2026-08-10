@@ -40,7 +40,7 @@ const NodeHeader: React.FC<{ title: string; onTitleSave: (newTitle: string) => v
       ) : (
         <div className="flex items-center space-x-3 overflow-hidden"><div className={`p-1.5 rounded-lg bg-black/20 text-white shadow-sm`}>{icon}</div><h3 className="font-bold text-sm text-white truncate drop-shadow-sm tracking-wide">{title}</h3></div>
       )}
-      <div className="flex items-center space-x-1 pl-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="flex items-center space-x-1 pl-2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 ease-out">
         <button onMouseDown={e => e.stopPropagation()} onClick={(e) => { onSettingsClick(); e.stopPropagation(); }} className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-md transition-all" title="Settings"><SettingsIcon className="w-4 h-4" /></button>
         <button onMouseDown={e => e.stopPropagation()} onClick={(e) => { setIsEditing(true); e.stopPropagation(); }} className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-md transition-all" title="Rename"><EditIcon className="w-4 h-4" /></button>
         <button onMouseDown={e => e.stopPropagation()} onClick={(e) => { onDuplicate(); e.stopPropagation(); }} className="p-1.5 text-white/70 hover:text-white hover:bg-white/20 rounded-md transition-all" title="Duplicate"><CopyIcon className="w-4 h-4" /></button>
@@ -235,11 +235,11 @@ const CheckFormNodeUI: React.FC<InteractiveNodeUIProps<CheckFormData>> = ({ node
       <div className="p-2.5 space-y-2 bg-slate-900/95 flex-1">
         <div className="relative flex items-center justify-between bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg">
           <span className="text-xs font-bold text-indigo-200 truncate pr-4">Yes (Submitted)</span>
-          <div id={`h-${node.id}-true`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'true')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'true')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-indigo-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" />
+          <div id={`h-${node.id}-true`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'true')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'true')} onClick={(e) => e.stopPropagation()} className="w-4 h-4 bg-indigo-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-2 top-1/2 -translate-y-1/2 border-[3px] border-slate-900 touch-none shadow-sm z-10" />
         </div>
         <div className="relative flex items-center justify-between bg-slate-800/50 border border-slate-700 px-3 py-1.5 rounded-lg mt-3">
           <span className="text-xs font-bold text-slate-500">No (Not Submitted)</span>
-          <div id={`h-${node.id}-false`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'false')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'false')} onClick={(e) => e.stopPropagation()} className="w-3 h-3 bg-slate-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-1.5 top-1/2 -translate-y-1/2 border-2 border-slate-900 touch-none" />
+          <div id={`h-${node.id}-false`} onMouseDown={(e) => onSourceHandleMouseDown(e, node.id, 'false')} onTouchStart={(e) => onSourceHandleTouchStart(e, node.id, 'false')} onClick={(e) => e.stopPropagation()} className="w-4 h-4 bg-slate-500 rounded-full cursor-pointer hover:scale-125 transition-transform absolute -right-2 top-1/2 -translate-y-1/2 border-[3px] border-slate-900 touch-none shadow-sm z-10" />
         </div>
       </div>
     </NodeContainer>
