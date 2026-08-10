@@ -330,35 +330,37 @@ class FlowEngine {
                 .maybeSingle();
                 
             if (convError) throw convError;
-                
             if (convData && convData.assigned_ai_agent_id) {
-                // Check if paused
+                let isPaused = false;
                 if (convData.bot_paused_until) {
                     const pausedUntil = new Date(convData.bot_paused_until);
                     if (pausedUntil > new Date()) {
-                        console.log(`[FlowEngine] AI is manually paused for ${contactPhone}. Bypassing AI assignment.`);
-                        return null; 
+                        isPaused = true;
                     }
                 }
-            
-            console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
-            
-            const aiAgentExecutor = require('./flow/executors/aiAgent');
-            const fakeSession = { user_id: userId, contact_phone: contactPhone };
-            const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
-            
-            try {
-                const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
-                if (result && result.success && result.response) {
-                    const whatsappService = require('./whatsappService');
-                    await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                
+                if (isPaused) {
+                    console.log(`[FlowEngine] AI Agent is manually paused for ${contactPhone}. Falling back to standard flow.`);
+                } else {
+                    console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
+                    
+                    const aiAgentExecutor = require('./flow/executors/aiAgent');
+                    const fakeSession = { user_id: userId, contact_phone: contactPhone };
+                    const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
+                    
+                    try {
+                        const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
+                        if (result && result.success && result.response) {
+                            const whatsappService = require('./whatsappService');
+                            await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                        }
+                        return; // Stop processing further flows
+                    } catch (err) {
+                        console.error('[FlowEngine] Error executing assigned AI agent:', err);
+                        return;
+                    }
                 }
-                return; // Stop processing further flows
-            } catch (err) {
-                console.error('[FlowEngine] Error executing assigned AI agent:', err);
-                return;
             }
-        }
         } catch (dbErr) {
             console.error('[FlowEngine] Error checking manual AI assignment (DB):', dbErr);
             // Swallow error and fallback to standard flow
