@@ -241,8 +241,23 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
 
         const joinSocketRoom = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user && socket) {
-                socket.emit('join_room', user.id);
+            
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) {
+                        roomToJoin = staffData.owner_id;
+                    }
+                } catch (e) {
+                    console.error('Error parsing staffData for socket connection', e);
+                }
+            }
+
+            if (roomToJoin && socket) {
+                socket.emit('join_room', roomToJoin);
             }
         };
 
