@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     CloseIcon, PaperClipIcon, EmojiIcon, MicrophoneIcon, PaperAirplaneIcon,
     QuickReplyIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    CheckIcon, DoubleCheckIcon, ClockIcon, SearchIcon, TrashIcon, PlusIcon
+    CheckIcon, DoubleCheckIcon, ClockIcon, SearchIcon, TrashIcon, PlusIcon, MessageIcon
 } from './icons';
 import { inboxService } from '../services/inboxService';
 import { tokenService } from '../services/tokenService';
@@ -955,6 +955,9 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                         <div className="flex items-end gap-3 relative">
                         {/* Attachments & Templates */}
                         <div className="flex items-center gap-1.5 shrink-0 pb-1">
+                            <button onClick={() => setIsTemplateModalOpen(true)} className="p-2.5 text-[#00684a] bg-[#00684a]/10 hover:bg-[#00684a]/20 rounded-full transition-colors" title="Send Template">
+                                <MessageIcon className="w-5 h-5" />
+                            </button>
                             <div className="relative">
                                 <button onClick={() => setIsAttachmentOpen(!isAttachmentOpen)} className="p-2.5 text-slate-500 hover:text-[#00684a] hover:bg-slate-100 rounded-full transition-colors"><PaperClipIcon className="w-6 h-6" /></button>
                                 {isAttachmentOpen && (
@@ -965,9 +968,6 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                     </div>
                                 )}
                             </div>
-                            <button onClick={() => setIsTemplateModalOpen(true)} className="p-2.5 text-[#00684a] bg-[#00684a]/10 hover:bg-[#00684a]/20 rounded-full transition-colors" title="Send Template">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            </button>
                         </div>
 
                         {/* Input Box / Recording Area */}
