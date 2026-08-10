@@ -2459,8 +2459,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <div 
                                             className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
                                                 isPaused 
-                                                    ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600' 
-                                                    : 'bg-purple-500 text-white border-purple-600 hover:bg-purple-600 hover:shadow-md'
+                                                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600' 
+                                                    : 'bg-indigo-500 text-white border-indigo-600 hover:bg-indigo-600 hover:shadow-md'
                                             }`}
                                             onClick={toggleAiPause}
                                         >
@@ -2486,7 +2486,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <select
                                         value={activeChat.assigned_ai_agent_id || ''}
                                         onChange={(e) => handleAssignAi(e.target.value)}
-                                        className="text-xs font-bold border border-slate-600 rounded-full px-3 py-1.5 h-8 bg-slate-500 text-white focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm transition-all cursor-pointer"
+                                        className="text-xs font-bold border border-zinc-600 rounded-full px-3 py-1.5 h-8 bg-zinc-500 text-white focus:outline-none focus:ring-2 focus:ring-zinc-400 shadow-sm transition-all cursor-pointer"
                                     >
                                         <option value="">No AI Assigned</option>
                                         {aiAgents.map(agent => (
@@ -2513,7 +2513,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     return (
                                         <div className={`
                                             hidden md:flex w-8 h-8 rounded-full flex-col items-center justify-center text-[9px] font-bold border shrink-0
-                                            ${isWindowOpen ? 'bg-green-500 text-white border-green-600' : 'bg-slate-500 text-white border-slate-600'}
+                                            ${isWindowOpen ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-zinc-500 text-white border-zinc-600'}
                                         `} title={isWindowOpen ? `${hours}h ${minutes}m left` : "Session Expired"}>
                                             {isWindowOpen ? (
                                                 <div className="flex flex-col items-center -space-y-0.5">
@@ -2527,7 +2527,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                                 <button 
                                     onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} 
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 border ${isContactInfoOpen ? 'bg-[#00684a] text-white border-[#00684a]' : 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 border ${isContactInfoOpen ? 'bg-[#00684a] text-white border-[#00684a]' : 'bg-cyan-600 text-white border-cyan-700 hover:bg-cyan-700'}`}
                                 >
                                     <UsersIcon className="w-4 h-4" />
                                 </button>
@@ -2536,7 +2536,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     contact={{ ...activeChat, assigned_staff_ids: activeChat.assigned_to ? [activeChat.assigned_to] : [] }}
                                     showNames={true}
                                     isConversationId={!activeLeadId}
-                                    className="px-3 py-1.5 h-8 flex items-center gap-1.5 text-xs font-bold bg-[#00684a] text-white hover:bg-[#00523b] border border-[#00684a] rounded-full transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 relative [&>svg]:w-4 [&>svg]:h-4"
+                                    className="px-3 py-1.5 h-8 flex items-center gap-1.5 text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 border border-teal-700 rounded-full transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 relative [&>svg]:w-4 [&>svg]:h-4"
                                     onAssigned={() => {
                                         loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
                                         // Refresh assigned staff names
@@ -2588,10 +2588,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 {canWrite && (
                                     <button
                                         onClick={() => setIsClearChatModalOpen(true)}
-                                        className="p-2 text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors border border-red-100"
-                                        title="Clear Chat History"
+                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 border bg-red-500 text-white border-red-600 hover:bg-red-600 shrink-0"
+                                        title="Clear Chat"
                                     >
-                                        <TrashIcon className="w-5 h-5" />
+                                        <TrashIcon className="w-4 h-4" />
                                     </button>
                                 )}
 
