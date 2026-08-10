@@ -10,6 +10,7 @@ import { staffApi } from '../modules/teamStaff/api/staffApi';
 import DroppableInput from './DroppableInput';
 import VariableSidebar from './VariableSidebar';
 import { getAvailableVariables, NodeVariables } from '../utils/flowVariables';
+import CheckFormSettings from './FlowNodes/CheckFormSettings';
 
 interface SettingsPanelProps {
     selectedNode: Node | null;
@@ -37,7 +38,7 @@ const SettingsContext = React.createContext<{
     showNotification: (message: string, type?: 'success' | 'error') => void;
 }>({ activeInputSetter: null, setActiveInputSetter: () => { }, activeInputId: null, setActiveInputId: () => { }, showNotification: () => { } });
 
-const PanelTextInput: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; maxLength?: number; className?: string; theme?: PanelTheme; type?: string; disabled?: boolean; availableVariables?: NodeVariables[] }> = (props) => {
+export const PanelTextInput: React.FC<{ value: string; onChange: (val: string) => void; placeholder?: string; maxLength?: number; className?: string; theme?: PanelTheme; type?: string; disabled?: boolean; availableVariables?: NodeVariables[] }> = (props) => {
     const { setActiveInputSetter, setActiveInputId, activeInputId } = React.useContext(SettingsContext);
     const id = React.useMemo(() => `input-${Math.random().toString(36).substr(2, 9)}`, []);
     return <DroppableInput {...props} id={id} multiline={false} onFocus={(setter) => { !props.disabled && setActiveInputSetter(setter); !props.disabled && setActiveInputId(id); }} isActive={activeInputId === id} disabled={props.disabled} />;
@@ -74,7 +75,7 @@ const FieldRow: React.FC<{ label: string; description?: string; children: ReactN
 );
 
 // Modified SettingsModal to include VariableSidebar
-const SettingsModal: React.FC<{ children: ReactNode, title: string, onClose: () => void, icon?: ReactNode, footer?: ReactNode, availableVariables?: NodeVariables[], canWrite?: boolean }> = ({ children, title, onClose, icon, footer, availableVariables = [], canWrite = true }) => {
+export const SettingsModal: React.FC<{ children: ReactNode, title: string, onClose: () => void, icon?: ReactNode, footer?: ReactNode, availableVariables?: NodeVariables[], canWrite?: boolean }> = ({ children, title, onClose, icon, footer, availableVariables = [], canWrite = true }) => {
     const { activeInputSetter } = React.useContext(SettingsContext);
     const [showMobileVariables, setShowMobileVariables] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -4598,6 +4599,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ selectedNode, nodes, edge
             case NodeType.CTAMessage: return <CTAMessageSettingsPanel {...commonProps} />;
             case NodeType.QuickReplyMessage: return <QuickReplySettingsPanel {...commonProps} />;
             case NodeType.CheckCondition: return <CheckConditionSettingsPanel {...commonProps} />;
+            case NodeType.CheckForm: return <CheckFormSettings {...commonProps} />;
             case NodeType.Switch: return <SwitchSettingsPanel {...commonProps} />;
             case NodeType.ManageTags: return <ManageTagsSettingsPanel {...commonProps} />;
             case NodeType.ManageGroups: return <ManageGroupsSettingsPanel {...commonProps} />;

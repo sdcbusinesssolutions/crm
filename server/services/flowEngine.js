@@ -17,6 +17,7 @@ const callApiExecutor = require('./flow/executors/callApi');
 const templateMessageExecutor = require('./flow/executors/templateMessage');
 const timingExecutor = require('./flow/executors/timing');
 const checkConditionExecutor = require('./flow/executors/checkCondition');
+const checkFormExecutor = require('./flow/executors/checkForm');
 const switchExecutor = require('./flow/executors/switch');
 const manageTagsExecutor = require('./flow/executors/manageTags');
 const manageGroupsExecutor = require('./flow/executors/manageGroups');
@@ -46,6 +47,7 @@ const EXECUTORS = {
     'templateMessage': templateMessageExecutor,
     'timing': timingExecutor,
     'checkCondition': checkConditionExecutor,
+    'checkForm': checkFormExecutor,
     'switch': switchExecutor,
     'manageTags': manageTagsExecutor,
     'manageGroups': manageGroupsExecutor,
@@ -1077,7 +1079,7 @@ class FlowEngine {
             // If absolutely nothing else, take whatever is connected (Legacy behavior)
             // EXCEPTION: Do not do this for logic nodes that have distinct outputs (newLead, condition, etc)
             // This prevents "Existing Contact" falling back to "New Lead" path if "Existing Contact" is unconnected.
-            if (!edge && node && !['newLead', 'checkCondition', 'switch', 'askInput'].includes(node.type)) {
+            if (!edge && node && !['newLead', 'checkCondition', 'checkForm', 'switch', 'askInput'].includes(node.type)) {
                 edge = flow.edges.find(e => e.source === currentNodeId);
             }
         }
