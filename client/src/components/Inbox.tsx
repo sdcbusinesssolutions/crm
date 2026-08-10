@@ -2120,26 +2120,26 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
                                 <button
                                     onClick={() => setIsNumberMasked(!isNumberMasked)}
-                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-100 text-slate-600' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-500 text-white hover:bg-slate-600 shadow-slate-200' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
                                     title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}
                                 >
-                                    {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                    {isNumberMasked ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                 </button>
                             )}
                             <button
                                 onClick={handleExportContactList}
-                                className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95"
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white bg-blue-500 hover:bg-blue-600 transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 shadow-blue-200"
                                 title="Export Contact List"
                             >
-                                <DownloadIcon className="w-5 h-5" />
+                                <DownloadIcon className="w-4 h-4" />
                             </button>
                             <div className="relative">
                                 <button
                                     onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag || quickFilter.startsWith('staff:') ? 'bg-brand-600 text-white shadow-brand-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag || quickFilter.startsWith('staff:') ? 'bg-[#00684a] text-white shadow-emerald-200' : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200'}`}
                                     title="Filter"
                                 >
-                                    <FilterIcon className="w-5 h-5" />
+                                    <FilterIcon className="w-4 h-4" />
                                 </button>
                                 {isFilterMenuOpen && (
                                     <>
