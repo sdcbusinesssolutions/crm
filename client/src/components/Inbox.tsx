@@ -372,11 +372,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             if (!m.id.startsWith('temp-')) return true;
                             let isMatch = m.type === updatedMsg.type && m.direction === updatedMsg.direction;
                             if (isMatch) {
-                                if (m.type === 'template' as any) {
-                                    const mName = (m as any).template_name || (m as any).template?.name;
-                                    const newName = (updatedMsg as any).template_name || (updatedMsg as any).template?.name;
-                                    isMatch = mName === newName;
-                                } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
+                            if (m.type === 'template' as any) {
+                                // We don't store template_name in the DB, so we can't match it strictly via socket payload.
+                                // We assume the outgoing temp template is a match for the new outgoing template.
+                                isMatch = true;
+                            } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
                                     // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
                                     isMatch = true;
                                 } else {
@@ -604,9 +604,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             // Force a reflow before restoring to ensure the browser applies the jump instantly
             void container.offsetHeight; 
             
-            setTimeout(() => {
-                if (container) container.style.scrollBehavior = originalBehavior;
-            }, 0);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (container) container.style.scrollBehavior = originalBehavior;
+                });
+            });
             return;
         }
         if (messagesEndRef.current) {

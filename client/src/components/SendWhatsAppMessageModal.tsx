@@ -224,9 +224,11 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                 // Force a reflow before restoring to ensure the browser applies the jump instantly
                 void container.offsetHeight; 
                 
-                setTimeout(() => {
-                    if (container) container.style.scrollBehavior = originalBehavior;
-                }, 0);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (container) container.style.scrollBehavior = originalBehavior;
+                    });
+                });
             } else {
                 messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
             }
@@ -285,9 +287,9 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                         let isMatch = m.type === newMessage.type && m.direction === newMessage.direction;
                         if (isMatch) {
                             if (m.type === 'template' as any) {
-                                const mName = (m as any).template_name || (m as any).template?.name;
-                                const newName = (newMessage as any).template_name || (newMessage as any).template?.name;
-                                isMatch = mName === newName;
+                                // We don't store template_name in the DB, so we can't match it strictly via socket payload.
+                                // We assume the outgoing temp template is a match for the new outgoing template.
+                                isMatch = true;
                             } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
                                 // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
                                 isMatch = true;
@@ -854,66 +856,70 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             )}
 
                                             {/* Text Content */}
-                                            {msg.type !== 'interactive' && msg.text && (
-                                                <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>
-                                            )}
-                                            {msg.type === 'interactive' && msg.text && (() => {
-                                                try {
-                                                    const interactive = JSON.parse(msg.text);
-                                                    
-                                                    // INBOUND: Interactive Reply (Button or List)
-                                                    if (interactive.type === 'button_reply' || interactive.button_reply) {
-                                                        return <div className="text-[15px] font-medium leading-relaxed">{interactive.button_reply?.title || interactive.title}</div>;
-                                                    }
-                                                    if (interactive.type === 'list_reply' || interactive.list_reply) {
-                                                        return (
-                                                            <div className="flex flex-col gap-1 min-w-[200px]">
-                                                                <div className="text-[15px] font-bold">{interactive.list_reply?.title || interactive.title}</div>
-                                                                {(interactive.list_reply?.description || interactive.description) && (
-                                                                    <div className="text-xs text-slate-500">{interactive.list_reply?.description || interactive.description}</div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    }
+                                            {(() => {
+                                                if (!msg.text) return null;
+                                                
+                                                if (msg.type === 'interactive' || msg.type === 'button') {
+                                                    try {
+                                                        const data = JSON.parse(msg.text);
+                                                        
+                                                        // INBOUND: Interactive Reply (Button or List)
+                                                        if (data.type === 'button_reply' || data.button_reply) {
+                                                            return <div className="text-[15px] font-medium leading-relaxed">{data.button_reply?.title || data.title || msg.text}</div>;
+                                                        }
+                                                        if (data.type === 'list_reply' || data.list_reply) {
+                                                            return (
+                                                                <div className="flex flex-col gap-1 min-w-[200px]">
+                                                                    <div className="text-[15px] font-bold">{data.list_reply?.title || data.title}</div>
+                                                                    {(data.list_reply?.description || data.description) && (
+                                                                        <div className="text-xs text-slate-500">{data.list_reply?.description || data.description}</div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
 
-                                                    // OUTBOUND: Normal Interactive Message
-                                                    return (
-                                                        <div className="flex flex-col gap-2 min-w-[200px]">
-                                                            {interactive.body?.text && (
-                                                                <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-                                                                    {interactive.body.text}
-                                                                </div>
-                                                            )}
-                                                            {interactive.footer?.text && (
-                                                                <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wide">
-                                                                    {interactive.footer.text}
-                                                                </div>
-                                                            )}
-                                                            {interactive.action?.buttons && (
-                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                                                                    {interactive.action.buttons.map((btn: any, i: number) => (
-                                                                        <div key={i} className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center cursor-default">
-                                                                            {btn.reply?.title || 'Button'}
+                                                        // Check if it has a body (Outbound interactive)
+                                                        if (data.body?.text) {
+                                                            return (
+                                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                                    <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{data.body.text}</div>
+                                                                    {data.footer?.text && (
+                                                                        <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wide">{data.footer.text}</div>
+                                                                    )}
+                                                                    {data.action?.buttons && (
+                                                                        <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                            {data.action.buttons.map((btn: any, i: number) => (
+                                                                                <div key={i} className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center cursor-default">
+                                                                                    {btn.reply?.title || 'Button'}
+                                                                                </div>
+                                                                            ))}
                                                                         </div>
-                                                                    ))}
+                                                                    )}
+                                                                    {data.action?.sections && (
+                                                                        <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                            <div className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center flex items-center justify-center gap-2 cursor-default">
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                                                                                {data.action.button || 'View List'}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            )}
-                                                            {interactive.action?.sections && (
-                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                                                                    <div className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center flex items-center justify-center gap-2 cursor-default">
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                                                                        </svg>
-                                                                        {interactive.action.button || 'View List'}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                } catch (e) {
-                                                    return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
+                                                            );
+                                                        }
+                                                        
+                                                        // Fallback for valid JSON but unknown interactive structure
+                                                        return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
+                                                    } catch (e) {
+                                                        // It's a string like "Button 1"
+                                                        return <div className="text-[15px] font-medium leading-relaxed">{msg.text}</div>;
+                                                    }
                                                 }
+
+                                                // Normal text message
+                                                return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
                                             })()}
+
+
 
                                             {/* Metadata */}
                                             <div className="flex items-center justify-end gap-1.5 mt-1.5 -mb-0.5">
