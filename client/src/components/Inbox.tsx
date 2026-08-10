@@ -2708,7 +2708,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </div>
                                             )}
                                             <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-xl px-3 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-[#1BA035] hover:border-emerald-300 rounded-tr-none' : 'bg-white border border-[#1BA035] hover:border-emerald-300 rounded-tl-none'}`}>
+                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-2xl px-4 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-[#1BA035] hover:border-emerald-300 rounded-tr-sm' : 'bg-white border border-[#1BA035] hover:border-emerald-300 rounded-tl-sm'}`}>
 
                                                     {renderMessageContent(msg)}
 
