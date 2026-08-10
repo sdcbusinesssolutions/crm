@@ -436,6 +436,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
                         );
                     });
+                    
+                    // FIX: If the chat is currently open and we receive a new inbound message,
+                    // mark it as read immediately so the customer gets the Blue Tick instantly.
+                    if (updatedMsg.direction === 'in' || updatedMsg.direction === 'inbound') {
+                        inboxService.markAsRead(currentActiveChatId).catch(console.error);
+                    }
                 }
 
                 // 2. Update Sidebar (ALWAYS)
