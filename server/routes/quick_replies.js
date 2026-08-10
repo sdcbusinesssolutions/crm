@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requirePermission = require('../middleware/requirePermission');
+const realtimeSync = require('../services/realtimeSync');
 
 // GET / - List all quick replies
 router.get('/', requirePermission('Inbox', 'read'), async (req, res) => {
@@ -62,6 +63,9 @@ router.post('/', requirePermission('Inbox', 'read_write'), async (req, res) => {
             .single();
 
         if (error) throw error;
+        
+        realtimeSync.emitQuickReply(user.id, data, 'INSERT');
+        
         res.status(201).json(data);
     } catch (error) {
         console.error('Error creating quick reply:', error);
@@ -89,6 +93,11 @@ router.put('/:id', requirePermission('Inbox', 'read_write'), async (req, res) =>
 
         const { data, error } = await query.select().single();
         if (error) throw error;
+        
+        if (req.user && req.user.id) {
+            realtimeSync.emitQuickReply(req.user.id, data, 'UPDATE');
+        }
+        
         res.json(data);
     } catch (error) {
         console.error('Error updating quick reply:', error);
@@ -110,6 +119,11 @@ router.delete('/:id', requirePermission('Inbox', 'all_access'), async (req, res)
         const { data, error } = await query;
 
         if (error) throw error;
+        
+        if (req.user && req.user.id) {
+            realtimeSync.emitQuickReply(req.user.id, { id }, 'DELETE');
+        }
+        
         res.json({ success: true });
     } catch (error) {
         console.error('Error deleting quick reply:', error);

@@ -305,7 +305,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
         };
         
+        const handleQuickReplyUpdate = (payload: any) => {
+            console.log('[Socket.IO] Quick Reply update detected:', payload.eventType);
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        };
+        
         socket.on('postgres_changes_conversations', handleConvUpdate);
+        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
 
         // --- TEMPORARY FALLBACK POLLING ---
         // Retained as a secondary fail-safe just in case
@@ -316,6 +322,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         return () => {
             socket.off('connect', joinSocketRoom);
             socket.off('postgres_changes_conversations', handleConvUpdate);
+            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
             // clearInterval(fallbackInterval);
         };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
@@ -369,6 +376,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     const mName = (m as any).template_name || (m as any).template?.name;
                                     const newName = (updatedMsg as any).template_name || (updatedMsg as any).template?.name;
                                     isMatch = mName === newName;
+                                } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
+                                    // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
+                                    isMatch = true;
                                 } else {
                                     isMatch = (m.text === updatedMsg.text || m.media_url === updatedMsg.media_url);
                                 }
@@ -1432,7 +1442,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 className={`rounded-xl border border-emerald-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all max-w-full cursor-pointer object-contain bg-slate-50 ${type === 'sticker' ? 'w-32' : 'max-h-80'}`}
                                 onClick={() => window.open(msg.media_url, '_blank')}
                                 onLoad={() => {
-                                    if (isAtBottomRef.current) scrollToBottom();
+                                    if (isAtBottomRef.current || shouldForceScrollRef.current) setTimeout(() => scrollToBottom(shouldForceScrollRef.current), 50);
                                 }}
                             />
                         ) : (
@@ -1455,7 +1465,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     controls
                                     className="w-full max-h-80 object-contain"
                                     onLoadedData={() => {
-                                        if (isAtBottomRef.current) scrollToBottom();
+                                        if (isAtBottomRef.current || shouldForceScrollRef.current) setTimeout(() => scrollToBottom(shouldForceScrollRef.current), 50);
                                     }}
                                 />
                             </div>

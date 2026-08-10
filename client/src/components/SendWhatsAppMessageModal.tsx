@@ -240,6 +240,20 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
 
     // Socket.IO Real-time Updates
     useEffect(() => {
+        if (!isOpen) return;
+
+        const handleQuickReplyUpdate = (payload: any) => {
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        };
+
+        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
+
+        return () => {
+            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
         if (!isOpen || !conversation?.id) return;
 
         const handleMessageUpdate = (payload: any) => {
@@ -258,6 +272,9 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                 const mName = (m as any).template_name || (m as any).template?.name;
                                 const newName = (newMessage as any).template_name || (newMessage as any).template?.name;
                                 isMatch = mName === newName;
+                            } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
+                                // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
+                                isMatch = true;
                             } else {
                                 isMatch = (m.text === newMessage.text || m.media_url === newMessage.media_url);
                             }
@@ -777,7 +794,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             {msg.type === 'image' && (
                                                 <div className="mb-2 -mx-1 -mt-1 relative group/img overflow-hidden rounded-xl">
                                                     {msg.media_url ? (
-                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" />
+                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" onLoad={() => setTimeout(scrollToBottom, 100)} />
                                                     ) : (
                                                         <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
                                                             <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
