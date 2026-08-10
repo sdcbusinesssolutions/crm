@@ -192,7 +192,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                     setConversation(match);
                     const msgs = await inboxService.getMessages(match.id);
                     setMessages(msgs);
-                    setTimeout(() => scrollToBottom(), 100);
+                    setTimeout(() => scrollToBottom(true), 10);
                 } else {
                     setConversation(null);
                     setMessages([]);
@@ -213,8 +213,15 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         }
     }, [isOpen]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    const scrollToBottom = (instant = false) => {
+        if (messagesEndRef.current) {
+            const container = messagesEndRef.current.parentElement;
+            if (instant && container) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
     };
 
     // Socket.IO Room Join
@@ -794,7 +801,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             {msg.type === 'image' && (
                                                 <div className="mb-2 -mx-1 -mt-1 relative group/img overflow-hidden rounded-xl">
                                                     {msg.media_url ? (
-                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" onLoad={() => setTimeout(scrollToBottom, 100)} />
+                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" onLoad={() => setTimeout(() => scrollToBottom(true), 10)} />
                                                     ) : (
                                                         <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
                                                             <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>

@@ -595,9 +595,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const MESSAGE_BATCH_SIZE = 50; // Load 50 messages at a time for smooth scrolling
 
     const scrollToBottom = (instant = false) => {
+        if (instant && chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+            return;
+        }
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({
-                behavior: instant ? 'auto' : 'smooth',
+                behavior: 'smooth',
                 block: 'end'
             });
         }

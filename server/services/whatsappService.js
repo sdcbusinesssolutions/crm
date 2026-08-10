@@ -318,6 +318,22 @@ class WhatsAppService {
             } else {
                 console.log(`Logged outbound ${type} message to DB (ID: ${whatsappMessageId})`);
 
+                // Emit new message event via local Socket emitter
+                try {
+                    const { data: savedMessage } = await rpcClient
+                        .from('messages')
+                        .select('*')
+                        .eq('id', messageId)
+                        .single();
+                    
+                    if (savedMessage) {
+                        const realtimeSync = require('./realtimeSync');
+                        realtimeSync.emitMessage(userId, savedMessage, 'INSERT');
+                    }
+                } catch (emitErr) {
+                    console.error('Failed to emit message to socket:', emitErr);
+                }
+
                 // --- FIX: Update Conversation Last Message with Readable Preview ---
                 try {
                     const previewText = this._generatePreviewText(type, content);
