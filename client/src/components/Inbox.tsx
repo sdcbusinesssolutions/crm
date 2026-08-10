@@ -2486,7 +2486,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <select
                                         value={activeChat.assigned_ai_agent_id || ''}
                                         onChange={(e) => handleAssignAi(e.target.value)}
-                                        className="text-xs font-bold border border-zinc-600 rounded-full px-3 py-1.5 h-8 bg-zinc-500 text-white focus:outline-none focus:ring-2 focus:ring-zinc-400 shadow-sm transition-all cursor-pointer"
+                                        className="text-xs font-bold border border-[#1FBE6D] rounded-full px-3 py-1.5 h-8 bg-[#1FBE6D] text-white focus:outline-none focus:ring-2 focus:ring-[#1FBE6D]/50 shadow-sm transition-all cursor-pointer"
                                     >
                                         <option value="">No AI Assigned</option>
                                         {aiAgents.map(agent => (
@@ -2708,17 +2708,17 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </div>
                                             )}
                                             <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-xl px-3 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-emerald-200 hover:border-emerald-300 rounded-tr-none' : 'bg-white border border-emerald-200 hover:border-emerald-300 rounded-tl-none'}`}>
+                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-xl px-3 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-[#1BA035] hover:border-emerald-300 rounded-tr-none' : 'bg-white border border-[#1BA035] hover:border-emerald-300 rounded-tl-none'}`}>
 
                                                     {renderMessageContent(msg)}
 
                                                     <div className="flex items-center justify-end gap-1 mt-1 select-none">
-                                                        <span className="text-[10px] text-slate-400">{formatTime(msg.created_at)}</span>
+                                                        <span className="text-[10px] text-[#202C33]">{formatTime(msg.created_at)}</span>
                                                         {msg.direction === 'out' && (
                                                             <span className="flex items-center" title={`Status: ${msg.status}`}>
                                                                 {msg.status === 'read' && <DoubleCheckIcon className="w-3.5 h-3.5 text-blue-500" />}
-                                                                {msg.status === 'delivered' && <DoubleCheckIcon className="w-3.5 h-3.5 text-slate-400" />}
-                                                                {msg.status === 'sent' && <CheckIcon className="w-3.5 h-3.5 text-slate-400" />}
+                                                                {msg.status === 'delivered' && <DoubleCheckIcon className="w-3.5 h-3.5 text-[#202C33]" />}
+                                                                {msg.status === 'sent' && <CheckIcon className="w-3.5 h-3.5 text-[#202C33]" />}
                                                             </span>
                                                         )}
                                                     </div>
