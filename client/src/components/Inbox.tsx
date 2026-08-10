@@ -2457,10 +2457,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     const isPaused = !!activeChat.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
                                     return (
                                         <div 
-                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold border-2 transition-all shadow-sm ${
+                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
                                                 isPaused 
-                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' 
-                                                    : 'bg-white border-purple-200 hover:border-purple-300 hover:shadow-md'
+                                                    ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600' 
+                                                    : 'bg-purple-500 text-white border-purple-600 hover:bg-purple-600 hover:shadow-md'
                                             }`}
                                             onClick={toggleAiPause}
                                         >
@@ -2471,10 +2471,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
                                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                                     </svg>
-                                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500">AI Active</span>
+                                                    <span className="text-white">AI Active</span>
                                                 </>
                                             )}
                                         </div>
@@ -2486,7 +2486,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     <select
                                         value={activeChat.assigned_ai_agent_id || ''}
                                         onChange={(e) => handleAssignAi(e.target.value)}
-                                        className="text-xs font-medium border-2 border-slate-200 rounded-full px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-purple-300 focus:ring-2 focus:ring-purple-100 shadow-sm transition-all cursor-pointer"
+                                        className="text-xs font-bold border border-slate-600 rounded-full px-3 py-1.5 h-8 bg-slate-500 text-white focus:outline-none focus:ring-2 focus:ring-slate-400 shadow-sm transition-all cursor-pointer"
                                     >
                                         <option value="">No AI Assigned</option>
                                         {aiAgents.map(agent => (
@@ -2513,7 +2513,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     return (
                                         <div className={`
                                             hidden md:flex w-8 h-8 rounded-full flex-col items-center justify-center text-[9px] font-bold border shrink-0
-                                            ${isWindowOpen ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}
+                                            ${isWindowOpen ? 'bg-green-500 text-white border-green-600' : 'bg-slate-500 text-white border-slate-600'}
                                         `} title={isWindowOpen ? `${hours}h ${minutes}m left` : "Session Expired"}>
                                             {isWindowOpen ? (
                                                 <div className="flex flex-col items-center -space-y-0.5">
@@ -2527,19 +2527,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                                 <button 
                                     onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} 
-                                    className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 border ${isContactInfoOpen ? 'bg-[#00684a] text-white border-[#00684a]' : 'bg-blue-500 text-white border-blue-600 hover:bg-blue-600'}`}
                                 >
-                                    <UsersIcon className="w-5 h-5" />
-                                </button>
-                                <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg">
-                                    <SearchIcon className="w-5 h-5" />
+                                    <UsersIcon className="w-4 h-4" />
                                 </button>
                                 <LeadAssignment 
                                     leadId={activeLeadId || activeChat.id} 
                                     contact={{ ...activeChat, assigned_staff_ids: activeChat.assigned_to ? [activeChat.assigned_to] : [] }}
                                     showNames={true}
                                     isConversationId={!activeLeadId}
-                                    className="p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 relative"
+                                    className="px-3 py-1.5 h-8 flex items-center gap-1.5 text-xs font-bold bg-[#00684a] text-white hover:bg-[#00523b] border border-[#00684a] rounded-full transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 relative [&>svg]:w-4 [&>svg]:h-4"
                                     onAssigned={() => {
                                         loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
                                         // Refresh assigned staff names
