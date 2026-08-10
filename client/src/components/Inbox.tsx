@@ -309,68 +309,34 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
     };
 
+    const handleToggleOptOut = async () => {
+        if (!activeChat) return;
+        const newStatus = !isOptedOut;
+        setIsOptedOut(newStatus); // Optimistic UI update
+        try {
+            const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
+            let existingCustomData = {};
+            if (res?.data && res.data.length > 0) {
+                existingCustomData = res.data[0].customData || {};
+            }
+            await contactService.saveContact({
+                phone: activeChat.contact_phone,
+                name: activeChat.contact_name || activeChat.contact_phone,
+                customData: {
+                    ...existingCustomData,
+                    opted_out: newStatus
+                }
+            } as any);
+        } catch (error) {
+            console.error("Failed to toggle opt out", error);
+            setIsOptedOut(!newStatus); // Revert on failure
+        }
+    };
+
     useEffect(() => {
         setConvPage(1);
         setHasMoreConvs(true);
         loadConversations(1, false, searchTerm, quickFilter, filterTag);
-
-        // --- REALTIME OPTIMIZATION: Socket.IO ---
-        // Instead of polling or Supabase Websockets, we use our own Socket.IO server
-        // This makes the sidebar refresh instantly when a new message arrives and scales perfectly.
-        const joinSocketRoom = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // Fix for Staff Members: Webhooks emit events to the Owner's ID.
-            // Staff members must join the Owner's room to receive real-time updates.
-            const staffDataStr = localStorage.getItem('staffData');
-            let roomToJoin = user?.id;
-            
-            if (staffDataStr) {
-                try {
-                    const staffData = JSON.parse(staffDataStr);
-                    if (staffData.owner_id) {
-                        roomToJoin = staffData.owner_id;
-                    }
-                } catch (e) {
-                    console.error('Error parsing staffData for socket connection', e);
-                }
-            }
-
-            if (roomToJoin && socket) {
-                console.log('[Socket.IO] Emitting join_room for:', roomToJoin);
-                socket.emit('join_room', roomToJoin);
-            }
-        };
-
-        if (socket.connected) {
-            joinSocketRoom();
-        }
-        socket.on('connect', joinSocketRoom);
-        const handleConvUpdate = (payload: any) => {
-            console.log('[Socket.IO] Conversation update detected:', payload.eventType);
-            loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-        };
-        
-        const handleQuickReplyUpdate = (payload: any) => {
-            console.log('[Socket.IO] Quick Reply update detected:', payload.eventType);
-            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
-        };
-        
-        socket.on('postgres_changes_conversations', handleConvUpdate);
-        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
-
-        // --- TEMPORARY FALLBACK POLLING ---
-        // Retained as a secondary fail-safe just in case
-        // const fallbackInterval = setInterval(() => {
-        //     loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-        // }, 8000); // 8 seconds
-
-        return () => {
-            socket.off('connect', joinSocketRoom);
-            socket.off('postgres_changes_conversations', handleConvUpdate);
-            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
-            // clearInterval(fallbackInterval);
-        };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
 
     const handleConvScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -401,7 +367,53 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [activeChatId]);
 
     // --- GLOBAL REALTIME SOCKET (Runs once) ---
+    const filtersRef = useRef({ searchTerm, quickFilter, filterTag });
     useEffect(() => {
+        filtersRef.current = { searchTerm, quickFilter, filterTag };
+    }, [searchTerm, quickFilter, filterTag]);
+
+    useEffect(() => {
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) {
+                        roomToJoin = staffData.owner_id;
+                    }
+                } catch (e) {
+                    console.error('Error parsing staffData for socket connection', e);
+                }
+            }
+
+            if (roomToJoin && socket) {
+                console.log('[Socket.IO] Emitting join_room for:', roomToJoin);
+                socket.emit('join_room', roomToJoin);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        }
+        socket.on('connect', joinSocketRoom);
+
+        const handleConvUpdate = (payload: any) => {
+            const { searchTerm: s, quickFilter: q, filterTag: f } = filtersRef.current;
+            console.log('[Socket.IO] Conversation update detected:', payload.eventType);
+            loadConversations(1, false, s, q, f, true);
+        };
+        
+        const handleQuickReplyUpdate = (payload: any) => {
+            console.log('[Socket.IO] Quick Reply update detected:', payload.eventType);
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        };
+        
+        socket.on('postgres_changes_conversations', handleConvUpdate);
+        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
+
         const handleMessageUpdate = (payload: any) => {
             if (!payload.new) return;
             const updatedMsg = payload.new as Message;
@@ -482,6 +494,9 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
         socket.on('postgres_changes_messages', handleMessageUpdate);
         return () => {
+            socket.off('connect', joinSocketRoom);
+            socket.off('postgres_changes_conversations', handleConvUpdate);
+            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
             socket.off('postgres_changes_messages', handleMessageUpdate);
         };
     }, []); // Run once
@@ -2533,6 +2548,29 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         </div>
                                     );
                                 })()}
+                                
+                                {/* Opt In/Out Toggle */}
+                                <div 
+                                    className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
+                                        isOptedOut 
+                                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                    onClick={handleToggleOptOut}
+                                    title={isOptedOut ? "Click to Opt-In" : "Click to Opt-Out"}
+                                >
+                                    {isOptedOut ? (
+                                        <>
+                                            <span className="text-[14px]">🛑</span>
+                                            <span>Opted Out</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-[14px]">✅</span>
+                                            <span>Opted In</span>
+                                        </>
+                                    )}
+                                </div>
                                 
                                 {/* Assign AI Dropdown */}
                                 <div className="hidden md:flex items-center">
