@@ -186,7 +186,7 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                 }
 
                 const result = await inboxService.getConversations(1, 10, cleanPhone);
-                const match = result.find(c => c.contact_phone.includes(cleanPhone) || cleanPhone.includes(c.contact_phone));
+                const match = result.data.find(c => c.contact_phone.includes(cleanPhone) || cleanPhone.includes(c.contact_phone));
                 
                 if (match) {
                     setConversation(match);
