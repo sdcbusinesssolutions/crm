@@ -216,7 +216,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 lead_id: editingLead.id,
                 title: newTask.title,
                 description: newTask.description,
-                due_date: newTask.due_date ? newTask.due_date : null,
+                due_date: newTask.due_date ? new Date(`${newTask.due_date}+05:30`).toISOString() : null,
                 enable_popup: enablePopup
             });
 
@@ -238,8 +238,8 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
             await createAppointment({
                 lead_id: editingLead.id,
                 title: newAppointment.title,
-                start_time: newAppointment.start_time,
-                end_time: newAppointment.end_time ? newAppointment.end_time : null,
+                start_time: new Date(`${newAppointment.start_time}+05:30`).toISOString(),
+                end_time: newAppointment.end_time ? new Date(`${newAppointment.end_time}+05:30`).toISOString() : null,
                 description: newAppointment.description
             });
             const updatedAppointments = await getAppointments(editingLead.id);
