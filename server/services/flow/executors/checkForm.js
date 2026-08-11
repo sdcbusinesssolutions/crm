@@ -43,11 +43,13 @@ module.exports = {
         }
 
         let hasSubmitted = false;
+        let matchedData = null;
         if (data && data.length > 0) {
             for (const sub of data) {
                 const subStr = JSON.stringify(sub.submission_data || {});
                 if (subStr.includes(searchPhone)) {
                     hasSubmitted = true;
+                    matchedData = sub.submission_data || {};
                     break;
                 }
             }
@@ -58,6 +60,8 @@ module.exports = {
         return {
             status: 'success',
             outcome: hasSubmitted ? 'true' : 'false',
+            data: matchedData
+
         };
         } catch (err) {
             console.error('[CheckFormExecutor] Execution failed:', err);

@@ -30,9 +30,18 @@ const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onU
                 const fetchedForms = await getForms();
                 setForms(fetchedForms);
                 
-                // Set default form if none selected and forms exist
-                if (!data.formId && fetchedForms.length > 0 && fetchedForms[0].id) {
-                    onChange({ formId: fetchedForms[0].id });
+                if (data.formId) {
+                    if (!data.formFields || data.formFields.length === 0) {
+                        const selectedForm = fetchedForms.find(f => f.id === data.formId);
+                        if (selectedForm && selectedForm.fields) {
+                            onChange({ formFields: selectedForm.fields });
+                        }
+                    }
+                } else if (fetchedForms.length > 0 && fetchedForms[0].id) {
+                    onChange({ 
+                        formId: fetchedForms[0].id,
+                        formFields: fetchedForms[0].fields || [] 
+                    });
                 }
             } catch (error) {
                 console.error("Failed to load forms", error);
@@ -60,7 +69,13 @@ const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onU
                 ) : (
                     <select
                         value={data.formId || ''}
-                        onChange={(e) => onChange({ formId: e.target.value })}
+                        onChange={(e) => {
+                            const selectedForm = forms.find(f => f.id === e.target.value);
+                            onChange({ 
+                                formId: e.target.value,
+                                formFields: selectedForm ? selectedForm.fields : []
+                            });
+                        }}
                         className="w-full p-2.5 bg-slate-950 border border-slate-700 text-slate-200 rounded-lg shadow-sm text-sm outline-none transition-colors focus:ring-brand-500 focus:border-brand-500"
                     >
                         <option value="" disabled>-- Select a form --</option>
