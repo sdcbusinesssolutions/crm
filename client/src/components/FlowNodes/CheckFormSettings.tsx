@@ -15,9 +15,10 @@ interface CheckFormSettingsProps {
     onClose: () => void;
     availableVariables?: any[];
     canWrite?: boolean;
+    onShowNotification?: (type: 'success' | 'error', message: string) => void;
 }
 
-const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onUpdateNode, onClose, availableVariables = [], canWrite }) => {
+const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onUpdateNode, onClose, availableVariables = [], canWrite, onShowNotification }) => {
     const data = selectedNode.data;
     const onChange = (updates: Partial<CheckFormData>) => onUpdateNode(selectedNode.id, { ...data, ...updates });
 
@@ -31,11 +32,9 @@ const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onU
                 setForms(fetchedForms);
                 
                 if (data.formId) {
-                    if (!data.formFields || data.formFields.length === 0) {
-                        const selectedForm = fetchedForms.find(f => f.id === data.formId);
-                        if (selectedForm && selectedForm.fields) {
-                            onChange({ formFields: selectedForm.fields });
-                        }
+                    const selectedForm = fetchedForms.find(f => f.id === data.formId);
+                    if (selectedForm && selectedForm.fields) {
+                        onChange({ formFields: selectedForm.fields });
                     }
                 } else if (fetchedForms.length > 0 && fetchedForms[0].id) {
                     onChange({ 
@@ -43,8 +42,11 @@ const CheckFormSettings: React.FC<CheckFormSettingsProps> = ({ selectedNode, onU
                         formFields: fetchedForms[0].fields || [] 
                     });
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Failed to load forms", error);
+                if (onShowNotification) {
+                    onShowNotification('error', `Failed to load forms: ${error.message || 'Unknown error'}`);
+                }
             } finally {
                 setLoading(false);
             }
