@@ -975,6 +975,58 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                                     }
                                                 }
 
+                                                if (msg.type === 'template') {
+                                                    try {
+                                                        const data = JSON.parse(msg.text);
+                                                        
+                                                        // HEADER MEDIA
+                                                        const headerComp = data.components?.find((c: any) => c.type.toLowerCase() === 'header');
+                                                        const headerParam = headerComp?.parameters?.[0];
+                                                        let headerMedia = null;
+                                                        
+                                                        if (headerParam?.type === 'image') {
+                                                            const imgSrc = headerParam.image?.link;
+                                                            if (imgSrc) headerMedia = <img src={imgSrc} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" />;
+                                                        } else if (headerParam?.type === 'video') {
+                                                            const videoSrc = headerParam.video?.link;
+                                                            if (videoSrc) headerMedia = <video src={videoSrc} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" />;
+                                                        }
+                                                        
+                                                        return (
+                                                            <div className="flex flex-col min-w-[240px] -mx-2 -mt-2 -mb-2">
+                                                                {headerMedia}
+                                                                <div className="p-3">
+                                                                    {data._rendered_body ? (
+                                                                        <div className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                                                                            {data._rendered_body}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 opacity-80">
+                                                                                <span>📄</span> {data.name}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {data._footer_text && (
+                                                                        <p className="text-xs text-slate-400 mt-2 pt-1 border-t border-slate-50">{data._footer_text}</p>
+                                                                    )}
+                                                                </div>
+                                                                {data._rendered_buttons && (
+                                                                    <div className="divide-y divide-black/5 border-t border-black/5 bg-black/5">
+                                                                        {data._rendered_buttons.map((btn: any, idx: number) => (
+                                                                            <div key={idx} className="w-full py-2.5 px-4 text-[#00684a] text-[15px] font-bold text-center">
+                                                                                {btn.text || 'Button'}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    } catch (e) {
+                                                        // Fallback to text below if JSON parsing fails
+                                                    }
+                                                }
+
                                                 // Normal text message
                                                 return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
                                             })()}
