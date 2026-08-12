@@ -893,6 +893,51 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                                             );
                                                         }
 
+                                                        // Check for Flow Response (nfm_reply)
+                                                        if (data.type === 'nfm_reply' || data.nfm_reply) {
+                                                            const nfmReply = data.nfm_reply || data;
+                                                            let nodes = [];
+                                                            try {
+                                                                const responseJson = typeof nfmReply.response_json === 'string'
+                                                                    ? JSON.parse(nfmReply.response_json)
+                                                                    : nfmReply.response_json;
+
+                                                                if (responseJson && typeof responseJson === 'object') {
+                                                                    Object.entries(responseJson).forEach(([key, value]) => {
+                                                                        if (key !== 'flow_token') {
+                                                                            let displayKey = key.replace(/^screen_\d+_/, '').replace(/_\d+$/, '').replace(/_/g, ' ');
+                                                                            nodes.push(
+                                                                                <tr key={key} className="border-b border-black/5 last:border-0">
+                                                                                    <td className="py-1.5 pl-2 pr-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-1/3 align-top">{displayKey}</td>
+                                                                                    <td className="py-1.5 pr-2 text-[14px] text-slate-800 break-words align-top">{String(value)}</td>
+                                                                                </tr>
+                                                                            );
+                                                                        }
+                                                                    });
+                                                                }
+                                                            } catch (e) {
+                                                                nodes.push(<tr key="error"><td colSpan={2} className="py-2 text-sm text-red-500">Failed to parse form</td></tr>);
+                                                            }
+
+                                                            return (
+                                                                <div className="rounded-lg bg-white/70 border border-black/5 overflow-hidden min-w-[280px]">
+                                                                    <div className="bg-black/5 px-3 py-1.5 border-b border-black/5 flex justify-between items-center">
+                                                                        <span className="text-[11px] font-bold text-slate-600 uppercase">📄 Form Submission</span>
+                                                                        <span className="text-[9px] text-slate-400">Flow</span>
+                                                                    </div>
+                                                                    <div className="p-0">
+                                                                        <table className="w-full text-left">
+                                                                            <tbody>
+                                                                                {nodes.length > 0 ? nodes : (
+                                                                                    <tr><td className="p-4 text-sm text-slate-500 italic">No data</td></tr>
+                                                                                )}
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+
                                                         // Check if it has a body (Outbound interactive)
                                                         if (data.body?.text) {
                                                             return (
