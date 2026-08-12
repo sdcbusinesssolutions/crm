@@ -13,7 +13,7 @@ import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/useP
 const formatIST = (dateString: string) => {
     if (!dateString) return '';
     try {
-        const date = new Date(dateString);
+        const date = new Date(dateString.endsWith('Z') ? dateString : dateString + 'Z');
         const formatted = new Intl.DateTimeFormat('en-US', {
             timeZone: 'Asia/Kolkata',
             month: 'short',

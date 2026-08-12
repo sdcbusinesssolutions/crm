@@ -3,11 +3,53 @@ import { reminderManager, ReminderConfig } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
 import { socket } from '../lib/socket';
 
+const playNotificationSound = () => {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        
+        const playNote = (frequency: number, startTime: number, duration: number) => {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, startTime);
+            
+            // Envelope: start loud, fade out
+            gainNode.gain.setValueAtTime(0.3, startTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start(startTime);
+            oscillator.stop(startTime + duration);
+        };
+
+        const now = audioCtx.currentTime;
+        // Play a pleasant 3-note ascending melody (C6, E6, G6)
+        playNote(1046.50, now, 0.4);         // C6
+        playNote(1318.51, now + 0.12, 0.4);  // E6
+        playNote(1567.98, now + 0.24, 0.6);  // G6
+        
+    } catch (e) {
+        console.warn("Audio playback not supported or blocked by browser", e);
+    }
+};
+
 export const ReminderNotification: React.FC = () => {
     const [activeReminders, setActiveReminders] = useState<ReminderConfig[]>([]);
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [position, setPosition] = useState(() => {
+        try {
+            const saved = localStorage.getItem('reminder_position');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (e) {}
+        return { x: 0, y: 0 };
+    });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         setIsDragging(true);
@@ -23,6 +65,9 @@ export const ReminderNotification: React.FC = () => {
     const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
         setIsDragging(false);
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+        
+        // Save the new position to localStorage so it persists across reloads
+        localStorage.setItem('reminder_position', JSON.stringify(position));
     };
 
     useEffect(() => {
@@ -34,6 +79,9 @@ export const ReminderNotification: React.FC = () => {
         const handleReminderFired = (event: Event) => {
             const customEvent = event as CustomEvent<{ reminder: ReminderConfig }>;
             const reminder = customEvent.detail.reminder;
+            
+            playNotificationSound();
+            setIsCollapsed(false); // Auto-expand to show new reminder
             
             // Fire desktop notification if user is on another tab
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -64,6 +112,9 @@ export const ReminderNotification: React.FC = () => {
     useEffect(() => {
         const handleSocketAlarm = (data: any) => {
             console.log("Received realtime socket alarm:", data);
+            
+            playNotificationSound();
+            setIsCollapsed(false); // Auto-expand to show new reminder
             
             // Fire desktop notification if on another tab
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -135,16 +186,6 @@ export const ReminderNotification: React.FC = () => {
         handleDismiss(reminder.id);
     };
 
-    const handleSnooze = (reminder: ReminderConfig) => {
-        handleDismiss(reminder.id);
-        // Re-add it 10 minutes from now. (10 mins + 5 min offset for the manager)
-        reminderManager.addReminder({
-            ...reminder,
-            scheduledAt: new Date(Date.now() + 15 * 60 * 1000),
-            persistLocally: true // Ensure snoozed items persist
-        });
-    };
-
     const handleDismissAll = async () => {
         const ids = activeReminders.map(r => r.id);
         
@@ -181,17 +222,27 @@ export const ReminderNotification: React.FC = () => {
             className="fixed top-20 right-8 z-[100] flex flex-col gap-4 w-[360px] pointer-events-none transition-transform duration-75"
             style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
         >
-            {activeReminders.length > 1 && (
-                <div 
-                    className="pointer-events-auto bg-white/90 backdrop-blur shadow-lg border border-brand-100 rounded-xl p-3 flex justify-between items-center animate-fade-in cursor-move"
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                >
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></div>
-                        <span className="font-bold text-slate-700 text-sm pointer-events-none">{activeReminders.length} Reminders</span>
-                    </div>
+            <div 
+                className="pointer-events-auto bg-white/90 backdrop-blur shadow-lg border border-brand-100 rounded-xl p-3 flex justify-between items-center animate-fade-in cursor-move"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+            >
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></div>
+                    <span className="font-bold text-slate-700 text-sm pointer-events-none">{activeReminders.length} Reminder{activeReminders.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        onPointerDown={e => e.stopPropagation()}
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        title={isCollapsed ? "Expand" : "Collapse"}
+                    >
+                        <svg className={`w-5 h-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                    </button>
                     <button 
                         onClick={handleDismissAll}
                         onPointerDown={e => e.stopPropagation()}
@@ -200,9 +251,10 @@ export const ReminderNotification: React.FC = () => {
                         Dismiss All
                     </button>
                 </div>
-            )}
+            </div>
             
             {/* Scrollable Container */}
+            {!isCollapsed && (
             <div 
                 className="pointer-events-auto flex flex-col gap-4 max-h-[calc(100vh-160px)] overflow-y-auto pr-1"
                 style={{
@@ -258,17 +310,12 @@ export const ReminderNotification: React.FC = () => {
                                 >
                                     View Details
                                 </button>
-                                <button
-                                    onClick={() => handleSnooze(reminder)}
-                                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
-                                >
-                                    Snooze (10m)
-                                </button>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
+            )}
         </div>
     );
 };

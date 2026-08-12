@@ -78,10 +78,12 @@ class Scheduler {
 
     async checkPreAlarms(now) {
         try {
-            // Target is exactly 5 minutes from now
-            const targetMs = now.getTime() + (5 * 60000);
-            const start = new Date(targetMs - 60000).toISOString();
-            const end = new Date(targetMs + 60000).toISOString();
+            // Target window: from 5 minutes in the past up to exactly 5 minutes in the future
+            // Looking in the past ensures if they schedule an alarm for exactly "right now", we don't miss it if a few seconds elapsed.
+            const startMs = now.getTime() - (5 * 60000);
+            const start = new Date(startMs).toISOString();
+            const endMs = now.getTime() + (5 * 60000);
+            const end = new Date(endMs).toISOString();
 
             const { data: tasks, error } = await this.supabase
                 .from('tasks')
@@ -94,27 +96,36 @@ class Scheduler {
 
             if (tasks && tasks.length > 0) {
                 for (const task of tasks) {
-                    const meta = task.metadata || {};
-                    const newMeta = { ...meta, pre_alarm_5m_sent: true };
+                    // Check if the user is actually connected right now!
+                    const isConnected = await realtimeSync.isUserConnected(task.user_id);
+                    
+                    if (isConnected) {
+                        const meta = task.metadata || {};
+                        const newMeta = { ...meta, pre_alarm_5m_sent: true };
 
-                    const { data: claimed, error: claimError } = await this.supabase
-                        .from('tasks')
-                        .update({ metadata: newMeta })
-                        .eq('id', task.id)
-                        .is('metadata->>pre_alarm_5m_sent', null)
-                        .select();
+                        // Claim the task to avoid race conditions
+                        const { data: claimed, error: claimError } = await this.supabase
+                            .from('tasks')
+                            .update({ metadata: newMeta })
+                            .eq('id', task.id)
+                            .is('metadata->>pre_alarm_5m_sent', null)
+                            .select();
 
-                    if (!claimError && claimed && claimed.length > 0) {
-                        console.log(`[Scheduler] Emitting Socket.IO Pre-Alarm (5m) for Task ${task.id}`);
-                        // ONLY emit the socket alarm here, do not trigger an automation flow
-                        realtimeSync.emitTaskAlarm(task.user_id, {
-                            taskId: task.id,
-                            title: task.title,
-                            dueDate: task.due_date,
-                            leadId: task.lead_id,
-                            name: task.leads ? task.leads.name : 'Unknown',
-                            eventType: 'task_upcoming_5m'
-                        });
+                        if (!claimError && claimed && claimed.length > 0) {
+                            console.log(`[Scheduler] Emitting Socket.IO Pre-Alarm (5m) for Task ${task.id}`);
+                            realtimeSync.emitTaskAlarm(task.user_id, {
+                                taskId: task.id,
+                                title: task.title,
+                                dueDate: task.due_date,
+                                leadId: task.lead_id,
+                                name: task.leads ? task.leads.name : 'Unknown',
+                                eventType: 'task_upcoming_5m'
+                            });
+                        }
+                    } else {
+                        // User is not connected! Do NOT update the DB. 
+                        // The scheduler will retry this on the next tick (every ~30s) as long as it's within the 5m window.
+                        console.log(`[Scheduler] Skipping Pre-Alarm for Task ${task.id}, user ${task.user_id} is offline.`);
                     }
                 }
             }
