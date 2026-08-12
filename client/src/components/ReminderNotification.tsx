@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { reminderManager, ReminderConfig } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
 import { socket } from '../lib/socket';
+import { supabase } from '../lib/supabase';
 
 const playNotificationSound = () => {
     try {
@@ -147,8 +148,34 @@ export const ReminderNotification: React.FC = () => {
         };
 
         socket.on('task_alarm', handleSocketAlarm);
+
+        // Global Socket Connection for Reminders
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) roomToJoin = staffData.owner_id;
+                } catch (e) {}
+            }
+
+            if (roomToJoin && socket) {
+                socket.emit('join_room', roomToJoin);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        } else {
+            socket.on('connect', joinSocketRoom);
+        }
+
         return () => {
             socket.off('task_alarm', handleSocketAlarm);
+            socket.off('connect', joinSocketRoom);
         };
     }, []);
 
