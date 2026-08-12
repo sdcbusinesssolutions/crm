@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const flowEngine = require('../services/flowEngine');
+const realtimeSync = require('../services/realtimeSync');
 const { logCRMEvent } = require('../utils/logger');
 
 class Scheduler {
@@ -70,6 +71,56 @@ class Scheduler {
 
         // 3. Check Overdue Tasks (Dynamic Scan)
         await this.checkDynamicOverdue(now);
+
+        // 4. Pre-alarms for UI Socket.IO notifications (exactly 5 mins before)
+        await this.checkPreAlarms(now);
+    }
+
+    async checkPreAlarms(now) {
+        try {
+            // Target is exactly 5 minutes from now
+            const targetMs = now.getTime() + (5 * 60000);
+            const start = new Date(targetMs - 60000).toISOString();
+            const end = new Date(targetMs + 60000).toISOString();
+
+            const { data: tasks, error } = await this.supabase
+                .from('tasks')
+                .select('id, user_id, lead_id, title, description, due_date, metadata, leads(phone, name, email)')
+                .eq('is_completed', false)
+                .gte('due_date', start)
+                .lte('due_date', end)
+                .is('metadata->>pre_alarm_5m_sent', null)
+                .limit(500);
+
+            if (tasks && tasks.length > 0) {
+                for (const task of tasks) {
+                    const meta = task.metadata || {};
+                    const newMeta = { ...meta, pre_alarm_5m_sent: true };
+
+                    const { data: claimed, error: claimError } = await this.supabase
+                        .from('tasks')
+                        .update({ metadata: newMeta })
+                        .eq('id', task.id)
+                        .is('metadata->>pre_alarm_5m_sent', null)
+                        .select();
+
+                    if (!claimError && claimed && claimed.length > 0) {
+                        console.log(`[Scheduler] Emitting Socket.IO Pre-Alarm (5m) for Task ${task.id}`);
+                        // ONLY emit the socket alarm here, do not trigger an automation flow
+                        realtimeSync.emitTaskAlarm(task.user_id, {
+                            taskId: task.id,
+                            title: task.title,
+                            dueDate: task.due_date,
+                            leadId: task.lead_id,
+                            name: task.leads ? task.leads.name : 'Unknown',
+                            eventType: 'task_upcoming_5m'
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('❌ [Scheduler] Pre-Alarm Check Error:', e);
+        }
     }
 
     async checkDueTasks(now) {

@@ -22,6 +22,11 @@ class RealtimeSync {
         if (!this.io || !userId) return;
         this.io.to(userId).emit('postgres_changes_quick_replies', { eventType, new: quickReply });
     }
+
+    emitTaskAlarm(userId, taskData) {
+        if (!this.io || !userId) return;
+        this.io.to(userId).emit('task_alarm', taskData);
+    }
 }
 
 // Export as singleton so any route can import it and emit events

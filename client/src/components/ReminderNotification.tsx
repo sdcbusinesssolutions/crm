@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { reminderManager, ReminderConfig } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
+import { socket } from '../lib/socket';
 
 export const ReminderNotification: React.FC = () => {
     const [activeReminders, setActiveReminders] = useState<ReminderConfig[]>([]);
@@ -57,6 +58,47 @@ export const ReminderNotification: React.FC = () => {
 
         window.addEventListener('reminder-fired', handleReminderFired);
         return () => window.removeEventListener('reminder-fired', handleReminderFired);
+    }, []);
+
+    // Listen for realtime Socket.IO alarms from the backend scheduler
+    useEffect(() => {
+        const handleSocketAlarm = (data: any) => {
+            console.log("Received realtime socket alarm:", data);
+            
+            // Fire desktop notification if on another tab
+            if ('Notification' in window && Notification.permission === 'granted') {
+                if (document.hidden || !document.hasFocus()) {
+                    const notification = new Notification('⏰ Reminder: ' + data.title, {
+                        body: `Contact: ${data.name || 'Unknown'} - Due Now`,
+                        requireInteraction: true
+                    });
+                    
+                    notification.onclick = () => {
+                        window.focus();
+                        notification.close();
+                    };
+                }
+            }
+            
+            // Add to UI
+            const newReminder: ReminderConfig = {
+                id: `crm_${data.taskId}`,
+                title: data.title,
+                subtitle: `Contact: ${data.name || 'Unknown'}`,
+                scheduledAt: new Date(data.dueDate),
+                data: { contactId: data.leadId }
+            };
+            
+            setActiveReminders(prev => {
+                if (prev.find(r => r.id === newReminder.id)) return prev;
+                return [...prev, newReminder];
+            });
+        };
+
+        socket.on('task_alarm', handleSocketAlarm);
+        return () => {
+            socket.off('task_alarm', handleSocketAlarm);
+        };
     }, []);
 
     const handleDismiss = async (id: string) => {

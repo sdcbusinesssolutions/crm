@@ -18,7 +18,7 @@ class ReminderManager {
     private dismissedIds: Set<string> = new Set();
     private pollingInterval: NodeJS.Timeout | null = null;
     
-    // We want to trigger it 5 minutes before the actual time, as requested
+    // Trigger at 5 minutes before the actual time, as requested
     private ADVANCE_NOTICE_MS = 5 * 60 * 1000;
 
     constructor() {
