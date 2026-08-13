@@ -19,15 +19,7 @@ router.use((req, res, next) => {
     console.log(`[Webhook Router Hit] ${req.method} ${req.originalUrl}`);
     next();
 });
-const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
-const { logInboxMessage, logWebhookEvent, logMetaEvent } = require('../utils/logger');
-const { extractMessageContent } = require('../utils/whatsappParser');
-const fs = require('fs');
-const path = require('path');
-const axios = require('axios');
-const https = require('https');
-const { execFile } = require('child_process'); // curl subprocess for media download
-const flowEngine = require('../services/flowEngine');
+
 const realtimeSync = require('../services/realtimeSync');
 
 const DripTriggerService = require('../services/DripTriggerService');

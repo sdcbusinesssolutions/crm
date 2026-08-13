@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
         // Base query for transactions to get spend/deposit in the period
         let query = supabaseAdmin
             .from('wallet_transactions')
-            .select('user_id, amount, type');
+            .select('user_id, amount, type, source');
 
         // Apply tenant isolation
         if (!isSuperAdmin) {
@@ -50,10 +50,18 @@ router.get('/', async (req, res) => {
             if (!userAggregations[tx.user_id]) {
                 userAggregations[tx.user_id] = { deposited: 0, spend: 0 };
             }
+            
+            const amount = Number(tx.amount || 0);
+            
             if (tx.type === 'CREDIT') {
-                userAggregations[tx.user_id].deposited += Number(tx.amount || 0);
+                if (tx.source === 'REFUND' || tx.source === 'RESERVATION_RELEASE') {
+                    // Refunds and releases are reversals of consumption, NOT new deposits
+                    userAggregations[tx.user_id].spend -= amount;
+                } else {
+                    userAggregations[tx.user_id].deposited += amount;
+                }
             } else if (tx.type === 'DEBIT') {
-                userAggregations[tx.user_id].spend += Number(tx.amount || 0);
+                userAggregations[tx.user_id].spend += amount;
             }
         }
 

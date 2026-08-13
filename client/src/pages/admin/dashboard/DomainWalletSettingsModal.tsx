@@ -172,7 +172,7 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Wallet Config: ${domain}`}>
+        <Modal isOpen={isOpen} onClose={onClose} title={`Wallet Config: ${domain}`} size="3xl">
             {isLoading ? (
                 <div className="p-8 flex justify-center items-center">
                     <div className="w-8 h-8 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
