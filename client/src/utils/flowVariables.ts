@@ -36,6 +36,7 @@ const getNodeCategory = (type: NodeType): string => {
         case NodeType.TaskReminder:
         case NodeType.PipelineTrigger:
         case NodeType.SheetTrigger:
+        case NodeType.CheckForm:
             return 'Trigger Nodes';
         case NodeType.TextMessage:
         case NodeType.MediaMessage:
@@ -168,6 +169,10 @@ const NODE_OUTPUT_SCHEMAS: Partial<Record<NodeType, VariableDefinition[]>> = {
         { key: 'assignedStaffId', label: 'Assigned Staff ID', type: 'string', description: 'The ID of the staff member assigned' },
         { key: 'assignedStaffName', label: 'Assigned Staff Name', type: 'string', description: 'The name of the staff member assigned' }
     ],
+    [NodeType.CheckForm]: [
+        { key: 'outcome', label: 'Form Checked (True/False)', type: 'boolean', description: 'True if form is submitted, False if not' },
+        { key: 'data', label: 'Form Data (JSON)', type: 'object', description: 'Full form submission data' }
+    ],
     // Add more schemas as needed
 };
 
@@ -251,6 +256,21 @@ export const getAvailableVariables = (nodes: Node[], edges: Edge[], targetNodeId
                     type: 'string',
                     description: `Flow field: ${field}`
                 });
+            });
+        }
+
+        // Handle dynamic fields for CheckForm nodes
+        if (node.type === NodeType.CheckForm && (node.data as any).formFields && Array.isArray((node.data as any).formFields)) {
+            (node.data as any).formFields.forEach((field: any) => {
+                const varName = field.name || field.label;
+                if (varName) {
+                    dynamicVariables.push({
+                        key: `data.${varName}`,
+                        label: `Form: ${field.label || varName}`,
+                        type: 'string', // Forms mostly return strings/booleans
+                        description: `Data from form field: ${varName}`
+                    });
+                }
             });
         }
 

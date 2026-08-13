@@ -1250,9 +1250,36 @@ const ClickToWhatsAppLauncher = () => {
                   )}
             {currentStep === 1 && (
               <div className="ctwa-step-content">
-                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%)', borderRadius: '10px', borderLeft: '4px solid #3b82f6' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', letterSpacing: '0.08em', textTransform: 'uppercase' }}>📋 Campaign</div>
-                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Set your campaign name, objective, and ad account.</div>
+                <div style={{ 
+                  marginBottom: '20px', 
+                  padding: '20px 24px', 
+                  background: 'linear-gradient(90deg, #09172A 0%, #064E3B 100%)', 
+                  borderRadius: '16px', 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: '0 4px 12px rgba(34, 197, 94, 0.3)'
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', letterSpacing: '0.02em', marginBottom: '2px' }}>CAMPAIGN</div>
+                    <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>Set your campaign name, objective, and ad account.</div>
+                  </div>
                 </div>
                 {/* Row 1: Ad Account + Facebook Page */}
                 <div className="ctwa-form-row">
@@ -1391,6 +1418,24 @@ const ClickToWhatsAppLauncher = () => {
                       />
                     </div>
 
+                    {formData.budgetOptimization === 'CBO' && (
+                      <div className="ctwa-form-group">
+                        <label><span className="icon">💸</span> Campaign Daily Budget</label>
+                        <div className="budget-input-wrapper" style={{position: 'relative'}}>
+                          <span style={{position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: '#64748b'}}>₹</span>
+                          <input 
+                            type="number" 
+                            name="dailyBudget" 
+                            placeholder="e.g. 500" 
+                            value={formData.dailyBudget}
+                            onChange={handleChange}
+                            required 
+                            style={{ width: '100%', padding: '12px 16px 12px 32px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '1rem' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
                   {/* RIGHT COLUMN */}
@@ -1431,23 +1476,6 @@ const ClickToWhatsAppLauncher = () => {
                       </select>
                     </div>
 
-                    {formData.budgetOptimization === 'CBO' && (
-                      <div className="ctwa-form-group" style={{ marginBottom: 0, marginTop: '16px' }}>
-                        <label><span className="icon">💸</span> Campaign Daily Budget</label>
-                        <div className="budget-input-wrapper" style={{position: 'relative'}}>
-                          <span style={{position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: '#64748b'}}>₹</span>
-                          <input 
-                            type="number" 
-                            name="dailyBudget" 
-                            placeholder="e.g. 500" 
-                            value={formData.dailyBudget}
-                            onChange={handleChange}
-                            required 
-                            style={{ width: '100%', padding: '12px 16px 12px 32px', borderRadius: '10px', border: '1.5px solid #e2e8f0', fontSize: '1rem' }}
-                          />
-                        </div>
-                      </div>
-                    )}
 
                   </div>
                 </div>
@@ -1456,9 +1484,14 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 2 && (
               <div className="ctwa-step-content">
-                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', borderRadius: '10px', borderLeft: '4px solid #22c55e' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>👥 Ad Set</div>
-                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Define your audience, budget, and targeting for this Ad Set.</div>
+                <div style={{ marginBottom: '20px', padding: '16px', background: '#B4173A', borderRadius: '12px', color: 'white', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '1.25rem' }}>👥</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '2px' }}>Ad Set</div>
+                    <div style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>Define your audience, budget, and targeting for this Ad Set.</div>
+                  </div>
                 </div>
                 {/* Ad Set Name */}
                 <div className="ctwa-form-row">
@@ -1910,9 +1943,14 @@ const ClickToWhatsAppLauncher = () => {
 
             {currentStep === 3 && (
               <div className="ctwa-step-content">
-                <div style={{ marginBottom: '20px', padding: '12px 16px', background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)', borderRadius: '10px', borderLeft: '4px solid #f97316' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ea580c', letterSpacing: '0.08em', textTransform: 'uppercase' }}>🎨 Ad Creative</div>
-                  <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px' }}>Design your ad — upload media, write your message, and set the status.</div>
+                <div style={{ marginBottom: '20px', padding: '16px', background: '#F59E0B', borderRadius: '12px', color: 'white', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '1.25rem' }}>🎨</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ffffff', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '2px' }}>Ad Creative</div>
+                    <div style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.9)' }}>Design your ad — upload media, write your message, and set the status.</div>
+                  </div>
                 </div>
 
                 {/* Ad Name */}

@@ -29,7 +29,7 @@ export const inboxService = {
         }
     },
 
-    getConversations: async (page: number = 1, limit: number = 20, search: string = '', quickFilter: string = 'All', filterTag: string = ''): Promise<Conversation[]> => {
+    getConversations: async (page: number = 1, limit: number = 20, search: string = '', quickFilter: string = 'All', filterTag: string = ''): Promise<{data: Conversation[], count: number, unreadTotal: number}> => {
         try {
             const headers = getAuthHeaders();
             let url = `${API_BASE}/conversations?page=${page}&limit=${limit}`;
@@ -40,10 +40,10 @@ export const inboxService = {
             const response = await fetch(url, { headers });
             if (!response.ok) throw new Error('Failed to fetch conversations');
             const result = await response.json();
-            return result.data || []; // Extract data from paginated response
+            return { data: result.data || [], count: result.total || 0, unreadTotal: result.unreadTotal || 0 };
         } catch (e) {
             console.error("Failed to load conversations", e);
-            return [];
+            return { data: [], count: 0, unreadTotal: 0 };
         }
     },
 

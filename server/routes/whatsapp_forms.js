@@ -377,6 +377,38 @@ router.post('/:id', requirePermission('Whatsapp Forms', 'read_write'), async (re
     }
 });
 
+// GET /:id/json - Get Flow JSON Asset
+router.get('/:id/json', requirePermission('Whatsapp Forms', 'read'), async (req, res) => {
+    try {
+        const supabase = getAuthenticatedSupabase(req);
+        const { data: { user } } = await supabase.auth.getUser();
+        const config = await getWhatsAppConfig(supabase, user.id);
+
+        const accessToken = config.meta_access_token;
+        const { id } = req.params;
+
+        const assetsResponse = await axios.get(`${GRAPH_API_URL}/${id}/assets`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+
+        const jsonAsset = assetsResponse.data.data?.find(asset => asset.asset_type === 'FLOW_JSON');
+
+        if (!jsonAsset) {
+            return res.status(404).json({ error: 'Flow JSON asset not found' });
+        }
+
+        const jsonResponse = await axios.get(jsonAsset.download_url, {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+            responseType: 'json'
+        });
+
+        res.json(jsonResponse.data);
+    } catch (error) {
+        console.error('Error fetching flow JSON:', error.response?.data || error.message);
+        res.status(500).json({ error: error.response?.data?.error?.message || error.message });
+    }
+});
+
 // POST /:id/json - Update Flow JSON Asset
 router.post('/:id/json', requirePermission('Whatsapp Forms', 'read_write'), async (req, res) => {
     try {

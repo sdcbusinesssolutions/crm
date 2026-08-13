@@ -59,6 +59,7 @@ services:
       - BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_BRIDGE_DOMAIN=${BRIDGE_DOMAIN}
       - VITE_MASTER_URL=${VITE_MASTER_URL}
+      - REDIS_URL=redis://redis:6379
       # Drip Campaign Workers Configuration
       - DRIP_WORKER_COUNT=${DRIP_WORKER_COUNT:-1}
       # MEMORY OPTIMIZATION: Maximize usage of 2.5GB container limit
@@ -95,20 +96,41 @@ services:
       
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NETWORK}"
       - "traefik.http.services.${ROUTER_NAME}.loadbalancer.server.port=5000"
       
       # Define the HTTP to HTTPS redirect middleware
       - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
 
-      # Sticker / Session Stickiness (Optional)
-      # Keeps a user connected to the same container if needed
-      # - "traefik.http.services.wa.loadbalancer.sticky.cookie=true"
-    
+      # Sticky Session Configuration (CRITICAL for Socket.IO multi-container)
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie=true"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.name=sticky_${ROUTER_NAME}"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.secure=true"
+      - "traefik.http.services.${ROUTER_NAME}.loadbalancer.sticky.cookie.httpOnly=true"
     networks:
       - traefik_network
+      - internal_network
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.8'      # Max 80% of a single CPU core
+          memory: 1000M    # Max 1GB RAM
+        reservations:
+          cpus: '0.1'      # Reserve 10% of a CPU core
+          memory: 200M     # Reserve 200MB RAM
+    networks:
+      - internal_network
 
 networks:
+  internal_network:
+    driver: bridge
   traefik_network:
     external: true
     name: ${TRAEFIK_NETWORK}

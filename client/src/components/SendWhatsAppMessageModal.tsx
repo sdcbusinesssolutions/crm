@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
     CloseIcon, PaperClipIcon, EmojiIcon, MicrophoneIcon, PaperAirplaneIcon,
     QuickReplyIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    CheckIcon, DoubleCheckIcon, ClockIcon, SearchIcon, TrashIcon, PlusIcon
+    CheckIcon, DoubleCheckIcon, ClockIcon, SearchIcon, TrashIcon, PlusIcon, MessageIcon
 } from './icons';
 import { inboxService } from '../services/inboxService';
 import { tokenService } from '../services/tokenService';
@@ -13,6 +13,7 @@ import { quickReplyService } from '../services/quickReplyService';
 import { tagService, Tag } from '../services/tagService';
 import { supabase } from '../lib/supabase';
 import { contactService } from '../services/contactService';
+import { socket } from '../lib/socket';
 
 
 const formatTime = (dateString: string) => {
@@ -185,13 +186,13 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                 }
 
                 const result = await inboxService.getConversations(1, 10, cleanPhone);
-                const match = result.find(c => c.contact_phone.includes(cleanPhone) || cleanPhone.includes(c.contact_phone));
+                const match = result.data.find(c => c.contact_phone.includes(cleanPhone) || cleanPhone.includes(c.contact_phone));
                 
                 if (match) {
                     setConversation(match);
                     const msgs = await inboxService.getMessages(match.id);
                     setMessages(msgs);
-                    setTimeout(() => scrollToBottom(), 100);
+                    setTimeout(() => scrollToBottom(true), 10);
                 } else {
                     setConversation(null);
                     setMessages([]);
@@ -212,9 +213,126 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
         }
     }, [isOpen]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    const scrollToBottom = (instant = false) => {
+        if (messagesEndRef.current) {
+            const container = messagesEndRef.current.parentElement;
+            if (instant && container) {
+                const originalBehavior = container.style.scrollBehavior;
+                container.style.scrollBehavior = 'auto';
+                container.scrollTop = container.scrollHeight;
+                
+                // Force a reflow before restoring to ensure the browser applies the jump instantly
+                void container.offsetHeight; 
+                
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (container) container.style.scrollBehavior = originalBehavior;
+                    });
+                });
+            } else {
+                messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
     };
+
+    // Socket.IO Room Join
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) {
+                        roomToJoin = staffData.owner_id;
+                    }
+                } catch (e) {
+                    console.error('Error parsing staffData for socket connection', e);
+                }
+            }
+
+            if (roomToJoin && socket) {
+                socket.emit('join_room', roomToJoin);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        }
+        socket.on('connect', joinSocketRoom);
+
+        return () => {
+            socket.off('connect', joinSocketRoom);
+        };
+    }, [isOpen]);
+
+    // Socket.IO Real-time Updates
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handleQuickReplyUpdate = (payload: any) => {
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        };
+
+        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
+
+        return () => {
+            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
+        if (!isOpen || !conversation?.id) return;
+
+        const handleMessageUpdate = (payload: any) => {
+            if (payload.eventType === 'INSERT') {
+                const newMessage = payload.new as Message;
+                if (newMessage.conversation_id !== conversation.id) return;
+
+                setMessages(prev => {
+                    if (prev.some(m => m.id === newMessage.id)) return prev;
+
+                    const filtered = prev.filter(m => {
+                        if (!String(m.id).startsWith('temp-')) return true;
+                        let isMatch = m.type === newMessage.type && m.direction === newMessage.direction;
+                        if (isMatch) {
+                            if (m.type === 'template' as any) {
+                                // We don't store template_name in the DB, so we can't match it strictly via socket payload.
+                                // We assume the outgoing temp template is a match for the new outgoing template.
+                                isMatch = true;
+                            } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
+                                // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
+                                isMatch = true;
+                            } else {
+                                isMatch = (m.text === newMessage.text || m.media_url === newMessage.media_url);
+                            }
+                        }
+                        return !isMatch;
+                    });
+
+                    return [...filtered, newMessage].sort((a, b) =>
+                        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                    );
+                });
+                setTimeout(scrollToBottom, 100);
+            } else if (payload.eventType === 'UPDATE') {
+                const updatedMsg = payload.new as Message;
+                if (updatedMsg.conversation_id !== conversation.id) return;
+                setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+            }
+        };
+
+        socket.on('postgres_changes_messages', handleMessageUpdate);
+
+        return () => {
+            socket.off('postgres_changes_messages', handleMessageUpdate);
+        };
+    }, [isOpen, conversation?.id]);
 
     const filteredQuickReplies = useMemo(() => {
         if (!quickReplySearch.trim()) return quickReplies;
@@ -706,20 +824,46 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                                 : 'bg-white text-slate-800 rounded-tl-sm border border-slate-100'
                                         }`}>
                                             {/* Media Content */}
-                                            {msg.type === 'image' && msg.media_url && (
+                                            {msg.type === 'image' && (
                                                 <div className="mb-2 -mx-1 -mt-1 relative group/img overflow-hidden rounded-xl">
-                                                    <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" />
+                                                    {msg.media_url ? (
+                                                        <img src={msg.media_url} alt="Image" className="w-full h-auto max-h-80 object-cover" onLoad={() => setTimeout(() => scrollToBottom(true), 10)} />
+                                                    ) : (
+                                                        <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                                            <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                                            <span className="font-medium">Loading Media...</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
-                                            {msg.type === 'document' && msg.media_url && (
-                                                <a href={msg.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-black/5 rounded-xl mb-2 hover:bg-black/10 transition-colors">
-                                                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-sm"><DocumentFileIcon className="w-5 h-5 text-red-500" /></div>
-                                                    <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-700 truncate">Document</p></div>
-                                                </a>
+                                            {msg.type === 'document' && (
+                                                <div className="mb-2">
+                                                    {msg.media_url ? (
+                                                        <a href={msg.media_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 p-3 bg-black/5 rounded-xl hover:bg-black/10 transition-colors">
+                                                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-sm"><DocumentFileIcon className="w-5 h-5 text-red-500" /></div>
+                                                            <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-700 truncate">Document</p></div>
+                                                        </a>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 animate-pulse mb-1 mt-1">
+                                                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-xs font-semibold text-emerald-600">DOWNLOADING...</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
-                                            {msg.type === 'audio' && msg.media_url && (
-                                                <div className="mb-1 mt-1 w-64">
-                                                    <audio src={msg.media_url} controls className="w-full h-10" />
+                                            {msg.type === 'audio' && (
+                                                <div className="mb-1 mt-1 flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-100 w-max">
+                                                    <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-white shrink-0">
+                                                        <AudioFileIcon className="w-5 h-5" />
+                                                    </div>
+                                                    {msg.media_url ? (
+                                                        <audio src={msg.media_url} controls className="max-w-[240px] h-8" />
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 px-4 py-1">
+                                                            <div className="w-4 h-4 border-2 border-[#00a884] border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-xs font-bold text-slate-500">Downloading...</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             {msg.type === 'template' && (
@@ -727,49 +871,167 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                             )}
 
                                             {/* Text Content */}
-                                            {msg.type !== 'interactive' && msg.text && (
-                                                <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>
-                                            )}
-                                            {msg.type === 'interactive' && msg.text && (() => {
-                                                try {
-                                                    const interactive = JSON.parse(msg.text);
-                                                    return (
-                                                        <div className="flex flex-col gap-2 min-w-[200px]">
-                                                            {interactive.body?.text && (
-                                                                <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">
-                                                                    {interactive.body.text}
+                                            {(() => {
+                                                if (!msg.text) return null;
+                                                
+                                                if (msg.type === 'interactive' || msg.type === 'button') {
+                                                    try {
+                                                        const data = JSON.parse(msg.text);
+                                                        
+                                                        // INBOUND: Interactive Reply (Button or List)
+                                                        if (data.type === 'button_reply' || data.button_reply) {
+                                                            return <div className="text-[15px] font-medium leading-relaxed">{data.button_reply?.title || data.title || msg.text}</div>;
+                                                        }
+                                                        if (data.type === 'list_reply' || data.list_reply) {
+                                                            return (
+                                                                <div className="flex flex-col gap-1 min-w-[200px]">
+                                                                    <div className="text-[15px] font-bold">{data.list_reply?.title || data.title}</div>
+                                                                    {(data.list_reply?.description || data.description) && (
+                                                                        <div className="text-xs text-slate-500">{data.list_reply?.description || data.description}</div>
+                                                                    )}
                                                                 </div>
-                                                            )}
-                                                            {interactive.footer?.text && (
-                                                                <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wide">
-                                                                    {interactive.footer.text}
-                                                                </div>
-                                                            )}
-                                                            {interactive.action?.buttons && (
-                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                                                                    {interactive.action.buttons.map((btn: any, i: number) => (
-                                                                        <div key={i} className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center cursor-default">
-                                                                            {btn.reply?.title || 'Button'}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                            {interactive.action?.sections && (
-                                                                <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                                                                    <div className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center flex items-center justify-center gap-2 cursor-default">
-                                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                                                                        </svg>
-                                                                        {interactive.action.button || 'View List'}
+                                                            );
+                                                        }
+
+                                                        // Check for Flow Response (nfm_reply)
+                                                        if (data.type === 'nfm_reply' || data.nfm_reply) {
+                                                            const nfmReply = data.nfm_reply || data;
+                                                            let nodes = [];
+                                                            try {
+                                                                const responseJson = typeof nfmReply.response_json === 'string'
+                                                                    ? JSON.parse(nfmReply.response_json)
+                                                                    : nfmReply.response_json;
+
+                                                                if (responseJson && typeof responseJson === 'object') {
+                                                                    Object.entries(responseJson).forEach(([key, value]) => {
+                                                                        if (key !== 'flow_token') {
+                                                                            let displayKey = key.replace(/^screen_\d+_/, '').replace(/_\d+$/, '').replace(/_/g, ' ');
+                                                                            nodes.push(
+                                                                                <tr key={key} className="border-b border-black/5 last:border-0">
+                                                                                    <td className="py-1.5 pl-2 pr-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-1/3 align-top">{displayKey}</td>
+                                                                                    <td className="py-1.5 pr-2 text-[14px] text-slate-800 break-words align-top">{String(value)}</td>
+                                                                                </tr>
+                                                                            );
+                                                                        }
+                                                                    });
+                                                                }
+                                                            } catch (e) {
+                                                                nodes.push(<tr key="error"><td colSpan={2} className="py-2 text-sm text-red-500">Failed to parse form</td></tr>);
+                                                            }
+
+                                                            return (
+                                                                <div className="rounded-lg bg-white/70 border border-black/5 overflow-hidden min-w-[280px]">
+                                                                    <div className="bg-black/5 px-3 py-1.5 border-b border-black/5 flex justify-between items-center">
+                                                                        <span className="text-[11px] font-bold text-slate-600 uppercase">📄 Form Submission</span>
+                                                                        <span className="text-[9px] text-slate-400">Flow</span>
+                                                                    </div>
+                                                                    <div className="p-0">
+                                                                        <table className="w-full text-left">
+                                                                            <tbody>
+                                                                                {nodes.length > 0 ? nodes : (
+                                                                                    <tr><td className="p-4 text-sm text-slate-500 italic">No data</td></tr>
+                                                                                )}
+                                                                            </tbody>
+                                                                        </table>
                                                                     </div>
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                } catch (e) {
-                                                    return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
+                                                            );
+                                                        }
+
+                                                        // Check if it has a body (Outbound interactive)
+                                                        if (data.body?.text) {
+                                                            return (
+                                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                                    <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{data.body.text}</div>
+                                                                    {data.footer?.text && (
+                                                                        <div className="text-[11px] text-slate-500 mt-1 uppercase tracking-wide">{data.footer.text}</div>
+                                                                    )}
+                                                                    {data.action?.buttons && (
+                                                                        <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                            {data.action.buttons.map((btn: any, i: number) => (
+                                                                                <div key={i} className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center cursor-default">
+                                                                                    {btn.reply?.title || 'Button'}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                    {data.action?.sections && (
+                                                                        <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-slate-100">
+                                                                            <div className="px-4 py-2 bg-[#00684a]/10 hover:bg-[#00684a]/15 transition-colors text-[#00684a] font-semibold text-sm rounded-lg text-center flex items-center justify-center gap-2 cursor-default">
+                                                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+                                                                                {data.action.button || 'View List'}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        
+                                                        // Fallback for valid JSON but unknown interactive structure
+                                                        return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
+                                                    } catch (e) {
+                                                        // It's a string like "Button 1"
+                                                        return <div className="text-[15px] font-medium leading-relaxed">{msg.text}</div>;
+                                                    }
                                                 }
+
+                                                if (msg.type === 'template') {
+                                                    try {
+                                                        const data = JSON.parse(msg.text);
+                                                        
+                                                        // HEADER MEDIA
+                                                        const headerComp = data.components?.find((c: any) => c.type.toLowerCase() === 'header');
+                                                        const headerParam = headerComp?.parameters?.[0];
+                                                        let headerMedia = null;
+                                                        
+                                                        if (headerParam?.type === 'image') {
+                                                            const imgSrc = headerParam.image?.link;
+                                                            if (imgSrc) headerMedia = <img src={imgSrc} className="rounded-t-lg w-full max-h-48 object-cover bg-slate-100" alt="Header" />;
+                                                        } else if (headerParam?.type === 'video') {
+                                                            const videoSrc = headerParam.video?.link;
+                                                            if (videoSrc) headerMedia = <video src={videoSrc} controls className="rounded-t-lg w-full max-h-48 object-cover bg-black" />;
+                                                        }
+                                                        
+                                                        return (
+                                                            <div className="flex flex-col min-w-[240px] -mx-2 -mt-2 -mb-2">
+                                                                {headerMedia}
+                                                                <div className="p-3">
+                                                                    {data._rendered_body ? (
+                                                                        <div className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                                                                            {data._rendered_body}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex flex-col gap-1">
+                                                                            <div className="text-sm font-semibold text-slate-700 flex items-center gap-1.5 opacity-80">
+                                                                                <span>📄</span> {data.name}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {data._footer_text && (
+                                                                        <p className="text-xs text-slate-400 mt-2 pt-1 border-t border-slate-50">{data._footer_text}</p>
+                                                                    )}
+                                                                </div>
+                                                                {data._rendered_buttons && (
+                                                                    <div className="divide-y divide-black/5 border-t border-black/5 bg-black/5">
+                                                                        {data._rendered_buttons.map((btn: any, idx: number) => (
+                                                                            <div key={idx} className="w-full py-2.5 px-4 text-[#00684a] text-[15px] font-bold text-center">
+                                                                                {btn.text || 'Button'}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    } catch (e) {
+                                                        // Fallback to text below if JSON parsing fails
+                                                    }
+                                                }
+
+                                                // Normal text message
+                                                return <div className="text-[15px] leading-relaxed break-words whitespace-pre-wrap">{msg.text}</div>;
                                             })()}
+
+
 
                                             {/* Metadata */}
                                             <div className="flex items-center justify-end gap-1.5 mt-1.5 -mb-0.5">
@@ -805,6 +1067,9 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                         <div className="flex items-end gap-3 relative">
                         {/* Attachments & Templates */}
                         <div className="flex items-center gap-1.5 shrink-0 pb-1">
+                            <button onClick={() => setIsTemplateModalOpen(true)} className="p-2.5 text-[#00684a] bg-[#00684a]/10 hover:bg-[#00684a]/20 rounded-full transition-colors" title="Send Template">
+                                <MessageIcon className="w-5 h-5" />
+                            </button>
                             <div className="relative">
                                 <button onClick={() => setIsAttachmentOpen(!isAttachmentOpen)} className="p-2.5 text-slate-500 hover:text-[#00684a] hover:bg-slate-100 rounded-full transition-colors"><PaperClipIcon className="w-6 h-6" /></button>
                                 {isAttachmentOpen && (
@@ -815,9 +1080,6 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                                     </div>
                                 )}
                             </div>
-                            <button onClick={() => setIsTemplateModalOpen(true)} className="p-2.5 text-[#00684a] bg-[#00684a]/10 hover:bg-[#00684a]/20 rounded-full transition-colors" title="Send Template">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            </button>
                         </div>
 
                         {/* Input Box / Recording Area */}

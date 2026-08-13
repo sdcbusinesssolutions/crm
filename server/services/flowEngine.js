@@ -17,6 +17,7 @@ const callApiExecutor = require('./flow/executors/callApi');
 const templateMessageExecutor = require('./flow/executors/templateMessage');
 const timingExecutor = require('./flow/executors/timing');
 const checkConditionExecutor = require('./flow/executors/checkCondition');
+const checkFormExecutor = require('./flow/executors/checkForm');
 const switchExecutor = require('./flow/executors/switch');
 const manageTagsExecutor = require('./flow/executors/manageTags');
 const manageGroupsExecutor = require('./flow/executors/manageGroups');
@@ -46,6 +47,7 @@ const EXECUTORS = {
     'templateMessage': templateMessageExecutor,
     'timing': timingExecutor,
     'checkCondition': checkConditionExecutor,
+    'checkForm': checkFormExecutor,
     'switch': switchExecutor,
     'manageTags': manageTagsExecutor,
     'manageGroups': manageGroupsExecutor,
@@ -330,35 +332,37 @@ class FlowEngine {
                 .maybeSingle();
                 
             if (convError) throw convError;
-                
             if (convData && convData.assigned_ai_agent_id) {
-                // Check if paused
+                let isPaused = false;
                 if (convData.bot_paused_until) {
                     const pausedUntil = new Date(convData.bot_paused_until);
                     if (pausedUntil > new Date()) {
-                        console.log(`[FlowEngine] AI is manually paused for ${contactPhone}. Bypassing AI assignment.`);
-                        return null; 
+                        isPaused = true;
                     }
                 }
-            
-            console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
-            
-            const aiAgentExecutor = require('./flow/executors/aiAgent');
-            const fakeSession = { user_id: userId, contact_phone: contactPhone };
-            const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
-            
-            try {
-                const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
-                if (result && result.success && result.response) {
-                    const whatsappService = require('./whatsappService');
-                    await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                
+                if (isPaused) {
+                    console.log(`[FlowEngine] AI Agent is manually paused for ${contactPhone}. Falling back to standard flow.`);
+                } else {
+                    console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
+                    
+                    const aiAgentExecutor = require('./flow/executors/aiAgent');
+                    const fakeSession = { user_id: userId, contact_phone: contactPhone };
+                    const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
+                    
+                    try {
+                        const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
+                        if (result && result.success && result.response) {
+                            const whatsappService = require('./whatsappService');
+                            await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
+                        }
+                        return; // Stop processing further flows
+                    } catch (err) {
+                        console.error('[FlowEngine] Error executing assigned AI agent:', err);
+                        return;
+                    }
                 }
-                return; // Stop processing further flows
-            } catch (err) {
-                console.error('[FlowEngine] Error executing assigned AI agent:', err);
-                return;
             }
-        }
         } catch (dbErr) {
             console.error('[FlowEngine] Error checking manual AI assignment (DB):', dbErr);
             // Swallow error and fallback to standard flow
@@ -1075,7 +1079,7 @@ class FlowEngine {
             // If absolutely nothing else, take whatever is connected (Legacy behavior)
             // EXCEPTION: Do not do this for logic nodes that have distinct outputs (newLead, condition, etc)
             // This prevents "Existing Contact" falling back to "New Lead" path if "Existing Contact" is unconnected.
-            if (!edge && node && !['newLead', 'checkCondition', 'switch', 'askInput'].includes(node.type)) {
+            if (!edge && node && !['newLead', 'checkCondition', 'checkForm', 'switch', 'askInput'].includes(node.type)) {
                 edge = flow.edges.find(e => e.source === currentNodeId);
             }
         }

@@ -9,6 +9,26 @@ import LeadEditModal from '../LeadEditModal';
 import { TriggerIcon } from '../icons';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 
+// Helper to strictly format dates in IST time zone
+const formatIST = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+        const date = new Date(dateString.endsWith('Z') ? dateString : dateString + 'Z');
+        const formatted = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Kolkata',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        }).format(date);
+        return formatted.replace(',', '') + ' IST';
+    } catch (e) {
+        return dateString;
+    }
+};
+
 interface FollowUpManagerProps {
     onNavigate?: (item: any) => void;
     initialView?: 'list' | 'form';
@@ -568,7 +588,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                             <div className="text-xs text-slate-500 line-clamp-1">{item.description || 'No description'}</div>
                                             <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                                                Created by: <span className="font-semibold text-slate-500">{item.created_by_name || 'System'}</span> at {format(parseISO(item.created_at), 'MMM d, yyyy h:mm a')}
+                                                Created by: <span className="font-semibold text-slate-500">{item.created_by_name || 'System'}</span> at {formatIST(item.created_at)}
                                             </div>
                                             {item.recurrence_rule && (
                                                 <div className="text-[10px] text-green-600 font-bold flex items-center gap-1 mt-1 uppercase">
@@ -638,7 +658,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                                                         !item.scheduled_at ? 'bg-slate-100 text-slate-600' :
                                                         isToday(parseISO(item.scheduled_at)) ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}
                                              `}>
-                                                {item.scheduled_at ? format(parseISO(item.scheduled_at), 'MMM d, yyyy h:mm a') : 'No Date Set'}
+                                                {item.scheduled_at ? formatIST(item.scheduled_at) : 'No Date Set'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">

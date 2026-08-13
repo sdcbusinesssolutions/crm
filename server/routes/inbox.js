@@ -6,6 +6,7 @@ const whatsappService = require('../services/whatsappService');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const realtimeSync = require('../services/realtimeSync');
 
 // Helper to get user ID from request
 const getUserId = (req) => req.user.id;
@@ -90,7 +91,9 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             query = query.or(`contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`);
         }
 
-        if (quickFilter === 'Unassigned') {
+        if (quickFilter === 'Unread') {
+            query = query.gt('unread_count', 0);
+        } else if (quickFilter === 'Unassigned') {
             query = query.is('assigned_to', null);
         } else if (quickFilter === 'Mine') {
             const currentUserId = req.staff ? req.staff.staffId : userId;
@@ -207,9 +210,34 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             };
         });
 
+        // Calculate total unread count for this user
+        let unreadQuery = supabase
+            .from('conversations')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .gt('unread_count', 0);
+            
+        if (req.staff && req.staff.role !== 'admin') {
+            const { data: assignedLeads } = await supabase
+                .from('leads')
+                .select('phone')
+                .eq('user_id', userId)
+                .contains('assigned_staff_ids', [req.staff.staffId]);
+            
+            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
+            if (assignedPhones.length > 0) {
+                unreadQuery = unreadQuery.in('contact_phone', assignedPhones);
+            } else {
+                unreadQuery = unreadQuery.in('contact_phone', ['dummy-no-phone']);
+            }
+        }
+        
+        const { count: unreadTotal } = await unreadQuery;
+
         res.json({
             data: mergedData,
             total: count || 0,
+            unreadTotal: unreadTotal || 0,
             page,
             limit
         });
@@ -457,6 +485,7 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
         // 4. Save to DB
         const whatsappMessageId = waResponse.messages?.[0]?.id;
         const newMessage = {
+            id: req.body.id || undefined,
             conversation_id: conversationId,
             type,
             text,
@@ -475,19 +504,39 @@ router.post('/messages/:conversationId', requirePermission('Inbox', 'read_write'
 
         if (msgError) throw msgError;
 
+        // Emit new message event via local Socket emitter
+        realtimeSync.emitMessage(userId, savedMessage, 'INSERT');
+
         // 5. Update conversation last_message and pause AI
         const previewText = type === 'template' ? `📄 Template: ${content.name}` : (text || `[${type}]`);
         const pauseUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        await supabase
+        const { data: updatedConv } = await supabase
             .from('conversations')
             .update({
                 last_message: previewText,
                 updated_at: new Date().toISOString(),
                 bot_paused_until: pauseUntil
             })
-            .eq('id', conversationId);
+            .eq('id', conversationId)
+            .select()
+            .single();
 
-        res.json(savedMessage);
+        if (updatedConv) {
+            realtimeSync.emitConversation(userId, updatedConv, 'UPDATE');
+        }
+
+        // WhatsApp webhooks are extremely fast and may update the message to 'delivered' or 'read'
+        // before we even return to the frontend. If we return the old 'sent' status, the frontend
+        // will overwrite the real-time socket updates. Let's delay slightly and fetch the latest state.
+        await new Promise(resolve => setTimeout(resolve, 2500));
+        
+        const { data: latestMessage } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('id', savedMessage.id)
+            .single();
+
+        res.json(latestMessage || savedMessage);
 
     } catch (error) {
         console.error('Error sending message:', error);

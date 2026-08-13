@@ -1,15 +1,9 @@
-const { supabaseAdmin } = require('./server/lib/supabaseClient');
-async function test() {
-  const { data } = await supabaseAdmin.from('conversations').select(`
-                *,
-                contact:contacts!contact_phone(
-                    id,
-                    name,
-                    phone,
-                    tags,
-                    color
-                )
-            `).limit(1);
-  console.dir(data[0].contact, {depth: null});
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config({ path: '/home/devendra/proj/wpcode/.env' });
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+async function run() {
+  const { data, error } = await supabase.from('messages').select('type, status, text, whatsapp_message_id, created_at').order('created_at', { ascending: false }).limit(5);
+  console.log(JSON.stringify(data, null, 2));
+  process.exit(0);
 }
-test();
+run();

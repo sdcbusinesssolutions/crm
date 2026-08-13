@@ -78,6 +78,19 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                     loadRelatedData(idToLoad);
                 }
             }
+            
+            // Auto-fill current time (IST/local) for all date pickers
+            const getLocalDatetimeLocal = () => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().slice(0, 16);
+            };
+            const nowStr = getLocalDatetimeLocal();
+            
+            setNewTask(prev => ({ ...prev, due_date: nowStr }));
+            setNewAppointment(prev => ({ ...prev, start_time: nowStr, end_time: nowStr }));
+            setNewCallLog(prev => ({ ...prev, called_at: nowStr }));
+
         } else {
             setEditingLead({});
             setNotes([]);
@@ -216,13 +229,20 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 lead_id: editingLead.id,
                 title: newTask.title,
                 description: newTask.description,
-                due_date: newTask.due_date ? newTask.due_date : null,
+                due_date: newTask.due_date ? new Date(`${newTask.due_date}+05:30`).toISOString() : null,
                 enable_popup: enablePopup
             });
 
             const updatedTasks = await getTasks(editingLead.id);
             setTasks(updatedTasks);
-            setNewTask({ title: '', description: '', due_date: '' });
+            
+            const getLocalDatetimeLocal = () => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().slice(0, 16);
+            };
+            setNewTask({ title: '', description: '', due_date: getLocalDatetimeLocal() });
+            
             setEnablePopup(false);
             setToast({ type: 'success', title: 'Task Added', message: 'Follow-up task added successfully.' });
         } catch (e) {
@@ -238,13 +258,20 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
             await createAppointment({
                 lead_id: editingLead.id,
                 title: newAppointment.title,
-                start_time: newAppointment.start_time,
-                end_time: newAppointment.end_time ? newAppointment.end_time : null,
+                start_time: new Date(`${newAppointment.start_time}+05:30`).toISOString(),
+                end_time: newAppointment.end_time ? new Date(`${newAppointment.end_time}+05:30`).toISOString() : null,
                 description: newAppointment.description
             });
             const updatedAppointments = await getAppointments(editingLead.id);
             setAppointments(updatedAppointments);
-            setNewAppointment({ title: '', start_time: '', end_time: '', description: '' });
+            
+            const getLocalDatetimeLocal = () => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().slice(0, 16);
+            };
+            setNewAppointment({ title: '', start_time: getLocalDatetimeLocal(), end_time: getLocalDatetimeLocal(), description: '' });
+            
             setToast({ type: 'success', title: 'Appointment Scheduled', message: 'Appointment added successfully.' });
         } catch (e) {
             console.error(e);
@@ -263,9 +290,16 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                 notes: newCallLog.notes,
                 called_at: newCallLog.called_at
             });
-            const updatedLogs = await getCallLogs(editingLead.id);
-            setCallLogs(updatedLogs);
-            setNewCallLog({ call_type: 'outbound', duration: 0, notes: '', called_at: '' });
+            const updatedCallLogs = await getCallLogs(editingLead.id);
+            setCallLogs(updatedCallLogs);
+            
+            const getLocalDatetimeLocal = () => {
+                const d = new Date();
+                d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                return d.toISOString().slice(0, 16);
+            };
+            setNewCallLog({ call_type: 'outbound', duration: 0, notes: '', called_at: getLocalDatetimeLocal() });
+            
             setToast({ type: 'success', title: 'Call Logged', message: 'Call log added successfully.' });
         } catch (e) {
             console.error(e);
@@ -337,7 +371,14 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                         )}
                         <div className="flex justify-between w-full">
                             <button
-                                onClick={() => setShowLocalReminder(!showLocalReminder)}
+                                onClick={() => {
+                                    if (!showLocalReminder) {
+                                        const d = new Date();
+                                        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+                                        setLocalReminderTime(d.toISOString().slice(0, 16));
+                                    }
+                                    setShowLocalReminder(!showLocalReminder);
+                                }}
                                 className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-lg font-bold transition-all flex items-center gap-2"
                             >
                                 <span>⏰</span> Custom Reminder
@@ -618,7 +659,9 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                                     }`}>
                                                     {log.call_type.toUpperCase()}
                                                 </span>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(log.called_at).toLocaleString()} ({log.duration} mins)</span>
+                                                <span className="text-xs text-[var(--color-text)] opacity-50">
+                                                    {new Date(log.called_at.endsWith('Z') ? log.called_at : log.called_at + 'Z').toLocaleString()} ({log.duration} mins)
+                                                </span>
                                             </div>
                                             <p className="text-sm text-[var(--color-text)] opacity-80">{log.notes}</p>
                                         </div>
@@ -655,7 +698,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                                     onChange={(e) => setEnablePopup(e.target.checked)}
                                                 />
                                                 <label htmlFor="enablePopup" className="ml-2 text-sm font-medium text-blue-900 cursor-pointer flex-1">
-                                                    Enable Popup Alarm (15 mins before)
+                                                    Enable Popup Alarm (5 mins before)
                                                 </label>
                                             </div>
                                             <div className="flex gap-2 items-center w-full sm:w-auto">
@@ -678,7 +721,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-[var(--color-text)]">Tasks</h3>
                                     {tasks.length === 0 && <p className="text-sm text-[var(--color-text)] opacity-50">No tasks found.</p>}
-                                    {[...tasks].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()).map(task => (
+                                    {[...tasks].sort((a, b) => new Date((b.created_at || '').endsWith('Z') ? b.created_at : b.created_at + 'Z').getTime() - new Date((a.created_at || '').endsWith('Z') ? a.created_at : a.created_at + 'Z').getTime()).map(task => (
                                         <div key={task.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm flex items-start gap-3">
                                             <input
                                                 type="checkbox"
@@ -698,7 +741,7 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                                         <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                                         </svg>
-                                                        <span>{task.created_by_name || 'System'}</span>
+                                                        <span>{task.created_by_name || 'System'} on {task.created_at ? parseDate(task.created_at).toLocaleString() : ''}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -748,7 +791,9 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                         <div key={note.id} className="p-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-sm relative group">
                                             <div className="flex justify-between items-start mb-2">
                                                 <h4 className="font-bold text-[var(--color-text)]">{note.title}</h4>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(note.created_at).toLocaleString()}</span>
+                                                <span className="text-xs text-[var(--color-text)] opacity-50">
+                                                    {new Date(note.created_at.endsWith('Z') ? note.created_at : note.created_at + 'Z').toLocaleString()}
+                                                </span>
                                             </div>
                                             <p className="text-sm text-[var(--color-text)] opacity-80 whitespace-pre-wrap">{note.content}</p>
                                             {note.tags && note.tags.length > 0 && (
@@ -829,7 +874,9 @@ const LeadEditModal: React.FC<LeadEditModalProps> = ({ isOpen, onClose, leadId, 
                                         <div key={apt.id} className="p-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm">
                                             <div className="flex justify-between">
                                                 <h4 className="font-bold text-sm text-[var(--color-text)]">{apt.title}</h4>
-                                                <span className="text-xs text-[var(--color-text)] opacity-50">{new Date(apt.start_time).toLocaleString()}</span>
+                                                <span className="text-xs text-[var(--color-text)] opacity-50">
+                                                    {new Date(apt.start_time.endsWith('Z') ? apt.start_time : apt.start_time + 'Z').toLocaleString()}
+                                                </span>
                                             </div>
                                             <p className="text-xs text-[var(--color-text)] opacity-70 mt-1">{apt.description}</p>
                                         </div>

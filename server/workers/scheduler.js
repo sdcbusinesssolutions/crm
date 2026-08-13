@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const flowEngine = require('../services/flowEngine');
+const realtimeSync = require('../services/realtimeSync');
 const { logCRMEvent } = require('../utils/logger');
 
 class Scheduler {
@@ -70,6 +71,67 @@ class Scheduler {
 
         // 3. Check Overdue Tasks (Dynamic Scan)
         await this.checkDynamicOverdue(now);
+
+        // 4. Pre-alarms for UI Socket.IO notifications (exactly 5 mins before)
+        await this.checkPreAlarms(now);
+    }
+
+    async checkPreAlarms(now) {
+        try {
+            // Target window: from 5 minutes in the past up to exactly 5 minutes in the future
+            // Looking in the past ensures if they schedule an alarm for exactly "right now", we don't miss it if a few seconds elapsed.
+            const startMs = now.getTime() - (5 * 60000);
+            const start = new Date(startMs).toISOString();
+            const endMs = now.getTime() + (5 * 60000);
+            const end = new Date(endMs).toISOString();
+
+            const { data: tasks, error } = await this.supabase
+                .from('tasks')
+                .select('id, user_id, lead_id, title, description, due_date, metadata, leads(phone, name, email)')
+                .eq('is_completed', false)
+                .gte('due_date', start)
+                .lte('due_date', end)
+                .is('metadata->>pre_alarm_5m_sent', null)
+                .limit(500);
+
+            if (tasks && tasks.length > 0) {
+                for (const task of tasks) {
+                    // Check if the user is actually connected right now!
+                    const isConnected = await realtimeSync.isUserConnected(task.user_id);
+                    
+                    if (isConnected) {
+                        const meta = task.metadata || {};
+                        const newMeta = { ...meta, pre_alarm_5m_sent: true };
+
+                        // Claim the task to avoid race conditions
+                        const { data: claimed, error: claimError } = await this.supabase
+                            .from('tasks')
+                            .update({ metadata: newMeta })
+                            .eq('id', task.id)
+                            .is('metadata->>pre_alarm_5m_sent', null)
+                            .select();
+
+                        if (!claimError && claimed && claimed.length > 0) {
+                            console.log(`[Scheduler] Emitting Socket.IO Pre-Alarm (5m) for Task ${task.id}`);
+                            realtimeSync.emitTaskAlarm(task.user_id, {
+                                taskId: task.id,
+                                title: task.title,
+                                dueDate: task.due_date,
+                                leadId: task.lead_id,
+                                name: task.leads ? task.leads.name : 'Unknown',
+                                eventType: 'task_upcoming_5m'
+                            });
+                        }
+                    } else {
+                        // User is not connected! Do NOT update the DB. 
+                        // The scheduler will retry this on the next tick (every ~30s) as long as it's within the 5m window.
+                        console.log(`[Scheduler] Skipping Pre-Alarm for Task ${task.id}, user ${task.user_id} is offline.`);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('❌ [Scheduler] Pre-Alarm Check Error:', e);
+        }
     }
 
     async checkDueTasks(now) {

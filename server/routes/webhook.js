@@ -19,6 +19,17 @@ router.use((req, res, next) => {
     console.log(`[Webhook Router Hit] ${req.method} ${req.originalUrl}`);
     next();
 });
+const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
+const { logInboxMessage, logWebhookEvent, logMetaEvent } = require('../utils/logger');
+const { extractMessageContent } = require('../utils/whatsappParser');
+const fs = require('fs');
+const path = require('path');
+const axios = require('axios');
+const https = require('https');
+const { execFile } = require('child_process'); // curl subprocess for media download
+const flowEngine = require('../services/flowEngine');
+const realtimeSync = require('../services/realtimeSync');
+
 const DripTriggerService = require('../services/DripTriggerService');
 
 // --- CONCURRENCY & NETWORK AGENTS ---
@@ -858,8 +869,26 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 const waMessageId = status.id;
                 const newStatus = status.status; // 'sent', 'delivered', 'read', 'failed'
 
+                // PREVENT DOWNGRADES (Out of Order Webhooks)
+                const statusRanks = { 'sent': 1, 'delivered': 2, 'read': 3, 'failed': 4 };
+                const newRank = statusRanks[newStatus] || 0;
+                
+                const { data: currentMessage } = await supabaseAdmin
+                    .from('messages')
+                    .select('status')
+                    .eq('whatsapp_message_id', waMessageId)
+                    .maybeSingle();
+                    
+                if (currentMessage) {
+                    const currentRank = statusRanks[currentMessage.status] || 0;
+                    if (newRank <= currentRank && currentRank > 0) {
+                        console.log(`[Webhook] Ignoring out-of-order status update for ${waMessageId}: ${currentMessage.status} -> ${newStatus}`);
+                        continue; // Skip updating DB and skip Socket.IO emit!
+                    }
+                }
+
                 // Update DB via RPC
-                const { data: updateSuccess, error: statusError } = await supabase.rpc('update_message_status', {
+                let { data: updateSuccess, error: statusError } = await supabase.rpc('update_message_status', {
                     p_whatsapp_message_id: waMessageId,
                     p_status: newStatus
                 });
@@ -867,6 +896,17 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 if (statusError) {
                     console.error(`[Webhook] Failed to update status for ${waMessageId}:`, statusError);
                 } else {
+                    if (!updateSuccess) {
+                        // RACE CONDITION MITIGATION: WhatsApp often fires webhooks BEFORE our backend finishes inserting the message!
+                        // If it's false, wait 1.5 seconds and retry.
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        const { data: retrySuccess } = await supabase.rpc('update_message_status', {
+                            p_whatsapp_message_id: waMessageId,
+                            p_status: newStatus
+                        });
+                        updateSuccess = retrySuccess;
+                    }
+
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
                         
@@ -886,7 +926,22 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                             ).catch(err => console.error('[Wallet] Error handling webhook failure:', err));
                         }
                     } else {
-                        console.warn(`[Webhook] Message ${waMessageId} NOT updated to '${newStatus}' (Rows updated: false) - Message ID not found in DB`);
+                        console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}', but RPC returned false (likely not a campaign message).`);
+                    }
+                    
+                    // Fetch the updated message to emit via Socket.IO so ticks update in real-time
+                    // We do this even if updateSuccess is false, because the message table update might have succeeded
+                    // while the campaign_queue update affected 0 rows (returning false).
+                    const { data: updatedMsg } = await supabaseAdmin
+                        .from('messages')
+                        .select('*')
+                        .eq('whatsapp_message_id', waMessageId)
+                        .maybeSingle();
+                        
+                    if (updatedMsg) {
+                        realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
+                    } else {
+                        console.warn(`[Webhook] Message ${waMessageId} NOT found in DB when trying to emit status update.`);
                     }
 
                     // =========================================================================
@@ -1431,6 +1486,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     const { data: newConv } = await supabaseAdmin.from('conversations').insert({ user_id: userId, contact_phone: contactPhone, contact_name: contactName, last_message: lastMessagePreview, unread_count: 1, updated_at: new Date(extracted.timestamp * 1000).toISOString() }).select().single();
                     conversationId = newConv?.id;
                 }
+                
+                if (conversationId) {
+                    realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
+                }
 
                 // Global Auto Assignment for new or unassigned conversations
                 if (!convData || !convData.assigned_to) {
@@ -1457,6 +1516,10 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
                 const savedMessageId = result?.id;
+                
+                if (result) {
+                    realtimeSync.emitMessage(userId, result, 'INSERT');
+                }
 
                 // --- FIRE-AND-FORGET: Download media in the background, then update results ---
                 if (isMedia && extracted.mediaId && accessToken && savedMessageId) {
@@ -1467,11 +1530,15 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                             if (mediaData && mediaData.url) {
                                 // 1. Update Message Record
-                                await supabaseAdmin.from('messages').update({
+                                const { data: updatedMsg } = await supabaseAdmin.from('messages').update({
                                     media_url: mediaData.url,
                                     mime_type: mediaData.mime_type || null,
                                     filename: extracted.filename || mediaData.filename || null
-                                }).eq('id', savedMessageId);
+                                }).eq('id', savedMessageId).select().single();
+
+                                if (updatedMsg) {
+                                    realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
+                                }
 
                                 // 2. Trigger Flow Engine (NOW WITH URL)
                                 if (inputPayload && !isStale && !isOptOut) {

@@ -161,5 +161,115 @@ router.post('/:id/trigger', requirePermission('G+Automation', 'read_write'), asy
     }
 });
 
+// Download CSV Report
+router.get('/:id/report', requirePermission('G+Automation', 'read'), async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verify ownership
+        const { data: auto, error: autoError } = await supabaseAdmin
+            .from('sheet_automations')
+            .select('id, name')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (autoError || !auto) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        // Fetch history
+        const { data: history, error: historyError } = await supabaseAdmin
+            .from('sheet_automation_history')
+            .select('*')
+            .eq('automation_id', id)
+            .order('sent_at', { ascending: false });
+
+        if (historyError) throw historyError;
+
+        // Build CSV
+        const headers = ['Sent At', 'Phone Number', 'Status', 'Row Hash', 'Row Data'];
+        const csvRows = [headers.join(',')];
+
+        (history || []).forEach(row => {
+            let rowDataStr = '';
+            if (row.meta && row.meta.row_data) {
+                rowDataStr = JSON.stringify(row.meta.row_data).replace(/"/g, '""');
+            }
+
+            let istTime = '';
+            if (row.sent_at) {
+                try {
+                    const dt = new Date(row.sent_at);
+                    // Format output like '05/08/2026, 11:45:00 pm'
+                    istTime = dt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                } catch (e) {
+                    istTime = row.sent_at;
+                }
+            }
+
+            csvRows.push([
+                `"${istTime}"`,
+                `"+${row.phone_number || ''}"`,
+                `"${row.status || ''}"`,
+                `"${row.row_hash || ''}"`,
+                `"${rowDataStr}"`
+            ].join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="automation_report_${id}.csv"`);
+        res.send(csvContent);
+
+    } catch (error) {
+        console.error('[SheetAuto] Report Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+// GET /api/sheet-automations/:id/report-json
+// Download/View CSV Data as JSON for Data Table
+router.get('/:id/report-json', requirePermission('G+Automation', 'read'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const offset = (page - 1) * limit;
+
+        // Verify ownership
+        const { data: auto, error: autoError } = await supabaseAdmin
+            .from('sheet_automations')
+            .select('id, name')
+            .eq('id', id)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (autoError || !auto) {
+            return res.status(404).json({ error: 'Automation not found' });
+        }
+
+        // Fetch history with pagination
+        const { data: history, error: historyError, count } = await supabaseAdmin
+            .from('sheet_automation_history')
+            .select('*', { count: 'exact' })
+            .eq('automation_id', id)
+            .order('sent_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        if (historyError) throw historyError;
+
+        res.json({
+            data: history || [],
+            total: count || 0,
+            page,
+            totalPages: Math.ceil((count || 0) / limit)
+        });
+
+    } catch (error) {
+        console.error('[SheetAuto] JSON Report Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 module.exports = router;

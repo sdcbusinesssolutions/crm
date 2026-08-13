@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+import SheetAutomationReport from './SheetAutomationReport';
 
 interface SheetAutomation {
     id: string;
@@ -31,6 +32,7 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
 
     const [automations, setAutomations] = useState<SheetAutomation[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [viewReport, setViewReport] = useState<{ id: string, name: string } | null>(null);
 
     useEffect(() => {
         if (canRead) {
@@ -127,6 +129,32 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
         }
     };
 
+    const handleDownloadReport = async (autoId: string) => {
+        try {
+            const { data: session } = await supabase.auth.getSession();
+            const token = session.session?.access_token;
+            
+            const res = await fetch(`/api/sheet-automations/${autoId}/report`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (!res.ok) throw new Error('Failed to download report');
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `automation_report_${autoId}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error('Error downloading report:', error);
+            alert('Failed to download report');
+        }
+    };
+
     const getNextTrigger = (auto: SheetAutomation) => {
         if (auto.automation_type === 'new_row') return 'Checking every 5m';
         if (!auto.schedule_config || !auto.schedule_config.time) return 'Not Scheduled';
@@ -179,6 +207,16 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                     <p className="text-sm text-slate-500 mb-4">You do not have the required permissions to view Google Sheet Automations. Please contact your administrator.</p>
                 </div>
             </div>
+        );
+    }
+
+    if (viewReport) {
+        return (
+            <SheetAutomationReport 
+                automationId={viewReport.id} 
+                automationName={viewReport.name}
+                onBack={() => setViewReport(null)} 
+            />
         );
     }
 
@@ -303,6 +341,12 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                                                                      </button>
                                                                      <button onClick={() => handleTrigger(auto.id)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-colors" title="Test Run">
                                                                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                                     </button>
+                                                                     <button onClick={() => handleDownloadReport(auto.id)} className="p-2 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600 transition-colors" title="Download CSV">
+                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                                     </button>
+                                                                     <button onClick={() => setViewReport({ id: auto.id, name: auto.name })} className="p-2 rounded-lg hover:bg-purple-50 text-slate-400 hover:text-purple-600 transition-colors" title="View Report">
+                                                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
                                                                      </button>
                                                                      <button onClick={() => onEdit(auto.id)} className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors" title="Edit">
                                                                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>

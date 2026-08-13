@@ -4,7 +4,7 @@ import {
     MicrophoneIcon, PaperAirplaneIcon, DoubleCheckIcon, CheckIcon, ClockIcon,
     UserCircleIcon, ChevronLeftIcon, PhoneIcon, EditIcon, CloseIcon,
     UsersIcon, DocumentFileIcon, ImageFileIcon, VideoFileIcon, AudioFileIcon,
-    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon,
+    DownloadIcon, TrashIcon, BadgeIcon, MapIcon, PlusIcon, MenuIcon, QuickReplyIcon, MessageIcon, ZapIcon,
     EyeIcon, EyeOffIcon
 } from './icons';
 
@@ -27,6 +27,7 @@ import { tokenService } from '../services/tokenService';
 import { aiAgentService, Agent } from '../services/aiAgentService';
 import { reminderManager } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
+import { socket } from '../lib/socket';
 
 // Helper to format time
 const formatTime = (dateString: string) => {
@@ -71,6 +72,8 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
     const [isNumberMasked, setIsNumberMasked] = useState(true);
     const [convPage, setConvPage] = useState(1);
+    const [totalFilteredCount, setTotalFilteredCount] = useState<number>(0);
+    const [totalUnreadCount, setTotalUnreadCount] = useState<number>(0);
     const [hasMoreConvs, setHasMoreConvs] = useState(true);
     const [isLoadingMoreConvs, setIsLoadingMoreConvs] = useState(false);
 
@@ -79,6 +82,29 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [recordingDuration, setRecordingDuration] = useState(0);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Browser Back Button Support for Mobile View
+    const prevActiveChatIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (activeChatId && !prevActiveChatIdRef.current) {
+            window.history.pushState({ chatOpen: true }, '');
+        } else if (activeChatId && prevActiveChatIdRef.current) {
+            window.history.replaceState({ chatOpen: true }, '');
+        }
+        prevActiveChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (activeChatId) {
+                setActiveChatId(null);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [activeChatId]);
+
     // Track user intent for attachment type (e.g. sending image as 'document')
     const attachmentTypeRef = useRef<string>('document');
     const [isContactInfoOpen, setIsContactInfoOpen] = useState(false);
@@ -154,7 +180,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (append) setIsLoadingMoreConvs(true);
         try {
             const result = await inboxService.getConversations(page, 20, sTerm, qFilter, fTag);
-            const newData = result || [];
+            const newData = result.data || [];
+            if (!append) {
+                setTotalFilteredCount(result.count || 0);
+                setTotalUnreadCount(result.unreadTotal || 0);
+            }
 
             // Only update hasMoreConvs if we are NOT polling
             if (!isPoll) {
@@ -279,35 +309,34 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
     };
 
+    const handleToggleOptOut = async () => {
+        if (!activeChat) return;
+        const newStatus = !isOptedOut;
+        setIsOptedOut(newStatus); // Optimistic UI update
+        try {
+            const res = await contactService.getContactsPaginated(1, 1, { search: activeChat.contact_phone });
+            let existingCustomData = {};
+            if (res?.data && res.data.length > 0) {
+                existingCustomData = res.data[0].customData || {};
+            }
+            await contactService.saveContact({
+                phone: activeChat.contact_phone,
+                name: activeChat.contact_name || activeChat.contact_phone,
+                customData: {
+                    ...existingCustomData,
+                    opted_out: newStatus
+                }
+            } as any);
+        } catch (error) {
+            console.error("Failed to toggle opt out", error);
+            setIsOptedOut(!newStatus); // Revert on failure
+        }
+    };
+
     useEffect(() => {
         setConvPage(1);
         setHasMoreConvs(true);
         loadConversations(1, false, searchTerm, quickFilter, filterTag);
-
-        // --- REALTIME OPTIMIZATION: Replacement for 10s Polling ---
-        // Instead of polling, we subscribe to the 'conversations' table for updates.
-        // This makes the sidebar refresh instantly when a new message arrives.
-        const channel = supabase
-            .channel('conversations-channel')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*', // Listen for ALL events (insert, update, delete)
-                    schema: 'public',
-                    table: 'conversations'
-                },
-                (payload) => {
-                    // Only process if it belongs to the current view/filter context
-                    // For simplicity, we just trigger a fresh first-page load to keep it consistent
-                    console.log('[Realtime] Conversation update detected:', payload.eventType);
-                    loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
     }, [quickFilter, filterTag, searchTerm]); // Reload when filters OR search change
 
     const handleConvScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -330,6 +359,147 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
         }
     }, [isQuickReplyOpen]);
+
+    // Load Messages & Mark as Read
+    const activeChatIdRef = useRef<string | null>(null);
+    useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    // --- GLOBAL REALTIME SOCKET (Runs once) ---
+    const filtersRef = useRef({ searchTerm, quickFilter, filterTag });
+    useEffect(() => {
+        filtersRef.current = { searchTerm, quickFilter, filterTag };
+    }, [searchTerm, quickFilter, filterTag]);
+
+    useEffect(() => {
+        const joinSocketRoom = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            const staffDataStr = localStorage.getItem('staffData');
+            let roomToJoin = user?.id;
+            
+            if (staffDataStr) {
+                try {
+                    const staffData = JSON.parse(staffDataStr);
+                    if (staffData.owner_id) {
+                        roomToJoin = staffData.owner_id;
+                    }
+                } catch (e) {
+                    console.error('Error parsing staffData for socket connection', e);
+                }
+            }
+
+            if (roomToJoin && socket) {
+                console.log('[Socket.IO] Emitting join_room for:', roomToJoin);
+                socket.emit('join_room', roomToJoin);
+            }
+        };
+
+        if (socket.connected) {
+            joinSocketRoom();
+        }
+        socket.on('connect', joinSocketRoom);
+
+        const handleConvUpdate = (payload: any) => {
+            const { searchTerm: s, quickFilter: q, filterTag: f } = filtersRef.current;
+            console.log('[Socket.IO] Conversation update detected:', payload.eventType);
+            loadConversations(1, false, s, q, f, true);
+        };
+        
+        const handleQuickReplyUpdate = (payload: any) => {
+            console.log('[Socket.IO] Quick Reply update detected:', payload.eventType);
+            quickReplyService.getQuickReplies().then(setQuickReplies).catch(console.error);
+        };
+        
+        socket.on('postgres_changes_conversations', handleConvUpdate);
+        socket.on('postgres_changes_quick_replies', handleQuickReplyUpdate);
+
+        const handleMessageUpdate = (payload: any) => {
+            if (!payload.new) return;
+            const updatedMsg = payload.new as Message;
+            const currentActiveChatId = activeChatIdRef.current;
+
+            if (payload.eventType === 'INSERT') {
+                // 1. Update Messages List (ONLY if this is the active chat)
+                if (updatedMsg.conversation_id === currentActiveChatId) {
+                    console.log('[Socket.IO] New message received:', updatedMsg.id);
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === updatedMsg.id)) return prev;
+
+                        const filtered = prev.filter(m => {
+                            if (!m.id.startsWith('temp-')) return true;
+                            let isMatch = m.type === updatedMsg.type && m.direction === updatedMsg.direction;
+                            if (isMatch) {
+                            if (m.type === 'template' as any) {
+                                // We don't store template_name in the DB, so we can't match it strictly via socket payload.
+                                // We assume the outgoing temp template is a match for the new outgoing template.
+                                isMatch = true;
+                            } else if (['image', 'document', 'audio', 'video'].includes(m.type as string)) {
+                                    // Local blob URL won't match remote URL, so if type and direction match and it's a temp message, we consider it a match to avoid duplicates
+                                    isMatch = true;
+                                } else {
+                                    isMatch = (m.text === updatedMsg.text || m.media_url === updatedMsg.media_url);
+                                }
+                            }
+                            return !isMatch;
+                        });
+
+                        return [...filtered, updatedMsg].sort((a, b) =>
+                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                        );
+                    });
+                    
+                    // FIX: If the chat is currently open and we receive a new inbound message,
+                    // mark it as read immediately so the customer gets the Blue Tick instantly.
+                    if (updatedMsg.direction === 'in' || updatedMsg.direction === 'inbound') {
+                        inboxService.markAsRead(currentActiveChatId).catch(console.error);
+                    }
+                }
+
+                // 2. Update Sidebar (ALWAYS)
+                setConversations(prev => {
+                    const exists = prev.find(c => c.id === updatedMsg.conversation_id);
+                    if (!exists) return prev; 
+
+                    return prev.map(c => {
+                        if (c.id === updatedMsg.conversation_id) {
+                            const currentLastTime = new Date(c.updated_at || 0).getTime();
+                            const newTime = new Date(updatedMsg.created_at).getTime();
+                            
+                            if (newTime >= currentLastTime) {
+                                return {
+                                    ...c,
+                                    last_message: updatedMsg.text || (updatedMsg.type === 'image' ? '[image]' : `[${updatedMsg.type}]`),
+                                    updated_at: updatedMsg.created_at,
+                                    unread_count: ((updatedMsg.direction as string) === 'in' || (updatedMsg.direction as string) === 'inbound') && c.id !== currentActiveChatId 
+                                        ? (c.unread_count || 0) + 1 
+                                        : c.unread_count
+                                };
+                            }
+                        }
+                        return c;
+                    }).sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+                });
+
+            } else if (payload.eventType === 'UPDATE') {
+                // 1. Update Messages List
+                if (updatedMsg.conversation_id === currentActiveChatId) {
+                    setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
+                }
+                
+                // 2. Update Sidebar (if we had status tracking we would update it here, but Conversation doesn't track it)
+                setConversations(prev => prev.map(c => c));
+            }
+        };
+
+        socket.on('postgres_changes_messages', handleMessageUpdate);
+        return () => {
+            socket.off('connect', joinSocketRoom);
+            socket.off('postgres_changes_conversations', handleConvUpdate);
+            socket.off('postgres_changes_quick_replies', handleQuickReplyUpdate);
+            socket.off('postgres_changes_messages', handleMessageUpdate);
+        };
+    }, []); // Run once
 
     // Load Messages & Mark as Read
     useEffect(() => {
@@ -375,60 +545,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         };
         loadMessages();
 
-        // --- REALTIME OPTIMIZATION: Replacement for 3s Polling ---
-        // We subscribe to messages specifically for THIS conversation.
-        // This is 100x more efficient than polling.
-        const channel = supabase
-            .channel(`chat:${activeChatId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeChatId}`
-                },
-                (payload) => {
-                    const newMessage = payload.new as Message;
-                    console.log('[Realtime] New message received:', newMessage.id);
-
-                    setMessages(prev => {
-                        // Avoid duplicates if we already have it (e.g. from optimistic UI)
-                        if (prev.some(m => m.id === newMessage.id)) return prev;
-
-                        // Deduplicate optimistic "twins" (same text/type/direction)
-                        const filtered = prev.filter(m => {
-                            if (!m.id.startsWith('temp-')) return true;
-                            const isMatch = m.type === newMessage.type &&
-                                m.direction === newMessage.direction &&
-                                (m.text === newMessage.text || m.media_url === newMessage.media_url);
-                            return !isMatch;
-                        });
-
-                        return [...filtered, newMessage].sort((a, b) =>
-                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                        );
-                    });
-                }
-            )
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'messages',
-                    filter: `conversation_id=eq.${activeChatId}`
-                },
-                (payload) => {
-                    // Handle status updates (Sent -> Delivered -> Read)
-                    const updatedMsg = payload.new as Message;
-                    setMessages(prev => prev.map(m => m.id === updatedMsg.id ? updatedMsg : m));
-                }
-            )
-            .subscribe();
+        // --- TEMPORARY FALLBACK POLLING (removed) ---
 
         return () => {
-            supabase.removeChannel(channel);
+            // clearInterval(fallbackInterval);
         };
     }, [activeChatId]);
 
@@ -542,9 +662,25 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const MESSAGE_BATCH_SIZE = 50; // Load 50 messages at a time for smooth scrolling
 
     const scrollToBottom = (instant = false) => {
+        if (instant && chatContainerRef.current) {
+            const container = chatContainerRef.current;
+            const originalBehavior = container.style.scrollBehavior;
+            container.style.scrollBehavior = 'auto';
+            container.scrollTop = container.scrollHeight;
+            
+            // Force a reflow before restoring to ensure the browser applies the jump instantly
+            void container.offsetHeight; 
+            
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (container) container.style.scrollBehavior = originalBehavior;
+                });
+            });
+            return;
+        }
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({
-                behavior: instant ? 'auto' : 'smooth',
+                behavior: 'smooth',
                 block: 'end'
             });
         }
@@ -741,7 +877,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
 
         isSendingRef.current = true;
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,
@@ -760,8 +896,12 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             const sentMsg = await inboxService.sendMessage(activeChatId, { text: textToSend, type: 'text' });
             if (sentMsg) {
                 setMessages(prev => {
+                    const existingMsg = prev.find(m => m.id === tempId);
+                    if (existingMsg && (existingMsg.status === 'read' || existingMsg.status === 'delivered')) {
+                        // Socket.IO already updated the status, do not downgrade it back to 'sent'!
+                        return prev;
+                    }
                     const updated = prev.map(m => m.id === tempId ? sentMsg : m);
-                    // Critical Deduplication: Ensure no duplicate IDs exist
                     return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
                 });
             } else {
@@ -875,7 +1015,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             }
 
             // Optimistic UI
-            const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
             // Determine type: Use user selection if 'document', otherwise auto-detect to ensure consistency
             let type = attachmentTypeRef.current;
@@ -917,6 +1057,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     });
                     if (sentMsg) {
                         setMessages(prev => {
+                            const existingRealMsg = prev.find(m => m.id === sentMsg.id);
+                            if (existingRealMsg) {
+                                return prev.filter(m => m.id !== tempId);
+                            }
                             const updated = prev.map(m => m.id === tempId ? sentMsg : m);
                             // Critical Deduplication: Ensure no duplicate IDs exist
                             return updated.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
@@ -946,7 +1090,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         const file = new File([audioBlob], `voice_message_${Date.now()}.webm`, { type: 'audio/webm' });
 
         // Optimistic UI
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
         const optimisticMsg: Message = {
             id: tempId,
             conversation_id: activeChatId,
@@ -1381,13 +1525,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 className={`rounded-xl border border-emerald-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all max-w-full cursor-pointer object-contain bg-slate-50 ${type === 'sticker' ? 'w-32' : 'max-h-80'}`}
                                 onClick={() => window.open(msg.media_url, '_blank')}
                                 onLoad={() => {
-                                    if (isAtBottomRef.current) scrollToBottom();
+                                    if (isAtBottomRef.current || shouldForceScrollRef.current) setTimeout(() => scrollToBottom(shouldForceScrollRef.current), 50);
                                 }}
                             />
                         ) : (
-                            <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                                <ImageFileIcon className="w-8 h-8 mb-2 opacity-50" />
-                                <span>Media Unavailable</span>
+                            <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="font-medium">Loading Media...</span>
                             </div>
                         )}
                         {msg.text && type !== 'sticker' && <p className="text-sm text-slate-800 mt-2">{formatWhatsAppText(msg.text)}</p>}
@@ -1404,14 +1548,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     controls
                                     className="w-full max-h-80 object-contain"
                                     onLoadedData={() => {
-                                        if (isAtBottomRef.current) scrollToBottom();
+                                        if (isAtBottomRef.current || shouldForceScrollRef.current) setTimeout(() => scrollToBottom(shouldForceScrollRef.current), 50);
                                     }}
                                 />
                             </div>
                         ) : (
-                            <div className="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 text-xs">
-                                <VideoFileIcon className="w-8 h-8 mb-2 opacity-50" />
-                                <span>Video Unavailable</span>
+                            <div className="w-full h-32 bg-slate-100/50 rounded-lg flex flex-col items-center justify-center text-slate-400 text-xs animate-pulse border border-slate-100">
+                                <div className="w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span className="font-medium">Loading Video...</span>
                             </div>
                         )}
                         {msg.text && <p className="text-sm text-slate-800 mt-2">{formatWhatsAppText(msg.text)}</p>}
@@ -1427,24 +1571,52 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         {msg.media_url ? (
                             <audio src={msg.media_url} controls className="max-w-[240px] h-8" />
                         ) : (
-                            <div className="text-xs text-slate-500 italic">Audio Unavailable</div>
+                            <div className="flex items-center gap-2 animate-pulse">
+                                <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-xs text-slate-500 italic font-medium">Downloading...</span>
+                            </div>
                         )}
                     </div>
                 );
 
-            case 'document':
+            case 'document': {
+                const getDocExtension = (filename?: string, mime?: string) => {
+                    if (filename && filename.includes('.')) return filename.split('.').pop()?.toUpperCase() || 'FILE';
+                    if (mime) {
+                        if (mime.includes('spreadsheetml') || mime.includes('excel')) return 'XLSX';
+                        if (mime.includes('wordprocessingml') || mime.includes('word')) return 'DOCX';
+                        if (mime.includes('presentationml') || mime.includes('powerpoint')) return 'PPTX';
+                        if (mime.includes('pdf')) return 'PDF';
+                        if (mime.includes('csv')) return 'CSV';
+                        return mime.split('/')[1]?.toUpperCase().substring(0, 5) || 'FILE';
+                    }
+                    return 'FILE';
+                };
+                
+                const ext = getDocExtension(msg.filename, msg.mime_type);
+                let iconColor = 'text-slate-500';
+                if (['XLSX', 'XLS', 'CSV'].includes(ext)) iconColor = 'text-green-600';
+                else if (['DOCX', 'DOC'].includes(ext)) iconColor = 'text-blue-600';
+                else if (['PPTX', 'PPT'].includes(ext)) iconColor = 'text-orange-600';
+                else if (ext === 'PDF') iconColor = 'text-red-500';
+
                 return (
                     <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group/doc" onClick={() => msg.media_url && window.open(msg.media_url, '_blank')}>
-                        <div className="w-10 h-10 bg-white border border-slate-200 text-red-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
+                        <div className={`w-10 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${iconColor}`}>
                             <DocumentFileIcon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">{msg.filename || 'Document'}</p>
-                            <p className="text-[10px] text-slate-500 uppercase font-medium">{msg.mime_type?.split('/')[1] || 'FILE'} • {msg.media_url ? 'CLICK TO OPEN' : 'UNAVAILABLE'}</p>
+                            <p className="text-[10px] text-slate-500 font-medium flex items-center gap-1">
+                                <span className="uppercase">{ext}</span> • {msg.media_url ? 'CLICK TO OPEN' : (
+                                    <span className="text-emerald-500 animate-pulse uppercase">DOWNLOADING...</span>
+                                )}
+                            </p>
                         </div>
                         {msg.media_url && <DownloadIcon className="w-5 h-5 text-slate-400 group-hover/doc:text-[#00a884]" />}
                     </div>
                 );
+            }
 
             case 'location':
                 return (
@@ -2009,26 +2181,26 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             {hasAccess('can_unmask_numbers', ACCESS_TYPES.ALL_ACCESS) && (
                                 <button
                                     onClick={() => setIsNumberMasked(!isNumberMasked)}
-                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-100 text-slate-600' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isNumberMasked ? 'bg-slate-500 text-white hover:bg-slate-600 shadow-slate-200' : 'bg-[#00684a] text-white shadow-emerald-200'}`}
                                     title={isNumberMasked ? "Show Numbers" : "Mask Numbers"}
                                 >
-                                    {isNumberMasked ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                                    {isNumberMasked ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                                 </button>
                             )}
                             <button
                                 onClick={handleExportContactList}
-                                className="p-2.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95"
+                                className="w-8 h-8 rounded-full flex items-center justify-center text-white bg-blue-500 hover:bg-blue-600 transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 shadow-blue-200"
                                 title="Export Contact List"
                             >
-                                <DownloadIcon className="w-5 h-5" />
+                                <DownloadIcon className="w-4 h-4" />
                             </button>
                             <div className="relative">
                                 <button
                                     onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-                                    className={`p-2.5 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag || quickFilter.startsWith('staff:') ? 'bg-brand-600 text-white shadow-brand-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 ${isFilterMenuOpen || filterTag || quickFilter.startsWith('staff:') ? 'bg-[#00684a] text-white shadow-emerald-200' : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-emerald-200'}`}
                                     title="Filter"
                                 >
-                                    <FilterIcon className="w-5 h-5" />
+                                    <FilterIcon className="w-4 h-4" />
                                 </button>
                                 {isFilterMenuOpen && (
                                     <>
@@ -2087,44 +2259,49 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                        {['All', 'AI Chats', 'Quick Reply'].map(f => {
+                    <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1 pt-2 pr-2">
+                        {['All', 'Unread', 'AI Chats', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
 
-                            if (f === 'AI Chats') {
-                                return (
-                                    <button
-                                        key={f}
-                                        onClick={() => window.location.href = '/?view=AI+Buddy'}
-                                        className="relative inline-flex h-7 overflow-hidden rounded-full p-[1.5px] hover:scale-105 transition-transform shadow-sm group"
-                                    >
-                                        <span className="absolute inset-[-1000%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#FF61D2_0%,#393BB2_50%,#FF61D2_100%)]" />
-                                        <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full bg-white px-4 text-[11px] font-black text-slate-800 backdrop-blur-3xl gap-1.5 transition-colors group-hover:bg-slate-50">
-                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="url(#ai-gradient)" />
-                                                <defs>
-                                                    <linearGradient id="ai-gradient" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                                                        <stop stopColor="#FF61D2" />
-                                                        <stop offset="1" stopColor="#393BB2" />
-                                                    </linearGradient>
-                                                </defs>
-                                            </svg>
-                                            AI Chats
-                                        </span>
-                                    </button>
-                                );
+                            const handleClick = () => {
+                                if (f === 'AI Chats') {
+                                    window.location.href = '/?view=AI+Buddy';
+                                } else {
+                                    setQuickFilter(f as any);
+                                }
+                            };
+
+                            let activeClasses = 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-[1.02] border border-[#00684a]';
+                            let inactiveClasses = 'bg-[#00684a]/10 text-[#00684a] border border-[#00684a]/20 hover:bg-[#00684a]/20';
+                            let badgeActiveText = 'text-[#00684a]';
+                            let badgeInactiveBg = 'bg-[#00684a]';
+
+                            if (f === 'Unread') {
+                                activeClasses = 'bg-[#F97316] text-white shadow-md shadow-[#F97316]/20 scale-[1.02] border border-[#F97316]';
+                                inactiveClasses = 'bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20 hover:bg-[#F97316]/20';
+                                badgeActiveText = 'text-[#F97316]';
+                                badgeInactiveBg = 'bg-[#F97316]';
+                            } else if (f === 'AI Chats') {
+                                activeClasses = 'bg-[#AD46FF] text-white shadow-md shadow-[#AD46FF]/20 scale-[1.02] border border-[#AD46FF]';
+                                inactiveClasses = 'bg-[#AD46FF]/10 text-[#AD46FF] border border-[#AD46FF]/20 hover:bg-[#AD46FF]/20';
+                            } else if (f === 'Quick Reply') {
+                                activeClasses = 'bg-[#3B82F6] text-white shadow-md shadow-[#3B82F6]/20 scale-[1.02] border border-[#3B82F6]';
+                                inactiveClasses = 'bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20 hover:bg-[#3B82F6]/20';
                             }
 
                             return (
                                 <button
                                     key={f}
-                                    onClick={() => setQuickFilter(f as any)}
-                                    className={`px-4 py-1.5 rounded-full text-[11px] font-black transition-all duration-300 whitespace-nowrap flex items-center gap-2 shadow-sm ${isActive
-                                            ? 'bg-[#00684a] text-white shadow-lg shadow-emerald-200 scale-105 translate-y-[-1px] border border-[#00684a]'
-                                            : 'bg-emerald-50 text-[#00684a] border border-emerald-100 hover:bg-emerald-100 hover:scale-105'
-                                        }`}
+                                    onClick={handleClick}
+                                    className={`h-7 px-2 shrink-0 rounded-full text-[10.5px] font-bold transition-all duration-300 whitespace-nowrap flex items-center gap-1 shadow-sm ${isActive ? activeClasses : inactiveClasses}`}
                                 >
                                     {f}
+                                    
+                                    {f === 'Unread' && totalUnreadCount > 0 && (
+                                        <span className={`px-1.5 py-0.5 min-w-[1.25rem] flex items-center justify-center rounded-full text-[9px] font-bold shadow-sm ${isActive ? `bg-white ${badgeActiveText}` : `${badgeInactiveBg} text-white`}`}>
+                                            {totalUnreadCount}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
@@ -2164,7 +2341,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                         <div>
                                             <h3 className={`font-bold text-sm ${activeChatId === chat.id ? 'text-brand-900' : 'text-slate-800'}`}>{chat.contact_name || formatPhone(chat.contact_phone)}</h3>
                                             <div className="flex items-center gap-1.5 mt-0.5">
-                                                <span className="text-[11px] text-slate-500 font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
+                                                <span className="text-[11px] text-[#0DBD5F] font-medium leading-none tracking-wide translate-y-[1px]">{formatPhone(chat.contact_phone)}</span>
                                                 <div onClick={(e) => e.stopPropagation()} className="flex items-center shrink-0">
                                                     <LeadAssignment 
                                                         contact={{ ...chat, assigned_staff_ids: chat.assigned_to ? [chat.assigned_to] : [] }} 
@@ -2172,14 +2349,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                         showNames={false}
                                                         isConversationId={true}
                                                         onAssigned={() => loadConversations(1, false, searchTerm, quickFilter, filterTag, true)}
-                                                        className="p-1 rounded-full transition-all group/btn relative hover:bg-emerald-100 bg-emerald-50 text-emerald-700 shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
+                                                        className="p-1 rounded-full transition-all group/btn relative hover:bg-[#00523b] bg-[#00684a] text-white shadow-sm hover:shadow [&>svg]:w-4 [&>svg]:h-4 flex items-center justify-center"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end">
-                                        <span className="text-[10px] text-slate-400 font-medium">{formatTime(chat.updated_at)}</span>
+                                        <span className="text-[10px] text-[#202C33] font-medium">{formatTime(chat.updated_at)}</span>
                                         {chat.unread_count > 0 && (
                                             <span className="mt-1 bg-brand-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] rounded-full flex items-center justify-center">{chat.unread_count}</span>
                                         )}
@@ -2293,7 +2470,14 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 onClick={() => setIsContactInfoOpen(!isContactInfoOpen)}
                             >
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); setActiveChatId(null); }}
+                                    onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        if (window.history.state?.chatOpen) {
+                                            window.history.back();
+                                        } else {
+                                            setActiveChatId(null);
+                                        }
+                                    }}
                                     className="md:hidden p-1 -ml-1 text-slate-500 hover:text-slate-800 shrink-0"
                                 >
                                     <ChevronLeftIcon className="w-6 h-6" />
@@ -2341,10 +2525,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     const isPaused = !!activeChat.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
                                     return (
                                         <div 
-                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer text-xs font-bold border-2 transition-all shadow-sm ${
+                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
                                                 isPaused 
-                                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' 
-                                                    : 'bg-white border-purple-200 hover:border-purple-300 hover:shadow-md'
+                                                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600' 
+                                                    : 'bg-indigo-500 text-white border-indigo-600 hover:bg-indigo-600 hover:shadow-md'
                                             }`}
                                             onClick={toggleAiPause}
                                         >
@@ -2355,22 +2539,45 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
                                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                                     </svg>
-                                                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-fuchsia-500 to-orange-500">AI Active</span>
+                                                    <span className="text-white">AI Active</span>
                                                 </>
                                             )}
                                         </div>
                                     );
                                 })()}
                                 
+                                {/* Opt In/Out Toggle */}
+                                <div 
+                                    className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
+                                        isOptedOut 
+                                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                    onClick={handleToggleOptOut}
+                                    title={isOptedOut ? "Click to Opt-In" : "Click to Opt-Out"}
+                                >
+                                    {isOptedOut ? (
+                                        <>
+                                            <span className="text-[14px]">🛑</span>
+                                            <span>Opted Out</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-[14px]">✅</span>
+                                            <span>Opted In</span>
+                                        </>
+                                    )}
+                                </div>
+                                
                                 {/* Assign AI Dropdown */}
                                 <div className="hidden md:flex items-center">
                                     <select
                                         value={activeChat.assigned_ai_agent_id || ''}
                                         onChange={(e) => handleAssignAi(e.target.value)}
-                                        className="text-xs font-medium border-2 border-slate-200 rounded-full px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:border-purple-300 focus:ring-2 focus:ring-purple-100 shadow-sm transition-all cursor-pointer"
+                                        className="text-xs font-bold border border-[#1FBE6D] rounded-full px-3 py-1.5 h-8 bg-[#1FBE6D] text-white focus:outline-none focus:ring-2 focus:ring-[#1FBE6D]/50 shadow-sm transition-all cursor-pointer"
                                     >
                                         <option value="">No AI Assigned</option>
                                         {aiAgents.map(agent => (
@@ -2397,7 +2604,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     return (
                                         <div className={`
                                             hidden md:flex w-8 h-8 rounded-full flex-col items-center justify-center text-[9px] font-bold border shrink-0
-                                            ${isWindowOpen ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}
+                                            ${isWindowOpen ? 'bg-emerald-600 text-white border-emerald-700' : 'bg-zinc-500 text-white border-zinc-600'}
                                         `} title={isWindowOpen ? `${hours}h ${minutes}m left` : "Session Expired"}>
                                             {isWindowOpen ? (
                                                 <div className="flex flex-col items-center -space-y-0.5">
@@ -2411,19 +2618,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
                                 <button 
                                     onClick={() => setIsContactInfoOpen(!isContactInfoOpen)} 
-                                    className={`p-2 rounded-lg transition-colors ${isContactInfoOpen ? 'bg-slate-100 text-brand-600' : 'text-slate-600 hover:bg-slate-50'}`}
+                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 border ${isContactInfoOpen ? 'bg-[#00684a] text-white border-[#00684a]' : 'bg-cyan-600 text-white border-cyan-700 hover:bg-cyan-700'}`}
                                 >
-                                    <UsersIcon className="w-5 h-5" />
-                                </button>
-                                <button className="p-2 text-slate-600 hover:text-brand-600 hover:bg-slate-50 rounded-lg">
-                                    <SearchIcon className="w-5 h-5" />
+                                    <UsersIcon className="w-4 h-4" />
                                 </button>
                                 <LeadAssignment 
                                     leadId={activeLeadId || activeChat.id} 
                                     contact={{ ...activeChat, assigned_staff_ids: activeChat.assigned_to ? [activeChat.assigned_to] : [] }}
                                     showNames={true}
                                     isConversationId={!activeLeadId}
-                                    className="p-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md hover:scale-110 active:scale-95 relative"
+                                    className="px-3 py-1.5 h-8 flex items-center gap-1.5 text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 border border-teal-700 rounded-full transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 relative [&>svg]:w-4 [&>svg]:h-4"
                                     onAssigned={() => {
                                         loadConversations(1, false, searchTerm, quickFilter, filterTag, true);
                                         // Refresh assigned staff names
@@ -2475,10 +2679,10 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 {canWrite && (
                                     <button
                                         onClick={() => setIsClearChatModalOpen(true)}
-                                        className="p-2 text-red-500 bg-red-50 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors border border-red-100"
-                                        title="Clear Chat History"
+                                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-md active:scale-95 border bg-red-500 text-white border-red-600 hover:bg-red-600 shrink-0"
+                                        title="Clear Chat"
                                     >
-                                        <TrashIcon className="w-5 h-5" />
+                                        <TrashIcon className="w-4 h-4" />
                                     </button>
                                 )}
 
@@ -2595,17 +2799,17 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                                 </div>
                                             )}
                                             <div className={`flex ${msg.direction === 'out' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
-                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-xl px-3 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-emerald-200 hover:border-emerald-300 rounded-tr-none' : 'bg-white border border-emerald-200 hover:border-emerald-300 rounded-tl-none'}`}>
+                                                <div className={`max-w-[80%] sm:max-w-[60%] rounded-2xl px-4 py-2 shadow-sm relative group transition-colors duration-300 ${msg.direction === 'out' ? 'bg-emerald-50/80 border border-[#1BA035] hover:border-emerald-300 rounded-tr-sm' : 'bg-white border border-[#1BA035] hover:border-emerald-300 rounded-tl-sm'}`}>
 
                                                     {renderMessageContent(msg)}
 
                                                     <div className="flex items-center justify-end gap-1 mt-1 select-none">
-                                                        <span className="text-[10px] text-slate-400">{formatTime(msg.created_at)}</span>
+                                                        <span className="text-[10px] text-[#202C33]">{formatTime(msg.created_at)}</span>
                                                         {msg.direction === 'out' && (
                                                             <span className="flex items-center" title={`Status: ${msg.status}`}>
                                                                 {msg.status === 'read' && <DoubleCheckIcon className="w-3.5 h-3.5 text-blue-500" />}
-                                                                {msg.status === 'delivered' && <DoubleCheckIcon className="w-3.5 h-3.5 text-slate-400" />}
-                                                                {msg.status === 'sent' && <CheckIcon className="w-3.5 h-3.5 text-slate-400" />}
+                                                                {msg.status === 'delivered' && <DoubleCheckIcon className="w-3.5 h-3.5 text-[#202C33]" />}
+                                                                {msg.status === 'sent' && <CheckIcon className="w-3.5 h-3.5 text-[#202C33]" />}
                                                             </span>
                                                         )}
                                                     </div>

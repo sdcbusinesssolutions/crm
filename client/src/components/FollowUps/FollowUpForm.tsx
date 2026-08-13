@@ -515,7 +515,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         // Convert local time back to ISO UTC string for backend
         let isoScheduledAt = formData.scheduled_at;
         if (formData.scheduled_at) {
-            const dateObj = new Date(formData.scheduled_at); // Treats as local
+            const dateObj = new Date(`${formData.scheduled_at}+05:30`); // Strictly parse as IST
             if (!isNaN(dateObj.getTime())) {
                 isoScheduledAt = dateObj.toISOString();
             }

@@ -39,6 +39,7 @@ const captureNodes = [
 
 const logicNodes = [
   { type: NodeType.CheckCondition, label: 'Condition', icon: <ConditionIcon /> },
+  { type: NodeType.CheckForm, label: 'Check Form', icon: <ConditionIcon /> },
   { type: NodeType.Timing, label: 'Delay', icon: <TimingIcon /> },
   { type: NodeType.SendFlow, label: 'Send Flow', icon: <FlowIcon /> },
   { type: NodeType.CallApi, label: 'Call API', icon: <CallApiIcon /> },

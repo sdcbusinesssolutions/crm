@@ -42,6 +42,11 @@ export enum NodeType {
   Smtp = 'smtp',
   Notify = 'notify',
   AssignLead = 'assignLead',
+  CheckForm = 'checkForm',
+}
+
+export interface CheckFormData extends NodeData {
+  formId: string;
 }
 
 export interface SmtpData extends NodeData {
@@ -478,7 +483,8 @@ export type AnyNodeData =
   | CalendarData
   | SmtpData
   | NotifyData
-  | AssignLeadData;
+  | AssignLeadData
+  | CheckFormData;
 
 export interface ContactPipelineData extends NodeData {
   name?: string;
