@@ -40,11 +40,14 @@ export const FollowUpGlobalSync: React.FC = () => {
                         
                         const finalSubtitle = subtitleParts.join('\n');
 
-                        reminderManager.addReminder({
-                            id: task.id,
-                            title: task.title,
-                            subtitle: finalSubtitle,
-                            scheduledAt: new Date(task.scheduled_at),
+                            const dateStr = task.scheduled_at.replace(' ', 'T');
+                            const parsedDate = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+                            
+                            reminderManager.addReminder({
+                                id: task.id,
+                                title: task.title,
+                                subtitle: finalSubtitle,
+                                scheduledAt: parsedDate,
                             data: { contactId: task.contact_id, description: task.description },
                             onAction: (data) => {
                                 if (data.contactId) {
@@ -72,7 +75,8 @@ export const FollowUpGlobalSync: React.FC = () => {
                         subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                         subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                         
-                        const scheduledTime = new Date(t.due_date.replace(' ', 'T'));
+                        const dateStr = t.due_date.replace(' ', 'T');
+                        const scheduledTime = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
                         
                         reminderManager.addReminder({
                             id: `crm_${t.id}`,
@@ -128,11 +132,14 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 }
                                 subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
+                                const dateStr = task.scheduled_at.replace(' ', 'T');
+                                const parsedDate = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+
                                 reminderManager.addReminder({
                                     id: task.id,
                                     title: task.title,
                                     subtitle: subtitleParts.join('\n'), 
-                                    scheduledAt: new Date(task.scheduled_at),
+                                    scheduledAt: parsedDate,
                                     data: { contactId: task.contact_id, description: task.description },
                                     onAction: (data) => {
                                         if (data.contactId) {
@@ -142,11 +149,14 @@ export const FollowUpGlobalSync: React.FC = () => {
                                     }
                                 });
                             }).catch(() => {
+                                const dateStr = task.scheduled_at.replace(' ', 'T');
+                                const parsedDate = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+
                                 reminderManager.addReminder({
                                     id: task.id,
                                     title: task.title,
                                     subtitle: task.description ? `📝 ${task.description}` : `👤 Contact ID: ${task.contact_id}`, 
-                                    scheduledAt: new Date(task.scheduled_at),
+                                    scheduledAt: parsedDate,
                                     data: { contactId: task.contact_id, description: task.description },
                                     onAction: (data) => {
                                         if (data.contactId) {
@@ -190,7 +200,8 @@ export const FollowUpGlobalSync: React.FC = () => {
                                 subtitleParts.push(`👤 CRM Lead: ${contactName}${contactPhone}${leadIdSnippet}`);
                                 subtitleParts.push(`📊 Pipeline: ${pipelineName}`);
                                 
-                                const scheduledTime = new Date(t.due_date.replace(' ', 'T'));
+                                const dateStr = t.due_date.replace(' ', 'T');
+                                const scheduledTime = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
                                 
                                 reminderManager.addReminder({
                                     id: `crm_${t.id}`,
