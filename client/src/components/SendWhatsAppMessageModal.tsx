@@ -652,6 +652,26 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
     };
 
 
+    const { isWindowOpen, windowHours, windowMinutes } = useMemo(() => {
+        let isWindowOpen = false;
+        let windowHours = 0;
+        let windowMinutes = 0;
+
+        if (messages && messages.length > 0) {
+            const lastIncoming = [...messages].reverse().find(m => m.direction === 'in' || (m.direction as string) === 'inbound');
+            if (lastIncoming) {
+                const lastTime = new Date(lastIncoming.created_at).getTime();
+                const now = Date.now();
+                const windowDuration = 24 * 60 * 60 * 1000;
+                const diff = (lastTime + windowDuration) - now;
+                isWindowOpen = diff > 0;
+                windowHours = Math.floor(diff / (1000 * 60 * 60));
+                windowMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            }
+        }
+        return { isWindowOpen, windowHours, windowMinutes };
+    }, [messages]);
+
     if (!isOpen) return null;
 
     return (
@@ -740,34 +760,17 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                     </div>
                     <div className="flex items-center gap-3 self-start">
                         {(() => {
-                            let isWindowOpen = false;
-                            let hours = 0;
-                            let minutes = 0;
-
-                            if (messages && messages.length > 0) {
-                                const lastIncoming = [...messages].reverse().find(m => m.direction === 'in' || (m.direction as string) === 'inbound');
-                                if (lastIncoming) {
-                                    const lastTime = new Date(lastIncoming.created_at).getTime();
-                                    const now = Date.now();
-                                    const windowDuration = 24 * 60 * 60 * 1000;
-                                    const diff = (lastTime + windowDuration) - now;
-                                    isWindowOpen = diff > 0;
-                                    hours = Math.floor(diff / (1000 * 60 * 60));
-                                    minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                                }
-                            }
-
                             return (
                                 <div className={`
                                     flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-bold border shrink-0 transition-colors shadow-sm
-                                    ${isWindowOpen ? (hours < 2 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100') : 'bg-amber-500 text-white border-amber-600'}
-                                `} title={isWindowOpen ? `Customer Service Window: ${hours}h ${minutes}m left` : "Customer Service Session Expired"}>
+                                    ${isWindowOpen ? (windowHours < 2 ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-100') : 'bg-amber-500 text-white border-amber-600'}
+                                `} title={isWindowOpen ? `Customer Service Window: ${windowHours}h ${windowMinutes}m left` : "Customer Service Session Expired"}>
                                     <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                         <path d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                         <path d="M12 7V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                                     </svg>
                                     <span className="tracking-wide whitespace-nowrap">
-                                        {isWindowOpen ? `${hours}h ${minutes}m` : 'Expired'}
+                                        {isWindowOpen ? `${windowHours}h ${windowMinutes}m` : 'Expired'}
                                     </span>
                                 </div>
                             );
@@ -1062,6 +1065,16 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
                             <span className="text-red-600 font-semibold text-sm flex items-center gap-2">
                                 <CloseIcon className="w-4 h-4" /> Cannot send messages (User Opted Out)
                             </span>
+                        </div>
+                    ) : !isWindowOpen ? (
+                        <div className="flex items-center justify-between bg-amber-50 rounded-xl p-3 border border-amber-200">
+                            <div className="flex items-center gap-3">
+                                <ClockIcon className="w-5 h-5 text-amber-600" />
+                                <span className="text-amber-800 text-sm font-medium">Session expired. You can only send Template messages.</span>
+                            </div>
+                            <button onClick={() => setIsTemplateModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-amber-700 transition-colors">
+                                <MessageIcon className="w-4 h-4" /> Send Template
+                            </button>
                         </div>
                     ) : (
                         <div className="flex items-end gap-3 relative">
