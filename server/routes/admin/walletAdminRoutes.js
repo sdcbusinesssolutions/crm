@@ -130,10 +130,21 @@ router.get('/ledger/:userId', async (req, res) => {
 
         const wallet = await WalletService.getWallet(targetUserId).catch(() => null);
 
-        const { data: allTx } = await supabaseAdmin
+        let summaryQuery = supabaseAdmin
             .from('wallet_transactions')
             .select('type, amount, platform_cost, meta_cost, wa_category')
             .eq('user_id', targetUserId);
+
+        if (!isSuperAdmin) {
+            summaryQuery = summaryQuery.eq('tenant_domain', adminDomain);
+        }
+        if (req.query.source)    summaryQuery = summaryQuery.eq('source', req.query.source);
+        if (req.query.category)  summaryQuery = summaryQuery.eq('wa_category', req.query.category.toUpperCase());
+        if (req.query.type)      summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
+        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
+        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+
+        const { data: allTx } = await summaryQuery;
 
         const summary = (allTx || []).reduce((acc, tx) => {
             if (tx.type === 'DEBIT') {
@@ -286,6 +297,8 @@ router.get('/domain-ledger', async (req, res) => {
         if (req.query.user_id && uuidRegex.test(req.query.user_id)) {
             summaryQuery = summaryQuery.eq('user_id', req.query.user_id);
         }
+        if (req.query.source)    summaryQuery = summaryQuery.eq('source', req.query.source);
+        if (req.query.type)      summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
         if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
         if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
         

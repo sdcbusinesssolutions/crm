@@ -10,7 +10,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const WalletReport = () => {
-    const [balanceData, setBalanceData] = useState({ balance: 0, wallet_enforced: false, thisMonthExpense: 0 });
+    const [balanceData, setBalanceData] = useState({ balance: 0, wallet_enforced: false, thisMonthExpense: 0, totalCredit: 0, totalDebit: 0 });
     const [transactions, setTransactions] = useState<any[]>([]);
     const [totalTransactions, setTotalTransactions] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +67,13 @@ const WalletReport = () => {
                 const data = await res.json();
                 setTransactions(data.data || []);
                 setTotalTransactions(data.total || 0);
+                if (data.summary) {
+                    setBalanceData(prev => ({
+                        ...prev,
+                        totalCredit: data.summary.totalCredit,
+                        totalDebit: data.summary.totalDebit
+                    }));
+                }
             }
         } catch (err) {
             console.error('Failed to fetch transactions', err);
@@ -120,17 +127,30 @@ const WalletReport = () => {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-blue-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
                     <div className="w-14 h-14 rounded-xl bg-blue-500 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/30 text-white text-2xl">
                         💳
                     </div>
                     <div>
-                        <p className="text-3xl font-black text-blue-900 tracking-tight">
+                        <p className="text-2xl lg:text-3xl font-black text-blue-900 tracking-tight">
                             ₹{typeof balanceData.balance === 'number' ? balanceData.balance.toFixed(2) : balanceData.balance}
                         </p>
                         <p className="text-xs font-bold text-blue-600 uppercase tracking-wider mt-1">Wallet Balance</p>
                         <p className="text-[9px] font-medium text-blue-400 mt-0.5">Available funds right now</p>
+                    </div>
+                </div>
+
+                <div className="col-span-1 bg-white p-5 rounded-2xl border-2 border-emerald-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="w-14 h-14 rounded-xl bg-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30 text-white text-2xl">
+                        💰
+                    </div>
+                    <div>
+                        <p className="text-2xl lg:text-3xl font-black text-emerald-900 tracking-tight">
+                            ₹{typeof balanceData.totalCredit === 'number' ? balanceData.totalCredit.toFixed(2) : '0.00'}
+                        </p>
+                        <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider mt-1">Total Added</p>
+                        <p className="text-[9px] font-medium text-emerald-400 mt-0.5">Total lifetime top-ups/credits</p>
                     </div>
                 </div>
 
@@ -139,23 +159,23 @@ const WalletReport = () => {
                         📉
                     </div>
                     <div>
-                        <p className="text-3xl font-black text-rose-900 tracking-tight">
-                            ₹{typeof balanceData.thisMonthExpense === 'number' ? balanceData.thisMonthExpense.toFixed(2) : '0.00'}
+                        <p className="text-2xl lg:text-3xl font-black text-rose-900 tracking-tight">
+                            ₹{typeof balanceData.totalDebit === 'number' ? balanceData.totalDebit.toFixed(2) : '0.00'}
                         </p>
-                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">This Month's Expense</p>
-                        <p className="text-[9px] font-medium text-rose-400 mt-0.5">Cumulative deductions this month</p>
+                        <p className="text-xs font-bold text-rose-600 uppercase tracking-wider mt-1">Total Consumed</p>
+                        <p className="text-[9px] font-medium text-rose-400 mt-0.5">Total money spent on messages</p>
                     </div>
                 </div>
 
-                <div className={`col-span-1 bg-white p-5 rounded-2xl border-2 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow ${balanceData.wallet_enforced ? 'border-amber-200' : 'border-emerald-200'}`}>
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 shadow-lg text-white text-2xl ${balanceData.wallet_enforced ? 'bg-amber-500 shadow-amber-500/30' : 'bg-emerald-500 shadow-emerald-500/30'}`}>
+                <div className={`col-span-1 bg-white p-5 rounded-2xl border-2 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow ${balanceData.wallet_enforced ? 'border-amber-200' : 'border-slate-200'}`}>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 shadow-lg text-white text-2xl ${balanceData.wallet_enforced ? 'bg-amber-500 shadow-amber-500/30' : 'bg-slate-500 shadow-slate-500/30'}`}>
                         {balanceData.wallet_enforced ? '🔒' : '🔓'}
                     </div>
                     <div>
-                        <p className={`text-[15px] font-black tracking-tight mt-1 ${balanceData.wallet_enforced ? 'text-amber-900' : 'text-emerald-900'}`}>
+                        <p className={`text-[15px] font-black tracking-tight mt-1 ${balanceData.wallet_enforced ? 'text-amber-900' : 'text-slate-900'}`}>
                             {balanceData.wallet_enforced ? 'Pre-paid Billing Active' : 'Tracking Mode Only'}
                         </p>
-                        <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${balanceData.wallet_enforced ? 'text-amber-600' : 'text-emerald-600'}`}>Billing Status</p>
+                        <p className={`text-xs font-bold uppercase tracking-wider mt-1 ${balanceData.wallet_enforced ? 'text-amber-600' : 'text-slate-600'}`}>Billing Status</p>
                     </div>
                 </div>
             </div>
@@ -285,7 +305,7 @@ const WalletReport = () => {
                                         </td>
                                         <td className="px-3 py-1">
                                             <div className="flex flex-col gap-0.5">
-                                                <span className={`inline-flex w-fit px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                                <span className={`inline-flex w-fit px-1.5 py-0.5 rounded text-[10px] font-bold ${tx.type === 'CREDIT' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
                                                     }`}>
                                                     {tx.type}
                                                 </span>
@@ -347,7 +367,7 @@ const WalletReport = () => {
                                             )}
                                         </td>
                                         <td className="px-3 py-1 text-right">
-                                            <span className={`text-[12px] font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                                            <span className={`text-[12px] font-black tabular-nums ${tx.type === 'CREDIT' ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                 {tx.type === 'CREDIT' ? '+' : '-'}₹{Number(tx.amount).toFixed(2)}
                                             </span>
                                         </td>

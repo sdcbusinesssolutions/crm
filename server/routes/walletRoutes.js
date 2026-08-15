@@ -27,7 +27,23 @@ router.get('/balance', requirePermission('Settings', 'read'), async (req, res) =
             
         const thisMonthExpense = (expenses || []).reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-        res.json({ ...wallet, thisMonthExpense });
+        // Calculate all-time totals
+        const { data: allTx } = await supabaseAdmin
+            .from('wallet_transactions')
+            .select('type, amount')
+            .eq('user_id', req.user.id);
+            
+        let totalCredit = 0;
+        let totalDebit = 0;
+        
+        if (allTx) {
+            for (const tx of allTx) {
+                if (tx.type === 'CREDIT') totalCredit += Number(tx.amount || 0);
+                if (tx.type === 'DEBIT') totalDebit += Number(tx.amount || 0);
+            }
+        }
+
+        res.json({ ...wallet, thisMonthExpense, totalCredit, totalDebit });
     } catch (error) {
         console.error('Error fetching wallet balance:', error);
         res.status(500).json({ error: error.message });
@@ -82,7 +98,30 @@ router.get('/transactions', requirePermission('Settings', 'read'), async (req, r
             }));
         }
 
-        res.json({ data, total: count || 0, page, limit });
+        // Summary Calculation based on filters
+        let summaryQuery = supabaseAdmin
+            .from('wallet_transactions')
+            .select('type, amount')
+            .eq('user_id', userId);
+
+        if (req.query.source)   summaryQuery = summaryQuery.eq('source', req.query.source);
+        if (req.query.category) summaryQuery = summaryQuery.eq('wa_category', req.query.category.toUpperCase());
+        if (req.query.type)     summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
+        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
+        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+        if (req.query.whatsapp_account_id) summaryQuery = summaryQuery.eq('whatsapp_account_id', req.query.whatsapp_account_id);
+
+        const { data: summaryData } = await summaryQuery;
+        
+        const summary = { totalCredit: 0, totalDebit: 0 };
+        if (summaryData) {
+            for (const tx of summaryData) {
+                if (tx.type === 'CREDIT') summary.totalCredit += Number(tx.amount || 0);
+                if (tx.type === 'DEBIT') summary.totalDebit += Number(tx.amount || 0);
+            }
+        }
+
+        res.json({ data, total: count || 0, page, limit, summary });
     } catch (error) {
         console.error('Error fetching wallet transactions:', error);
         res.status(500).json({ error: error.message });

@@ -10,6 +10,8 @@ interface UserFinanceRow {
     current_balance: number;
     deposited_balance: number;
     spend_balance: number;
+    lifetime_deposited_balance: number;
+    lifetime_spend_balance: number;
     billing_mode?: string;
     wallet_enforced?: boolean;
 }
@@ -100,11 +102,11 @@ const FinanceReport = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [filterDateFrom, filterDateTo]);
+    }, [filterDateFrom, filterDateTo, isSuperAdmin, domainFilter]);
 
     useEffect(() => {
         fetchReport();
-    }, [fetchReport, isSuperAdmin, domainFilter]);
+    }, [fetchReport]);
 
     const getRiskStatus = (row: UserFinanceRow) => {
         if (row.billing_mode === 'DIRECT_META') {
@@ -113,10 +115,10 @@ const FinanceReport = () => {
         if (row.current_balance < 0) {
             return { label: '⚠️ LOOPHOLE (DEBT)', color: 'bg-red-100 text-red-800 border-red-200', rowBg: 'bg-red-50 hover:bg-red-100/80 border-l-4 border-red-500', isSuspicious: true };
         }
-        if (row.spend_balance > 0 && row.deposited_balance === 0 && row.current_balance < 10) {
+        if (row.lifetime_spend_balance > 0 && row.lifetime_deposited_balance === 0 && row.current_balance < 10) {
             return { label: '👀 SUSPICIOUS', color: 'bg-amber-100 text-amber-800 border-amber-200', rowBg: 'bg-amber-50/50 hover:bg-amber-50 border-l-4 border-amber-400', isSuspicious: true };
         }
-        if (row.spend_balance > row.deposited_balance * 5 && row.spend_balance > 100) {
+        if (row.lifetime_spend_balance > row.lifetime_deposited_balance * 5 && row.lifetime_spend_balance > 100) {
             return { label: '🔥 HIGH SPEND', color: 'bg-orange-100 text-orange-800 border-orange-200', rowBg: 'hover:bg-slate-50/80 border-l-4 border-transparent', isSuspicious: true };
         }
         return { label: '🟢 PRE-PAID', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', rowBg: 'hover:bg-slate-50/80 border-l-4 border-transparent', isSuspicious: false };

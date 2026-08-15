@@ -81,6 +81,31 @@ router.get('/', async (req, res) => {
 
         const profileIds = profiles.map(p => p.id);
 
+        // Fetch Lifetime aggregations (to ensure suspicious checks work accurately regardless of date filters)
+        let lifetimeAggregations = {};
+        if (profileIds.length > 0) {
+            const { data: lifetimeTxData } = await supabaseAdmin
+                .from('wallet_transactions')
+                .select('user_id, amount, type, source')
+                .in('user_id', profileIds);
+                
+            for (const tx of (lifetimeTxData || [])) {
+                if (!lifetimeAggregations[tx.user_id]) {
+                    lifetimeAggregations[tx.user_id] = { deposited: 0, spend: 0 };
+                }
+                const amount = Number(tx.amount || 0);
+                if (tx.type === 'CREDIT') {
+                    if (tx.source === 'REFUND' || tx.source === 'RESERVATION_RELEASE') {
+                        lifetimeAggregations[tx.user_id].spend -= amount;
+                    } else {
+                        lifetimeAggregations[tx.user_id].deposited += amount;
+                    }
+                } else if (tx.type === 'DEBIT') {
+                    lifetimeAggregations[tx.user_id].spend += amount;
+                }
+            }
+        }
+
         let walletMap = {};
         let configMap = {};
 
@@ -88,10 +113,8 @@ router.get('/', async (req, res) => {
             // Fetch user wallets
             let walletsQuery = supabaseAdmin
                 .from('user_wallets')
-                .select('user_id, balance, billing_mode, wallet_enforced');
-            if (!isSuperAdmin) {
-                walletsQuery = walletsQuery.in('user_id', profileIds);
-            }
+                .select('user_id, balance, billing_mode, wallet_enforced')
+                .in('user_id', profileIds);
             const { data: wallets } = await walletsQuery;
                 
             walletMap = (wallets || []).reduce((acc, w) => {
@@ -102,10 +125,8 @@ router.get('/', async (req, res) => {
             // Fetch configs
             let configsQuery = supabaseAdmin
                 .from('whatsapp_config')
-                .select('user_id, whatsapp_business_account_id, phone_number');
-            if (!isSuperAdmin) {
-                configsQuery = configsQuery.in('user_id', profileIds);
-            }
+                .select('user_id, whatsapp_business_account_id, phone_number')
+                .in('user_id', profileIds);
             const { data: configs } = await configsQuery;
                 
             configMap = (configs || []).reduce((acc, c) => {
@@ -117,6 +138,7 @@ router.get('/', async (req, res) => {
         // Combine data
         const reportData = profiles.map(p => {
             const agg = userAggregations[p.id] || { deposited: 0, spend: 0 };
+            const lifetimeAgg = lifetimeAggregations[p.id] || { deposited: 0, spend: 0 };
             const walletInfo = walletMap[p.id] || {};
             const current_balance = walletInfo.balance || 0;
             const billing_mode = walletInfo.billing_mode || 'DIRECT_META';
@@ -136,6 +158,8 @@ router.get('/', async (req, res) => {
                 current_balance,
                 deposited_balance: agg.deposited,
                 spend_balance: agg.spend,
+                lifetime_deposited_balance: lifetimeAgg.deposited,
+                lifetime_spend_balance: lifetimeAgg.spend,
                 billing_mode,
                 wallet_enforced
             };
