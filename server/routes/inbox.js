@@ -65,26 +65,22 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
         const to = from + limit - 1;
 
         console.log(`[Inbox Debug] Fetching conversations (Page: ${page}, Search: ${search || 'None'}, Filter: ${quickFilter || 'All'}, Tag: ${filterTag || 'None'})`);
+        const isRestrictedStaff = req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access';
+        const isMineFilter = quickFilter === 'Mine';
+        const isStaffFilter = quickFilter && quickFilter.startsWith('staff:');
+        
+        // Use the joined view if we need to filter by lead assignments natively
+        const tableName = (isRestrictedStaff || isMineFilter || isStaffFilter) ? 'conversations_with_leads' : 'conversations';
 
+        // Base query
         let query = supabase
-            .from('conversations')
+            .from(tableName)
             .select('id, contact_phone, contact_name, last_message, unread_count, updated_at, status, tags, assigned_to, bot_paused_until, assigned_ai_agent_id', { count: 'exact' })
             .eq('user_id', userId);
 
         // Filter by assigned leads if restricted
-        if (req.staff && req.staff.permissions && req.staff.permissions.only_assigned_leads === 'all_access') {
-            const { data: assignedLeads } = await supabase
-                .from('leads')
-                .select('phone')
-                .eq('user_id', userId)
-                .contains('assigned_staff_ids', [req.staff.staffId]);
-            
-            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
-            if (assignedPhones.length > 0) {
-                query = query.in('contact_phone', assignedPhones);
-            } else {
-                query = query.in('contact_phone', ['dummy-no-phone']);
-            }
+        if (isRestrictedStaff) {
+            query = query.contains('assigned_staff_ids', [req.staff.staffId]);
         }
 
         if (search) {
@@ -97,44 +93,11 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
             query = query.is('assigned_to', null);
         } else if (quickFilter === 'Mine') {
             const currentUserId = req.staff ? req.staff.staffId : userId;
-            
-            // First get all leads assigned to this user
-            const { data: myLeads } = await supabase
-                .from('leads')
-                .select('phone')
-                .eq('user_id', userId)
-                .contains('assigned_staff_ids', [currentUserId]);
-                
-            const myPhones = (myLeads || []).map(l => l.phone).filter(Boolean);
-            
-            if (myPhones.length > 0) {
-                // Prevent URI Too Long error and safely double-quote strings to protect '+' signs
-                const safeMyPhones = myPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
-                query = query.or(`assigned_to.eq.${currentUserId},contact_phone.in.(${safeMyPhones})`);
-            } else {
-                // If no leads, just check conversation direct assignment
-                query = query.eq('assigned_to', currentUserId);
-            }
-        } else if (quickFilter && quickFilter.startsWith('staff:')) {
+            // The view exposes assigned_staff_ids, so we can natively check it using .or()
+            query = query.or(`assigned_to.eq.${currentUserId},assigned_staff_ids.cs.{${currentUserId}}`);
+        } else if (isStaffFilter) {
             const staffId = quickFilter.split(':')[1];
-            
-            // First get all leads assigned to this staff member
-            const { data: staffLeads } = await supabase
-                .from('leads')
-                .select('phone')
-                .eq('user_id', userId)
-                .contains('assigned_staff_ids', [staffId]);
-                
-            const staffPhones = (staffLeads || []).map(l => l.phone).filter(Boolean);
-            
-            if (staffPhones.length > 0) {
-                // Prevent URI Too Long error by limiting the array size in the query
-                // and correctly double-quote strings to protect '+' signs in PostgREST
-                const safePhones = staffPhones.slice(0, 300).map(p => `"${p.replace(/"/g, '')}"`).join(',');
-                query = query.or(`assigned_to.eq.${staffId},contact_phone.in.(${safePhones})`);
-            } else {
-                query = query.eq('assigned_to', staffId);
-            }
+            query = query.or(`assigned_to.eq.${staffId},assigned_staff_ids.cs.{${staffId}}`);
         }
 
         if (filterTag && filterTag !== 'All') {
@@ -212,24 +175,13 @@ router.get('/conversations', requirePermission('Inbox', 'read'), async (req, res
 
         // Calculate total unread count for this user
         let unreadQuery = supabase
-            .from('conversations')
+            .from(tableName)
             .select('id', { count: 'exact', head: true })
             .eq('user_id', userId)
             .gt('unread_count', 0);
             
-        if (req.staff && req.staff.role !== 'admin') {
-            const { data: assignedLeads } = await supabase
-                .from('leads')
-                .select('phone')
-                .eq('user_id', userId)
-                .contains('assigned_staff_ids', [req.staff.staffId]);
-            
-            const assignedPhones = (assignedLeads || []).map(l => l.phone).filter(Boolean);
-            if (assignedPhones.length > 0) {
-                unreadQuery = unreadQuery.in('contact_phone', assignedPhones);
-            } else {
-                unreadQuery = unreadQuery.in('contact_phone', ['dummy-no-phone']);
-            }
+        if (isRestrictedStaff) {
+            unreadQuery = unreadQuery.contains('assigned_staff_ids', [req.staff.staffId]);
         }
         
         const { count: unreadTotal } = await unreadQuery;
