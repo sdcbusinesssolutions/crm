@@ -14,6 +14,7 @@ interface UserFinanceRow {
     lifetime_spend_balance: number;
     billing_mode?: string;
     wallet_enforced?: boolean;
+    created_at?: string;
 }
 
 const FinanceReport = () => {
@@ -127,8 +128,9 @@ const FinanceReport = () => {
     const exportCSV = () => {
         const dataToExport = showSuspiciousOnly ? data.filter(r => getRiskStatus(r).isSuspicious) : data;
         if (!dataToExport.length) return;
-        const headers = ['Name', 'Email', 'Phone', 'WABA ID', 'Current Balance', 'Total Distributed', 'Total Consumed', 'Risk Label'];
+        const headers = ['Joined Date', 'Name', 'Email', 'Phone', 'WABA ID', 'Current Balance', 'Total Distributed', 'Total Consumed', 'Risk Label'];
         const rows = dataToExport.map(r => [
+            r.created_at ? new Date(r.created_at).toLocaleDateString() : '—',
             r.name || 'Unknown',
             r.email || '',
             r.phone || '',
@@ -275,6 +277,7 @@ const FinanceReport = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-slate-50 border-b border-slate-200">
+                                    <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Joined Date</th>
                                     <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">User</th>
                                     <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">Contact</th>
                                     <th className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap">WABA ID</th>
@@ -286,14 +289,14 @@ const FinanceReport = () => {
                             <tbody className="divide-y divide-slate-100">
                                 {isLoading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
                                             <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                                             Loading financial data...
                                         </td>
                                     </tr>
                                 ) : filteredData.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-slate-400 font-medium">
                                             <div className="text-4xl mb-2">📊</div>
                                             No user data found.
                                         </td>
@@ -319,6 +322,9 @@ const FinanceReport = () => {
 
                                         return (
                                         <tr key={row.user_id} className={`transition-colors ${riskStatus.rowBg}`}>
+                                            <td className="px-6 py-4 text-xs font-medium text-slate-500 whitespace-nowrap">
+                                                {row.created_at ? new Date(row.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="font-bold text-slate-900 flex items-center gap-2">
                                                     {row.name || 'Unknown User'}

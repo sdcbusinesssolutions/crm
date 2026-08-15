@@ -119,8 +119,14 @@ router.get('/ledger/:userId', async (req, res) => {
         if (req.query.source)    query = query.eq('source', req.query.source);
         if (req.query.category)  query = query.eq('wa_category', req.query.category.toUpperCase());
         if (req.query.type)      query = query.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            query = query.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            query = query.lte('created_at', toStr);
+        }
 
         const { data: txData, count, error } = await query
             .order('created_at', { ascending: false })
@@ -141,8 +147,14 @@ router.get('/ledger/:userId', async (req, res) => {
         if (req.query.source)    summaryQuery = summaryQuery.eq('source', req.query.source);
         if (req.query.category)  summaryQuery = summaryQuery.eq('wa_category', req.query.category.toUpperCase());
         if (req.query.type)      summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            summaryQuery = summaryQuery.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            summaryQuery = summaryQuery.lte('created_at', toStr);
+        }
 
         const { data: allTx } = await summaryQuery;
 
@@ -230,8 +242,14 @@ router.get('/domain-ledger', async (req, res) => {
         // Filters
         if (req.query.source)    query = query.eq('source', req.query.source);
         if (req.query.type)      query = query.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            query = query.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            query = query.lte('created_at', toStr);
+        }
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
         if (req.query.user_id && uuidRegex.test(req.query.user_id)) {
@@ -299,8 +317,14 @@ router.get('/domain-ledger', async (req, res) => {
         }
         if (req.query.source)    summaryQuery = summaryQuery.eq('source', req.query.source);
         if (req.query.type)      summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            summaryQuery = summaryQuery.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            summaryQuery = summaryQuery.lte('created_at', toStr);
+        }
         
         if (req.query.user_search) {
             const { data: searchProfiles } = await supabaseAdmin
@@ -319,6 +343,13 @@ router.get('/domain-ledger', async (req, res) => {
         const { data: allTx } = await summaryQuery;
 
         const summary = (allTx || []).reduce((acc, tx) => {
+            if (tx.type === 'CREDIT') {
+                acc.total_credit += Number(tx.amount || 0);
+            }
+            if (tx.type === 'DEBIT') {
+                acc.total_debit += Number(tx.amount || 0);
+            }
+
             if (tx.type === 'CREDIT' && tx.source === 'ADMIN_TOPUP') {
                 acc.total_distributed += Number(tx.amount || 0);
             }
@@ -339,7 +370,9 @@ router.get('/domain-ledger', async (req, res) => {
             total_consumed: 0,
             total_meta_cost: 0,
             total_platform_cost: 0,
-            total_agency_recharge: 0
+            total_agency_recharge: 0,
+            total_credit: 0,
+            total_debit: 0
         });
 
         // Also fetch Master Wallet Balance if applicable

@@ -108,7 +108,7 @@ const AdminWalletLedger: React.FC<Props> = ({ user, onClose }) => {
 
     const exportCSV = () => {
         if (!transactions.length) return;
-        const headers = ['Date', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance After (₹)', 'Meta Cost (₹)', 'Markup (₹)', 'Contact', 'WA Msg ID', 'Conv ID', 'Description'];
+        const headers = ['Date & Time', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance After (₹)', 'Meta Cost (₹)', 'Markup (₹)', 'Contact', 'WA Msg ID', 'Conv ID', 'Description'];
         const rows = transactions.map(tx => [
             new Date(tx.created_at).toLocaleString('en-IN'),
             tx.type,

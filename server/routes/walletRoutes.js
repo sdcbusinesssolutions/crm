@@ -67,8 +67,14 @@ router.get('/transactions', requirePermission('Settings', 'read'), async (req, r
         if (req.query.source)   query = query.eq('source', req.query.source);
         if (req.query.category) query = query.eq('wa_category', req.query.category.toUpperCase());
         if (req.query.type)     query = query.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) query = query.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   query = query.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            query = query.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            query = query.lte('created_at', toStr);
+        }
         if (req.query.whatsapp_account_id) query = query.eq('whatsapp_account_id', req.query.whatsapp_account_id);
 
         const { data: rawData, count, error } = await query
@@ -107,8 +113,14 @@ router.get('/transactions', requirePermission('Settings', 'read'), async (req, r
         if (req.query.source)   summaryQuery = summaryQuery.eq('source', req.query.source);
         if (req.query.category) summaryQuery = summaryQuery.eq('wa_category', req.query.category.toUpperCase());
         if (req.query.type)     summaryQuery = summaryQuery.eq('type', req.query.type.toUpperCase());
-        if (req.query.date_from) summaryQuery = summaryQuery.gte('created_at', req.query.date_from);
-        if (req.query.date_to)   summaryQuery = summaryQuery.lte('created_at', req.query.date_to);
+        if (req.query.date_from) {
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            summaryQuery = summaryQuery.gte('created_at', fromStr);
+        }
+        if (req.query.date_to) {
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            summaryQuery = summaryQuery.lte('created_at', toStr);
+        }
         if (req.query.whatsapp_account_id) summaryQuery = summaryQuery.eq('whatsapp_account_id', req.query.whatsapp_account_id);
 
         const { data: summaryData } = await summaryQuery;

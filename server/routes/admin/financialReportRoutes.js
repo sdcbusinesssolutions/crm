@@ -35,10 +35,12 @@ router.get('/', async (req, res) => {
 
         // Apply date filters
         if (req.query.date_from) {
-            query = query.gte('created_at', req.query.date_from);
+            const fromStr = req.query.date_from.includes('T') ? req.query.date_from : `${req.query.date_from}T00:00:00.000Z`;
+            query = query.gte('created_at', fromStr);
         }
         if (req.query.date_to) {
-            query = query.lte('created_at', req.query.date_to);
+            const toStr = req.query.date_to.includes('T') ? req.query.date_to : `${req.query.date_to}T23:59:59.999Z`;
+            query = query.lte('created_at', toStr);
         }
 
         const { data: txData, error: txError } = await query;
@@ -68,7 +70,7 @@ router.get('/', async (req, res) => {
         // Fetch users (profiles)
         let profilesQuery = supabaseAdmin
             .from('profiles')
-            .select('id, name, email, contact_number, signup_domain');
+            .select('id, name, email, contact_number, signup_domain, created_at');
 
         if (!isSuperAdmin) {
             profilesQuery = profilesQuery.eq('signup_domain', adminDomain);
@@ -161,7 +163,8 @@ router.get('/', async (req, res) => {
                 lifetime_deposited_balance: lifetimeAgg.deposited,
                 lifetime_spend_balance: lifetimeAgg.spend,
                 billing_mode,
-                wallet_enforced
+                wallet_enforced,
+                created_at: p.created_at
             };
         });
 

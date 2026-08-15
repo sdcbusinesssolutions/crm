@@ -114,7 +114,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
 
     const exportCSV = () => {
         if (!transactions.length) return;
-        const headers = ['Date', 'User Name', 'User Email', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance (₹)', 'Meta Cost (₹)', 'Platform Cost (₹)', 'Contact', 'WABA ID', 'WA Msg ID', 'Description'];
+        const headers = ['Date & Time', 'User Name', 'User Email', 'Type', 'Source', 'Category', 'Amount (₹)', 'Balance (₹)', 'Meta Cost (₹)', 'Platform Cost (₹)', 'Contact', 'WABA ID', 'WA Msg ID', 'Description'];
         const rows = transactions.map(tx => [
             new Date(tx.created_at).toLocaleString('en-IN'),
             tx.profiles?.name || 'Unknown',
@@ -168,9 +168,21 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                         />
                     )}
                     <SummaryCard 
+                        label="Total Credit"   
+                        value={`₹${(summary?.total_credit || 0).toFixed(2)}`}   
+                        color="text-emerald-500" 
+                        sub="All Credits (+)"
+                    />
+                    <SummaryCard 
+                        label="Total Debit"  
+                        value={`₹${(summary?.total_debit || 0).toFixed(2)}`}  
+                        color="text-rose-500" 
+                        sub="All Debits (-)"
+                    />
+                    <SummaryCard 
                         label="Total Distributed"   
                         value={`₹${(summary?.total_distributed || 0).toFixed(2)}`}   
-                        color="text-emerald-600" 
+                        color="text-emerald-700" 
                         sub="Added to end-user wallets"
                     />
                     <SummaryCard 
@@ -270,7 +282,7 @@ const DomainLedgerModal: React.FC<Props> = ({ onClose, isSuperAdmin, domainFilte
                         <table className="w-full divide-y divide-slate-100 text-sm">
                             <thead className="bg-slate-50 sticky top-0">
                                 <tr>
-                                    {['Date','User','Type','Source','Category','Amount','Balance','Platform Cost','Meta Cost','Contact','WABA ID','WA Msg ID','Description'].map(h => (
+                                    {['Date & Time','User','Type','Source','Category','Amount','Balance','Platform Cost','Meta Cost','Contact','WABA ID','WA Msg ID','Description'].map(h => (
                                         <th key={h} className="px-4 py-3 text-left text-[11px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
