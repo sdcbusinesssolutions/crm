@@ -37,6 +37,9 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
     // Form State
     const [defaultBillingMode, setDefaultBillingMode] = useState('CREDIT_LINE_SUPER');
     const [allowTenantControl, setAllowTenantControl] = useState(true);
+    const [allowedCreditCurrencies, setAllowedCreditCurrencies] = useState<string[]>(['INR']);
+    
+    const AVAILABLE_CURRENCIES = ['INR', 'USD', 'AED', 'EUR', 'GBP', 'SGD', 'IDR', 'MYR', 'BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'SAR', 'AUD'];
     
     // Domain Admins State
     const [domainAdmins, setDomainAdmins] = useState<{id: string, name: string, email: string}[]>([]);
@@ -73,6 +76,7 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                 if (data) {
                     setDefaultBillingMode(data.default_billing_mode || 'CREDIT_LINE_SUPER');
                     setAllowTenantControl(data.allow_tenant_billing_control ?? true);
+                    setAllowedCreditCurrencies(data.allowed_credit_currencies || ['INR']);
                 }
             } else {
                 const err = await settingsRes.json();
@@ -94,6 +98,16 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
         }
     };
 
+    const handleCurrencyToggle = (currency: string) => {
+        setAllowedCreditCurrencies(prev => {
+            if (prev.includes(currency)) {
+                if (prev.length === 1) return prev; // Don't allow empty array
+                return prev.filter(c => c !== currency);
+            }
+            return [...prev, currency];
+        });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -111,7 +125,8 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                     domain,
                     default_billing_mode: defaultBillingMode,
                     allow_tenant_billing_control: allowTenantControl,
-                    tenant_admin_user_id: selectedAdminId
+                    tenant_admin_user_id: selectedAdminId,
+                    allowed_credit_currencies: allowedCreditCurrencies
                 })
             });
 
@@ -237,6 +252,40 @@ const DomainWalletSettingsModal: React.FC<DomainWalletSettingsModalProps> = ({ i
                                     )}
                                 </div>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* Allowed Currencies */}
+                    <div className="pt-4 border-t border-slate-200">
+                        <label className="block text-sm font-bold text-slate-700 mb-2">
+                            Allowed Currencies for Wallet
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">
+                            Select which currencies this Tenant is allowed to use for Wallet billing. If a user connects a WABA with a currency not checked here, they will be forced into Direct Meta billing.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {AVAILABLE_CURRENCIES.map(currency => {
+                                const isSelected = allowedCreditCurrencies.includes(currency);
+                                return (
+                                    <button
+                                        type="button"
+                                        key={currency}
+                                        onClick={() => handleCurrencyToggle(currency)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                                            isSelected 
+                                            ? 'bg-brand-50 border-brand-200 text-brand-700' 
+                                            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <div className={`w-3 h-3 rounded-full flex items-center justify-center border ${
+                                            isSelected ? 'border-brand-500 bg-brand-500 text-white' : 'border-slate-300'
+                                        }`}>
+                                            {isSelected && <span className="text-[8px]">✓</span>}
+                                        </div>
+                                        {currency}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 

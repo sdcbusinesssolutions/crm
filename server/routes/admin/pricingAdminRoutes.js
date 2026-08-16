@@ -5,9 +5,11 @@ const { supabaseAdmin } = require('../../lib/supabaseClient');
 // GET /api/admin/pricing - Fetch all rates
 router.get('/', async (req, res) => {
     try {
+        const { currency = 'INR' } = req.query; // Default to INR if not provided
         const { data, error } = await supabaseAdmin
             .from('wa_message_rates')
             .select('*')
+            .eq('currency', currency)
             .order('country_code', { ascending: true });
 
         if (error) throw error;
@@ -21,10 +23,12 @@ router.get('/', async (req, res) => {
 // POST /api/admin/pricing/bulk - Upsert multiple rates
 router.post('/bulk', async (req, res) => {
     try {
-        const { rates } = req.body;
+        const { rates, currency } = req.body;
         if (!rates || !Array.isArray(rates)) {
             return res.status(400).json({ error: 'Rates array is required' });
         }
+
+        const fallbackCurrency = currency || 'INR';
 
         const upserts = rates.map(r => ({
             scope: r.scope || 'GLOBAL',
@@ -33,7 +37,8 @@ router.post('/bulk', async (req, res) => {
             meta_cost: Number(r.meta_cost),
             platform_rate: Number(r.platform_rate),
             is_active: r.is_active !== undefined ? r.is_active : true,
-            user_id: r.user_id || null
+            user_id: r.user_id || null,
+            currency: r.currency || fallbackCurrency
         }));
 
         // WABA Currency Validation for USER overrides
@@ -78,7 +83,8 @@ router.post('/bulk', async (req, res) => {
                 .delete()
                 .eq('scope', r.scope)
                 .eq('category', r.category)
-                .eq('country_code', r.country_code);
+                .eq('country_code', r.country_code)
+                .eq('currency', r.currency);
 
             if (r.user_id) {
                 deleteQuery = deleteQuery.eq('user_id', r.user_id);
@@ -93,7 +99,7 @@ router.post('/bulk', async (req, res) => {
             .from('wa_message_rates')
             .insert(upserts)
             .select();
-
+            
         if (error) throw error;
         res.json({ success: true, data });
     } catch (error) {
@@ -105,7 +111,7 @@ router.post('/bulk', async (req, res) => {
 // POST /api/admin/pricing - Add new rate
 router.post('/', async (req, res) => {
     try {
-        const { scope = 'GLOBAL', user_id, category, country_code, meta_cost, platform_rate, is_active = true } = req.body;
+        const { scope = 'GLOBAL', user_id, category, country_code, meta_cost, platform_rate, is_active = true, currency = 'INR' } = req.body;
         
         const payload = {
             scope,
@@ -113,12 +119,12 @@ router.post('/', async (req, res) => {
             country_code: country_code.toUpperCase(),
             meta_cost: Number(meta_cost),
             platform_rate: Number(platform_rate),
-            is_active
+            is_active,
+            user_id: user_id || null,
+            currency: currency
         };
 
         if (scope !== 'GLOBAL' && user_id) {
-            payload.user_id = user_id;
-            
             if (scope === 'USER') {
                 const adminDomain = req.admin?.managed_domain || req.admin?.domain;
                 const isSuperAdmin = req.admin?.role === 'super_admin';

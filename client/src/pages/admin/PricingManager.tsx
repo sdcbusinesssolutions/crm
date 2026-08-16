@@ -30,6 +30,9 @@ const PricingManager = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [selectedCurrency, setSelectedCurrency] = useState('INR');
+    
+    const AVAILABLE_CURRENCIES = ['INR', 'USD', 'AED', 'EUR', 'GBP', 'SGD', 'IDR', 'MYR', 'BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'SAR', 'AUD'];
 
     // Form state
     const [formData, setFormData] = useState({
@@ -41,11 +44,11 @@ const PricingManager = () => {
         SERVICE: { meta_cost: 0, platform_rate: 0 },
     });
 
-    const fetchRates = async () => {
+    const fetchRates = async (currency: string) => {
         try {
             setLoading(true);
             const token = localStorage.getItem('adminToken');
-            const res = await fetch('/api/admin/pricing', {
+            const res = await fetch(`/api/admin/pricing?currency=${currency}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const { data } = await res.json();
@@ -85,8 +88,8 @@ const PricingManager = () => {
     };
 
     useEffect(() => {
-        fetchRates();
-    }, []);
+        fetchRates(selectedCurrency);
+    }, [selectedCurrency]);
 
     const openAddModal = () => {
         setIsEditing(false);
@@ -164,14 +167,14 @@ const PricingManager = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ rates: ratesToSave })
+                body: JSON.stringify({ rates: ratesToSave, currency: selectedCurrency })
             });
 
             if (!res.ok) throw new Error('Failed to save rates');
             
             setToast({ type: 'success', title: 'Success', message: `Rates for ${formData.country_code.toUpperCase()} saved successfully` });
             setIsModalOpen(false);
-            fetchRates();
+            fetchRates(selectedCurrency);
         } catch (error) {
             setToast({ type: 'error', title: 'Error', message: 'Error saving rates' });
         }
@@ -201,7 +204,7 @@ const PricingManager = () => {
             ));
             
             setToast({ type: 'success', title: 'Deleted', message: `Rates for ${countryCode} deleted successfully` });
-            fetchRates();
+            fetchRates(selectedCurrency);
         } catch (error) {
             setToast({ type: 'error', title: 'Error', message: 'Failed to delete country rates' });
         }
@@ -236,6 +239,23 @@ const PricingManager = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* Currency Tabs */}
+            <div className="flex overflow-x-auto gap-2 mb-4 pb-2 scrollbar-hide">
+                {AVAILABLE_CURRENCIES.map(currency => (
+                    <button
+                        key={currency}
+                        onClick={() => setSelectedCurrency(currency)}
+                        className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-colors ${
+                            selectedCurrency === currency 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                        }`}
+                    >
+                        {currency}
+                    </button>
+                ))}
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

@@ -810,10 +810,23 @@ router.post('/reset', async (req, res) => {
 // GET /api/wallet/admin/rates/:userId — get rates for a user
 router.get('/rates/:userId', async (req, res) => {
     try {
+        const userId = req.params.userId;
+        
+        // 1. Fetch user's WABA currency
+        const { data: wabaConfig } = await supabaseAdmin
+            .from('whatsapp_config')
+            .select('currency')
+            .eq('user_id', userId)
+            .maybeSingle();
+            
+        const currency = wabaConfig?.currency || 'INR';
+
+        // 2. Fetch rates matching the currency
         const { data: rates, error } = await supabaseAdmin
             .from('wa_message_rates')
             .select('*')
-            .or(`user_id.eq.${req.params.userId},scope.eq.GLOBAL`)
+            .or(`user_id.eq.${userId},scope.eq.GLOBAL`)
+            .eq('currency', currency)
             .eq('is_active', true);
             
         if (error) throw error;
@@ -833,11 +846,21 @@ router.post('/rates', async (req, res) => {
             return res.status(400).json({ error: 'User ID and rates array are required' });
         }
 
-        // Fetch global rates to enforce cost floor
+        // 1. Fetch user's WABA currency
+        const { data: wabaConfig } = await supabaseAdmin
+            .from('whatsapp_config')
+            .select('currency')
+            .eq('user_id', userId)
+            .maybeSingle();
+            
+        const currency = wabaConfig?.currency || 'INR';
+
+        // Fetch global rates to enforce cost floor for that specific currency
         const { data: globalRates } = await supabaseAdmin
             .from('wa_message_rates')
             .select('category, country_code, meta_cost')
             .eq('scope', 'GLOBAL')
+            .eq('currency', currency)
             .is('user_id', null);
 
         const getGlobalMetaCost = (cat, cc) => {
@@ -860,14 +883,14 @@ router.post('/rates', async (req, res) => {
                 country_code: countryCode,
                 meta_cost: metaCostFloor,
                 platform_rate: r.platform_rate,
-                currency: 'INR',
+                currency: currency,
                 updated_by: null
             };
         });
         
         const { error } = await supabaseAdmin
             .from('wa_message_rates')
-            .upsert(upserts, { onConflict: 'scope,user_id,category,country_code' });
+            .upsert(upserts, { onConflict: 'scope,user_id,category,country_code,currency' });
             
         if (error) throw error;
         res.json({ success: true });
@@ -962,7 +985,7 @@ router.get('/domain-settings/:domain', async (req, res) => {
 // POST /api/wallet/admin/domain-settings — update domain wallet settings
 router.post('/domain-settings', async (req, res) => {
     try {
-        const { domain, default_billing_mode, tenant_admin_user_id, allow_tenant_billing_control } = req.body;
+        const { domain, default_billing_mode, tenant_admin_user_id, allow_tenant_billing_control, allowed_credit_currencies } = req.body;
         if (!domain) return res.status(400).json({ error: 'domain is required' });
 
         let actualTenantAdminUserId = tenant_admin_user_id;
@@ -985,6 +1008,7 @@ router.post('/domain-settings', async (req, res) => {
             domain,
             default_billing_mode: default_billing_mode || 'DIRECT_META',
             allow_tenant_billing_control: allow_tenant_billing_control !== undefined ? allow_tenant_billing_control : true,
+            allowed_credit_currencies: allowed_credit_currencies && allowed_credit_currencies.length > 0 ? allowed_credit_currencies : ['INR'],
             updated_at: new Date().toISOString()
         };
         if (actualTenantAdminUserId) upsertData.tenant_admin_user_id = actualTenantAdminUserId;
