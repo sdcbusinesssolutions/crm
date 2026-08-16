@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const WalletService = require('../../services/WalletService');
 const { supabaseAdmin } = require('../../lib/supabaseClient');
+const axios = require('axios');
 
 // GET /api/wallet/admin/balance/:userId — get a specific user's wallet balance
 router.get('/balance/:userId', async (req, res) => {
@@ -582,12 +583,37 @@ router.post('/topup', async (req, res) => {
                 const allowedCurrencies = domainSettings?.allowed_credit_currencies || ['INR'];
                 const { data: wabaConfig } = await supabaseAdmin
                     .from('whatsapp_config')
-                    .select('currency')
+                    .select('currency, meta_access_token, whatsapp_business_account_id')
                     .eq('user_id', uid)
                     .limit(1)
                     .maybeSingle();
                     
-                const wabaCurrency = wabaConfig?.currency || 'INR';
+                let wabaCurrency = wabaConfig?.currency;
+
+                // Dynamically fetch from Meta if currency is missing (for older users before the update)
+                if (!wabaCurrency && wabaConfig?.meta_access_token && wabaConfig?.whatsapp_business_account_id) {
+                    try {
+                        console.log(`[WalletAdmin] Currency missing for user ${uid}. Fetching from Meta...`);
+                        const currencyRes = await axios.get(`https://graph.facebook.com/v20.0/${wabaConfig.whatsapp_business_account_id}?fields=currency`, {
+                            headers: { 'Authorization': `Bearer ${wabaConfig.meta_access_token}` }
+                        });
+                        if (currencyRes.data && currencyRes.data.currency) {
+                            wabaCurrency = currencyRes.data.currency;
+                            console.log(`[WalletAdmin] Fetched currency ${wabaCurrency} for ${wabaConfig.whatsapp_business_account_id}`);
+                            // Save it back to database
+                            await supabaseAdmin
+                                .from('whatsapp_config')
+                                .update({ currency: wabaCurrency })
+                                .eq('user_id', uid);
+                        }
+                    } catch (currencyErr) {
+                        console.error('[WalletAdmin] Failed to fetch currency dynamically:', currencyErr.message);
+                    }
+                }
+
+                // Fallback if still missing or fetch failed
+                if (!wabaCurrency) wabaCurrency = 'INR';
+
                 if (!allowedCurrencies.includes(wabaCurrency)) {
                     console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Tenant ${adminUserId} tried to assign ${billing_mode} to user ${uid} with restricted currency ${wabaCurrency}`);
                     return res.status(403).json({
