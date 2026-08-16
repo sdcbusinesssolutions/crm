@@ -1211,24 +1211,46 @@ class CampaignWorker {
                 });
             } catch (ignore) { }
 
-            // --- CONSERVATIVE WALLET BALANCE CHECK (always MARKETING rate = worst-case) ---
-            // We always check against MARKETING rate regardless of template category.
-            // Reason: Meta can reclassify any template to MARKETING at delivery time.
-            // Checking at UTILITY (₹0.22) when Meta will charge MARKETING (₹0.70)
-            // would allow sends that push the balance negative.
-            const hasBalance = await WalletService.hasSufficientBalance(campaign.user_id);
-            if (!hasBalance) {
-                console.warn(`[Worker] 🚫 Skipping send to ${item.phone_number} — INSUFFICIENT WALLET BALANCE (checked at MARKETING rate).`);
+            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
+            // We must debit BEFORE hitting the Meta API to enforce strict country blocking 
+            // and prevent negative balances.
+            const tempWaMessageId = `pending_camp_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
+            let preDebitTxId = null;
+            
+            try {
+                const preDebitResult = await WalletService.preDebit({
+                     userId: campaign.user_id,
+                     waMessageId: tempWaMessageId,
+                     category: templateDef?.category || 'MARKETING',
+                     source: 'CAMPAIGN_SEND',
+                     contactPhone: item.phone_number,
+                     campaignId: campaign.id,
+                     whatsappAccountId: config.id
+                });
+                preDebitTxId = preDebitResult?.transactionId;
+            } catch (walletErr) {
+                console.warn(`[Worker] 🚫 Skipping send to ${item.phone_number} — PRE-DEBIT FAILED: ${walletErr.message}`);
                 
+                let categorizedError = `Failed: ${walletErr.message}`;
+                if (walletErr.message.includes('not allowed by the platform')) {
+                    categorizedError = `Country Not Allowed: ${walletErr.message}`;
+                } else if (walletErr.message.includes('Insufficient Wallet Balance')) {
+                    categorizedError = `Billing Error: ${walletErr.message}`;
+                } else {
+                    categorizedError = `Wallet Error: ${walletErr.message}`;
+                }
+
                 await this.supabase.from('campaign_queue').update({
                     status: 'FAILED',
-                    error_message: 'Failed: Insufficient Wallet Balance. Top-up required to continue sending.'
+                    error_message: categorizedError
                 }).eq('id', item.id);
                 
-                // Pause the entire campaign to prevent hitting 15,000 FAILED items in rapid succession
-                await this.supabase.from('campaigns').update({
-                    status: 'PAUSED'
-                }).eq('id', campaign.id);
+                // If it's a balance issue, pause the entire campaign
+                if (walletErr.message.includes('Insufficient Wallet Balance')) {
+                    await this.supabase.from('campaigns').update({
+                        status: 'PAUSED'
+                    }).eq('id', campaign.id);
+                }
                 
                 return; // Stop processing this item
             }
@@ -1281,15 +1303,21 @@ class CampaignWorker {
                     const fallbackPayload = { ...payload };
                     delete fallbackPayload.solution_id;
 
-                    response = await axios.post(
-                        `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
-                        fallbackPayload,
-                        {
-                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
-                            httpsAgent: httpsAgent
-                        }
-                    );
+                    try {
+                        response = await axios.post(
+                            `${GRAPH_API_URL}/${config.phone_number_id}/messages`,
+                            fallbackPayload,
+                            {
+                                headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                                httpsAgent: httpsAgent
+                            }
+                        );
+                    } catch (fallbackErr) {
+                        if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
+                        throw fallbackErr;
+                    }
                 } else {
+                    if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
                     throw postErr; // Re-throw other errors
                 }
             }
@@ -1320,23 +1348,9 @@ class CampaignWorker {
 
             await this.supabase.rpc('increment_campaign_success', { row_id: campaign.id });
 
-            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
-            // Pre-debit always happens at MARKETING rate (worst-case).
-            // When Meta webhook confirms actual category, WalletService.handleWebhookPricing()
-            // will issue a CREDIT refund for the difference (e.g. UTILITY refund = ₹0.70 - ₹0.22 = ₹0.48)
-            try {
-                await WalletService.preDebit({
-                     userId: campaign.user_id,
-                     waMessageId: response.data.messages[0].id,
-                     category: templateDef?.category || 'MARKETING',
-                     source: 'CAMPAIGN_SEND',
-                     contactPhone: item.phone_number,
-                     campaignId: campaign.id,
-                     whatsappAccountId: config.id
-                });
-            } catch (walletErr) {
-                // Log but don't block — message already sent successfully
-                console.error('[Worker] Wallet Pre-debit failed (non-blocking):', walletErr.message);
+            // --- ATOMIC: LINK SUCCESSFUL ID ---
+            if (response.data.messages?.[0]?.id && preDebitTxId) {
+                await WalletService.updateTransactionMessageId(preDebitTxId, response.data.messages[0].id);
             }
 
             // Render Body Text for Inbox Preview
@@ -1553,9 +1567,14 @@ class CampaignWorker {
 
         } catch (error) {
             const errorData = error.response?.data?.error || {};
-            const errorMsg = errorData.message || error.message;
+            const rawErrorMsg = errorData.message || error.message;
             const errorCode = errorData.code;
             const errorSubcode = errorData.error_subcode;
+
+            let errorMsg = `Meta Error: ${rawErrorMsg}`;
+            if (errorCode === 131042 || errorCode === 131043) {
+                errorMsg = `Meta Wallet Error: ${rawErrorMsg} (Please check your payment method in Meta Business Manager)`;
+            }
 
             // =========================================================================
             // 🚨 UNIVERSAL CAMPAIGN AUTO-HEALING ENGINE (FIX: 2026-04-17) 🚨

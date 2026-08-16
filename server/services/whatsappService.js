@@ -211,8 +211,9 @@ class WhatsAppService {
                 });
                 preDebitTxId = preDebitResult?.transactionId;
             } catch (err) {
-                console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — INSUFFICIENT WALLET BALANCE (checked at ${expectedCategory} rate).`);
-                throw new Error('Insufficient Wallet Balance. Top-up required.');
+                console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — PRE-DEBIT FAILED: ${err.message}`);
+                // Pass the specific error message (e.g., country blocking) up to the user
+                throw new Error(err.message || 'Insufficient Wallet Balance. Top-up required.');
             }
 
             let response;

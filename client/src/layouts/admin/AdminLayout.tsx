@@ -132,6 +132,7 @@ const AdminLayout = () => {
     ];
 
     if (isAdminSuper) {
+        menuItems.push({ path: '/admin/pricing', label: 'Pricing & Countries', icon: '💰' });
         menuItems.push({ path: '/admin/super', label: 'Super Panel', icon: '🚀' });
         menuItems.push({ path: '/admin/limits', label: 'Feature Limits', icon: '🚧' });
     }

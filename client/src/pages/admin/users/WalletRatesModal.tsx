@@ -13,12 +13,15 @@ interface Rate {
     platform_rate: number;
     meta_cost: number;
     scope: 'GLOBAL' | 'WORKSPACE';
+    country_code?: string;
 }
 
 const CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION', 'SERVICE'];
 
 const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, user, onSuccess }) => {
-    const [rates, setRates] = useState<Record<string, Rate>>({});
+    const [ratesByCountry, setRatesByCountry] = useState<Record<string, Record<string, Rate>>>({});
+    const [countries, setCountries] = useState<string[]>(['IN']);
+    const [selectedCountry, setSelectedCountry] = useState<string>('IN');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -40,24 +43,38 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
             if (res.ok) {
                 const data = await res.json();
                 
-                // Process the data: Prefer WORKSPACE rates over GLOBAL rates
-                const processedRates: Record<string, Rate> = {};
+                const uniqueCountries = Array.from(new Set(data.map((r: any) => r.country_code || 'IN'))) as string[];
+                uniqueCountries.sort();
                 
-                // First pass: add all GLOBAL rates
-                data.forEach((r: any) => {
-                    if (r.scope === 'GLOBAL') {
-                        processedRates[r.category] = r;
-                    }
+                const newRatesByCountry: Record<string, Record<string, Rate>> = {};
+                
+                uniqueCountries.forEach(cc => {
+                    const countryRates = data.filter((r: any) => (r.country_code || 'IN') === cc);
+                    const processed: Record<string, Rate> = {};
+                    
+                    // First pass: add GLOBAL
+                    countryRates.forEach((r: any) => {
+                        if (r.scope === 'GLOBAL') {
+                            processed[r.category] = r;
+                        }
+                    });
+                    
+                    // Second pass: add WORKSPACE
+                    countryRates.forEach((r: any) => {
+                        if (r.scope === 'WORKSPACE' && r.user_id === user.id) {
+                            processed[r.category] = r;
+                        }
+                    });
+                    
+                    newRatesByCountry[cc] = processed;
                 });
                 
-                // Second pass: override with WORKSPACE rates
-                data.forEach((r: any) => {
-                    if (r.scope === 'WORKSPACE' && r.user_id === user.id) {
-                        processedRates[r.category] = r;
-                    }
-                });
+                setCountries(uniqueCountries.length ? uniqueCountries : ['IN']);
+                if (!uniqueCountries.includes(selectedCountry) && uniqueCountries.length > 0) {
+                    setSelectedCountry(uniqueCountries[0]);
+                }
                 
-                setRates(processedRates);
+                setRatesByCountry(newRatesByCountry);
             } else {
                 setError('Failed to fetch rates');
             }
@@ -71,14 +88,17 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
 
     const handleRateChange = (category: string, value: string) => {
         const val = parseFloat(value);
-        setRates(prev => ({
+        setRatesByCountry(prev => ({
             ...prev,
-            [category]: {
-                ...prev[category],
-                platform_rate: isNaN(val) ? 0 : val,
-                category,
-                // If they edit it, we implicitly treat it as a WORKSPACE override now
-                scope: 'WORKSPACE' 
+            [selectedCountry]: {
+                ...prev[selectedCountry],
+                [category]: {
+                    ...prev[selectedCountry]?.[category],
+                    platform_rate: isNaN(val) ? 0 : val,
+                    category,
+                    country_code: selectedCountry,
+                    scope: 'WORKSPACE'
+                }
             }
         }));
     };
@@ -91,7 +111,10 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
         try {
             const token = localStorage.getItem('adminToken');
             // We only send the ones that are WORKSPACE scope (the ones they edited or specifically want to set for this user)
-            const ratesToSave = Object.values(rates).filter(r => r.scope === 'WORKSPACE');
+            let ratesToSave: Rate[] = [];
+            Object.values(ratesByCountry).forEach(countryRates => {
+                ratesToSave = [...ratesToSave, ...Object.values(countryRates).filter(r => r.scope === 'WORKSPACE')];
+            });
             
             const res = await fetch('/api/wallet/admin/rates', {
                 method: 'POST',
@@ -110,7 +133,7 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                 onClose();
             } else {
                 const data = await res.json();
-                setError(data.message || 'Failed to update rates');
+                setError(data.error || data.message || 'Failed to update rates');
             }
         } catch (err) {
             console.error(err);
@@ -136,12 +159,30 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                     
                     <p className="text-sm text-slate-500 mb-4">
                         Configure the price you charge this user per message category. 
-                        Editing a value creates a <strong>Workspace Override</strong>. Otherwise, it falls back to the Global default.
+                        Editing a value creates a <strong>Workspace Override</strong> for the selected country. Otherwise, it falls back to the Global default.
                     </p>
+
+                    <div className="mb-4">
+                        <label className="block text-sm font-bold text-slate-700 mb-1">Country</label>
+                        <select
+                            value={selectedCountry}
+                            onChange={(e) => setSelectedCountry(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-brand-500"
+                        >
+                            {countries.map(cc => {
+                                const hasOverride = Object.values(ratesByCountry[cc] || {}).some(r => r.scope === 'WORKSPACE');
+                                return (
+                                    <option key={cc} value={cc}>
+                                        {cc === 'IN' ? 'India (IN)' : cc} {hasOverride ? ' (Custom Rates Active)' : ''}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    </div>
 
                     <div className="space-y-3">
                         {CATEGORIES.map(category => {
-                            const rate = rates[category];
+                            const rate = ratesByCountry[selectedCountry]?.[category];
                             const isOverride = rate?.scope === 'WORKSPACE';
                             
                             return (

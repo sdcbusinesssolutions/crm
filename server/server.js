@@ -253,13 +253,14 @@ const dripCampaignRoutes = require('./routes/dripCampaigns');
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
 const walletAdminRoutes = require('./routes/admin/walletAdminRoutes');
+const pricingAdminRoutes = require('./routes/admin/pricingAdminRoutes');
 const reportRoutes = require('./routes/admin/reportRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
 const adminPlanRoutes = require('./routes/admin/planRoutes');
 const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 const adminFeatureLimitsRoutes = require('./routes/admin/featureLimitsRoutes');
-const { verifyAdminToken } = require('./middleware/admin/authMiddleware');
+const { verifyAdminToken, verifySuperAdmin } = require('./middleware/admin/authMiddleware');
 
 // Public Routes
 const authRoutes = require('./routes/auth');
@@ -310,6 +311,7 @@ const financialReportRoutes = require('./routes/admin/financialReportRoutes');
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
 router.use('/wallet/admin', verifyAdminToken, walletAdminRoutes);
+router.use('/admin/pricing', verifySuperAdmin, pricingAdminRoutes);
 router.use('/wallet/admin/finance-report', verifyAdminToken, financialReportRoutes);
 router.use('/wallet/admin/reports', verifyAdminToken, reportRoutes);
 router.use('/wallet', requireAuth, walletRoutes); // Protected wallet routes

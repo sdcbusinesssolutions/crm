@@ -503,7 +503,7 @@ router.post('/topup', async (req, res) => {
         // Always fetch domain settings to enforce isolation rules
         const { data: domainSettings } = await supabaseAdmin
             .from('domain_wallet_settings')
-            .select('allow_tenant_billing_control, default_billing_mode')
+            .select('allow_tenant_billing_control, default_billing_mode, allowed_credit_currencies')
             .eq('domain', targetDomain)
             .maybeSingle();
             
@@ -575,6 +575,23 @@ router.post('/topup', async (req, res) => {
                     console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Domain ${adminDomain} has no own Meta App — still using Super Admin's credit line.`);
                     return res.status(403).json({
                         error: `Forbidden: Billing mode "${billing_mode === 'CREDIT_LINE_TENANT' ? 'Tenant Agency Credit Line' : 'Direct Meta Billing'}" requires your domain to have its own dedicated Meta Business App configured. Without this, all messages are charged to the Super Admin's Meta account. Please contact the Super Admin to configure a dedicated Meta App for your domain.`
+                    });
+                }
+
+                // Layer 3: Check WABA Currency against Super Admin's allowed currencies ──
+                const allowedCurrencies = domainSettings?.allowed_credit_currencies || ['INR'];
+                const { data: wabaConfig } = await supabaseAdmin
+                    .from('whatsapp_config')
+                    .select('currency')
+                    .eq('user_id', uid)
+                    .limit(1)
+                    .maybeSingle();
+                    
+                const wabaCurrency = wabaConfig?.currency || 'INR';
+                if (!allowedCurrencies.includes(wabaCurrency)) {
+                    console.warn(`[WalletAdmin] 🚨 BLOCKED billing_mode escalation: Tenant ${adminUserId} tried to assign ${billing_mode} to user ${uid} with restricted currency ${wabaCurrency}`);
+                    return res.status(403).json({
+                        error: `Forbidden: This user has a ${wabaCurrency} WABA. Super Admin only allows Wallet access for ${allowedCurrencies.join(', ')} WABAs. This user must use DIRECT_META billing mode.`
                     });
                 }
 
@@ -811,7 +828,7 @@ router.post('/rates', async (req, res) => {
             }
 
             return {
-                scope: scope || 'USER', // Allow frontend to specify TENANT or USER
+                scope: r.scope || scope || 'WORKSPACE', // Use rate-specific scope, fallback to body scope, then 'WORKSPACE'
                 user_id: userId,
                 category: r.category,
                 country_code: countryCode,

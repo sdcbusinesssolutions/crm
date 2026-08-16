@@ -184,14 +184,7 @@ const SuperDashboard: React.FC = () => {
                         <p className="text-gray-600 text-lg">Manage all tenants and monitor system-wide metrics</p>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setIsGlobalRatesModalOpen(true)}
-                            className="group relative px-6 py-3 bg-white text-brand-600 border border-slate-200 rounded-xl font-semibold shadow-sm hover:shadow-md hover:border-brand-300 transition-all duration-300 hover:scale-105 overflow-hidden"
-                        >
-                            <span className="relative z-10 flex items-center gap-2">
-                                🪙 Global Rates
-                            </span>
-                        </button>
+                        {/* Removed confusing Global Rates button to enforce Pricing & Countries standard */}
                         <button
                             onClick={() => setIsAddModalOpen(true)}
                         className="group relative px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden"

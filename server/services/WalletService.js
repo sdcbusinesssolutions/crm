@@ -88,13 +88,7 @@ class WalletService {
         }
 
         if (!selectedRate) {
-            const fallbacks = {
-                MARKETING:      { platform_rate: 0.70, meta_cost: 0.0000 },
-                UTILITY:        { platform_rate: 0.22, meta_cost: 0.0000 },
-                AUTHENTICATION: { platform_rate: 0.22, meta_cost: 0.0000 },
-                SERVICE:        { platform_rate: 0.20, meta_cost: 0.0000 }
-            };
-            selectedRate = fallbacks[category] || fallbacks.SERVICE;
+            throw new Error(`Sending to country code ${countryCode} is not allowed by the platform. Please contact support.`);
         }
 
         rateCache.set(cacheKey, { rate: selectedRate, expiresAt: Date.now() + CACHE_TTL_MS });

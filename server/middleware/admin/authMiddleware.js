@@ -12,3 +12,13 @@ exports.verifyAdminToken = (req, res, next) => {
         res.status(401).json({ message: 'Invalid token' });
     }
 };
+
+exports.verifySuperAdmin = (req, res, next) => {
+    exports.verifyAdminToken(req, res, () => {
+        if (req.admin && (req.admin.role === 'SUPER_ADMIN' || req.admin.role === 'super_admin')) {
+            next();
+        } else {
+            res.status(403).json({ message: 'Forbidden: Super Admin access required' });
+        }
+    });
+};

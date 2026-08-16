@@ -868,6 +868,20 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
             console.warn('[Embedded Signup] Token extension failed (non-fatal):', extendErr.message);
         }
 
+        // 7.6 Fetch WABA Currency (Crucial for Security/Fraud Prevention)
+        let wabaCurrency = 'INR'; // Fallback
+        try {
+            const currencyRes = await axios.get(`https://graph.facebook.com/v20.0/${waba_id}?fields=currency`, {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (currencyRes.data && currencyRes.data.currency) {
+                wabaCurrency = currencyRes.data.currency;
+                console.log(`[Embedded Signup] Fetched WABA currency for ${waba_id}: ${wabaCurrency}`);
+            }
+        } catch (currencyErr) {
+            console.warn('[Embedded Signup] Could not fetch WABA currency (non-fatal):', currencyErr.message);
+        }
+
         const { data, error } = await supabase
             .from('whatsapp_config')
             .insert({
@@ -878,7 +892,8 @@ router.post('/whatsapp/embedded-signup', async (req, res) => {
                 whatsapp_business_account_id: waba_id,
                 meta_app_id: sysSettings.embedded_app_id,
                 meta_access_token: longLivedToken,
-                verify_token: verifyToken
+                verify_token: verifyToken,
+                currency: wabaCurrency
             })
             .select()
             .single();
