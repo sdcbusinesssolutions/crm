@@ -44,6 +44,25 @@ module.exports = {
             if (Array.isArray(templateData.components) && templateData.components.length > 0) {
                 templateComponents = templateData.components;
             }
+
+            // Check template_components_cache if still empty
+            if (templateComponents.length === 0 && templateData.name && templateData.user_id) {
+                try {
+                    const { data: cachedComp } = await rpcClient
+                        .from('template_components_cache')
+                        .select('components')
+                        .eq('user_id', templateData.user_id)
+                        .eq('template_name', templateData.name)
+                        .single();
+
+                    if (cachedComp && Array.isArray(cachedComp.components) && cachedComp.components.length > 0) {
+                        templateComponents = cachedComp.components;
+                        console.log(`[TemplateMessage] Retrieved components from template_components_cache for ${templateData.name}`);
+                    }
+                } catch (cacheErr) {
+                    // Ignore cache errors
+                }
+            }
         }
 
         // 3. Last Resort Fallback: Build from flat columns (legacy/flat schema)
