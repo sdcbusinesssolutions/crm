@@ -46,30 +46,28 @@ class AssignLeadExecutor {
             }
             
             if (existingStaffId) {
-                // If the lead's current agent is in our selected pool, KEEP THEM!
-                if (staffIds.includes(existingStaffId)) {
-                    let existingStaffName = 'Agent';
-                    const { data: staffData } = await supabaseAdmin.from('team_staff').select('name').eq('id', existingStaffId).single();
-                    if (staffData) {
-                        existingStaffName = staffData.name;
-                    }
-
-                    console.log(`[AssignLead] Lead ${contactPhone} already assigned to ${existingStaffId} (${existingStaffName}). Keeping assignment.`);
-                    logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Kept existing assignment for phone ${contactPhone} to staff ${existingStaffId} (${existingStaffName})` });
-
-                    // Ensure conversation routes to them, but don't touch lead updated_at so Round Robin isn't affected
-                    await supabaseAdmin
-                        .from('conversations')
-                        .update({ assigned_to: existingStaffId })
-                        .eq('user_id', userId)
-                        .eq('contact_phone', contactPhone);
-
-                    return {
-                        status: 'success',
-                        assignedStaffId: existingStaffId,
-                        assignedStaffName: existingStaffName
-                    };
+                // If the lead is already assigned to ANY agent, KEEP THEM!
+                let existingStaffName = 'Agent';
+                const { data: staffData } = await supabaseAdmin.from('team_staff').select('name').eq('id', existingStaffId).single();
+                if (staffData) {
+                    existingStaffName = staffData.name;
                 }
+
+                console.log(`[AssignLead] Lead ${contactPhone} already assigned to ${existingStaffId} (${existingStaffName}). Keeping assignment.`);
+                logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Kept existing assignment for phone ${contactPhone} to staff ${existingStaffId} (${existingStaffName})` });
+
+                // Ensure conversation routes to them, but don't touch lead updated_at so Round Robin isn't affected
+                await supabaseAdmin
+                    .from('conversations')
+                    .update({ assigned_to: existingStaffId })
+                    .eq('user_id', userId)
+                    .eq('contact_phone', contactPhone);
+
+                return {
+                    status: 'success',
+                    assignedStaffId: existingStaffId,
+                    assignedStaffName: existingStaffName
+                };
             }
 
             if (assignmentMethod === 'specific_user') {

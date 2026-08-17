@@ -524,6 +524,9 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
                 .update({ assigned_to: existingAssignee })
                 .eq('id', conversationId);
             console.log(`[Global Auto-Assign] Lead already assigned. Synced conversation to ${existingAssignee}`);
+            
+            const realtimeSync = require('../services/realtimeSync');
+            realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
             return;
         }
 
@@ -562,6 +565,9 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
         await supabaseAdmin.from('conversations')
             .update({ assigned_to: assignedStaffId })
             .eq('id', conversationId);
+            
+        const realtimeSync = require('../services/realtimeSync');
+        realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
 
         // Update or Create Lead
         if (leadData) {
