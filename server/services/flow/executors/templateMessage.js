@@ -52,7 +52,20 @@ module.exports = {
 
             // HEADER
             // Handle both header_type (old) and header_format (new) column names
-            let hFormat = templateData.header_format || templateData.header_type;
+            let hFormat = templateData.header_format || templateData.header_type || nodeData.mediaType;
+            
+            if (!hFormat && nodeData.mediaUrl) {
+                // Infer format from URL extension if missing
+                const urlLower = nodeData.mediaUrl.toLowerCase();
+                if (urlLower.match(/\.(mp4|avi|mov|mkv|webm)(\?.*)?$/)) {
+                    hFormat = 'VIDEO';
+                } else if (urlLower.match(/\.(pdf|doc|docx|txt|xls|xlsx|csv)(\?.*)?$/)) {
+                    hFormat = 'DOCUMENT';
+                } else {
+                    hFormat = 'IMAGE'; // Default fallback for images like jpg, png
+                }
+            }
+
             if (hFormat) hFormat = hFormat.toUpperCase();
 
             if (hFormat && hFormat !== 'NONE' && hFormat !== 'TEXT') {
