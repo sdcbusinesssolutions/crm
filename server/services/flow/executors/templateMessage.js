@@ -71,11 +71,11 @@ module.exports = {
 
             // HEADER
             // Handle both header_type (old) and header_format (new) column names
-            let hFormat = templateData.header_format || templateData.header_type || nodeData.mediaType;
+            let hFormat = templateData.header_format || templateData.header_type || node.data.mediaType;
             
-            if (!hFormat && nodeData.mediaUrl) {
+            if (!hFormat && mediaUrl) {
                 // Infer format from URL extension if missing
-                const urlLower = nodeData.mediaUrl.toLowerCase();
+                const urlLower = mediaUrl.toLowerCase();
                 if (urlLower.match(/\.(mp4|avi|mov|mkv|webm)(\?.*)?$/)) {
                     hFormat = 'VIDEO';
                 } else if (urlLower.match(/\.(pdf|doc|docx|txt|xls|xlsx|csv)(\?.*)?$/)) {
