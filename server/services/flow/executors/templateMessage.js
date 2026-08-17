@@ -52,7 +52,9 @@ module.exports = {
 
             // HEADER
             // Handle both header_type (old) and header_format (new) column names
-            const hFormat = templateData.header_format || templateData.header_type;
+            let hFormat = templateData.header_format || templateData.header_type;
+            if (hFormat) hFormat = hFormat.toUpperCase();
+
             if (hFormat && hFormat !== 'NONE' && hFormat !== 'TEXT') {
                 templateComponents.push({
                     type: 'HEADER',
@@ -87,10 +89,11 @@ module.exports = {
         const components = [];
 
         // --- HEADER ---
-        const headerComp = templateComponents.find(c => c.type === 'HEADER');
+        const headerComp = templateComponents.find(c => c.type === 'HEADER' || c.type === 'header');
         if (headerComp) {
-            if (headerComp.format === 'IMAGE' || headerComp.format === 'VIDEO' || headerComp.format === 'DOCUMENT') {
-                const mediaType = headerComp.format.toLowerCase();
+            const hFormat = headerComp.format ? headerComp.format.toUpperCase() : '';
+            if (hFormat === 'IMAGE' || hFormat === 'VIDEO' || hFormat === 'DOCUMENT') {
+                const mediaType = hFormat.toLowerCase();
                 const param = { type: mediaType };
                 if (mediaUrl) {
                     param[mediaType] = { link: mediaUrl };
@@ -99,7 +102,7 @@ module.exports = {
                     type: 'header',
                     parameters: [param]
                 });
-            } else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.match(/{{/)) {
+            } else if (hFormat === 'TEXT' && headerComp.text && headerComp.text.match(/{{/)) {
                 // Text Header with Variables
                 const hText = headerComp.text;
                 const hParams = [];
@@ -260,18 +263,21 @@ module.exports = {
         if (carouselComp && carouselComp.cards) {
             const cards = carouselComp.cards.map((card, index) => {
                 const cardComponents = [];
-                const cardHeader = card.components.find(c => c.type === 'HEADER');
-                if (cardHeader && (cardHeader.format === 'IMAGE' || cardHeader.format === 'VIDEO')) {
-                    const mediaType = cardHeader.format.toLowerCase();
-                    const url = carouselMediaUrls && carouselMediaUrls[index];
-                    if (url) {
-                        cardComponents.push({
-                            type: 'header',
-                            parameters: [{
-                                type: mediaType,
-                                [mediaType]: { link: url }
-                            }]
-                        });
+                const cardHeader = card.components.find(c => c.type === 'HEADER' || c.type === 'header');
+                if (cardHeader) {
+                    const cHFormat = cardHeader.format ? cardHeader.format.toUpperCase() : '';
+                    if (cHFormat === 'IMAGE' || cHFormat === 'VIDEO') {
+                        const mediaType = cHFormat.toLowerCase();
+                        const url = carouselMediaUrls && carouselMediaUrls[index];
+                        if (url) {
+                            cardComponents.push({
+                                type: 'header',
+                                parameters: [{
+                                    type: mediaType,
+                                    [mediaType]: { link: url }
+                                }]
+                            });
+                        }
                     }
                 }
                 return {
