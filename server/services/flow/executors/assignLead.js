@@ -1,5 +1,6 @@
 const { supabaseAdmin } = require('../../../lib/supabaseClient');
 const logger = require('../../../utils/logger');
+const realtimeSync = require('../../realtimeSync');
 
 class AssignLeadExecutor {
     async execute(session, node, context) {
@@ -57,11 +58,17 @@ class AssignLeadExecutor {
                 logger.logStaffAssignment('flow_assignment', { message: `Flow: ${context?.flowId || 'Unknown'} - Kept existing assignment for phone ${contactPhone} to staff ${existingStaffId} (${existingStaffName})` });
 
                 // Ensure conversation routes to them, but don't touch lead updated_at so Round Robin isn't affected
-                await supabaseAdmin
+                const { data: updatedConv } = await supabaseAdmin
                     .from('conversations')
                     .update({ assigned_to: existingStaffId })
                     .eq('user_id', userId)
-                    .eq('contact_phone', contactPhone);
+                    .eq('contact_phone', contactPhone)
+                    .select()
+                    .single();
+
+                if (updatedConv) {
+                    realtimeSync.emitConversation(userId, updatedConv, 'UPDATE');
+                }
 
                 return {
                     status: 'success',
@@ -190,16 +197,21 @@ class AssignLeadExecutor {
                 }
                 
                 // 2. Update the conversation assigned_to field so it routes in the inbox
-                const { error: convError } = await supabaseAdmin
+                const { data: updatedConv, error: convError } = await supabaseAdmin
                     .from('conversations')
                     .update({ assigned_to: assignedStaffId })
                     .eq('user_id', userId)
-                    .eq('contact_phone', contactPhone);
+                    .eq('contact_phone', contactPhone)
+                    .select()
+                    .single();
                     
                 if (convError) {
                     console.error(`[AssignLead] Error updating conversation assigned_to:`, convError);
                 } else {
                     console.log(`[AssignLead] Updated conversation assigned_to with ${assignedStaffId}`);
+                    if (updatedConv) {
+                        realtimeSync.emitConversation(userId, updatedConv, 'UPDATE');
+                    }
                 }
             }
 
