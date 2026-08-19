@@ -91,7 +91,7 @@ const FormPublicView: React.FC<FormPublicViewProps> = ({ token }) => {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
             <div
-                className="w-full max-w-md rounded-xl shadow-lg overflow-hidden"
+                className="w-full max-w-md rounded-xl shadow-lg"
                 style={{
                     backgroundColor: isTransparent ? 'transparent' : (style.backgroundColor || '#ffffff'),
                     color: style.inputStyle?.color || '#000000'
@@ -121,7 +121,7 @@ const FormPublicView: React.FC<FormPublicViewProps> = ({ token }) => {
                                         required={field.required}
                                         value={formData[field.name || field.label] || ''}
                                         onChange={(val) => handleInputChange(field.name || field.label, val)}
-                                        className="bg-white/80"
+                                        className="w-full bg-white/80"
                                     />
                                 ) : (
                                     <input
