@@ -396,20 +396,27 @@ router.post('/submit', async (req, res) => {
 
             // 5. Handle Pipeline Lead
             if (form.pipeline_id) {
-                // Check if lead already exists in this pipeline (by email or phone)
-                let leadQuery = supabase
-                    .from('leads')
-                    .select('id')
-                    .eq('pipeline_id', form.pipeline_id);
+                let existingLeads = null;
 
-                // Prefer checking by email, then phone
-                if (contactInfo.email) {
-                    leadQuery = leadQuery.eq('email', contactInfo.email);
-                } else if (contactInfo.phone) {
-                    leadQuery = leadQuery.eq('phone', contactInfo.phone);
+                // 1. Try checking by phone first (primary identifier in WhatsApp CRM)
+                if (contactInfo.phone) {
+                    const { data } = await supabase
+                        .from('leads')
+                        .select('id')
+                        .eq('pipeline_id', form.pipeline_id)
+                        .eq('phone', contactInfo.phone);
+                    if (data && data.length > 0) existingLeads = data;
                 }
 
-                const { data: existingLeads } = await leadQuery;
+                // 2. If not found by phone, try checking by email
+                if ((!existingLeads || existingLeads.length === 0) && contactInfo.email) {
+                    const { data } = await supabase
+                        .from('leads')
+                        .select('id')
+                        .eq('pipeline_id', form.pipeline_id)
+                        .eq('email', contactInfo.email);
+                    if (data && data.length > 0) existingLeads = data;
+                }
 
                 if (!existingLeads || existingLeads.length === 0) {
                     const { error: leadError } = await supabase
@@ -429,9 +436,17 @@ router.post('/submit', async (req, res) => {
                         }]);
                     if (leadError) console.error('Failed to create lead:', leadError);
                 } else {
-                    // Optional: Update existing lead source or status?
-                    // For now, just log that it exists
-                    // console.log('Lead already exists for this contact in pipeline');
+                    // Update existing lead to the new stage
+                    const existingLeadId = existingLeads[0].id;
+                    const { error: updateError } = await supabase
+                        .from('leads')
+                        .update({
+                            stage_id: form.stage_id,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', existingLeadId);
+                        
+                    if (updateError) console.error('Failed to update existing lead:', updateError);
                 }
             }
 
