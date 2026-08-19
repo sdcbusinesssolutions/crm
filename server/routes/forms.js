@@ -436,14 +436,20 @@ router.post('/submit', async (req, res) => {
                         }]);
                     if (leadError) console.error('Failed to create lead:', leadError);
                 } else {
-                    // Update existing lead to the new stage
+                    // Update existing lead to the new stage and update details
                     const existingLeadId = existingLeads[0].id;
+                    const updates = {
+                        stage_id: form.stage_id,
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    if (contactInfo.name && contactInfo.name !== 'Unknown') updates.name = contactInfo.name;
+                    if (contactInfo.email) updates.email = contactInfo.email;
+                    if (contactInfo.company) updates.company = contactInfo.company;
+                    
                     const { error: updateError } = await supabase
                         .from('leads')
-                        .update({
-                            stage_id: form.stage_id,
-                            updated_at: new Date().toISOString()
-                        })
+                        .update(updates)
                         .eq('id', existingLeadId);
                         
                     if (updateError) console.error('Failed to update existing lead:', updateError);
