@@ -520,4 +520,35 @@ router.get('/:id/submissions', requireAuth, requirePermission('Form Builder', 'r
     }
 });
 
+// DELETE /api/forms/:formId/submissions/:id (authenticated - delete form submission)
+router.delete('/:formId/submissions/:id', requireAuth, requirePermission('Form Builder', 'all_access'), async (req, res) => {
+    try {
+        // Verify form ownership first
+        const { data: form, error: formError } = await supabaseAdmin
+            .from('forms')
+            .select('id')
+            .eq('id', req.params.formId)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (formError || !form) {
+            return res.status(404).json({ error: 'Form not found or unauthorized' });
+        }
+
+        const { error } = await supabaseAdmin
+            .from('form_submissions')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('form_id', req.params.formId);
+
+        if (error) throw error;
+        
+        logFormBuilderEvent('DELETE_FORM_SUBMISSION', { formId: req.params.formId, submissionId: req.params.id });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error deleting submission:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
