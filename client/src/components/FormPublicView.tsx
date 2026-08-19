@@ -54,7 +54,11 @@ const FormPublicView: React.FC<FormPublicViewProps> = ({ token }) => {
                 if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
                     redirectUrl = 'https://' + redirectUrl;
                 }
-                window.location.href = redirectUrl;
+                if (window.top) {
+                    window.top.location.href = redirectUrl;
+                } else {
+                    window.location.href = redirectUrl;
+                }
             }
         } catch (err: any) {
             alert(err.message || 'Failed to submit form');
