@@ -161,8 +161,9 @@ class FlowEngine {
                         .from('flow_sessions')
                         .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'delayed')
+                        .or(`variables->>global_resume_at.lte.${nowIso},variables->global_resume_at.is.null`)
                         .order('last_interaction_at', { ascending: true })
-                        .limit(20); // Smaller batches for faster cluster distribution
+                        .limit(50); // Increased batch size
 
                     if (!error && delayedSessions && delayedSessions.length > 0) {
                         for (const session of delayedSessions) {
@@ -1259,7 +1260,8 @@ class FlowEngine {
                 // Update session variables first to store payload/resumeAt
                 const newContext = {
                     ...session.variables,
-                    [node.id]: { ...(session.variables[node.id] || {}), ...output }
+                    [node.id]: { ...(session.variables[node.id] || {}), ...output },
+                    global_resume_at: output.resumeAt
                 };
 
                 await rpcClient.from('flow_sessions')
