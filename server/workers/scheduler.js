@@ -16,14 +16,21 @@ class Scheduler {
     start() {
         if (this.isRunning) return;
         this.isRunning = true;
-        console.log('⏰ Scheduler Started (Task Reminders)');
-        // Update flow triggers every 5 minutes
-        this.updateTaskTriggers();
-        this.triggerUpdateInterval = setInterval(() => this.updateTaskTriggers(), 5 * 60000);
+        
+        // Add random jitter (0-15s) so the 6 containers don't hit the DB at the exact same millisecond
+        const jitter = Math.floor(Math.random() * 15000);
+        
+        setTimeout(() => {
+            console.log(`⏰ Scheduler Started (Task Reminders) [High-Throughput Mode] - Jitter: ${jitter}ms`);
+            
+            // Update flow triggers every 5 minutes
+            this.updateTaskTriggers();
+            this.triggerUpdateInterval = setInterval(() => this.updateTaskTriggers(), 5 * 60000);
 
-        // Run every 15 seconds for more responsive timeouts
-        this.interval = setInterval(() => this.checkAllReminders(), 15000);
-        this.checkAllReminders(); // Run immediately on start
+            // Run every 15 seconds for more responsive timeouts
+            this.interval = setInterval(() => this.checkAllReminders(), 15000);
+            this.checkAllReminders(); // Run immediately on start
+        }, jitter);
     }
 
     async updateTaskTriggers() {
@@ -53,7 +60,6 @@ class Scheduler {
 
             this.upcomingOffsets = Array.from(upcoming);
             this.overdueOffsets = Array.from(overdue);
-            // console.log(`[Scheduler] Updated active task triggers: Upcoming [${this.upcomingOffsets.join(',')}], Overdue [${this.overdueOffsets.join(',')}]`);
         } catch (e) {
             console.error('❌ [Scheduler] Error updating task triggers:', e.message);
         }
@@ -66,7 +72,6 @@ class Scheduler {
         await this.checkDueTasks(now);
 
         // 2. Check Upcoming Tasks (Dynamic Scan)
-        // We look ahead up to 7 days (10080 mins) to catch any upcoming triggers
         await this.checkDynamicUpcoming(now);
 
         // 3. Check Overdue Tasks (Dynamic Scan)
@@ -78,12 +83,11 @@ class Scheduler {
 
     async checkPreAlarms(now) {
         try {
-            // Target window: from 5 minutes in the past up to exactly 5 minutes in the future
-            // Looking in the past ensures if they schedule an alarm for exactly "right now", we don't miss it if a few seconds elapsed.
-            const startMs = now.getTime() - (5 * 60000);
-            const start = new Date(startMs).toISOString();
-            const endMs = now.getTime() + (5 * 60000);
-            const end = new Date(endMs).toISOString();
+            // Target window: Exactly 5 minutes in the future (with a small 5-min backward buffer for late-created tasks)
+            // We DO NOT use 24 hours here, otherwise old missed tasks will spam a "Due in 5 mins" popup.
+            const targetMs = now.getTime() + (5 * 60000);
+            const start = new Date(targetMs - (5 * 60000)).toISOString(); // From exactly now
+            const end = new Date(targetMs + 60000).toISOString();         // Up to 6 mins future
 
             const { data: tasks, error } = await this.supabase
                 .from('tasks')
@@ -92,26 +96,26 @@ class Scheduler {
                 .gte('due_date', start)
                 .lte('due_date', end)
                 .is('metadata->>pre_alarm_5m_sent', null)
-                .limit(500);
+                .limit(1000); // 🚀 SCALED
 
             if (tasks && tasks.length > 0) {
-                for (const task of tasks) {
-                    // Check if the user is actually connected right now!
+                const processPreAlarm = async (task) => {
                     const isConnected = await realtimeSync.isUserConnected(task.user_id);
                     
-                    if (isConnected) {
-                        const meta = task.metadata || {};
-                        const newMeta = { ...meta, pre_alarm_5m_sent: true };
+                    const meta = task.metadata || {};
+                    // Even if they are offline, we MUST mark them as processed to prevent queue starvation!
+                    const newMeta = { ...meta, pre_alarm_5m_sent: true };
 
-                        // Claim the task to avoid race conditions
-                        const { data: claimed, error: claimError } = await this.supabase
-                            .from('tasks')
-                            .update({ metadata: newMeta })
-                            .eq('id', task.id)
-                            .is('metadata->>pre_alarm_5m_sent', null)
-                            .select();
+                    // Claim the task to avoid race conditions
+                    const { data: claimed, error: claimError } = await this.supabase
+                        .from('tasks')
+                        .update({ metadata: newMeta })
+                        .eq('id', task.id)
+                        .is('metadata->>pre_alarm_5m_sent', null)
+                        .select();
 
-                        if (!claimError && claimed && claimed.length > 0) {
+                    if (!claimError && claimed && claimed.length > 0) {
+                        if (isConnected) {
                             console.log(`[Scheduler] Emitting Socket.IO Pre-Alarm (5m) for Task ${task.id}`);
                             realtimeSync.emitTaskAlarm(task.user_id, {
                                 taskId: task.id,
@@ -121,12 +125,16 @@ class Scheduler {
                                 name: task.leads ? task.leads.name : 'Unknown',
                                 eventType: 'task_upcoming_5m'
                             });
+                        } else {
+                            console.log(`[Scheduler] Processed Pre-Alarm for Task ${task.id} (User offline, skipping live popup)`);
                         }
-                    } else {
-                        // User is not connected! Do NOT update the DB. 
-                        // The scheduler will retry this on the next tick (every ~30s) as long as it's within the 5m window.
-                        console.log(`[Scheduler] Skipping Pre-Alarm for Task ${task.id}, user ${task.user_id} is offline.`);
                     }
+                };
+
+                // 🚀 SCALED: Concurrent chunk execution
+                for (let i = 0; i < tasks.length; i += 50) {
+                    const chunk = tasks.slice(i, i + 50);
+                    await Promise.all(chunk.map(processPreAlarm));
                 }
             }
         } catch (e) {
@@ -136,22 +144,21 @@ class Scheduler {
 
     async checkDueTasks(now) {
         try {
-            // Window: -1 min to +1 min
-            const start = new Date(now.getTime() - 60000).toISOString();
+            // Window: -1 hour to +1 min (A reasonable backlog window for due tasks if server restarts)
+            const start = new Date(now.getTime() - (60 * 60000)).toISOString();
             const end = new Date(now.getTime() + 60000).toISOString();
 
-            // 1. Fetch potential tasks
             const { data: tasks, error } = await this.supabase
                 .from('tasks')
                 .select('id, user_id, lead_id, title, description, due_date')
                 .eq('is_completed', false)
                 .gte('due_date', start)
                 .lte('due_date', end)
-                .is('reminder_sent', false);
+                .is('reminder_sent', false)
+                .limit(1000); // 🚀 SCALED
 
             if (tasks && tasks.length > 0) {
-                for (const task of tasks) {
-                    // ATOMIC CLAIM: Try to mark as sent. Only proceed if we were the one who updated it.
+                const processDue = async (task) => {
                     const { data: claimed, error: claimError } = await this.supabase
                         .from('tasks')
                         .update({ reminder_sent: true })
@@ -163,6 +170,11 @@ class Scheduler {
                         console.log(`[Scheduler] Claimed Due Task ${task.id}`);
                         await this.processTask(task, 'task_due', {});
                     }
+                };
+
+                for (let i = 0; i < tasks.length; i += 50) {
+                    const chunk = tasks.slice(i, i + 50);
+                    await Promise.all(chunk.map(processDue));
                 }
             }
         } catch (e) {
@@ -177,8 +189,10 @@ class Scheduler {
             for (const offset of this.upcomingOffsets) {
                 // Target due date is exactly `now + offset` minutes
                 const targetMs = now.getTime() + offset * 60000;
-                // 2 min window to ensure we catch it within the 15s interval
-                const start = new Date(targetMs - 60000).toISOString();
+                
+                // Tight window: We only send "60 mins upcoming" if it's ACTUALLY between 50-60 mins away.
+                // Sending it 10 mins away makes no sense.
+                const start = new Date(targetMs - (10 * 60000)).toISOString();
                 const end = new Date(targetMs + 60000).toISOString();
 
                 const { data: tasks, error } = await this.supabase
@@ -187,18 +201,17 @@ class Scheduler {
                     .eq('is_completed', false)
                     .gte('due_date', start)
                     .lte('due_date', end)
-                    .limit(500);
+                    .limit(1000);
 
                 if (error) continue;
                 if (!tasks || tasks.length === 0) continue;
 
-                for (const task of tasks) {
+                const processUpcoming = async (task) => {
                     const key = `upcoming_${offset}_sent`;
                     const meta = task.metadata || {};
 
-                    if (meta[key]) continue; // Already sent for this offset
+                    if (meta[key]) return; // Already sent for this offset
 
-                    // ATOMIC CLAIM: Update metadata
                     const newMeta = { ...meta, [key]: true };
                     const { data: claimed, error: claimError } = await this.supabase
                         .from('tasks')
@@ -209,9 +222,13 @@ class Scheduler {
 
                     if (!claimError && claimed && claimed.length > 0) {
                         console.log(`[Scheduler] Claimed Upcoming(${offset}m) Task ${task.id}`);
-                        // Trigger Flow
                         await this.processTask(task, 'task_upcoming', { timeOffset: offset });
                     }
+                };
+
+                for (let i = 0; i < tasks.length; i += 50) {
+                    const chunk = tasks.slice(i, i + 50);
+                    await Promise.all(chunk.map(processUpcoming));
                 }
             }
         } catch (e) {
@@ -226,8 +243,9 @@ class Scheduler {
             for (const offset of this.overdueOffsets) {
                 // Target due date is exactly `now - offset` minutes
                 const targetMs = now.getTime() - offset * 60000;
-                // 2 min window
-                const start = new Date(targetMs - 60000).toISOString();
+                
+                // Generous window for overdue tasks (up to 24 hours late)
+                const start = new Date(targetMs - (24 * 60 * 60000)).toISOString();
                 const end = new Date(targetMs + 60000).toISOString();
 
                 const { data: tasks, error } = await this.supabase
@@ -236,18 +254,17 @@ class Scheduler {
                     .eq('is_completed', false)
                     .gte('due_date', start)
                     .lte('due_date', end)
-                    .limit(500);
+                    .limit(1000);
 
                 if (error) continue;
                 if (!tasks || tasks.length === 0) continue;
 
-                for (const task of tasks) {
+                const processOverdue = async (task) => {
                     const key = `overdue_${offset}_sent`;
                     const meta = task.metadata || {};
 
-                    if (meta[key]) continue;
+                    if (meta[key]) return;
 
-                    // ATOMIC CLAIM
                     const newMeta = { ...meta, [key]: true };
                     const { data: claimed, error: claimError } = await this.supabase
                         .from('tasks')
@@ -260,6 +277,11 @@ class Scheduler {
                         console.log(`[Scheduler] Claimed Overdue(${offset}m) Task ${task.id}`);
                         await this.processTask(task, 'task_overdue', { timeOffset: offset });
                     }
+                };
+
+                for (let i = 0; i < tasks.length; i += 50) {
+                    const chunk = tasks.slice(i, i + 50);
+                    await Promise.all(chunk.map(processOverdue));
                 }
             }
         } catch (e) {
