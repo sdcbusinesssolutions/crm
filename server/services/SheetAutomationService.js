@@ -250,15 +250,19 @@ class SheetAutomationService {
 
         if (error || !automations) return;
 
-        for (const auto of automations) {
-            try {
-                if (this.shouldRun(auto)) {
-                    console.log(`[SheetAutomation] Running Job: ${auto.name} (${auto.id})`);
-                    await this.executeJob(auto);
+        const chunkSize = 20; // Google API limits: process in chunks of 20
+        for (let i = 0; i < automations.length; i += chunkSize) {
+            const chunk = automations.slice(i, i + chunkSize);
+            await Promise.all(chunk.map(async (auto) => {
+                try {
+                    if (this.shouldRun(auto)) {
+                        console.log(`[SheetAutomation] Running Job: ${auto.name} (${auto.id})`);
+                        await this.executeJob(auto);
+                    }
+                } catch (err) {
+                    console.error(`[SheetAutomation] Error processing job ${auto.id}:`, err);
                 }
-            } catch (err) {
-                console.error(`[SheetAutomation] Error processing job ${auto.id}:`, err);
-            }
+            }));
         }
     }
 

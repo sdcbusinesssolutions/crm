@@ -221,12 +221,16 @@ async function processDrips() {
 
         if (error) throw error;
 
-        for (const enrollment of enrollments) {
-            try {
-                await processSingleEnrollment(enrollment, now);
-            } catch (err) {
-                console.error(`[DripEngine] Critical failure in enrollment ${enrollment.id}:`, err);
-            }
+        const chunkSize = 50; // Process 50 enrollments concurrently
+        for (let i = 0; i < enrollments.length; i += chunkSize) {
+            const chunk = enrollments.slice(i, i + chunkSize);
+            await Promise.all(chunk.map(async (enrollment) => {
+                try {
+                    await processSingleEnrollment(enrollment, now);
+                } catch (err) {
+                    console.error(`[DripEngine] Critical failure in enrollment ${enrollment.id}:`, err);
+                }
+            }));
         }
         return enrollments.length;
     } catch (error) {
@@ -615,6 +619,12 @@ function calculateDelay(startDate, value, unit) {
 
 async function start() {
     console.log(`[DripEngine] Starting worker (Batch Size: ${BATCH_SIZE})...`);
+    
+    // --- DISTRIBUTED LOAD JITTER ---
+    // Prevent all 6 containers from locking the DB simultaneously on startup
+    const jitterMs = Math.floor(Math.random() * 15000); 
+    console.log(`[DripEngine] Applying random startup jitter of ${jitterMs}ms...`);
+    await new Promise(resolve => setTimeout(resolve, jitterMs));
     
     while (true) {
         try {

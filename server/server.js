@@ -440,11 +440,20 @@ if (require.main === module) {
       console.warn('⚠️ Campaign Worker not started: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    // Start Sheet Automation Scheduler
+    // Start Sheet Automation Scheduler with Jitter
     const SheetAutomationService = require('./services/SheetAutomationService');
-    setInterval(() => {
-      SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
-    }, 60000); // Check every minute
+    const sheetJitterMs = Math.floor(Math.random() * 15000); // 0-15s Jitter
+    console.log(`[SheetScheduler] Applying random startup jitter of ${sheetJitterMs}ms...`);
+    
+    setTimeout(() => {
+        // Initial run
+        SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
+        
+        // Then start interval
+        setInterval(() => {
+            SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
+        }, 60000); // Check every minute
+    }, sheetJitterMs);
 
     // Log Automation Status
     const clientUrl = process.env.CLIENT_URL;
