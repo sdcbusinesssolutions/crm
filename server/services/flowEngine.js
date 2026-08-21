@@ -200,7 +200,20 @@ class FlowEngine {
                                             console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Delay Session ${session.id}.`);
                                             await this.executeNextStep(claimed[0], await this.getCachedFlow(claimed[0].flow_id), claimed[0].current_node_id);
                                         }
+                                    } else if (!isNaN(resumeTime.getTime()) && resumeTime > now) {
+                                        // STARVATION FIX: Timer is in the future. Sync global_resume_at to stop it from clogging the queue now.
+                                        const newVars = { ...variables, global_resume_at: resumeTime.toISOString() };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
+                                    } else {
+                                        // STARVATION FIX: Corrupted date
+                                        const newVars = { ...variables, global_resume_at: null };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                     }
+                                } else {
+                                    // STARVATION FIX: Missing timer. Eject from queue.
+                                    console.warn(`[FlowEngine] Ejecting corrupted Delay Session ${session.id} (Missing resumeAt)`);
+                                    const newVars = { ...variables, global_resume_at: null };
+                                    await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                 }
                             } catch (e) {
                                 console.error(`[FlowEngine Scheduler] Delay execution error for ${session.id}:`, e);
@@ -261,7 +274,20 @@ class FlowEngine {
                                             console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Unresponsive Session ${session.id} (Node: ${currentNodeId})`);
                                             await this.handleSessionTimeout(session.id, 'unresponsive', updatedVariables, claimed[0]);
                                         }
+                                    } else if (!isNaN(timeoutTime.getTime()) && timeoutTime > now) {
+                                        // STARVATION FIX: Timer is in the future. Sync global_timeout_at.
+                                        const newVars = { ...variables, global_timeout_at: timeoutTime.toISOString() };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
+                                    } else {
+                                        // STARVATION FIX: Corrupted date
+                                        const newVars = { ...variables, global_timeout_at: null };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                     }
+                                } else {
+                                    // STARVATION FIX: Missing timer. Eject from queue.
+                                    console.warn(`[FlowEngine] Ejecting corrupted Timeout Session ${session.id} (Missing timeoutAt)`);
+                                    const newVars = { ...variables, global_timeout_at: null };
+                                    await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                 }
                             } catch (e) {
                                 console.error(`[FlowEngine Scheduler] Timeout execution error for ${session.id}:`, e);
