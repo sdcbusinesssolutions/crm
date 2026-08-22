@@ -76,9 +76,8 @@ const DripTriggerService = {
         console.log(`[DripTrigger] Checking TAG_REMOVED for ${contact.id}. Tags: ${removedTags.join(', ')}`);
 
         try {
-            // Find all ACTIVE enrollments for this contact + user
-            // Where the campaign trigger_type is 'TAG_ADDED' 
-            // AND the trigger_value is one of the removed tags
+            // Find all ACTIVE/PROCESSING/PAUSED enrollments for this contact + user
+            // Where the campaign trigger_type is 'TAG_ADDED'
             const { data: enrollments, error } = await supabaseAdmin
                 .from('drip_enrollments')
                 .select(`
@@ -86,15 +85,23 @@ const DripTriggerService = {
                     drip_campaigns!inner(id, name, trigger_type, trigger_value)
                 `)
                 .eq('contact_id', contact.id)
-                .eq('status', 'ACTIVE')
+                .in('status', ['ACTIVE', 'PAUSED', 'PROCESSING', 'WAITING'])
                 .eq('drip_campaigns.user_id', userId)
-                .eq('drip_campaigns.trigger_type', 'TAG_ADDED')
-                .in('drip_campaigns.trigger_value', removedTags);
+                .eq('drip_campaigns.trigger_type', 'TAG_ADDED');
 
             if (error) throw error;
             if (!enrollments || enrollments.length === 0) return;
 
-            const idsToCancel = enrollments.map(e => e.id);
+            // Perform case-insensitive check in memory (just like handleTagAdded)
+            const lowerRemovedTags = removedTags.map(t => t.toLowerCase().trim());
+            const enrollmentsToCancel = enrollments.filter(e => {
+                if (!e.drip_campaigns.trigger_value) return false;
+                return lowerRemovedTags.includes(e.drip_campaigns.trigger_value.toLowerCase().trim());
+            });
+
+            if (enrollmentsToCancel.length === 0) return;
+
+            const idsToCancel = enrollmentsToCancel.map(e => e.id);
             const { error: cancelError } = await supabaseAdmin
                 .from('drip_enrollments')
                 .update({ 
@@ -105,7 +112,7 @@ const DripTriggerService = {
 
             if (cancelError) throw cancelError;
 
-            enrollments.forEach(e => {
+            enrollmentsToCancel.forEach(e => {
                 console.log(`[DripTrigger] Cancelled campaign '${e.drip_campaigns.name}' for ${contact.id} (Tag Removed).`);
             });
 
@@ -147,6 +154,26 @@ const DripTriggerService = {
             if (!contactId) {
                 console.log('[DripTrigger] No linked contact found for lead. Skipping enrollment.');
                 return;
+            }
+
+            // NEW LOGIC: Auto-Cancel any OLD pipeline stage drips for this contact before enrolling in the new one
+            const { data: existingPipelineEnrollments, error: existingErr } = await supabaseAdmin
+                .from('drip_enrollments')
+                .select('id, drip_campaigns!inner(id, name, trigger_type)')
+                .eq('contact_id', contactId)
+                .in('status', ['ACTIVE', 'PAUSED', 'PROCESSING', 'WAITING'])
+                .eq('drip_campaigns.user_id', userId)
+                .eq('drip_campaigns.trigger_type', 'pipeline_STAGE_CHANGED');
+
+            if (existingErr) throw existingErr;
+            
+            if (existingPipelineEnrollments && existingPipelineEnrollments.length > 0) {
+                const idsToCancel = existingPipelineEnrollments.map(e => e.id);
+                await supabaseAdmin
+                    .from('drip_enrollments')
+                    .update({ status: 'CANCELLED', completed_at: new Date() })
+                    .in('id', idsToCancel);
+                console.log(`[DripTrigger] Auto-Cancelled ${idsToCancel.length} previous pipeline stage drips for contact ${contactId}.`);
             }
 
             // 1. Find matching campaigns

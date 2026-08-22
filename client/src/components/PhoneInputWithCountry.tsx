@@ -86,11 +86,11 @@ const PhoneInputWithCountry: React.FC<PhoneInputWithCountryProps> = ({
 
     return (
         <div className={`flex rounded-xl border border-slate-200 bg-white focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all relative ${className}`}>
-            <div className="relative border-r border-slate-200 bg-slate-50 min-w-[120px] rounded-l-xl">
+            <div className="relative border-r border-slate-200 bg-slate-50 min-w-[75px] rounded-l-xl">
                 <button
                     type="button"
                     disabled={disabled}
-                    className="w-full h-full px-3 py-3 flex items-center justify-between gap-2 text-sm font-bold text-slate-700 outline-none rounded-l-xl hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-full pl-2 pr-1 py-3 flex items-center justify-center gap-1 text-[11px] font-bold text-slate-700 outline-none rounded-l-xl hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                         setIsDropdownOpen(!isDropdownOpen);
                         setSearchTerm('');
@@ -103,7 +103,7 @@ const PhoneInputWithCountry: React.FC<PhoneInputWithCountryProps> = ({
                 {isDropdownOpen && !disabled && (
                     <>
                         <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)}></div>
-                        <div className="absolute top-full left-0 w-[300px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in mt-1 flex flex-col max-h-[300px]">
+                        <div className="absolute bottom-full left-0 w-[300px] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in mb-1 flex flex-col max-h-[300px]">
                             <div className="p-3 border-b border-slate-100 sticky top-0 bg-white z-10">
                                 <div className="relative">
                                     <SearchIcon className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />

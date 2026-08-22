@@ -44,6 +44,25 @@ module.exports = {
             if (Array.isArray(templateData.components) && templateData.components.length > 0) {
                 templateComponents = templateData.components;
             }
+
+            // Check template_components_cache if still empty
+            if (templateComponents.length === 0 && templateData.name && templateData.user_id) {
+                try {
+                    const { data: cachedComp } = await rpcClient
+                        .from('template_components_cache')
+                        .select('components')
+                        .eq('user_id', templateData.user_id)
+                        .eq('template_name', templateData.name)
+                        .single();
+
+                    if (cachedComp && Array.isArray(cachedComp.components) && cachedComp.components.length > 0) {
+                        templateComponents = cachedComp.components;
+                        console.log(`[TemplateMessage] Retrieved components from template_components_cache for ${templateData.name}`);
+                    }
+                } catch (cacheErr) {
+                    // Ignore cache errors
+                }
+            }
         }
 
         // 3. Last Resort Fallback: Build from flat columns (legacy/flat schema)
@@ -52,7 +71,22 @@ module.exports = {
 
             // HEADER
             // Handle both header_type (old) and header_format (new) column names
-            const hFormat = templateData.header_format || templateData.header_type;
+            let hFormat = templateData.header_format || templateData.header_type || node.data.mediaType;
+            
+            if (!hFormat && mediaUrl) {
+                // Infer format from URL extension if missing
+                const urlLower = mediaUrl.toLowerCase();
+                if (urlLower.match(/\.(mp4|avi|mov|mkv|webm)(\?.*)?$/)) {
+                    hFormat = 'VIDEO';
+                } else if (urlLower.match(/\.(pdf|doc|docx|txt|xls|xlsx|csv)(\?.*)?$/)) {
+                    hFormat = 'DOCUMENT';
+                } else {
+                    hFormat = 'IMAGE'; // Default fallback for images like jpg, png
+                }
+            }
+
+            if (hFormat) hFormat = hFormat.toUpperCase();
+
             if (hFormat && hFormat !== 'NONE' && hFormat !== 'TEXT') {
                 templateComponents.push({
                     type: 'HEADER',
@@ -87,10 +121,11 @@ module.exports = {
         const components = [];
 
         // --- HEADER ---
-        const headerComp = templateComponents.find(c => c.type === 'HEADER');
+        const headerComp = templateComponents.find(c => c.type === 'HEADER' || c.type === 'header');
         if (headerComp) {
-            if (headerComp.format === 'IMAGE' || headerComp.format === 'VIDEO' || headerComp.format === 'DOCUMENT') {
-                const mediaType = headerComp.format.toLowerCase();
+            const hFormat = headerComp.format ? headerComp.format.toUpperCase() : '';
+            if (hFormat === 'IMAGE' || hFormat === 'VIDEO' || hFormat === 'DOCUMENT') {
+                const mediaType = hFormat.toLowerCase();
                 const param = { type: mediaType };
                 if (mediaUrl) {
                     param[mediaType] = { link: mediaUrl };
@@ -99,7 +134,7 @@ module.exports = {
                     type: 'header',
                     parameters: [param]
                 });
-            } else if (headerComp.format === 'TEXT' && headerComp.text && headerComp.text.match(/{{/)) {
+            } else if (hFormat === 'TEXT' && headerComp.text && headerComp.text.match(/{{/)) {
                 // Text Header with Variables
                 const hText = headerComp.text;
                 const hParams = [];
@@ -260,18 +295,21 @@ module.exports = {
         if (carouselComp && carouselComp.cards) {
             const cards = carouselComp.cards.map((card, index) => {
                 const cardComponents = [];
-                const cardHeader = card.components.find(c => c.type === 'HEADER');
-                if (cardHeader && (cardHeader.format === 'IMAGE' || cardHeader.format === 'VIDEO')) {
-                    const mediaType = cardHeader.format.toLowerCase();
-                    const url = carouselMediaUrls && carouselMediaUrls[index];
-                    if (url) {
-                        cardComponents.push({
-                            type: 'header',
-                            parameters: [{
-                                type: mediaType,
-                                [mediaType]: { link: url }
-                            }]
-                        });
+                const cardHeader = card.components.find(c => c.type === 'HEADER' || c.type === 'header');
+                if (cardHeader) {
+                    const cHFormat = cardHeader.format ? cardHeader.format.toUpperCase() : '';
+                    if (cHFormat === 'IMAGE' || cHFormat === 'VIDEO') {
+                        const mediaType = cHFormat.toLowerCase();
+                        const url = carouselMediaUrls && carouselMediaUrls[index];
+                        if (url) {
+                            cardComponents.push({
+                                type: 'header',
+                                parameters: [{
+                                    type: mediaType,
+                                    [mediaType]: { link: url }
+                                }]
+                            });
+                        }
                     }
                 }
                 return {

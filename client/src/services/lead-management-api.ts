@@ -457,6 +457,21 @@ export const getFormSubmissions = async (formId: string, page = 1, limit = 20): 
     }
 };
 
+export const deleteFormSubmission = async (formId: string, submissionId: string): Promise<boolean> => {
+    try {
+        const headers = await getHeaders();
+        const res = await fetch(`/api/forms/${formId}/submissions/${submissionId}`, {
+            method: 'DELETE',
+            headers
+        });
+        if (!res.ok) throw new Error('Failed to delete form submission');
+        return true;
+    } catch (e) {
+        console.error('Failed to delete form submission', e);
+        throw e;
+    }
+};
+
 export const reorderStages = async (stages: { id: string; display_order: number }[]): Promise<void> => {
     const headers = await getHeaders();
     const res = await fetch('/api/stages/reorder', {

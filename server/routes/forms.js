@@ -396,20 +396,27 @@ router.post('/submit', async (req, res) => {
 
             // 5. Handle Pipeline Lead
             if (form.pipeline_id) {
-                // Check if lead already exists in this pipeline (by email or phone)
-                let leadQuery = supabase
-                    .from('leads')
-                    .select('id')
-                    .eq('pipeline_id', form.pipeline_id);
+                let existingLeads = null;
 
-                // Prefer checking by email, then phone
-                if (contactInfo.email) {
-                    leadQuery = leadQuery.eq('email', contactInfo.email);
-                } else if (contactInfo.phone) {
-                    leadQuery = leadQuery.eq('phone', contactInfo.phone);
+                // 1. Try checking by phone first (primary identifier in WhatsApp CRM)
+                if (contactInfo.phone) {
+                    const { data } = await supabase
+                        .from('leads')
+                        .select('id')
+                        .eq('pipeline_id', form.pipeline_id)
+                        .eq('phone', contactInfo.phone);
+                    if (data && data.length > 0) existingLeads = data;
                 }
 
-                const { data: existingLeads } = await leadQuery;
+                // 2. If not found by phone, try checking by email
+                if ((!existingLeads || existingLeads.length === 0) && contactInfo.email) {
+                    const { data } = await supabase
+                        .from('leads')
+                        .select('id')
+                        .eq('pipeline_id', form.pipeline_id)
+                        .eq('email', contactInfo.email);
+                    if (data && data.length > 0) existingLeads = data;
+                }
 
                 if (!existingLeads || existingLeads.length === 0) {
                     const { error: leadError } = await supabase
@@ -429,9 +436,23 @@ router.post('/submit', async (req, res) => {
                         }]);
                     if (leadError) console.error('Failed to create lead:', leadError);
                 } else {
-                    // Optional: Update existing lead source or status?
-                    // For now, just log that it exists
-                    // console.log('Lead already exists for this contact in pipeline');
+                    // Update existing lead to the new stage and update details
+                    const existingLeadId = existingLeads[0].id;
+                    const updates = {
+                        stage_id: form.stage_id,
+                        updated_at: new Date().toISOString()
+                    };
+                    
+                    if (contactInfo.name && contactInfo.name !== 'Unknown') updates.name = contactInfo.name;
+                    if (contactInfo.email) updates.email = contactInfo.email;
+                    if (contactInfo.company) updates.company = contactInfo.company;
+                    
+                    const { error: updateError } = await supabase
+                        .from('leads')
+                        .update(updates)
+                        .eq('id', existingLeadId);
+                        
+                    if (updateError) console.error('Failed to update existing lead:', updateError);
                 }
             }
 
@@ -516,6 +537,37 @@ router.get('/:id/submissions', requireAuth, requirePermission('Form Builder', 'r
         });
     } catch (err) {
         console.error('Error fetching submissions:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/forms/:formId/submissions/:id (authenticated - delete form submission)
+router.delete('/:formId/submissions/:id', requireAuth, requirePermission('Form Builder', 'all_access'), async (req, res) => {
+    try {
+        // Verify form ownership first
+        const { data: form, error: formError } = await supabaseAdmin
+            .from('forms')
+            .select('id')
+            .eq('id', req.params.formId)
+            .eq('user_id', req.user.id)
+            .single();
+
+        if (formError || !form) {
+            return res.status(404).json({ error: 'Form not found or unauthorized' });
+        }
+
+        const { error } = await supabaseAdmin
+            .from('form_submissions')
+            .delete()
+            .eq('id', req.params.id)
+            .eq('form_id', req.params.formId);
+
+        if (error) throw error;
+        
+        logFormBuilderEvent('DELETE_FORM_SUBMISSION', { formId: req.params.formId, submissionId: req.params.id });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error deleting submission:', err);
         res.status(500).json({ error: err.message });
     }
 });

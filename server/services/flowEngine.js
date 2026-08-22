@@ -145,121 +145,163 @@ class FlowEngine {
     }
 
     startScheduler() {
-        // Add random jitter (0-10s) to startup so 8 containers don't hit the DB in the same exact second
+        // Add random jitter (0-10s) to startup so multiple containers don't hit the DB in the exact same second
         const jitter = Math.floor(Math.random() * 10000);
         setTimeout(() => {
-            console.log(`[FlowEngine] Instance ${this.instanceId} Scheduler Monitoring (Ticks: 30s)...`);
-            setInterval(async () => {
+            console.log(`[FlowEngine] Instance ${this.instanceId} Scheduler Monitoring (Ticks: 10s)...`);
+            
+            const tick = async () => {
                 try {
                     const now = new Date();
                     const nowIso = now.toISOString();
                     const rpcClient = supabaseAdmin;
 
-                    // 1. Handle DELAYED sessions
-                    // Only fetch sessions that are actually ready to be resumed based on current status
+                    // --- 1. Handle DELAYED sessions ---
                     const { data: delayedSessions, error } = await rpcClient
                         .from('flow_sessions')
                         .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'delayed')
+                        .lte('variables->>global_resume_at', nowIso)
                         .order('last_interaction_at', { ascending: true })
-                        .limit(20); // Smaller batches for faster cluster distribution
+                        .limit(500); // 🚀 SCALED: Increased batch size for high-throughput
 
                     if (!error && delayedSessions && delayedSessions.length > 0) {
-                        for (const session of delayedSessions) {
-                            const variables = session.variables || {};
-                            const currentNodeId = session.current_node_id;
-                            const nodeOutput = variables[currentNodeId];
+                        const processDelay = async (session) => {
+                            try {
+                                const variables = session.variables || {};
+                                const currentNodeId = session.current_node_id;
+                                const nodeOutput = variables[currentNodeId];
 
-                            if (nodeOutput && nodeOutput.resumeAt) {
-                                const resumeTime = new Date(nodeOutput.resumeAt);
+                                if (nodeOutput && nodeOutput.resumeAt) {
+                                    const resumeTime = new Date(nodeOutput.resumeAt);
 
-                                if (!isNaN(resumeTime.getTime()) && resumeTime <= now) {
-                                    // PREPARE STATE
-                                    const updatedVariables = { ...variables };
-                                    if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
-                                        updatedVariables[currentNodeId] = {
-                                            ...updatedVariables[currentNodeId],
-                                            resumeAt: null // Clear so it doesn't trigger again
-                                        };
+                                    if (!isNaN(resumeTime.getTime()) && resumeTime <= now) {
+                                        const updatedVariables = { ...variables };
+                                        if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
+                                            updatedVariables[currentNodeId] = {
+                                                ...updatedVariables[currentNodeId],
+                                                resumeAt: null // Clear so it doesn't trigger again
+                                            };
+                                        }
+
+                                        const { data: claimed, error: claimError } = await rpcClient
+                                            .from('flow_sessions')
+                                            .update({ 
+                                                status: 'active', 
+                                                variables: updatedVariables,
+                                                last_interaction_at: nowIso 
+                                            })
+                                            .eq('id', session.id)
+                                            .eq('status', 'delayed')
+                                            .eq('current_node_id', currentNodeId)
+                                            .select();
+
+                                        if (!claimError && claimed && claimed.length > 0) {
+                                            console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Delay Session ${session.id}.`);
+                                            await this.executeNextStep(claimed[0], await this.getCachedFlow(claimed[0].flow_id), claimed[0].current_node_id);
+                                        }
+                                    } else if (!isNaN(resumeTime.getTime()) && resumeTime > now) {
+                                        // STARVATION FIX: Timer is in the future. Sync global_resume_at to stop it from clogging the queue now.
+                                        const newVars = { ...variables, global_resume_at: resumeTime.toISOString() };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
+                                    } else {
+                                        // STARVATION FIX: Corrupted date
+                                        const newVars = { ...variables, global_resume_at: null };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                     }
-
-                                    // ATOMIC CLAIM: Update status AND variables to ensure single processing
-                                    // Including currentNodeId and current status in WHERE clause is the primary distributed lock
-                                    const { data: claimed, error: claimError } = await rpcClient
-                                        .from('flow_sessions')
-                                        .update({ 
-                                            status: 'active', 
-                                            variables: updatedVariables,
-                                            last_interaction_at: nowIso 
-                                        })
-                                        .eq('id', session.id)
-                                        .eq('status', 'delayed')
-                                        .eq('current_node_id', currentNodeId)
-                                        .select();
-
-                                    if (!claimError && claimed && claimed.length > 0) {
-                                        console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Delay Session ${session.id}.`);
-                                        await this.executeNextStep(claimed[0], await this.getCachedFlow(claimed[0].flow_id), claimed[0].current_node_id);
-                                    }
+                                } else {
+                                    // STARVATION FIX: Missing timer. Eject from queue.
+                                    console.warn(`[FlowEngine] Ejecting corrupted Delay Session ${session.id} (Missing resumeAt)`);
+                                    const newVars = { ...variables, global_resume_at: null };
+                                    await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                 }
+                            } catch (e) {
+                                console.error(`[FlowEngine Scheduler] Delay execution error for ${session.id}:`, e);
                             }
+                        };
+
+                        // 🚀 SCALED: Process in chunks of 50 concurrently to maximize throughput without crashing DB pool
+                        for (let i = 0; i < delayedSessions.length; i += 50) {
+                            const chunk = delayedSessions.slice(i, i + 50);
+                            await Promise.all(chunk.map(processDelay));
                         }
                     }
 
-                    // 2. Handle WAITING_INPUT sessions (Unresponsive)
-                    // We only fetch 100 to prevent massive egress if there are thousands of stuck sessions.
+                    // --- 2. Handle WAITING_INPUT sessions (Unresponsive) ---
                     const { data: waitingSessions, error: waitingError } = await rpcClient
                         .from('flow_sessions')
                         .select('id, status, current_node_id, variables, flow_id, user_id, contact_phone')
                         .eq('status', 'waiting_input')
-                        .order('last_interaction_at', { ascending: true }) // CRITICAL: Must be true to fetch oldest (timed out) first
-                        .limit(100);
+                        .lte('variables->>global_timeout_at', nowIso)
+                        .order('last_interaction_at', { ascending: true })
+                        .limit(500); // 🚀 SCALED: Increased batch size
 
                     if (!waitingError && waitingSessions && waitingSessions.length > 0) {
-                        for (const session of waitingSessions) {
-                            const variables = session.variables || {};
-                            const currentNodeId = session.current_node_id;
-                            const nodeOutput = variables[currentNodeId];
+                        const processTimeout = async (session) => {
+                            try {
+                                const variables = session.variables || {};
+                                const currentNodeId = session.current_node_id;
+                                const nodeOutput = variables[currentNodeId];
 
-                            if (nodeOutput && nodeOutput.timeoutAt) {
-                                const timeoutTime = new Date(nodeOutput.timeoutAt);
-                                
-                                if (!isNaN(timeoutTime.getTime()) && timeoutTime <= now) {
-                                    // PREPARE TIMEOUT STATE
-                                    const updatedVariables = { ...variables };
-                                    if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
-                                        updatedVariables[currentNodeId] = {
-                                            ...updatedVariables[currentNodeId],
-                                            status: 'timeout',
-                                            isFilled: false,
-                                            response: null,
-                                            timeoutAt: null // Clear timeout
-                                        };
+                                if (nodeOutput && nodeOutput.timeoutAt) {
+                                    const timeoutTime = new Date(nodeOutput.timeoutAt);
+                                    
+                                    if (!isNaN(timeoutTime.getTime()) && timeoutTime <= now) {
+                                        const updatedVariables = { ...variables };
+                                        if (updatedVariables[currentNodeId] && typeof updatedVariables[currentNodeId] === 'object') {
+                                            updatedVariables[currentNodeId] = {
+                                                ...updatedVariables[currentNodeId],
+                                                status: 'timeout',
+                                                isFilled: false,
+                                                response: null,
+                                                timeoutAt: null // Clear timeout
+                                            };
+                                        }
+
+                                        const { data: claimed, error: claimError } = await rpcClient
+                                            .from('flow_sessions')
+                                            .update({ 
+                                                status: 'resuming',
+                                                variables: updatedVariables,
+                                                last_interaction_at: nowIso
+                                            })
+                                            .eq('id', session.id)
+                                            .eq('status', 'waiting_input')
+                                            .eq('current_node_id', currentNodeId)
+                                            .select();
+
+                                        if (!claimError && claimed && claimed.length > 0) {
+                                            console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Unresponsive Session ${session.id} (Node: ${currentNodeId})`);
+                                            await this.handleSessionTimeout(session.id, 'unresponsive', updatedVariables, claimed[0]);
+                                        }
+                                    } else if (!isNaN(timeoutTime.getTime()) && timeoutTime > now) {
+                                        // STARVATION FIX: Timer is in the future. Sync global_timeout_at.
+                                        const newVars = { ...variables, global_timeout_at: timeoutTime.toISOString() };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
+                                    } else {
+                                        // STARVATION FIX: Corrupted date
+                                        const newVars = { ...variables, global_timeout_at: null };
+                                        await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                     }
-
-                                    // ATOMIC CLAIM
-                                    const { data: claimed, error: claimError } = await rpcClient
-                                        .from('flow_sessions')
-                                        .update({ 
-                                            status: 'resuming',
-                                            variables: updatedVariables,
-                                            last_interaction_at: nowIso
-                                        })
-                                        .eq('id', session.id)
-                                        .eq('status', 'waiting_input')
-                                        .eq('current_node_id', currentNodeId)
-                                        .select();
-
-                                    if (!claimError && claimed && claimed.length > 0) {
-                                        console.log(`[FlowEngine Scheduler] Instance ${this.instanceId} Successfully Claimed Unresponsive Session ${session.id} (Node: ${currentNodeId})`);
-                                        await this.handleSessionTimeout(session.id, 'unresponsive', updatedVariables, claimed[0]);
-                                    }
+                                } else {
+                                    // STARVATION FIX: Missing timer. Eject from queue.
+                                    console.warn(`[FlowEngine] Ejecting corrupted Timeout Session ${session.id} (Missing timeoutAt)`);
+                                    const newVars = { ...variables, global_timeout_at: null };
+                                    await rpcClient.from('flow_sessions').update({ variables: newVars }).eq('id', session.id);
                                 }
+                            } catch (e) {
+                                console.error(`[FlowEngine Scheduler] Timeout execution error for ${session.id}:`, e);
                             }
+                        };
+
+                        // 🚀 SCALED: Process in chunks of 50 concurrently
+                        for (let i = 0; i < waitingSessions.length; i += 50) {
+                            const chunk = waitingSessions.slice(i, i + 50);
+                            await Promise.all(chunk.map(processTimeout));
                         }
                     }
 
-                    // 3. Handle STUCK sessions (> 15 mins processing/resuming/active)
+                    // --- 3. Handle STUCK sessions (> 15 mins processing/resuming/active) ---
                     const stuckThreshold = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
                     const { data: stuckSessions, error: stuckError } = await rpcClient
                         .from('flow_sessions')
@@ -280,8 +322,14 @@ class FlowEngine {
 
                 } catch (err) {
                     console.error(`[FlowEngine Scheduler] Instance ${this.instanceId} Error:`, err);
+                } finally {
+                    // Schedule next tick after 10s (prevents overlap)
+                    setTimeout(tick, 10000);
                 }
-            }, 30000);
+            };
+
+            // Start the first tick
+            tick();
         }, jitter);
     }
 
@@ -1259,7 +1307,8 @@ class FlowEngine {
                 // Update session variables first to store payload/resumeAt
                 const newContext = {
                     ...session.variables,
-                    [node.id]: { ...(session.variables[node.id] || {}), ...output }
+                    [node.id]: { ...(session.variables[node.id] || {}), ...output },
+                    global_resume_at: output.resumeAt
                 };
 
                 await rpcClient.from('flow_sessions')

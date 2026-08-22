@@ -703,13 +703,14 @@ router.get('/onboarding/config', async (req, res) => {
 
 // POST /settings/whatsapp/embedded-signup - Process OAuth Code
 router.post('/whatsapp/embedded-signup', async (req, res) => {
+    let userId, domain;
     try {
-        const userId = getUserId(req);
+        userId = getUserId(req);
         const supabase = getAuthenticatedSupabase(req);
         const { code, setup_mode } = req.body; // setup_mode could be 'phone' or 'waba'
 
         // Domain Extraction
-        const domain = getTargetDomain(req);
+        domain = getTargetDomain(req);
 
         if (!code) return res.status(400).json({ error: 'Authorization code is required.' });
 

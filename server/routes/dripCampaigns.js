@@ -428,7 +428,7 @@ router.delete('/enrollments/:enrollmentId', requirePermission('Drip+Campaigns', 
 
         const { error } = await supabase
             .from('drip_enrollments')
-            .delete()
+            .update({ status: 'CANCELLED', completed_at: new Date() })
             .eq('id', req.params.enrollmentId);
 
         if (error) throw error;
