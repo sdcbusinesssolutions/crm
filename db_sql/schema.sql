@@ -1638,6 +1638,10 @@ CREATE TABLE IF NOT EXISTS campaigns (
     total_contacts INTEGER DEFAULT 0,
     success_count INTEGER DEFAULT 0,
     failed_count INTEGER DEFAULT 0,
+    locked_category TEXT, -- Added for 0-loss architecture
+    locked_rate NUMERIC,
+    safe_batch_size INTEGER,
+    safe_batch_deducted NUMERIC,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

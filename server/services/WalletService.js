@@ -134,12 +134,13 @@ class WalletService {
             }
 
             const billingMode = wallet.billing_mode || 'DIRECT_META';
+            const isWalletEnforced = wallet.wallet_enforced === true;
 
             let checkAmount;
             if (overrideAmount !== null) {
                 checkAmount = overrideAmount;
-            } else if (billingMode === 'DIRECT_META') {
-                return true; // No wallet balance required for DIRECT_META
+            } else if (billingMode === 'DIRECT_META' || !isWalletEnforced) {
+                return true; // No wallet balance required for DIRECT_META or Tracking Mode
             } else {
                 const rate = await this.getRate(userId, expectedCategory);
                 checkAmount = rate.platform_rate;

@@ -24,8 +24,15 @@
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- §1  CORE TABLES
 -- ═══════════════════════════════════════════════════════════════════════════
+-- §1  CORE TABLES & MIGRATIONS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- 10. Add required columns to campaigns table for persistent locking and batch tracking
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS locked_category TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS locked_rate NUMERIC;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS safe_batch_size INT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS safe_batch_deducted NUMERIC;
 
 -- 1a. user_wallets — one row per user, tracks their credit balance
 CREATE TABLE IF NOT EXISTS public.user_wallets (
@@ -33,8 +40,8 @@ CREATE TABLE IF NOT EXISTS public.user_wallets (
     user_id         UUID         NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
     balance         NUMERIC(12,4) DEFAULT 0.0000 NOT NULL,
     currency        TEXT         DEFAULT 'INR'   NOT NULL,
-    -- wallet_enforced is LEGACY — kept for schema compatibility only.
-    -- All deductions in the RPCs below are UNCONDITIONAL and do NOT read this column.
+    -- wallet_enforced: If TRUE, strictly prevents negative balances (Prepaid).
+    -- If FALSE, allows negative balances (Tracking Mode).
     wallet_enforced BOOLEAN      DEFAULT FALSE,
     created_at      TIMESTAMPTZ  DEFAULT now()   NOT NULL,
     updated_at      TIMESTAMPTZ  DEFAULT now()   NOT NULL
@@ -293,6 +300,7 @@ DECLARE
     v_tx_id         UUID;
     v_actual_hold   NUMERIC;
     v_is_partial    BOOLEAN := FALSE;
+    v_wallet_enforced BOOLEAN;
 BEGIN
     SELECT * INTO v_wallet FROM public.user_wallets
         WHERE user_id = p_user_id FOR UPDATE;
@@ -307,6 +315,7 @@ BEGIN
     END IF;
 
     v_balance_before := v_wallet.balance;
+    v_wallet_enforced := v_wallet.wallet_enforced;
     SELECT signup_domain INTO v_tenant_domain FROM public.profiles WHERE id = p_user_id;
 
     -- ── Guard: frozen wallet ────────────────────────────────────────────────
@@ -314,17 +323,22 @@ BEGIN
         RAISE EXCEPTION 'Wallet is frozen for user_id: %', p_user_id;
     END IF;
 
-    -- ── Guard: sufficient balance (unconditional — no wallet_enforced check) ─
-    IF v_wallet.balance < p_amount THEN
-        IF p_allow_partial = TRUE THEN
-            v_actual_hold := v_wallet.balance;
-            v_is_partial  := TRUE;
-            p_description := p_description || ' (PARTIAL HOLD)';
-        ELSE
-            RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Cannot hold %. Current balance: %', p_amount, v_wallet.balance;
-        END IF;
-    ELSE
+    -- If in Tracking Mode (wallet_enforced = FALSE), bypass balance checks
+    IF v_wallet_enforced = FALSE THEN
         v_actual_hold := p_amount;
+    ELSE
+        -- ── Guard: sufficient balance ───────────────────────────────────────
+        IF v_wallet.balance < p_amount THEN
+            IF p_allow_partial = TRUE THEN
+                v_actual_hold := v_wallet.balance;
+                v_is_partial  := TRUE;
+                p_description := p_description || ' (PARTIAL HOLD)';
+            ELSE
+                RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Cannot hold %. Current balance: %', p_amount, v_wallet.balance;
+            END IF;
+        ELSE
+            v_actual_hold := p_amount;
+        END IF;
     END IF;
 
     -- ── Guard: cannot hold zero ─────────────────────────────────────────────
@@ -512,21 +526,25 @@ BEGIN
         RAISE EXCEPTION 'Invalid transaction type: %. Must be CREDIT or DEBIT.', p_type;
     END IF;
 
-    -- ── Guard: prevent negative balance (unconditional) ─────────────────────
+    -- ── Guard: prevent negative balance ─────────────────────
     IF p_type = 'DEBIT' AND v_new_balance < 0 THEN
-        IF NOT v_is_adjustment THEN
+        IF v_wallet.wallet_enforced = TRUE AND NOT v_is_adjustment THEN
             RAISE EXCEPTION 'INSUFFICIENT_BALANCE: Balance cannot go negative. Current: %, Requested debit: %', v_wallet.balance, p_amount;
         END IF;
-        -- Adjustments: clamp to zero and annotate the remaining debt
-        IF p_source = 'CAMPAIGN_SEND' THEN
-            v_actual_debit := (v_wallet.balance + v_wallet.reserved_balance);
-        ELSE
-            v_actual_debit := v_wallet.balance;
+        
+        -- If wallet IS enforced and it's an adjustment, clamp to zero.
+        -- If wallet is NOT enforced (Tracking Mode), DO NOT clamp, let it go negative!
+        IF v_wallet.wallet_enforced = TRUE AND v_is_adjustment THEN
+            IF p_source = 'CAMPAIGN_SEND' THEN
+                v_actual_debit := (v_wallet.balance + v_wallet.reserved_balance);
+            ELSE
+                v_actual_debit := v_wallet.balance;
+            END IF;
+            v_new_balance := 0;
+            v_description := COALESCE(p_description, '') ||
+                ' [DEBT-NOTE: Adjustment exceeded balance. Unrecovered: ' ||
+                (p_amount - v_actual_debit)::TEXT || ']';
         END IF;
-        v_new_balance := 0;
-        v_description := COALESCE(p_description, '') ||
-            ' [DEBT-NOTE: Adjustment exceeded balance. Unrecovered: ' ||
-            (p_amount - v_actual_debit)::TEXT || ']';
     END IF;
 
     -- ── Commit balance ───────────────────────────────────────────────────────
