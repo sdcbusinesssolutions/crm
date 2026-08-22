@@ -207,6 +207,13 @@ class WalletService {
                 throw new Error('Insufficient Wallet Balance. Top-up required.');
             }
 
+            if (debitAmount === 0) {
+                // For free messages (e.g. within 24h Service window), do not call the adjust_wallet_balance RPC
+                // because it explicitly forbids 0 amount transactions and throws an exception.
+                logWalletEvent('PRE_DEBIT_SUCCESS', { userId, waMessageId, amount: debitAmount, category: actualCategory, note: 'Free Message' });
+                return { transactionId: null };
+            }
+
             const { data, error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
                 p_user_id: userId,
                 p_amount: debitAmount,

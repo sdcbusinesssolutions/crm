@@ -498,6 +498,7 @@ class CampaignWorker {
                             // Can't afford even 1 message
                             console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
                             await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                            await this._releaseReservation(campaign.id, campaign.user_id);
                             return;
                         }
 
@@ -522,6 +523,7 @@ class CampaignWorker {
                     if (e.message?.includes('INSUFFICIENT_BALANCE')) {
                         console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
                         await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                        await this._releaseReservation(campaign.id, campaign.user_id);
                         return; // Stop processing
                     }
                     console.error('[Worker] Reservation error:', e);

@@ -977,9 +977,20 @@ router.post('/global-rates', async (req, res) => {
             updated_by: null
         }));
         
+        for (const r of upserts) {
+            await supabaseAdmin
+                .from('wa_message_rates')
+                .delete()
+                .eq('scope', 'GLOBAL')
+                .eq('category', r.category)
+                .eq('country_code', r.country_code)
+                .eq('currency', r.currency)
+                .is('user_id', null);
+        }
+
         const { error } = await supabaseAdmin
             .from('wa_message_rates')
-            .upsert(upserts, { onConflict: 'scope,user_id,category,country_code' });
+            .insert(upserts);
             
         if (error) throw error;
         res.json({ success: true });
