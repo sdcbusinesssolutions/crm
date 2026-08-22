@@ -858,39 +858,78 @@ router.post('/rates', async (req, res) => {
         // Fetch global rates to enforce cost floor for that specific currency
         const { data: globalRates } = await supabaseAdmin
             .from('wa_message_rates')
-            .select('category, country_code, meta_cost')
+            .select('category, country_code, meta_cost, platform_rate')
             .eq('scope', 'GLOBAL')
             .eq('currency', currency)
             .is('user_id', null);
 
-        const getGlobalMetaCost = (cat, cc) => {
-            const gr = globalRates?.find(g => g.category === cat && g.country_code === cc);
-            return gr ? Number(gr.meta_cost) : 0;
-        };
-        
-        const upserts = rates.map(r => {
-            const countryCode = r.country_code || 'IN';
-            const metaCostFloor = getGlobalMetaCost(r.category, countryCode) || r.meta_cost || 0;
+        const isSuperAdmin = req.admin?.role === 'super_admin';
+        const adminUserId = req.admin?.user_id || req.admin?.id;
 
-            if (Number(r.platform_rate) < metaCostFloor) {
-                throw new Error(`Rate for ${r.category} (${countryCode}) cannot be below the cost floor of ${metaCostFloor}`);
+        const upserts = await Promise.all(rates.map(async r => {
+            const countryCode = r.country_code || 'IN';
+            let costFloor = 0;
+
+            if (isSuperAdmin) {
+                // Super admins can set any rate down to the raw Meta cost.
+                const gr = globalRates?.find(g => g.category === r.category && g.country_code === countryCode);
+                costFloor = gr ? Number(gr.meta_cost) : 0;
+            } else {
+                // Regular admins (Tenants) cannot set a rate below the actual rate they are paying
+                try {
+                    const tenantRate = await WalletService.getRate(adminUserId, r.category, countryCode);
+                    costFloor = Number(tenantRate.platform_rate);
+                } catch (e) {
+                    // Fallback to global rate if getRate fails
+                    const gr = globalRates?.find(g => g.category === r.category && g.country_code === countryCode);
+                    costFloor = gr ? Number(gr.platform_rate) : 0;
+                }
             }
+
+            // Cost floor enforcement
+            if (Number(r.platform_rate) < costFloor) {
+                throw new Error(`Rate for ${r.category} (${countryCode}) cannot be below your assigned cost floor of ${costFloor}`);
+            }
+
+            // We must still pass the true meta_cost down for billing records
+            const rawMetaCost = globalRates?.find(g => g.category === r.category && g.country_code === countryCode)?.meta_cost || r.meta_cost || 0;
 
             return {
                 scope: r.scope || scope || 'WORKSPACE', // Use rate-specific scope, fallback to body scope, then 'WORKSPACE'
                 user_id: userId,
                 category: r.category,
                 country_code: countryCode,
-                meta_cost: metaCostFloor,
+                meta_cost: rawMetaCost,
                 platform_rate: r.platform_rate,
                 currency: currency,
                 updated_by: null
             };
-        });
+        }));
         
+        // Workaround for Postgres unique constraints with nulls:
+        // Delete existing rates for these specific combinations before inserting to prevent duplicates.
+        for (const r of upserts) {
+            let deleteQuery = supabaseAdmin
+                .from('wa_message_rates')
+                .delete()
+                .eq('scope', r.scope)
+                .eq('category', r.category)
+                .eq('country_code', r.country_code)
+                .eq('currency', r.currency);
+
+            if (r.user_id) {
+                deleteQuery = deleteQuery.eq('user_id', r.user_id);
+            } else {
+                deleteQuery = deleteQuery.is('user_id', null);
+            }
+
+            const { error: deleteError } = await deleteQuery;
+            if (deleteError) throw deleteError;
+        }
+
         const { error } = await supabaseAdmin
             .from('wa_message_rates')
-            .upsert(upserts, { onConflict: 'scope,user_id,category,country_code,currency' });
+            .insert(upserts);
             
         if (error) throw error;
         res.json({ success: true });

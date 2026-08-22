@@ -160,13 +160,14 @@ class WalletService {
             const countryCode = this.getCountryCode(contactPhone);
             const requestedCategory = (category || 'MARKETING').toUpperCase();
             
-            // MAX RISK HOLD: Always debit at MARKETING rate to prevent negative balances if Meta reclassifies
-            const rate = await this.getRate(userId, 'MARKETING', countryCode);
-            const actualCategory = 'MARKETING';
+            // Use the actual requested category for pre-debit to prevent blocking free SERVICE messages.
+            // If Meta reclassifies it later, the webhook handler will charge the difference.
+            const rate = await this.getRate(userId, requestedCategory, countryCode);
+            const actualCategory = requestedCategory;
 
             let debitAmount = roundMoney(rate.platform_rate);
             let debitMetaCost = roundMoney(rate.meta_cost);
-            let debitDescription = `Pre-debit at MAX RISK (MARKETING) rate for requested ${requestedCategory}. Will refund at webhook if cheaper. Msg: ${waMessageId}`;
+            let debitDescription = `Pre-debit for requested ${requestedCategory}. Msg: ${waMessageId}`;
 
             const wallet = await this.getWallet(userId);
             const billingMode = wallet.billing_mode || 'DIRECT_META';
@@ -179,6 +180,30 @@ class WalletService {
             // Ensures strict checking across ALL flows (Staff Inbox, Campaigns, Drips, API)
             const hasBalance = await this.hasSufficientBalance(userId, debitAmount);
             if (!hasBalance) {
+                // Log the failure to the wallet ledger so the user can see it in the UI
+                try {
+                    const { data: profile } = await supabaseAdmin.from('profiles').select('signup_domain').eq('id', userId).maybeSingle();
+                    await supabaseAdmin.from('wallet_transactions').insert({
+                        user_id: userId,
+                        type: 'DEBIT',
+                        amount: 0,
+                        balance_before: wallet.balance,
+                        balance_after: wallet.balance,
+                        source: source || 'INBOX_SEND',
+                        wa_category: actualCategory,
+                        wa_message_id: waMessageId,
+                        tenant_domain: profile?.signup_domain || null,
+                        description: `FAILED (BLOCKED): Insufficient Wallet Balance. ₹${debitAmount} required.`,
+                        contact_phone: contactPhone,
+                        campaign_id: campaignId || null,
+                        drip_campaign_id: dripCampaignId || null,
+                        flow_id: flowId || null,
+                        whatsapp_account_id: whatsappAccountId || null
+                    });
+                } catch (logErr) {
+                    console.error('[WalletService] Failed to log insufficient balance transaction:', logErr);
+                }
+                
                 throw new Error('Insufficient Wallet Balance. Top-up required.');
             }
 
