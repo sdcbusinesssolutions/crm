@@ -481,8 +481,16 @@ class CampaignWorker {
                 const { count } = await this.supabase.from('campaign_queue')
                     .select('*', { count: 'exact', head: true })
                     .eq('campaign_id', campaign.id);
-                
-                const estRate = await WalletService.getRate(campaign.user_id, 'MARKETING', 'IN');
+                let expectedCategory = 'MARKETING';
+                if (config.whatsapp_business_account_id && config.meta_access_token) {
+                    const liveCategory = await whatsappService.fetchLiveTemplateCategoryFromMeta(
+                        config.whatsapp_business_account_id, 
+                        campaign.template_name, 
+                        config.meta_access_token
+                    );
+                    if (liveCategory) expectedCategory = liveCategory;
+                }
+                const estRate = await WalletService.getRate(campaign.user_id, expectedCategory, 'IN');
                 const estCost = count * estRate.platform_rate;
 
                 try {

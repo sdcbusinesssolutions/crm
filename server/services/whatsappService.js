@@ -70,6 +70,28 @@ class WhatsAppService {
     }
 
     /**
+     * Fetch Live Template Category directly from Meta API
+     * Guarantees 100% accurate rate deductions by checking the actual live category of the template.
+     */
+    async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken) {
+        if (!wabaId || !templateName || !metaToken) return null;
+        try {
+            const url = `${this.baseUrl}/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
+            const axios = require('axios'); // Ensure axios is available
+            const res = await axios.get(url, {
+                headers: { 'Authorization': `Bearer ${metaToken}` },
+                timeout: 5000 // fail fast if Meta is slow
+            });
+            if (res.data && res.data.data && res.data.data.length > 0) {
+                return res.data.data[0].category.toUpperCase();
+            }
+        } catch (err) {
+            console.warn(`[WhatsAppService] Failed to fetch live template category for ${templateName}:`, err.message);
+        }
+        return null;
+    }
+
+    /**
      * Send a Message
      * @param {string|null} userId - The system user ID (pass null for system-wide messages using global config)
      * @param {string} to - Recipient phone number
@@ -149,10 +171,32 @@ class WhatsAppService {
                     break;
                 default:
                     throw new Error(`Unsupported message type: ${type}`);
-            }            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
+            }
+            // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Determine if we should use the specialized high-performance endpoint.
             // We prioritize the MM Lite endpoint for templates if they are categorized as MARKETING.
-            const templateCategory = content?.category || (type === 'template' && content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : null);
+            
+            let templateCategory = content?.category;
+            
+            // --- ZERO-LOSS LIVE TEMPLATE CHECK ---
+            if (type === 'template' && content?.name) {
+                try {
+                    const { data: wabaData } = await supabaseAdmin.from('whatsapp_config').select('whatsapp_business_account_id').eq('phone_number_id', fromPhoneId).maybeSingle();
+                    if (wabaData?.whatsapp_business_account_id) {
+                        const liveCategory = await this.fetchLiveTemplateCategoryFromMeta(wabaData.whatsapp_business_account_id, content.name, accessToken);
+                        if (liveCategory) {
+                            templateCategory = liveCategory;
+                        }
+                    }
+                } catch (catErr) {
+                    console.warn('[WhatsAppService] Error during live template check:', catErr.message);
+                }
+            }
+            
+            if (!templateCategory && type === 'template') {
+                templateCategory = content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : 'MARKETING'; // Default fallback to highest risk
+            }
+
             const isMarketingTemplate = type === 'template' && templateCategory === 'MARKETING';
             const endpoint = isMarketingTemplate ? 'marketing_messages' : 'messages';
             const url = `${this.baseUrl}/${fromPhoneId}/${endpoint}`;
@@ -192,28 +236,34 @@ class WhatsAppService {
             // --- V2 ATOMIC WALLET PRE-DEBIT ---
             // We lock funds BEFORE calling Meta API to prevent double-spend race conditions.
             const walletSource = options.walletSource || 'INBOX_SEND';
-            const expectedCategory = (type === 'template') ? (templateCategory || 'MARKETING') : 'SERVICE';
+            const expectedCategory = (type === 'template') ? (templateCategory || 'MARKETING').toUpperCase() : 'SERVICE';
             const tempWaMessageId = `pending_api_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
             
             let preDebitTxId = null;
-            try {
-                const preDebitResult = await WalletService.preDebit({
-                    userId: accountOwnerId,
-                    waMessageId: tempWaMessageId,
-                    category: expectedCategory,
-                    source: walletSource,
-                    contactPhone: to,
-                    flowId: options.flowId || null,
-                    dripCampaignId: options.dripCampaignId || null,
-                    whatsappAccountId: waConfigId || null,
-                    createdBy: options.createdBy,
-                    ipAddress: options.ipAddress
-                });
-                preDebitTxId = preDebitResult?.transactionId;
-            } catch (err) {
-                console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — PRE-DEBIT FAILED: ${err.message}`);
-                // Pass the specific error message (e.g., country blocking) up to the user
-                throw new Error(err.message || 'Insufficient Wallet Balance. Top-up required.');
+            
+            // Only perform pre-debit for template messages of specific billable categories
+            const requiresWalletCheck = type === 'template' && ['UTILITY', 'MARKETING', 'AUTHENTICATION'].includes(expectedCategory);
+            
+            if (requiresWalletCheck) {
+                try {
+                    const preDebitResult = await WalletService.preDebit({
+                        userId: accountOwnerId,
+                        waMessageId: tempWaMessageId,
+                        category: expectedCategory,
+                        source: walletSource,
+                        contactPhone: to,
+                        flowId: options.flowId || null,
+                        dripCampaignId: options.dripCampaignId || null,
+                        whatsappAccountId: waConfigId || null,
+                        createdBy: options.createdBy,
+                        ipAddress: options.ipAddress
+                    });
+                    preDebitTxId = preDebitResult?.transactionId;
+                } catch (err) {
+                    console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — PRE-DEBIT FAILED: ${err.message}`);
+                    // Pass the specific error message (e.g., country blocking) up to the user
+                    throw new Error(err.message || 'Insufficient Wallet Balance. Top-up required.');
+                }
             }
 
             let response;

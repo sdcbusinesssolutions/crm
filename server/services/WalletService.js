@@ -178,7 +178,12 @@ class WalletService {
 
             // Explicit application-layer balance check to prevent negative balances
             // Ensures strict checking across ALL flows (Staff Inbox, Campaigns, Drips, API)
-            const hasBalance = await this.hasSufficientBalance(userId, debitAmount);
+            // Fix: Bypass for CAMPAIGN_SEND because funds are already held via RESERVATION_HOLD
+            let hasBalance = true;
+            if (source !== 'CAMPAIGN_SEND') {
+                hasBalance = await this.hasSufficientBalance(userId, debitAmount);
+            }
+            
             if (!hasBalance) {
                 // Log the failure to the wallet ledger so the user can see it in the UI
                 try {
