@@ -384,18 +384,29 @@ class CampaignWorker {
                     continue;
                 }
 
-                // 2. Determine category and rate
-                const { data: cachedComp } = await this.supabase
-                    .from('template_components_cache')
-                    .select('category')
+                // 2. Fetch Wallet Billing Mode
+                const { data: wallet } = await this.supabase
+                    .from('user_wallets')
+                    .select('billing_mode')
                     .eq('user_id', campaign.user_id)
-                    .eq('template_name', campaign.template_name)
-                    .maybeSingle();
+                    .single();
+
+                let estimatedCost = 0;
                 
-                // Fallback to MARKETING for safety if not cached
-                const category = (cachedComp?.category || 'MARKETING').toUpperCase();
-                const rateInfo = await WalletService.getRate(campaign.user_id, category, 'IN'); 
-                const estimatedCost = queueCount * Number(rateInfo.platform_rate);
+                if (wallet?.billing_mode !== 'DIRECT_META') {
+                    // Determine category and rate
+                    const { data: cachedComp } = await this.supabase
+                        .from('template_components_cache')
+                        .select('category')
+                        .eq('user_id', campaign.user_id)
+                        .eq('template_name', campaign.template_name)
+                        .maybeSingle();
+                    
+                    // Fallback to MARKETING for safety if not cached
+                    const category = (cachedComp?.category || 'MARKETING').toUpperCase();
+                    const rateInfo = await WalletService.getRate(campaign.user_id, category, 'IN'); 
+                    estimatedCost = queueCount * Number(rateInfo.platform_rate);
+                }
 
                 // 3. Place Atomic Hold
                 if (estimatedCost > 0) {
@@ -418,7 +429,12 @@ class CampaignWorker {
 
                 // 4. Update to PROCESSING
                 await this.supabase.from('campaigns').update({ status: 'PROCESSING' }).eq('id', campaign.id);
-                console.log(`[Worker ${this.workerId}] Started campaign ${campaign.title} with upfront hold of ₹${estimatedCost}`);
+                
+                if (estimatedCost > 0) {
+                    console.log(`[Worker ${this.workerId}] Started campaign ${campaign.id} with upfront hold of ₹${estimatedCost}`);
+                } else {
+                    console.log(`[Worker ${this.workerId}] Started campaign ${campaign.id} [DIRECT_META / Zero Cost] - No upfront wallet hold required.`);
+                }
 
             } catch (err) {
                 console.error(`[Worker] Failed to process scheduled campaign ${campaign.id}:`, err);
