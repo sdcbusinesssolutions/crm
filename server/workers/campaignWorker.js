@@ -13,11 +13,11 @@ const httpsAgent = new https.Agent({
 
 const { logCampaignRequest } = require('../utils/logger');
 const whatsappService = require('../services/whatsappService');
-const WalletService = require('../services/WalletService');
+const CampaignWalletService = require('../services/CampaignWalletService');
 
 // --- Configuration ---
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
-const BATCH_SIZE = 50; // Items to fetch per tick
+const DEFAULT_BATCH_SIZE = 50; // Max items to fetch per tick
 const MAX_CONCURRENCY = 5; // Max parallel requests (reduced to prevent Meta rate limit 80008)
 const MAX_RETRIES = 3; // Max retry attempts for transient errors
 const RATE_LIMIT_DELAY_MS = 200; // 200ms between chunks = ~5 msg/sec (safe for Meta's limits)
@@ -465,81 +465,39 @@ class CampaignWorker {
         if (!config) {
             console.error(`No config found for user ${campaign.user_id}`);
             await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
-            await this._releaseReservation(campaign.id, campaign.user_id);
             return;
         }
 
-        // --- PRE-FLIGHT RESERVATION HOLD (Wallet Architecture V2) ---
+        // --- DYNAMIC SAFE BATCH SIZING (Zero-Loss & Zero-Negative Guarantee) ---
+        let safeBatchSize = DEFAULT_BATCH_SIZE;
         try {
-            const { data: holdTx } = await this.supabase.from('wallet_transactions')
-                .select('id')
-                .eq('source', 'RESERVATION_HOLD')
-                .eq('campaign_id', campaign.id)
-                .limit(1).maybeSingle();
+            const { data: wallet } = await this.supabase
+                .from('user_wallets')
+                .select('balance')
+                .eq('user_id', campaign.user_id)
+                .single();
 
-            if (!holdTx) {
-                const { count } = await this.supabase.from('campaign_queue')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('campaign_id', campaign.id);
-                let expectedCategory = 'MARKETING';
-                if (config.whatsapp_business_account_id && config.meta_access_token) {
-                    const liveCategory = await whatsappService.fetchLiveTemplateCategoryFromMeta(
-                        config.whatsapp_business_account_id, 
-                        campaign.template_name, 
-                        config.meta_access_token
-                    );
-                    if (liveCategory) expectedCategory = liveCategory;
-                }
-                const estRate = await WalletService.getRate(campaign.user_id, expectedCategory, 'IN');
-                const estCost = count * estRate.platform_rate;
+            const rates = await CampaignWalletService.getPlatformRates(campaign.user_id, config.whatsapp_business_account_id);
+            safeBatchSize = CampaignWalletService.calculateSafeBatchSize(wallet?.balance || 0, rates.marketingRate, DEFAULT_BATCH_SIZE);
 
-                try {
-                    const holdResult = await WalletService.holdCampaignReservation(campaign.user_id, campaign.id, estCost, true); // true = allowPartial
-                    const actualHeld = Number(holdResult.actual_held);
-                    const isPartial = holdResult.is_partial;
-
-                    if (isPartial) {
-                        const affordableCount = Math.floor(actualHeld / Number(estRate.platform_rate));
-                        console.warn(`[Worker] Partial hold for campaign ${campaign.id}: Requested ₹${estCost}, held ₹${actualHeld}. Affordable: ${affordableCount}/${count}`);
-                        
-                        if (affordableCount <= 0) {
-                            // Can't afford even 1 message
-                            console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
-                            await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
-                            await this._releaseReservation(campaign.id, campaign.user_id);
-                            return;
-                        }
-
-                        // We can afford some messages. Mark the rest as FAILED.
-                        // We need to fetch the IDs of items that exceed the limit.
-                        const { data: queueItems } = await this.supabase.from('campaign_queue')
-                            .select('id')
-                            .eq('campaign_id', campaign.id)
-                            .order('id', { ascending: true })
-                            .range(affordableCount, count - 1); // skip affordableCount items
-
-                        if (queueItems && queueItems.length > 0) {
-                            const idsToFail = queueItems.map(item => item.id);
-                            await this.supabase.from('campaign_queue')
-                                .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Partial Send)' })
-                                .in('id', idsToFail);
-                        }
-                    } else {
-                        console.log(`[Worker] Held reservation of ₹${estCost} for campaign ${campaign.id}`);
-                    }
-                } catch (e) {
-                    if (e.message?.includes('INSUFFICIENT_BALANCE')) {
-                        console.error(`[Worker] Insufficient balance for campaign ${campaign.id}`);
-                        await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
-                        await this._releaseReservation(campaign.id, campaign.user_id);
-                        return; // Stop processing
-                    }
-                    console.error('[Worker] Reservation error:', e);
-                }
+            if (safeBatchSize <= 0) {
+                console.error(`[Worker] Insufficient balance for campaign ${campaign.id} to send even 1 message.`);
+                // Fail remaining pending items
+                await this.supabase.from('campaign_queue')
+                    .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Wallet Empty)' })
+                    .eq('campaign_id', campaign.id)
+                    .in('status', ['PENDING', 'RETRYING']);
+                    
+                await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                return;
             }
         } catch (e) {
-            console.error('[Worker] Error checking/holding reservation:', e);
+            console.error('[Worker] Error calculating safe batch size:', e);
+            // Default to 1 if calculation fails to avoid stuck campaigns, it will fail at preDebit if empty
+            safeBatchSize = 1;
         }
+
+
 
         // Check if THIS WABA is rate-limited BEFORE doing ANY work
         if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
@@ -767,7 +725,7 @@ class CampaignWorker {
         // Fetch Pending Items OR Items due for Retry
         // OPTIMISTIC LOCKING: We try to find items and lock them to 'SENDING' immediately.
 
-        // 1. Find candidates (LIMIT BATCH_SIZE)
+        // 1. Find candidates (LIMIT safeBatchSize)
         // SIMPLIFIED QUERY to avoid syntax errors with timestamps
         const { data: candidates, error: fetchErr } = await this.supabase
             .from('campaign_queue')
@@ -775,7 +733,7 @@ class CampaignWorker {
             .eq('campaign_id', campaign.id)
             .in('status', ['PENDING', 'RETRYING'])
             .order('next_retry_at', { ascending: true, nullsFirst: true })
-            .limit(BATCH_SIZE * 2); // Fetch more to allow for filtering
+            .limit(safeBatchSize * 2); // Fetch more to allow for filtering
 
         if (fetchErr) {
             console.error('[Worker] Error fetching queue candidates:', fetchErr);
@@ -791,7 +749,7 @@ class CampaignWorker {
             }
             if (c.status === 'RETRYING' && c.next_retry_at && new Date(c.next_retry_at) <= now) return true;
             return false;
-        }).slice(0, BATCH_SIZE) : [];
+        }).slice(0, safeBatchSize) : [];
 
         // Use validCandidates for the rest
         const candidateData = validCandidates; // Renaming to match logic flow if needed, but we used 'candidates' variable before.
@@ -810,7 +768,6 @@ class CampaignWorker {
             if (count === 0) {
                 console.log(`Campaign ${campaign.id} Completed!`);
                 await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
-                await this._releaseReservation(campaign.id, campaign.user_id);
             } else {
                 // If count > 0 but we found no candidates, it means they are all in SENDING/RETRYING(future)
                 // We should log this so the user knows we are waiting.
@@ -903,10 +860,10 @@ class CampaignWorker {
 
     async _releaseReservation(campaignId, userId) {
         try {
-            const { data: heldTx } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'RESERVATION_HOLD').eq('campaign_id', campaignId).maybeSingle();
+            const { data: heldTxs } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'RESERVATION_HOLD').eq('campaign_id', campaignId);
             const { data: debits } = await this.supabase.from('wallet_transactions').select('amount').eq('source', 'CAMPAIGN_SEND').eq('campaign_id', campaignId);
             
-            const totalHeld = heldTx ? Number(heldTx.amount) : 0;
+            const totalHeld = heldTxs ? heldTxs.reduce((acc, tx) => acc + Number(tx.amount), 0) : 0;
             const totalDebited = debits ? debits.reduce((acc, tx) => acc + Number(tx.amount), 0) : 0;
             const releaseAmount = totalHeld - totalDebited;
             
@@ -1760,10 +1717,16 @@ class CampaignWorker {
                 // This usually happens during or just after a rate limit period — always retry
                 console.warn(`[Worker] Network error (${error.code}) sending to ${item.phone_number}. Will retry.`);
                 shouldRetry = true;
+            } else if (errorMsg && errorMsg.includes('LIVE_CATEGORY_FETCH_FAILED')) {
+                // Meta API is down and we cannot verify the category.
+                // Do not assume a category to prevent over/under charging.
+                console.warn(`[Worker] 🛑 Meta live category fetch failed. Pausing campaign to prevent blind charging.`);
+                isRateLimit = true; // Treats it like a rate limit (pauses campaign, queues for retry)
+                shouldRetry = true;
             }
 
             if (isRateLimit) {
-                console.warn(`⚠️ Rate limit hit for campaign ${campaign.id}. Pausing campaign.`);
+                console.warn(`⚠️ Pausing campaign ${campaign.id} due to rate limit or Meta API downtime.`);
                 await this.supabase.from('campaigns').update({ status: 'PAUSED' }).eq('id', campaign.id);
                 // Also mark this item to retry later
                 shouldRetry = true;

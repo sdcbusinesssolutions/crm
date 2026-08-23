@@ -73,20 +73,57 @@ class WhatsAppService {
      * Fetch Live Template Category directly from Meta API
      * Guarantees 100% accurate rate deductions by checking the actual live category of the template.
      */
-    async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken) {
-        if (!wabaId || !templateName || !metaToken) return null;
+    // --- IN-MEMORY CACHE FOR TEMPLATE CATEGORIES ---
+    // Prevents unwanted/duplicate calls to Meta API for the same template.
+    templateCategoryCache = new Map();
+    CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+
+    async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken, bypassCache = false) {
+        if (!wabaId || !templateName || !metaToken) {
+            console.warn(`[WhatsAppService] Missing params for fetchLiveTemplateCategoryFromMeta: wabaId=${!!wabaId}, templateName=${!!templateName}, token=${!!metaToken}`);
+            return null;
+        }
+
+        const cacheKey = `${wabaId}:${templateName}`;
+        
+        if (!bypassCache) {
+            const cached = this.templateCategoryCache.get(cacheKey);
+            if (cached && cached.expiresAt > Date.now()) {
+                return cached.category;
+            }
+        }
+
         try {
             const url = `${this.baseUrl}/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
+            console.log(`[WhatsAppService] 🔍 Checking live category for template '${templateName}' via: ${url}`);
+            
             const axios = require('axios'); // Ensure axios is available
             const res = await axios.get(url, {
                 headers: { 'Authorization': `Bearer ${metaToken}` },
                 timeout: 5000 // fail fast if Meta is slow
             });
+            
             if (res.data && res.data.data && res.data.data.length > 0) {
-                return res.data.data[0].category.toUpperCase();
+                const fetchedCategory = res.data.data[0].category.toUpperCase();
+                
+                // Save to cache
+                this.templateCategoryCache.set(cacheKey, {
+                    category: fetchedCategory,
+                    expiresAt: Date.now() + this.CACHE_TTL_MS
+                });
+
+                console.log(`[WhatsAppService] ✅ Live category for '${templateName}' returned as: ${fetchedCategory}`);
+                return fetchedCategory;
+            } else {
+                console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
+                // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
+                this.templateCategoryCache.set(cacheKey, {
+                    category: null,
+                    expiresAt: Date.now() + (60 * 1000)
+                });
             }
         } catch (err) {
-            console.warn(`[WhatsAppService] Failed to fetch live template category for ${templateName}:`, err.message);
+            console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
         }
         return null;
     }
@@ -176,7 +213,7 @@ class WhatsAppService {
             // Determine if we should use the specialized high-performance endpoint.
             // We prioritize the MM Lite endpoint for templates if they are categorized as MARKETING.
             
-            let templateCategory = content?.category;
+            let templateCategory = content?.category || null; 
             
             // --- ZERO-LOSS LIVE TEMPLATE CHECK ---
             if (type === 'template' && content?.name) {
@@ -186,15 +223,23 @@ class WhatsAppService {
                         const liveCategory = await this.fetchLiveTemplateCategoryFromMeta(wabaData.whatsapp_business_account_id, content.name, accessToken);
                         if (liveCategory) {
                             templateCategory = liveCategory;
+                        } else {
+                            throw new Error('LIVE_CATEGORY_FETCH_FAILED: Meta API did not return a valid category.');
                         }
+                    } else {
+                        throw new Error('LIVE_CATEGORY_FETCH_FAILED: WABA ID missing for live check.');
                     }
                 } catch (catErr) {
-                    console.warn('[WhatsAppService] Error during live template check:', catErr.message);
+                    if (catErr.message.includes('LIVE_CATEGORY_FETCH_FAILED')) {
+                        throw catErr; // Propagate the intentional throw
+                    }
+                    console.error(`[WhatsAppService] Error during live template check: ${catErr.message}`);
+                    throw new Error(`LIVE_CATEGORY_FETCH_FAILED: Network or Meta error (${catErr.message})`);
                 }
             }
             
             if (!templateCategory && type === 'template') {
-                templateCategory = content?.name?.toLowerCase().includes('mkt') ? 'MARKETING' : 'MARKETING'; // Default fallback to highest risk
+                throw new Error('LIVE_CATEGORY_FETCH_FAILED: Could not determine template category.');
             }
 
             const isMarketingTemplate = type === 'template' && templateCategory === 'MARKETING';

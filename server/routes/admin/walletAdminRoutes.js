@@ -456,7 +456,7 @@ router.get('/summary', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 router.post('/topup', async (req, res) => {
     try {
-        const { userId, targetUserId, amount, description, wallet_enforced, billing_mode } = req.body;
+        const { userId, targetUserId, amount, description, wallet_enforced, billing_mode, reset_debt } = req.body;
         const uid = userId || targetUserId;
 
         if (!uid || amount === undefined) {
@@ -677,6 +677,16 @@ router.post('/topup', async (req, res) => {
                 );
                 console.log(`[WalletAdmin] Direct top-up: ₹${amount} → User ${uid} (mode: ${effectiveBillingMode})`);
             }
+        }
+
+        // ── Direct Meta Tracking Debt Forgiveness ─────────────────────
+        if (reset_debt === true && targetWallet.balance < 0 && targetWallet.billing_mode === 'DIRECT_META') {
+            const debtAmount = Math.abs(Number(targetWallet.balance));
+            await WalletService.addCredit(
+                uid, debtAmount, 'DEBT_FORGIVENESS', 'System Adjustment: Resetting Direct Meta tracking debt to 0',
+                null, req.ip
+            );
+            console.log(`[WalletAdmin] Forgave tracking debt of ₹${debtAmount} for User ${uid}`);
         }
 
         // ── Update wallet settings (billing mode only) ─────────────────────
