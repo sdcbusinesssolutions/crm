@@ -333,8 +333,23 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                     </div>
                 )}
 
-                {/* Enforcement Toggle Removed - Always Enforced */}
-
+                {/* Enforcement Toggle for Super Admin */}
+                {isSuperAdmin && billingMode !== 'DIRECT_META' && (
+                    <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center h-5 mt-0.5">
+                            <input
+                                type="checkbox"
+                                checked={walletEnforced}
+                                onChange={e => setWalletEnforced(e.target.checked)}
+                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                            />
+                        </div>
+                        <div>
+                            <div className="text-sm font-bold text-slate-800">Strict Mode (Prepaid Wallet)</div>
+                            <div className="text-xs text-slate-500 mt-1">If enabled, campaigns will stop immediately when balance hits ₹0. If disabled (Tracking Mode), balance will go negative.</div>
+                        </div>
+                    </label>
+                )}
                 {/* 🔒 UI Security: Prevent submission if Agency Balance is too low */}
                 {!isSuperAdmin && billingMode === 'CREDIT_LINE_SUPER' && Number(amount) > (masterBalance || 0) && (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 flex items-start gap-3 shadow-sm animate-pulse">

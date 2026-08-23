@@ -691,7 +691,8 @@ router.post('/topup', async (req, res) => {
 
         // ── Update wallet settings (billing mode only) ─────────────────────
         const walletUpdates = {};
-        // NOTE: wallet_enforced is intentionally NOT settable here — deductions are unconditional at DB level.
+        // NOTE: Allow super admin to change wallet_enforced
+        if (wallet_enforced !== undefined) walletUpdates.wallet_enforced = wallet_enforced;
         if (billing_mode !== undefined) walletUpdates.billing_mode = billing_mode;
         if (Object.keys(walletUpdates).length > 0) {
             await supabaseAdmin.from('user_wallets').update(walletUpdates).eq('user_id', uid);
