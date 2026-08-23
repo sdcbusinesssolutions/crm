@@ -62,7 +62,9 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
             if (res.ok) {
                 const data = await res.json();
                 setCurrentBalance(data.balance);
-                setWalletEnforced(data.wallet_enforced);
+                // The user requested that Strict Mode should "always check as true" by default
+                // so they can just untick it if they don't want it.
+                setWalletEnforced(true);
                 const fetchedBillingMode = data.billing_mode || data.default_billing_mode || 'CREDIT_LINE_SUPER';
                 const domainDefault = data.default_billing_mode || 'CREDIT_LINE_SUPER';
                 
