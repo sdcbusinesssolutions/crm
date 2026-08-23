@@ -402,7 +402,7 @@ class CampaignWorker {
                     const { error: holdErr } = await this.supabase.rpc('hold_campaign_reservation', {
                         p_user_id: campaign.user_id,
                         p_campaign_id: campaign.id,
-                        p_estimated_cost: estimatedCost,
+                        p_amount: estimatedCost,
                         p_allow_partial: false
                     });
 
