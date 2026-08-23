@@ -976,4 +976,5 @@ ON CONFLICT DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END OF FILE
+ALTER TABLE public.campaigns ADD COLUMN IF NOT EXISTS error_message TEXT;
 -- ═══════════════════════════════════════════════════════════════════════════
