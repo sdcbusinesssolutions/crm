@@ -61,19 +61,25 @@ class WalletService {
     static async getRate(userId, category, countryCode = 'IN', tenantId = null) {
         category = (category || 'MARKETING').toUpperCase();
         const targetTenantId = tenantId || userId;
-        const cacheKey = `${userId}_${targetTenantId}_${category}_${countryCode}`;
+        
+        // 1. Fetch user's wallet to know their currency (INR vs USD)
+        const wallet = await this.getWallet(userId);
+        const currency = wallet.currency || 'INR';
+
+        const cacheKey = `${userId}_${targetTenantId}_${category}_${countryCode}_${currency}`;
 
         const cached = rateCache.get(cacheKey);
         if (cached && cached.expiresAt > Date.now()) {
             return cached.rate;
         }
 
-        // Single query fetching all possible hierarchies
+        // 2. Single query fetching all possible hierarchies, strictly filtered by CURRENCY
         const { data: rates } = await supabaseAdmin
             .from('wa_message_rates')
-            .select('scope, user_id, platform_rate, meta_cost')
+            .select('scope, user_id, platform_rate, meta_cost, currency')
             .eq('category', category)
             .eq('country_code', countryCode)
+            .eq('currency', currency)
             .eq('is_active', true)
             .or(`user_id.eq.${userId},user_id.eq.${targetTenantId},scope.eq.GLOBAL`);
 
