@@ -13,6 +13,7 @@ const httpsAgent = new https.Agent({
 
 const { logCampaignRequest } = require('../utils/logger');
 const whatsappService = require('../services/whatsappService');
+const WalletService = require('../services/WalletService');
 const CampaignWalletService = require('../services/CampaignWalletService');
 
 // --- Configuration ---
@@ -20,7 +21,7 @@ const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
 const DEFAULT_BATCH_SIZE = 50; // Max items to fetch per tick
 const MAX_CONCURRENCY = 5; // Max parallel requests (reduced to prevent Meta rate limit 80008)
 const MAX_RETRIES = 3; // Max retry attempts for transient errors
-const RATE_LIMIT_DELAY_MS = 200; // 200ms between chunks = ~5 msg/sec (safe for Meta's limits)
+const RATE_LIMIT_DELAY_MS = 1000; // 1000ms between chunks = ~1 msg/sec (extremely safe for Meta's limits & allows webhook interception)
 
 // --- Template Cache (prevents repeated Meta API calls for same template) ---
 // Key: `${wabaId}:${templateName}`, Value: { def, expiresAt }
