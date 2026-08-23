@@ -1256,6 +1256,7 @@ const Users = () => {
                     isOpen={isWalletTopupOpen}
                     onClose={() => setIsWalletTopupOpen(false)}
                     user={selectedWalletUser}
+                    isSuperAdmin={isSuperAdmin}
                     onSuccess={() => {
                         setToast({ type: 'success', title: 'Success', message: 'Wallet updated successfully' });
                     }}
