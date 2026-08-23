@@ -34,6 +34,9 @@ ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS locked_rate NUMERIC;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS safe_batch_size INT;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS safe_batch_deducted NUMERIC;
 
+-- 1z. whatsapp_config tracking
+ALTER TABLE public.whatsapp_config ADD COLUMN IF NOT EXISTS currency TEXT;
+
 -- 1a. user_wallets — one row per user, tracks their credit balance
 CREATE TABLE IF NOT EXISTS public.user_wallets (
     id              UUID         DEFAULT extensions.uuid_generate_v4() PRIMARY KEY,
@@ -101,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.wa_message_rates (
     is_active     BOOLEAN       DEFAULT TRUE,
     updated_at    TIMESTAMPTZ   DEFAULT now(),
     updated_by    UUID,
-    UNIQUE(scope, user_id, category, country_code)
+    UNIQUE NULLS NOT DISTINCT(scope, user_id, category, country_code, currency)
 );
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -136,6 +139,7 @@ CREATE TABLE IF NOT EXISTS public.domain_wallet_settings (
         CHECK (default_billing_mode IN ('CREDIT_LINE_SUPER','CREDIT_LINE_TENANT','DIRECT_META')),
     tenant_admin_user_id     UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
     allow_tenant_billing_control BOOLEAN NOT NULL DEFAULT TRUE,
+    allowed_credit_currencies TEXT[]     DEFAULT '{"INR"}',
     created_at               TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_at               TIMESTAMPTZ DEFAULT now() NOT NULL
 );
@@ -144,6 +148,16 @@ CREATE TABLE IF NOT EXISTS public.domain_wallet_settings (
 ALTER TABLE public.wa_message_rates DROP CONSTRAINT IF EXISTS wa_message_rates_scope_check;
 ALTER TABLE public.wa_message_rates ADD CONSTRAINT wa_message_rates_scope_check
     CHECK (scope IN ('GLOBAL','WORKSPACE','TENANT','USER'));
+
+ALTER TABLE public.domain_wallet_settings ADD COLUMN IF NOT EXISTS allowed_credit_currencies TEXT[] DEFAULT '{"INR"}';
+
+
+ALTER TABLE public.wa_message_rates ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'INR';
+ALTER TABLE public.wa_message_rates DROP CONSTRAINT IF EXISTS wa_message_rates_scope_user_id_category_country_code_key;
+ALTER TABLE public.wa_message_rates DROP CONSTRAINT IF EXISTS wa_message_rates_scope_user_id_category_country_code_currency_key;
+ALTER TABLE public.wa_message_rates ADD CONSTRAINT wa_message_rates_scope_user_id_category_country_code_currency_key 
+    UNIQUE NULLS NOT DISTINCT (scope, user_id, category, country_code, currency);
+
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- §4  AUDIT COLUMNS (idempotent — safe on existing tables)
@@ -267,6 +281,36 @@ DROP TRIGGER IF EXISTS trg_prevent_wallet_transaction_tampering ON public.wallet
 CREATE TRIGGER trg_prevent_wallet_transaction_tampering
 BEFORE UPDATE OR DELETE ON public.wallet_transactions
 FOR EACH ROW EXECUTE FUNCTION prevent_wallet_transaction_tampering();
+
+
+-- 7b. Auto-Demotion Function (Security measure against WABA hijacking)
+CREATE OR REPLACE FUNCTION public.trg_auto_demote_on_waba_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only trigger if one of the critical WABA config fields changes
+    IF (TG_OP = 'UPDATE') THEN
+        IF (NEW.whatsapp_business_account_id IS DISTINCT FROM OLD.whatsapp_business_account_id OR
+            NEW.phone_number_id IS DISTINCT FROM OLD.phone_number_id OR
+            NEW.meta_access_token IS DISTINCT FROM OLD.meta_access_token OR
+            NEW.access_token IS DISTINCT FROM OLD.access_token) THEN
+            
+            -- Reset billing_mode to DIRECT_META for this user to prevent fraud
+            UPDATE public.user_wallets
+            SET billing_mode = 'DIRECT_META'
+            WHERE user_id = NEW.user_id 
+              AND billing_mode != 'DIRECT_META';
+              
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_waba_security_reset ON public.whatsapp_config;
+CREATE TRIGGER trg_waba_security_reset
+AFTER UPDATE ON public.whatsapp_config
+FOR EACH ROW
+EXECUTE FUNCTION public.trg_auto_demote_on_waba_change();
 
 -- ═══════════════════════════════════════════════════════════════════════════
 -- §8  ATOMIC RPCs — CAMPAIGN RESERVATION
@@ -933,71 +977,3 @@ ON CONFLICT DO NOTHING;
 -- ═══════════════════════════════════════════════════════════════════════════
 -- END OF FILE
 -- ═══════════════════════════════════════════════════════════════════════════
--- =========================================================================
--- FINAL MIGRATION: WABA Security & Complete Multi-Currency System
--- Run this script in the Supabase SQL Editor.
--- =========================================================================
-
-BEGIN;
-
--- -------------------------------------------------------------------------
--- PART 1: WABA SECURITY & CONFIGURATION
--- -------------------------------------------------------------------------
-
--- 1. Add currency column to whatsapp_config (to track connected WABA currency)
-ALTER TABLE public.whatsapp_config 
-ADD COLUMN IF NOT EXISTS currency TEXT;
-
--- 2. Add allowed_credit_currencies to domain_wallet_settings (for Super Admin controls)
-ALTER TABLE public.domain_wallet_settings
-ADD COLUMN IF NOT EXISTS allowed_credit_currencies TEXT[] DEFAULT '{"INR"}';
-
--- 3. Create the Auto-Demotion Function (Security measure against WABA hijacking)
-CREATE OR REPLACE FUNCTION public.trg_auto_demote_on_waba_change()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Only trigger if one of the critical WABA config fields changes
-    IF (TG_OP = 'UPDATE') THEN
-        IF (NEW.whatsapp_business_account_id IS DISTINCT FROM OLD.whatsapp_business_account_id OR
-            NEW.phone_number_id IS DISTINCT FROM OLD.phone_number_id OR
-            NEW.meta_access_token IS DISTINCT FROM OLD.meta_access_token OR
-            NEW.access_token IS DISTINCT FROM OLD.access_token) THEN
-            
-            -- Reset billing_mode to DIRECT_META for this user to prevent fraud
-            UPDATE public.user_wallets
-            SET billing_mode = 'DIRECT_META'
-            WHERE user_id = NEW.user_id 
-              AND billing_mode != 'DIRECT_META';
-              
-        END IF;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 4. Attach the trigger to whatsapp_config
-DROP TRIGGER IF EXISTS trg_waba_security_reset ON public.whatsapp_config;
-CREATE TRIGGER trg_waba_security_reset
-AFTER UPDATE ON public.whatsapp_config
-FOR EACH ROW
-EXECUTE FUNCTION public.trg_auto_demote_on_waba_change();
-
-
--- -------------------------------------------------------------------------
--- PART 2: MULTI-CURRENCY PRICING SYSTEM
--- -------------------------------------------------------------------------
-
--- 5. Add currency column to wa_message_rates table
-ALTER TABLE public.wa_message_rates 
-ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'INR';
-
--- 6. Drop the existing unique constraint (which did not include currency)
-ALTER TABLE public.wa_message_rates 
-DROP CONSTRAINT IF EXISTS wa_message_rates_scope_user_id_category_country_code_key;
-
--- 7. Add the new unique constraint including currency
-ALTER TABLE public.wa_message_rates 
-ADD CONSTRAINT wa_message_rates_scope_user_id_category_country_code_currency_key 
-UNIQUE NULLS NOT DISTINCT (scope, user_id, category, country_code, currency);
-
-COMMIT;

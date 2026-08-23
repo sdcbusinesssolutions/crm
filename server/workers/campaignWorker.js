@@ -352,24 +352,77 @@ class CampaignWorker {
 
         // NOTE: claimed_by/claimed_at do NOT exist on campaigns table.
         // Campaign ownership is tracked via the separate `campaign_worker_claims` table.
-        const { data: startedCampaigns, error } = await this.supabase
+        const { data: readyCampaigns, error } = await this.supabase
             .from('campaigns')
-            .update({ status: 'PROCESSING' })
+            .select('id, title, user_id, template_name')
             .eq('status', 'SCHEDULED')
-            .lte('scheduled_at', now)
-            .select('id, title');
+            .lte('scheduled_at', now);
 
         if (error) {
             if (error.message?.includes('fetch failed') || error.message?.includes('ECONNRESET')) {
                 console.warn('[Worker] Transient Supabase connection error. Retrying next tick...');
             } else {
-                console.error('[Worker] Error starting scheduled campaigns:', error);
+                console.error('[Worker] Error fetching scheduled campaigns:', error);
             }
             return;
         }
 
-        if (startedCampaigns?.length > 0) {
-            console.log(`[Worker ${this.workerId}] Started ${startedCampaigns.length} scheduled campaigns: ${startedCampaigns.map(c => c.title).join(', ')}`);
+        if (!readyCampaigns || readyCampaigns.length === 0) return;
+
+        for (const campaign of readyCampaigns) {
+            try {
+                // 1. Count total recipients
+                const { count: queueCount, error: countErr } = await this.supabase
+                    .from('campaign_queue')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('campaign_id', campaign.id);
+                
+                if (countErr) throw countErr;
+                
+                if (queueCount === 0) {
+                    await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
+                    continue;
+                }
+
+                // 2. Determine category and rate
+                const { data: cachedComp } = await this.supabase
+                    .from('template_components_cache')
+                    .select('category')
+                    .eq('user_id', campaign.user_id)
+                    .eq('template_name', campaign.template_name)
+                    .maybeSingle();
+                
+                // Fallback to MARKETING for safety if not cached
+                const category = (cachedComp?.category || 'MARKETING').toUpperCase();
+                const rateInfo = await WalletService.getRate(campaign.user_id, category, 'IN'); 
+                const estimatedCost = queueCount * Number(rateInfo.platform_rate);
+
+                // 3. Place Atomic Hold
+                if (estimatedCost > 0) {
+                    const { error: holdErr } = await this.supabase.rpc('hold_campaign_reservation', {
+                        p_user_id: campaign.user_id,
+                        p_campaign_id: campaign.id,
+                        p_estimated_cost: estimatedCost,
+                        p_allow_partial: false
+                    });
+
+                    if (holdErr) {
+                        console.error(`[Worker] Insufficient balance to hold ₹${estimatedCost} for campaign ${campaign.id}:`, holdErr.message);
+                        await this.supabase.from('campaign_queue')
+                            .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Failed to hold funds upfront)' })
+                            .eq('campaign_id', campaign.id);
+                        await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                        continue;
+                    }
+                }
+
+                // 4. Update to PROCESSING
+                await this.supabase.from('campaigns').update({ status: 'PROCESSING' }).eq('id', campaign.id);
+                console.log(`[Worker ${this.workerId}] Started campaign ${campaign.title} with upfront hold of ₹${estimatedCost}`);
+
+            } catch (err) {
+                console.error(`[Worker] Failed to process scheduled campaign ${campaign.id}:`, err);
+            }
         }
     }
 
@@ -487,40 +540,10 @@ class CampaignWorker {
             }
         }
 
-        // --- DYNAMIC SAFE BATCH SIZING (Zero-Loss & Zero-Negative Guarantee) ---
+        // --- BATCH SIZING ---
+        // We use a fixed batch size. The 'Atomic Reservation Hold' ensures funds are 
+        // locked safely upfront, eliminating the need for dynamic batch sizing based on live balance.
         let safeBatchSize = DEFAULT_BATCH_SIZE;
-        try {
-            const { data: wallet } = await this.supabase
-                .from('user_wallets')
-                .select('balance, billing_mode')
-                .eq('user_id', campaign.user_id)
-                .single();
-
-            if (wallet?.billing_mode === 'DIRECT_META') {
-                safeBatchSize = DEFAULT_BATCH_SIZE;
-            } else {
-                const rates = await CampaignWalletService.getPlatformRates(campaign.user_id, config.whatsapp_business_account_id);
-                safeBatchSize = CampaignWalletService.calculateSafeBatchSize(wallet?.balance || 0, rates.marketingRate, DEFAULT_BATCH_SIZE);
-            }
-
-            if (safeBatchSize <= 0) {
-                console.error(`[Worker] Insufficient balance for campaign ${campaign.id} to send even 1 message.`);
-                // Fail remaining pending items
-                await this.supabase.from('campaign_queue')
-                    .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Wallet Empty)' })
-                    .eq('campaign_id', campaign.id)
-                    .in('status', ['PENDING', 'RETRYING']);
-                    
-                await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
-                return;
-            }
-        } catch (e) {
-            console.error('[Worker] Error calculating safe batch size:', e);
-            // Default to 1 if calculation fails to avoid stuck campaigns, it will fail at preDebit if empty
-            safeBatchSize = 1;
-        }
-
-
 
         // Check if THIS WABA is rate-limited BEFORE doing ANY work
         if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
@@ -790,6 +813,42 @@ class CampaignWorker {
 
             if (count === 0) {
                 console.log(`Campaign ${campaign.id} Completed!`);
+                
+                // --- Release Unused Reservation Funds ---
+                try {
+                    // Get the initial hold amount
+                    const { data: holdTx } = await this.supabase
+                        .from('wallet_transactions')
+                        .select('amount')
+                        .eq('campaign_id', campaign.id)
+                        .eq('source', 'RESERVATION_HOLD')
+                        .maybeSingle();
+
+                    if (holdTx && holdTx.amount) {
+                        // Get total actual debits
+                        const { data: debits } = await this.supabase
+                            .from('wallet_transactions')
+                            .select('amount')
+                            .eq('campaign_id', campaign.id)
+                            .eq('source', 'CAMPAIGN_SEND')
+                            .eq('type', 'DEBIT');
+
+                        const totalSpent = debits ? debits.reduce((sum, tx) => sum + Number(tx.amount), 0) : 0;
+                        const unspent = Number(holdTx.amount) - totalSpent;
+
+                        if (unspent > 0) {
+                            console.log(`[Worker] Campaign ${campaign.id} unspent funds: ₹${unspent}. Releasing...`);
+                            await this.supabase.rpc('release_campaign_reservation', {
+                                p_user_id: campaign.user_id,
+                                p_amount: unspent,
+                                p_campaign_id: campaign.id
+                            });
+                        }
+                    }
+                } catch (relErr) {
+                    console.error(`[Worker] Failed to release funds for campaign ${campaign.id}:`, relErr.message);
+                }
+                
                 await this.supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
             } else {
                 // If count > 0 but we found no candidates, it means they are all in SENDING/RETRYING(future)

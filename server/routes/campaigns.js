@@ -371,7 +371,7 @@ router.post('/create', requirePermission('Campaigns', 'read_write'), async (req,
 
         // Finally, activate the campaign so the worker can pick it up
         await supabase.from('campaigns').update({ 
-            status: sendNow ? 'PROCESSING' : 'SCHEDULED' 
+            status: 'SCHEDULED' // Always SCHEDULED, worker will lock funds and change to PROCESSING
         }).eq('id', campaign.id);
 
         res.json({ success: true, campaignId: campaign.id });

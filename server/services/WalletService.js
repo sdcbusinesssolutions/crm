@@ -667,33 +667,7 @@ class WalletService {
         return { success: true, ...data };
     }
 
-    /**
-     * CAMPAIGN RESERVATIONS
-     */
-    static async holdCampaignReservation(userId, campaignId, estimatedCost, allowPartial = false) {
-        if (!estimatedCost || estimatedCost <= 0) return { success: true };
-        const { data, error } = await supabaseAdmin.rpc('hold_campaign_reservation', {
-            p_user_id: userId,
-            p_amount: estimatedCost,
-            p_campaign_id: campaignId,
-            p_description: `Reservation hold for Campaign ${campaignId}`,
-            p_allow_partial: allowPartial
-        });
-        if (error) throw error;
-        return { success: true, ...data };
-    }
 
-    static async releaseCampaignReservation(userId, campaignId, unusedAmount) {
-        if (!unusedAmount || unusedAmount <= 0) return { success: true };
-        const { data, error } = await supabaseAdmin.rpc('release_campaign_reservation', {
-            p_user_id: userId,
-            p_amount: unusedAmount,
-            p_campaign_id: campaignId,
-            p_description: `Releasing unused reservation for Campaign ${campaignId}`
-        });
-        if (error) throw error;
-        return { success: true, ...data };
-    }
 
     static sourceForContext(context) {
         const map = {
