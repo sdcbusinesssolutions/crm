@@ -419,10 +419,19 @@ class CampaignWorker {
 
                     if (holdErr) {
                         console.error(`[Worker] Insufficient balance to hold ₹${estimatedCost} for campaign ${campaign.id}:`, holdErr.message);
+                        
+                        const errorMsg = `INSUFFICIENT_BALANCE: ₹${estimatedCost} needed to start this campaign. Please top-up.`;
                         await this.supabase.from('campaign_queue')
-                            .update({ status: 'FAILED', error: 'INSUFFICIENT_BALANCE (Failed to hold funds upfront)' })
+                            .update({ status: 'FAILED', error: errorMsg })
                             .eq('campaign_id', campaign.id);
-                        await this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id);
+                            
+                        // Also try to update error on campaigns table if it exists (fails silently if column doesn't exist)
+                        await this.supabase.from('campaigns').update({ status: 'FAILED', error_message: errorMsg }).eq('id', campaign.id).then(({error}) => {
+                            if (error && error.code === 'PGRST204') {
+                                // Column not found, fallback to just status
+                                this.supabase.from('campaigns').update({ status: 'FAILED' }).eq('id', campaign.id).then();
+                            }
+                        });
                         continue;
                     }
                 }
