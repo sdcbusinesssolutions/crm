@@ -913,7 +913,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         // We pass both pricing (category, billable) and conversation
                         // (id, expiration_timestamp) so WalletService can correctly
                         // check if this window was already billed before charging.
-                        if (['sent'].includes(newStatus) && status.pricing) {
+                        if (['sent', 'delivered', 'read'].includes(newStatus) && status.pricing) {
                             WalletService.handleWebhookPricing(
                                 userId, waMessageId, status.pricing, status.conversation || null
                             ).catch(err => console.error('[Wallet] Error handling webhook pricing:', err));
