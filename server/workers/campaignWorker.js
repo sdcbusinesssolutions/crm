@@ -492,12 +492,16 @@ class CampaignWorker {
         try {
             const { data: wallet } = await this.supabase
                 .from('user_wallets')
-                .select('balance')
+                .select('balance, billing_mode')
                 .eq('user_id', campaign.user_id)
                 .single();
 
-            const rates = await CampaignWalletService.getPlatformRates(campaign.user_id, config.whatsapp_business_account_id);
-            safeBatchSize = CampaignWalletService.calculateSafeBatchSize(wallet?.balance || 0, rates.marketingRate, DEFAULT_BATCH_SIZE);
+            if (wallet?.billing_mode === 'DIRECT_META') {
+                safeBatchSize = DEFAULT_BATCH_SIZE;
+            } else {
+                const rates = await CampaignWalletService.getPlatformRates(campaign.user_id, config.whatsapp_business_account_id);
+                safeBatchSize = CampaignWalletService.calculateSafeBatchSize(wallet?.balance || 0, rates.marketingRate, DEFAULT_BATCH_SIZE);
+            }
 
             if (safeBatchSize <= 0) {
                 console.error(`[Worker] Insufficient balance for campaign ${campaign.id} to send even 1 message.`);
