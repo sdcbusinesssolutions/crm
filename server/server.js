@@ -261,6 +261,8 @@ const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 const adminFeatureLimitsRoutes = require('./routes/admin/featureLimitsRoutes');
 const adminCustomMenus = require('./routes/admin/adminCustomMenus');
+const superVideoGuides = require('./routes/admin/superVideoGuides');
+const tenantVideoGuides = require('./routes/admin/tenantVideoGuides');
 const { verifyAdminToken, verifySuperAdmin } = require('./middleware/admin/authMiddleware');
 
 // Public Routes
@@ -324,6 +326,8 @@ router.use('/admin/subscriptions', adminSubscriptionRoutes);
 router.use('/admin/settings', adminSettingsRoutes);
 router.use('/admin/limits', require('./routes/admin/featureLimitsRoutes'));
 router.use('/admin/custom-menus', adminCustomMenus);
+router.use('/admin/super/video-guides', superVideoGuides);
+router.use('/admin/video-guides', tenantVideoGuides);
 // EXPERIMENTAL FIX: Mount integrations explicitly to avoid wildcard shadowing
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);
@@ -337,6 +341,7 @@ app.use('/api', router);
 app.use('/api/auth-notifications', authNotificationsRoutes); // Triggered post-signup for whatsapp config
 app.use('/api/external', require('./routes/external_api')); // Dedicated External API Endpoint
 app.use('/api/custom-menus', requireAuth, require('./routes/customMenus'));
+app.use('/api/video-guides', require('./routes/videoGuides'));
 app.use('/.netlify/functions/server', router);
 // app.use('/', router); // DISABLED: This causes conflict with SPA routing (e.g. /admin/users hits API instead of React)
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 
 interface VideoGuideModalProps {
     isOpen: boolean;
@@ -48,20 +49,20 @@ const VideoGuideModal: React.FC<VideoGuideModalProps> = ({ isOpen, onClose, vide
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/0 pointer-events-none p-4">
+    const modalContent = (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
             <div 
-                className="bg-white rounded-t-2xl rounded-b-sm overflow-hidden shadow-2xl w-full max-w-4xl flex flex-col relative pointer-events-auto"
+                className="bg-white rounded-2xl overflow-hidden shadow-2xl w-full max-w-4xl flex flex-col relative pointer-events-auto border border-slate-200"
                 style={{ 
                     transform: `translate(${position.x}px, ${position.y}px)`,
                     transition: isDragging ? 'none' : 'transform 0.1s ease-out'
                 }}
             >
                 <div 
-                    className={`flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                    className={`flex justify-between items-center p-4 border-b border-slate-100 bg-white ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
                     onMouseDown={handleMouseDown}
                 >
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                         <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
                         </svg>
@@ -92,6 +93,8 @@ const VideoGuideModal: React.FC<VideoGuideModalProps> = ({ isOpen, onClose, vide
             </div>
         </div>
     );
+
+    return typeof document !== 'undefined' ? ReactDOM.createPortal(modalContent, document.body) : modalContent;
 };
 
 export default VideoGuideModal;

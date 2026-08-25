@@ -130,12 +130,14 @@ const AdminLayout = () => {
         { path: '/admin/plans', label: 'Plans', icon: '📝' },
         { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
         { path: '/admin/references', label: 'References', icon: '🔗' },
+        { path: '/admin/video-guides', label: 'Video Guides', icon: '▶️' },
     ];
 
     if (isAdminSuper) {
         menuItems.push({ path: '/admin/pricing', label: 'Pricing & Countries', icon: '💰' });
         menuItems.push({ path: '/admin/super', label: 'Super Panel', icon: '🚀' });
         menuItems.push({ path: '/admin/limits', label: 'Feature Limits', icon: '🚧' });
+        menuItems.push({ path: '/admin/super/video-guides', label: 'Global Videos', icon: '🎥' });
     }
 
     return (

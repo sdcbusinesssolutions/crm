@@ -5,7 +5,9 @@ import { MenuItem } from './Sidebar';
 import EngagementCard from './EngagementCard';
 import CRMPerformanceHub from './CRMPerformanceHub';
 import { QRCodeCanvas } from 'qrcode.react';
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from 'recharts';
 import { useDashboardStats, useRevenueStats } from '../hooks/useDashboard';
+import VideoGuideButton from './VideoGuideButton';
 import { monitorApiCall } from '../utils/apiOptimization';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 
@@ -1058,8 +1060,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             <Icons.Menu className="w-6 h-6" />
                         </button>
                     )}
-                    <div>
+                    <div className="flex items-center gap-4">
                         <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Dashboard</h1>
+                        <VideoGuideButton moduleName="Dashboard" />
                     </div>
                 </div>
                 {/* Right side actions removed as per request (moved to sidebar) */}
