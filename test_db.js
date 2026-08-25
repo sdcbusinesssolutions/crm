@@ -1,9 +1,17 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '/home/devendra/proj/wpcode/.env' });
-const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const { Client } = require('pg');
+const client = new Client({
+  connectionString: 'postgresql://postgres:sonuDEV%402211@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres'
+});
+
 async function run() {
-  const { data, error } = await supabase.from('messages').select('type, status, text, whatsapp_message_id, created_at').order('created_at', { ascending: false }).limit(5);
-  console.log(JSON.stringify(data, null, 2));
-  process.exit(0);
+  try {
+    await client.connect();
+    const res = await client.query("SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename IN ('contacts', 'leads', 'campaign_queue', 'conversations');");
+    console.log(JSON.stringify(res.rows, null, 2));
+  } catch (err) {
+    console.error('Connection error', err.stack);
+  } finally {
+    await client.end();
+  }
 }
 run();
