@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
         const { data: globalGuides, error: globalError } = await supabaseAdmin
             .from('video_guides')
             .select('*')
-            .eq('domain', 'global');
+            .eq('domain', 'global')
+            .eq('is_active', true);
         if (globalError) throw globalError;
 
         // Fetch tenant overrides

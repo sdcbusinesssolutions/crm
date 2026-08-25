@@ -5,7 +5,7 @@ const SuperVideoGuides: React.FC = () => {
     const [guides, setGuides] = useState<GlobalVideoGuide[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
-    const [formData, setFormData] = useState({ module_name: '', video_url: '' });
+    const [formData, setFormData] = useState({ module_name: '', video_url: '', is_active: true });
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     useEffect(() => {
@@ -21,9 +21,9 @@ const SuperVideoGuides: React.FC = () => {
 
     const handleOpenModal = (guide?: GlobalVideoGuide) => {
         if (guide) {
-            setFormData({ module_name: guide.module_name, video_url: guide.video_url });
+            setFormData({ module_name: guide.module_name, video_url: guide.video_url, is_active: guide.is_active });
         } else {
-            setFormData({ module_name: '', video_url: '' });
+            setFormData({ module_name: '', video_url: '', is_active: true });
         }
         setIsModalOpen(true);
     };
@@ -31,7 +31,7 @@ const SuperVideoGuides: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
-        await superVideoGuideService.saveGuide(formData.module_name, formData.video_url);
+        await superVideoGuideService.saveGuide(formData.module_name, formData.video_url, formData.is_active);
         await fetchGuides();
         setIsSaving(false);
         setIsModalOpen(false);
@@ -42,6 +42,11 @@ const SuperVideoGuides: React.FC = () => {
             await superVideoGuideService.deleteGuide(id);
             await fetchGuides();
         }
+    };
+
+    const handleToggle = async (id: string, currentStatus: boolean) => {
+        await superVideoGuideService.toggleActive(id, !currentStatus);
+        await fetchGuides();
     };
 
     return (
@@ -65,6 +70,7 @@ const SuperVideoGuides: React.FC = () => {
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Module Name</th>
                             <th className="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Default YouTube URL</th>
+                            <th className="px-6 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                             <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Actions</th>
                         </tr>
                     </thead>
@@ -77,7 +83,20 @@ const SuperVideoGuides: React.FC = () => {
                             <tr key={guide.id} className="hover:bg-slate-50">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{guide.module_name}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                    <a href={guide.video_url} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">{guide.video_url}</a>
+                                    {guide.video_url ? (
+                                        <a href={guide.video_url} target="_blank" rel="noreferrer" className="text-brand-600 hover:underline">{guide.video_url}</a>
+                                    ) : (
+                                        <span className="text-slate-400 italic">No URL</span>
+                                    )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                    <button 
+                                        onClick={() => handleToggle(guide.id, guide.is_active)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${guide.is_active ? 'bg-brand-600' : 'bg-slate-300'}`}
+                                        title={guide.is_active ? 'Disable' : 'Enable'}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${guide.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button onClick={() => handleOpenModal(guide)} className="text-slate-500 hover:text-brand-600 mr-4">Edit</button>
@@ -118,6 +137,16 @@ const SuperVideoGuides: React.FC = () => {
                                         placeholder="https://www.youtube.com/watch?v=..."
                                         className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
                                     />
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <label className="text-sm font-bold text-slate-700">Active Status</label>
+                                    <button 
+                                        type="button"
+                                        onClick={() => setFormData({...formData, is_active: !formData.is_active})}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.is_active ? 'bg-brand-600' : 'bg-slate-300'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.is_active ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4">
                                     <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-600 bg-slate-100 rounded-btn">Cancel</button>

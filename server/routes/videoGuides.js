@@ -20,6 +20,19 @@ router.get('/:moduleName', async (req, res) => {
 
         const domain = profile?.signup_domain;
 
+        // First, check the global guide status
+        const { data: globalGuide } = await supabaseAdmin
+            .from('video_guides')
+            .select('video_url, is_active')
+            .eq('module_name', moduleName)
+            .eq('domain', 'global')
+            .single();
+
+        // If the global guide doesn't exist or is toggled off, no video is shown
+        if (!globalGuide || globalGuide.is_active === false) {
+            return res.json({ video_url: null });
+        }
+
         // Try to get the tenant override first
         if (domain) {
             const { data: override } = await supabaseAdmin
@@ -35,16 +48,7 @@ router.get('/:moduleName', async (req, res) => {
         }
 
         // Fallback to global
-        const { data: globalGuide } = await supabaseAdmin
-            .from('video_guides')
-            .select('video_url')
-            .eq('module_name', moduleName)
-            .eq('domain', 'global')
-            .single();
-
-        if (globalGuide) {
-            return res.json({ video_url: globalGuide.video_url });
-        }
+        return res.json({ video_url: globalGuide.video_url });
 
         // No video found
         res.json({ video_url: null });

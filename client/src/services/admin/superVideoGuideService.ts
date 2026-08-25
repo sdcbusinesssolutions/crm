@@ -10,6 +10,7 @@ export interface GlobalVideoGuide {
     id: string;
     module_name: string;
     video_url: string;
+    is_active: boolean;
     created_at: string;
 }
 
@@ -25,18 +26,32 @@ export const superVideoGuideService = {
         }
     },
     
-    saveGuide: async (module_name: string, video_url: string): Promise<GlobalVideoGuide | null> => {
+    saveGuide: async (module_name: string, video_url: string, is_active: boolean = true): Promise<GlobalVideoGuide | null> => {
         try {
             const res = await fetch('/api/admin/super/video-guides', {
                 method: 'POST',
                 headers: getAdminHeaders(),
-                body: JSON.stringify({ module_name, video_url })
+                body: JSON.stringify({ module_name, video_url, is_active })
             });
             if (!res.ok) throw new Error('Failed to save global video guide');
             return await res.json();
         } catch (e) {
             console.error(e);
             return null;
+        }
+    },
+
+    toggleActive: async (id: string, is_active: boolean): Promise<boolean> => {
+        try {
+            const res = await fetch(`/api/admin/super/video-guides/${id}/toggle`, {
+                method: 'PUT',
+                headers: getAdminHeaders(),
+                body: JSON.stringify({ is_active })
+            });
+            return res.ok;
+        } catch (e) {
+            console.error(e);
+            return false;
         }
     },
 
