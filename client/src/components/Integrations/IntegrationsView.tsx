@@ -9,6 +9,7 @@ import SmtpCard from './SmtpCard';
 import CallyzerIntegrationCard from './CallyzerIntegrationCard';
 import { themeService } from '../../services/themeService';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+import VideoGuideButton from '../VideoGuideButton';
 
 interface IntegrationsViewProps {
     onToggleSidebar?: () => void;
@@ -142,7 +143,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center mb-4 text-sky-500 font-bold text-xl">
                                     <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" /></svg>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-800 mb-2">Telegram</h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="text-lg font-bold text-slate-800">Telegram</h3>
+                                    <VideoGuideButton moduleName="Telegram Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-500 text-sm mb-6">
                                     Set up and manage the integration flow
                                 </p>
@@ -162,7 +166,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                 <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center mb-4 text-white font-bold text-xl">
                                     <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M4.5 9C4.5 7.61929 5.61929 6.5 7 6.5H13C14.3807 6.5 15.5 7.61929 15.5 9V15C15.5 16.3807 14.3807 17.5 13 17.5H7C5.61929 17.5 4.5 16.3807 4.5 15V9Z" /><path d="M17 10.5V13.5L21 15.5V8.5L17 10.5Z" /></svg>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-800 mb-2">Zoom</h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="text-lg font-bold text-slate-800">Zoom</h3>
+                                    <VideoGuideButton moduleName="Zoom Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-500 text-sm mb-6">
                                     Set up and manage the integration flow
                                 </p>
@@ -180,7 +187,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">Webhook Integration</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-lg font-bold text-slate-800">Webhook Integration</h3>
+                                <VideoGuideButton moduleName="Webhook Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                            </div>
                             <p className="text-slate-500 text-sm mb-6">
                                 Receive and send data via webhooks to connect with external systems
                             </p>
@@ -202,7 +212,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-slate-800 mb-2">API Integration</h3>
+                            <div className="flex items-center gap-2 mb-2">
+                                <h3 className="text-lg font-bold text-slate-800">API Integration</h3>
+                                <VideoGuideButton moduleName="API Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                            </div>
                             <p className="text-slate-500 text-sm mb-6">
                                 Access our REST API to build custom integrations and automations
                             </p>
@@ -242,7 +255,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                         </div>
                                     )}
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">Bulk RCS</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-lg font-bold text-slate-900">Bulk RCS</h3>
+                                    <VideoGuideButton moduleName="Bulk RCS Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-600 text-sm mb-6 leading-relaxed">
                                     Send rich, interactive RCS messages at scale. Engage customers with branded, media-rich business messaging directly on Android devices.
                                 </p>
@@ -295,7 +311,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                         )}
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">N8N Workflow Automation</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-lg font-bold text-slate-900">N8N Workflow Automation</h3>
+                                    <VideoGuideButton moduleName="N8N Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-600 text-sm mb-2 leading-relaxed">
                                     Automate complex workflows by connecting your WhatsApp flows with 400+ apps. Trigger actions, sync data, and build powerful no-code automations.
                                 </p>
@@ -351,7 +370,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                         )}
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">AI Voice Calling Agent</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-lg font-bold text-slate-900">AI Voice Calling Agent</h3>
+                                    <VideoGuideButton moduleName="AI Voice Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-600 text-sm mb-2 leading-relaxed">
                                     Deploy AI-powered outbound &amp; inbound voice agents. Automate sales calls, customer support, and follow-ups with human-like voice bots.
                                 </p>
@@ -396,7 +418,10 @@ const IntegrationsView: React.FC<IntegrationsViewProps> = ({ onToggleSidebar, on
                                         YouTube
                                     </div>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 mb-1">Learning Video Hub</h3>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="text-lg font-bold text-slate-900">Learning Video Hub</h3>
+                                    <VideoGuideButton moduleName="Learning Video Hub" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-600 text-sm mb-6 leading-relaxed">
                                     Master the platform with our step-by-step video tutorials. Learn how to automate your workflows and scale your outreach with expert guides.
                                 </p>

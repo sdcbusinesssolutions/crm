@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { integrationsService } from '../../services/integrationsService';
+import VideoGuideButton from '../VideoGuideButton';
 
 const FacebookIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48px" height="48px">
@@ -321,7 +322,10 @@ const FacebookLeadAdsCard: React.FC = () => {
                     )}
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Facebook Lead Ads</h3>
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-slate-800">Facebook Lead Ads</h3>
+                    <VideoGuideButton moduleName="Facebook Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                </div>
                 <p className="text-slate-500 text-sm mb-6 flex-grow">
                     Automate lead generation and manage customer inquiries directly from Facebook. Capture leads seamlessly.
                 </p>

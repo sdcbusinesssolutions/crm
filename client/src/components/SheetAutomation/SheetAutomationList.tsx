@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
 import SheetAutomationReport from './SheetAutomationReport';
+import VideoGuideButton from '../VideoGuideButton';
 
 interface SheetAutomation {
     id: string;
@@ -243,6 +244,7 @@ const SheetAutomationList: React.FC<SheetAutomationListProps> = ({ onCreate, onE
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Automate your data syncs with Google Sheets.</p>
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <VideoGuideButton moduleName="G Automation" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
                         <button onClick={fetchAutomations} className="p-2.5 bg-white border border-slate-200 text-slate-500 hover:text-brand-600 hover:border-brand-200 rounded-xl transition-all shadow-sm" title="Refresh">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                         </button>

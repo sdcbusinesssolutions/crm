@@ -13,6 +13,7 @@ import {
     PauseIcon
 } from '../icons';
 import Modal from '../Modal';
+import VideoGuideButton from '../VideoGuideButton';
 import { 
     UsersIcon, 
     CalendarIcon, 
@@ -270,7 +271,10 @@ const DripList: React.FC<DripListProps> = ({ onCreate, onEdit, onToggleSidebar }
                                     <MenuIcon className="w-6 h-6" />
                                 </button>
                             )}
-                            <h1 className="text-2xl font-extrabold text-canvas-text tracking-tight">Drip Campaigns</h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-2xl font-extrabold text-canvas-text tracking-tight">Drip Campaigns</h1>
+                                <VideoGuideButton moduleName="Drip Campaigns" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                            </div>
                         </div>
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Automated nurturing sequences to engage your leads.</p>
                     </div>

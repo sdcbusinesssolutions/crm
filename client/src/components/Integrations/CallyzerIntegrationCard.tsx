@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { integrationsService } from '../../services/integrationsService';
 import { TrashIcon, CheckIcon } from '../icons';
+import VideoGuideButton from '../VideoGuideButton';
 
 const CallyzerIntegrationCard: React.FC = () => {
     const [baseUrl, setBaseUrl] = useState('');
@@ -77,7 +78,10 @@ const CallyzerIntegrationCard: React.FC = () => {
                 </svg>
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-2">Callyzer</h3>
+            <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-bold text-slate-800">Callyzer</h3>
+                <VideoGuideButton moduleName="Callyzer Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+            </div>
             <p className="text-slate-500 text-sm mb-6 flex-grow">
                 Connect Callyzer to automatically sync your team's call logs and recordings.
             </p>

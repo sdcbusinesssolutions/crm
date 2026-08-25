@@ -26,7 +26,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const { module_name, video_url } = req.body;
-        if (!module_name || !video_url) {
+        if (!module_name || video_url === undefined) {
             return res.status(400).json({ error: 'module_name and video_url are required' });
         }
 

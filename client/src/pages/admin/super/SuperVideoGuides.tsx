@@ -117,7 +117,6 @@ const SuperVideoGuides: React.FC = () => {
                                         onChange={(e) => setFormData({...formData, video_url: e.target.value})}
                                         placeholder="https://www.youtube.com/watch?v=..."
                                         className="w-full px-4 py-2 border border-slate-200 rounded-lg text-sm"
-                                        required
                                     />
                                 </div>
                                 <div className="flex justify-end gap-3 pt-4">

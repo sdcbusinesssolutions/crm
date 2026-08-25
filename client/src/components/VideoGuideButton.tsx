@@ -33,8 +33,7 @@ const VideoGuideButton: React.FC<VideoGuideButtonProps> = ({ moduleName, classNa
                 window.open(url, '_blank');
             }
         } else {
-            // Optional: Show a toast or just open a default video
-            console.log('No video guide found for this module');
+            alert('Video tutorial coming soon for this module!');
         }
     };
 

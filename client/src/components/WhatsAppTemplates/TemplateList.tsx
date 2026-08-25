@@ -5,6 +5,7 @@ import Modal from '../Modal';
 import Toast from '../Toast';
 import TemplatePreview from './TemplatePreview';
 import { usePermissions, ACCESS_TYPES } from '../../modules/teamStaff/hooks/usePermissions';
+import VideoGuideButton from '../VideoGuideButton';
 
 interface Template {
     id: string;
@@ -160,6 +161,7 @@ const TemplateList: React.FC<TemplateListProps> = ({ onNavigateToBuilder }) => {
                         <p className="text-slate-500 text-sm mt-1 font-medium hidden sm:block">Manage your message templates.</p>
                     </div>
                     <div className="flex items-center gap-3">
+                        <VideoGuideButton moduleName="Templates" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
                         <button
                             onClick={() => fetchTemplates(true)}
                             disabled={isLoading}

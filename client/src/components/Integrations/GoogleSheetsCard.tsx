@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { integrationsService } from '../../services/integrationsService';
 import Modal from '../Modal';
+import VideoGuideButton from '../VideoGuideButton';
 
 const GoogleSheetsIcon = () => (
     <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center text-green-600 font-bold text-xl">
@@ -216,7 +217,10 @@ const GoogleSheetsCard: React.FC = () => {
                     )}
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Google Sheets</h3>
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-slate-800">Google Sheets</h3>
+                    <VideoGuideButton moduleName="Google Sheets Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                </div>
                 <p className="text-slate-500 text-sm mb-6 flex-grow">
                     Connect your Google accounts to read and write data to Sheets directly from your flows.
                 </p>

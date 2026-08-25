@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { integrationsService } from '../../services/integrationsService';
 import { OpenAIIcon, TrashIcon, CheckIcon } from '../icons';
+import VideoGuideButton from '../VideoGuideButton';
 
 const OpenAIIntegrationCard: React.FC = () => {
     const [apiKey, setApiKey] = useState('');
@@ -82,7 +83,10 @@ const OpenAIIntegrationCard: React.FC = () => {
                 <img src="/assets/openai.png" alt="OpenAI" className="w-8 h-8 object-contain" />
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 mb-2">OpenAI</h3>
+            <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-bold text-slate-800">OpenAI</h3>
+                <VideoGuideButton moduleName="OpenAI Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+            </div>
             <p className="text-slate-500 text-sm mb-6 flex-grow">
                 Connect your OpenAI account to power AI Agents and auto-responses.
             </p>

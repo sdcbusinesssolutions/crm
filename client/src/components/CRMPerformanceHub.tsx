@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from './Sidebar';
 import { DashboardStats } from './Dashboard';
-import VideoGuideModal from './VideoGuideModal';
+import VideoGuideButton from './VideoGuideButton';
 
 // --- Icons ---
 const Icons = {
@@ -193,16 +193,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 <h2 className="text-lg font-black tracking-wide uppercase flex items-center gap-2" style={{ color: '#07523d' }}>
                     Lead Pipeline Automation CRM
                 </h2>
-                <button 
-                    onClick={() => setShowVideo(true)}
-                    className="flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-md hover:shadow-lg transition-all animate-pulse"
-                    title="Watch Video"
-                >
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/>
-                    </svg>
-                    VIEW
-                </button>
+                <VideoGuideButton moduleName="Dashboard" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr_2.2fr] gap-4 h-full">
@@ -676,13 +667,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
                 </div>
             </div>
             
-            {/* Video Modal Component */}
-            <VideoGuideModal 
-                isOpen={showVideo} 
-                onClose={() => setShowVideo(false)} 
-                videoId="_MX4Rrx5DZs" 
-                title="CRM Automation Guide" 
-            />
+
         </div>
     );
 

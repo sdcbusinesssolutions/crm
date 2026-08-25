@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { integrationsService } from '../../services/integrationsService';
 import Modal from '../Modal';
+import VideoGuideButton from '../VideoGuideButton';
 
 const GmailIcon = () => (
     <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-600 font-bold text-xl">
@@ -202,7 +203,10 @@ const GmailCard: React.FC = () => {
                     )}
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Gmail</h3>
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-slate-800">Gmail</h3>
+                    <VideoGuideButton moduleName="Gmail Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                </div>
                 <p className="text-slate-500 text-sm mb-6 flex-grow">
                     Send and receive emails directly from your flows using your connected Gmail accounts.
                 </p>

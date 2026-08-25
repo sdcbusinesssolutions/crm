@@ -15,6 +15,7 @@ import { inputFieldService } from '../services/inputFieldService';
 import { UsersIcon, BadgeIcon, HomeIcon, MenuIcon } from './icons';
 import { usePermissions, ACCESS_TYPES } from '../modules/teamStaff/hooks/usePermissions';
 import CustomMenu from './CustomMenu';
+import VideoGuideButton from './VideoGuideButton';
 
 interface ContactsProps {
     initialTab?: 'dashboard' | 'contacts' | 'groups' | 'inputs' | 'pipelines' | 'follow-up' | 'forms' | 'custom-menu';
@@ -248,7 +249,10 @@ const Contacts: React.FC<ContactsProps> = ({ initialTab = 'dashboard', initialPi
                                 </button>
                             )}
                             <div>
-                                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Lead CRM</h1>
+                                <div className="flex items-center gap-3">
+                                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Lead CRM</h1>
+                                    <VideoGuideButton moduleName="Lead CRM" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                                </div>
                                 <p className="text-slate-500 text-sm mt-1">Track, nurture, and convert your leads efficiently.</p>
                             </div>
                         </div>

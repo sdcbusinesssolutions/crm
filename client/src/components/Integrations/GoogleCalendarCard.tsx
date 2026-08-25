@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { integrationsService } from '../../services/integrationsService';
 import Modal from '../Modal';
+import VideoGuideButton from '../VideoGuideButton';
 
 const CalendarIcon = () => (
     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xl">
@@ -199,7 +200,10 @@ const GoogleCalendarCard: React.FC = () => {
                     )}
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Google Calendar</h3>
+                <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-slate-800">Google Calendar</h3>
+                    <VideoGuideButton moduleName="Google Calendar Integration" label="VIEW" className="!bg-red-600 hover:!bg-red-700 !text-white !rounded-full !text-[10px] animate-pulse shadow-md hover:shadow-lg" />
+                </div>
                 <p className="text-slate-500 text-sm mb-6 flex-grow">
                     Set up and manage the integration flow for your calendars and events.
                 </p>

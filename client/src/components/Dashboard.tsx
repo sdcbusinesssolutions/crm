@@ -1060,9 +1060,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate, onNavigateToPipeline,
                             <Icons.Menu className="w-6 h-6" />
                         </button>
                     )}
-                    <div className="flex items-center gap-4">
+                    <div>
                         <h1 className="text-xl md:text-2xl font-black tracking-tight leading-none text-slate-900 drop-shadow-sm">Dashboard</h1>
-                        <VideoGuideButton moduleName="Dashboard" />
                     </div>
                 </div>
                 {/* Right side actions removed as per request (moved to sidebar) */}
