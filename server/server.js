@@ -260,6 +260,7 @@ const adminPlanRoutes = require('./routes/admin/planRoutes');
 const adminSubscriptionRoutes = require('./routes/admin/subscriptionRoutes');
 const adminSettingsRoutes = require('./routes/admin/settingsRoutes');
 const adminFeatureLimitsRoutes = require('./routes/admin/featureLimitsRoutes');
+const adminCustomMenus = require('./routes/admin/adminCustomMenus');
 const { verifyAdminToken, verifySuperAdmin } = require('./middleware/admin/authMiddleware');
 
 // Public Routes
@@ -322,6 +323,7 @@ router.use('/admin/subscriptions', adminSubscriptionRoutes);
 
 router.use('/admin/settings', adminSettingsRoutes);
 router.use('/admin/limits', require('./routes/admin/featureLimitsRoutes'));
+router.use('/admin/custom-menus', adminCustomMenus);
 // EXPERIMENTAL FIX: Mount integrations explicitly to avoid wildcard shadowing
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);

@@ -129,6 +129,7 @@ const AdminLayout = () => {
         { path: '/admin/subscriptions', label: 'Subscriptions', icon: '💳' },
         { path: '/admin/plans', label: 'Plans', icon: '📝' },
         { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+        { path: '/admin/references', label: 'References', icon: '🔗' },
     ];
 
     if (isAdminSuper) {

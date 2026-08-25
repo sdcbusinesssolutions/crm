@@ -182,7 +182,7 @@ const CustomMenu: React.FC = () => {
                                                     rel="noopener noreferrer"
                                                     className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
                                                 >
-                                                    {menu.value}
+                                                    <span>Open Link</span>
                                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                                                 </a>
                                             ) : (
@@ -194,13 +194,18 @@ const CustomMenu: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end">
-                                                <button 
-                                                    onClick={() => handleDeleteClick(menu.id)} 
-                                                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors group" 
-                                                    title="Delete"
-                                                >
-                                                    <TrashIcon />
-                                                </button>
+                                                {!menu.is_global && (
+                                                    <button 
+                                                        onClick={() => handleDeleteClick(menu.id)} 
+                                                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors group" 
+                                                        title="Delete"
+                                                    >
+                                                        <TrashIcon />
+                                                    </button>
+                                                )}
+                                                {menu.is_global && (
+                                                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">Global</span>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

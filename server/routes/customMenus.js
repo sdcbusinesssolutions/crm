@@ -6,15 +6,31 @@ const requireAuth = require('../middleware/requireAuth');
 // Apply auth middleware to all routes
 router.use(requireAuth);
 
-// GET all custom menus for the user
+// GET all custom menus for the user and global ones for their domain
 router.get('/', async (req, res) => {
     try {
         const userId = req.user.id;
-        const { data, error } = await supabaseAdmin
+        
+        // Fetch user domain
+        const { data: profile } = await supabaseAdmin
+            .from('profiles')
+            .select('signup_domain')
+            .eq('id', userId)
+            .single();
+            
+        const domain = profile?.signup_domain;
+
+        let query = supabaseAdmin
             .from('custom_menus')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false });
+            .select('*');
+            
+        if (domain) {
+            query = query.or(`user_id.eq.${userId},and(domain.eq.${domain},is_global.eq.true)`);
+        } else {
+            query = query.eq('user_id', userId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
         res.json(data);

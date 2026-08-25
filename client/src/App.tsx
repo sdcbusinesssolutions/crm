@@ -10,6 +10,7 @@ import AdminUsers from './pages/admin/users/Users';
 import AdminPlans from './pages/admin/plans/Plans';
 import AdminSubscriptions from './pages/admin/subscriptions/Subscriptions';
 import AdminSettings from './pages/admin/settings/Settings';
+import AdminReferences from './pages/admin/AdminReferences';
 import AdminLayout from './layouts/admin/AdminLayout';
 import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
 import FinanceReport from './pages/admin/FinanceReport';
@@ -917,6 +918,7 @@ const App: React.FC = () => {
                     <Route path="plans" element={<AdminPlans />} />
                     <Route path="subscriptions" element={<AdminSubscriptions />} />
                     <Route path="settings" element={<AdminSettings />} />
+                    <Route path="references" element={<AdminReferences />} />
                     <Route path="super" element={<SuperDashboard />} />
                     <Route path="limits" element={<FeatureLimitsManager />} />
                     <Route path="finance" element={<FinanceReport />} />

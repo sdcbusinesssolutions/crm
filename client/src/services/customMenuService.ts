@@ -6,6 +6,7 @@ export interface CustomMenu {
     name: string;
     type: string;
     value: string;
+    is_global?: boolean;
     created_at: string;
 }
 
