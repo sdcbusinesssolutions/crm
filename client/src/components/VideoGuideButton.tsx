@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactDOM from 'react-dom';
 import VideoGuideModal from './VideoGuideModal';
 import { videoGuideService } from '../services/videoGuideService';
 
@@ -10,6 +11,7 @@ interface VideoGuideButtonProps {
 
 const VideoGuideButton: React.FC<VideoGuideButtonProps> = ({ moduleName, className = '', label = 'Watch Tutorial' }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isComingSoonOpen, setIsComingSoonOpen] = useState(false);
     const [videoId, setVideoId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -33,7 +35,7 @@ const VideoGuideButton: React.FC<VideoGuideButtonProps> = ({ moduleName, classNa
                 window.open(url, '_blank');
             }
         } else {
-            alert('Video tutorial coming soon for this module!');
+            setIsComingSoonOpen(true);
         }
     };
 
@@ -62,6 +64,31 @@ const VideoGuideButton: React.FC<VideoGuideButtonProps> = ({ moduleName, classNa
                     videoId={videoId} 
                     title={`${moduleName} Tutorial`} 
                 />
+            )}
+
+            {isComingSoonOpen && ReactDOM.createPortal(
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center">
+                            <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 mb-2">Coming Soon!</h3>
+                            <p className="text-slate-500 text-sm mb-6">
+                                We're working hard on an awesome video tutorial for the <strong>{moduleName}</strong> module. Check back later!
+                            </p>
+                            <button
+                                onClick={() => setIsComingSoonOpen(false)}
+                                className="w-full bg-brand-600 hover:bg-brand-700 text-white font-bold py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
+                            >
+                                Got it!
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </>
     );
