@@ -60,13 +60,28 @@ class WalletService {
      */
     static async getRate(userId, category, countryCode = 'IN', tenantId = null) {
         category = (category || 'MARKETING').toUpperCase();
-        const targetTenantId = tenantId || userId;
+        
+        let actualTenantId = tenantId;
+        if (!actualTenantId) {
+            try {
+                const { data: profile } = await supabaseAdmin
+                    .from('profiles')
+                    .select('tenant_id')
+                    .eq('id', userId)
+                    .maybeSingle();
+                actualTenantId = profile?.tenant_id || null;
+            } catch (e) {
+                // Ignore
+            }
+        }
+        
+        const targetTenantId = actualTenantId || userId;
         
         // 1. Fetch user's wallet to know their currency (INR vs USD)
         const wallet = await this.getWallet(userId);
         const currency = wallet.currency || 'INR';
 
-        const cacheKey = `${userId}_${targetTenantId}_${category}_${countryCode}_${currency}`;
+        const cacheKey = `${userId}_${actualTenantId || 'null'}_${category}_${countryCode}_${currency}`;
 
         const cached = rateCache.get(cacheKey);
         if (cached && cached.expiresAt > Date.now()) {
@@ -87,10 +102,11 @@ class WalletService {
 
         if (rates && rates.length > 0) {
             const userRate = rates.find(r => r.scope === 'USER' && r.user_id === userId);
-            const tenantRate = rates.find(r => ['TENANT', 'WORKSPACE'].includes(r.scope) && r.user_id === targetTenantId);
+            const workspaceRate = rates.find(r => r.scope === 'WORKSPACE' && r.user_id === userId);
+            const tenantRate = actualTenantId ? rates.find(r => ['TENANT', 'WORKSPACE'].includes(r.scope) && r.user_id === actualTenantId) : null;
             const globalRate = rates.find(r => r.scope === 'GLOBAL');
 
-            selectedRate = userRate || tenantRate || globalRate;
+            selectedRate = userRate || workspaceRate || tenantRate || globalRate;
         }
 
         if (!selectedRate) {

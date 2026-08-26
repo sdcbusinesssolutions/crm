@@ -847,7 +847,13 @@ router.get('/rates/:userId', async (req, res) => {
 
         let baselineRates = [];
         if (isSuperAdmin) {
-             baselineRates = globalRates;
+             baselineRates = globalRates.map(r => {
+                 // Ensure we never suggest a rate lower than meta cost
+                 if (r.platform_rate === 0 || r.platform_rate < r.meta_cost) {
+                     return { ...r, platform_rate: r.meta_cost > 0 ? r.meta_cost : 0.0001 };
+                 }
+                 return r;
+             });
         } else {
              // For Tenant admins, their baseline is their own effective rate
              const { data: tenantRates } = await supabaseAdmin
@@ -872,7 +878,13 @@ router.get('/rates/:userId', async (req, res) => {
                  }
              });
              
-             baselineRates = Object.values(baselineMap);
+             baselineRates = Object.values(baselineMap).map(r => {
+                 // Enforce meta cost floor to prevent losses
+                 if (r.platform_rate === 0 || r.platform_rate < r.meta_cost) {
+                     return { ...r, platform_rate: r.meta_cost > 0 ? r.meta_cost : 0.0001 };
+                 }
+                 return r;
+             });
         }
         
         // Ensure baselineRates are marked as 'GLOBAL' so the UI uses them as defaults
@@ -950,17 +962,18 @@ router.post('/rates', async (req, res) => {
                 // Regular admins (Tenants) cannot set a rate below the actual rate they are paying
                 try {
                     const tenantRate = await WalletService.getRate(adminUserId, r.category, countryCode);
-                    costFloor = Number(tenantRate.platform_rate);
+                    costFloor = Math.max(Number(tenantRate.platform_rate), Number(tenantRate.meta_cost));
                 } catch (e) {
                     // Fallback to global rate if getRate fails
                     const gr = globalRates?.find(g => g.category === r.category && g.country_code === countryCode);
-                    costFloor = gr ? Number(gr.platform_rate) : 0;
+                    costFloor = gr ? Math.max(Number(gr.platform_rate), Number(gr.meta_cost)) : 0;
                 }
             }
 
-            // Cost floor enforcement
-            if (Number(r.platform_rate) < costFloor) {
-                throw new Error(`Rate for ${r.category} (${countryCode}) cannot be below your assigned cost floor of ${costFloor}`);
+            // Cost floor enforcement (also protect against 0 values)
+            const absoluteMin = costFloor > 0 ? costFloor : 0.0001;
+            if (Number(r.platform_rate) < absoluteMin) {
+                throw new Error(`Rate for ${r.category} (${countryCode}) cannot be below your assigned cost floor of ${absoluteMin}`);
             }
 
             // We must still pass the true meta_cost down for billing records
