@@ -24,9 +24,14 @@ const FinanceReport = () => {
     // Filters
     const [filterDateFrom, setFilterDateFrom] = useState('');
     const [filterDateTo, setFilterDateTo] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Suspicious Filter
     const [showSuspiciousOnly, setShowSuspiciousOnly] = useState(false);
+
+    // Pagination
+    const [currentPage, setCurrentPage] = useState(1);
+    const rowsPerPage = 20;
 
     // Super Admin Domain Filter
     const [isSuperAdmin, setIsSuperAdmin] = useState(false);
@@ -170,7 +175,24 @@ const FinanceReport = () => {
         }
     };
 
-    const filteredData = showSuspiciousOnly ? data.filter(r => getRiskStatus(r).isSuspicious) : data;
+    const filteredData = data.filter(r => {
+        if (showSuspiciousOnly && !getRiskStatus(r).isSuspicious) return false;
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            const matchName = r.name?.toLowerCase().includes(q);
+            const matchEmail = r.email?.toLowerCase().includes(q);
+            const matchPhone = r.phone?.includes(q);
+            if (!matchName && !matchEmail && !matchPhone) return false;
+        }
+        return true;
+    });
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, domainFilter, filterDateFrom, filterDateTo, showSuspiciousOnly]);
+
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+    const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
     const totalDeposits = data.reduce((sum, r) => sum + r.deposited_balance, 0);
     const totalSpend = data.reduce((sum, r) => sum + r.spend_balance, 0);
@@ -210,6 +232,16 @@ const FinanceReport = () => {
                             ))}
                         </select>
                     )}
+
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            placeholder="Search user, email, phone..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="border border-slate-200 rounded-xl px-4 py-2 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 w-48 sm:w-64"
+                        />
+                    </div>
                     <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">From</span>
                         <input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)}
@@ -302,7 +334,7 @@ const FinanceReport = () => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    filteredData.map(row => {
+                                    paginatedData.map(row => {
                                         let riskStatus = null;
                                         
                                         if (row.billing_mode === 'DIRECT_META') {
@@ -365,6 +397,31 @@ const FinanceReport = () => {
                             </tbody>
                         </table>
                     </div>
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+                            <div className="text-sm font-medium text-slate-500">
+                                Showing <span className="font-bold text-slate-700">{(currentPage - 1) * rowsPerPage + 1}</span> to <span className="font-bold text-slate-700">{Math.min(currentPage * rowsPerPage, filteredData.length)}</span> of <span className="font-bold text-slate-700">{filteredData.length}</span> entries
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
         </div>
     );
