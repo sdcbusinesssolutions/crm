@@ -823,6 +823,9 @@ router.get('/rates/:userId', async (req, res) => {
     try {
         const userId = req.params.userId;
         
+        const adminUserId = req.admin?.user_id || req.admin?.id;
+        const isSuperAdmin = req.admin?.role === 'super_admin';
+
         // 1. Fetch user's WABA currency
         const { data: wabaConfig } = await supabaseAdmin
             .from('whatsapp_config')
@@ -832,16 +835,61 @@ router.get('/rates/:userId', async (req, res) => {
             
         const currency = wabaConfig?.currency || 'INR';
 
-        // 2. Fetch rates matching the currency
-        const { data: rates, error } = await supabaseAdmin
+        // 2. Fetch baseline global rates
+        const { data: globalRates, error: gError } = await supabaseAdmin
             .from('wa_message_rates')
             .select('*')
-            .or(`user_id.eq.${userId},scope.eq.GLOBAL`)
+            .eq('scope', 'GLOBAL')
             .eq('currency', currency)
             .eq('is_active', true);
             
-        if (error) throw error;
-        res.json(rates);
+        if (gError) throw gError;
+
+        let baselineRates = [];
+        if (isSuperAdmin) {
+             baselineRates = globalRates;
+        } else {
+             // For Tenant admins, their baseline is their own effective rate
+             const { data: tenantRates } = await supabaseAdmin
+                 .from('wa_message_rates')
+                 .select('*')
+                 .in('scope', ['TENANT', 'WORKSPACE'])
+                 .eq('user_id', adminUserId)
+                 .eq('currency', currency)
+                 .eq('is_active', true);
+                 
+             const baselineMap = {};
+             (globalRates || []).forEach(gr => {
+                 baselineMap[`${gr.category}_${gr.country_code}`] = { ...gr };
+             });
+             
+             (tenantRates || []).forEach(tr => {
+                 const key = `${tr.category}_${tr.country_code}`;
+                 if (baselineMap[key]) {
+                     // Tenant's rate overrides global rate for their cost floor
+                     baselineMap[key].platform_rate = tr.platform_rate;
+                     baselineMap[key].meta_cost = tr.meta_cost;
+                 }
+             });
+             
+             baselineRates = Object.values(baselineMap);
+        }
+        
+        // Ensure baselineRates are marked as 'GLOBAL' so the UI uses them as defaults
+        baselineRates = baselineRates.map(r => ({ ...r, scope: 'GLOBAL', id: undefined, user_id: null }));
+
+        // 3. Fetch the target user's WORKSPACE overrides
+        const { data: userRates, error: uError } = await supabaseAdmin
+            .from('wa_message_rates')
+            .select('*')
+            .eq('scope', 'WORKSPACE')
+            .eq('user_id', userId)
+            .eq('currency', currency)
+            .eq('is_active', true);
+            
+        if (uError) throw uError;
+
+        res.json([...baselineRates, ...(userRates || [])]);
     } catch (error) {
         console.error('Error fetching rates:', error);
         res.status(500).json({ error: error.message });
@@ -877,8 +925,21 @@ router.post('/rates', async (req, res) => {
         const isSuperAdmin = req.admin?.role === 'super_admin';
         const adminUserId = req.admin?.user_id || req.admin?.id;
 
-        const upserts = await Promise.all(rates.map(async r => {
+        const upserts = [];
+        const toDelete = [];
+
+        await Promise.all(rates.map(async r => {
             const countryCode = r.country_code || 'IN';
+            
+            if (r.platform_rate === '' || r.platform_rate === null || r.platform_rate === undefined) {
+                toDelete.push({
+                    scope: r.scope || scope || 'WORKSPACE',
+                    category: r.category,
+                    country_code: countryCode
+                });
+                return;
+            }
+
             let costFloor = 0;
 
             if (isSuperAdmin) {
@@ -905,7 +966,7 @@ router.post('/rates', async (req, res) => {
             // We must still pass the true meta_cost down for billing records
             const rawMetaCost = globalRates?.find(g => g.category === r.category && g.country_code === countryCode)?.meta_cost || r.meta_cost || 0;
 
-            return {
+            upserts.push({
                 scope: r.scope || scope || 'WORKSPACE', // Use rate-specific scope, fallback to body scope, then 'WORKSPACE'
                 user_id: userId,
                 category: r.category,
@@ -914,7 +975,7 @@ router.post('/rates', async (req, res) => {
                 platform_rate: r.platform_rate,
                 currency: currency,
                 updated_by: null
-            };
+            });
         }));
         
         // Workaround for Postgres unique constraints with nulls:
@@ -937,12 +998,33 @@ router.post('/rates', async (req, res) => {
             const { error: deleteError } = await deleteQuery;
             if (deleteError) throw deleteError;
         }
+        
+        for (const d of toDelete) {
+            let deleteQuery = supabaseAdmin
+                .from('wa_message_rates')
+                .delete()
+                .eq('scope', d.scope)
+                .eq('category', d.category)
+                .eq('country_code', d.country_code)
+                .eq('currency', currency);
 
-        const { error } = await supabaseAdmin
-            .from('wa_message_rates')
-            .insert(upserts);
-            
-        if (error) throw error;
+            if (userId) {
+                deleteQuery = deleteQuery.eq('user_id', userId);
+            } else {
+                deleteQuery = deleteQuery.is('user_id', null);
+            }
+
+            const { error: deleteError } = await deleteQuery;
+            if (deleteError) throw deleteError;
+        }
+
+        if (upserts.length > 0) {
+            const { error } = await supabaseAdmin
+                .from('wa_message_rates')
+                .insert(upserts);
+                
+            if (error) throw error;
+        }
         res.json({ success: true });
     } catch (error) {
         console.error('Error setting rates:', error);

@@ -10,7 +10,7 @@ interface WalletRatesModalProps {
 
 interface Rate {
     category: string;
-    platform_rate: number;
+    platform_rate: number | '';
     meta_cost: number;
     scope: 'GLOBAL' | 'WORKSPACE';
     country_code?: string;
@@ -20,6 +20,7 @@ const CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION', 'SERVICE'];
 
 const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, user, onSuccess }) => {
     const [ratesByCountry, setRatesByCountry] = useState<Record<string, Record<string, Rate>>>({});
+    const [globalRatesByCountry, setGlobalRatesByCountry] = useState<Record<string, Record<string, Rate>>>({});
     const [countries, setCountries] = useState<string[]>(['IN']);
     const [selectedCountry, setSelectedCountry] = useState<string>('IN');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,15 +48,18 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                 uniqueCountries.sort();
                 
                 const newRatesByCountry: Record<string, Record<string, Rate>> = {};
+                const newGlobalRatesByCountry: Record<string, Record<string, Rate>> = {};
                 
                 uniqueCountries.forEach(cc => {
                     const countryRates = data.filter((r: any) => (r.country_code || 'IN') === cc);
                     const processed: Record<string, Rate> = {};
+                    const globalProcessed: Record<string, Rate> = {};
                     
                     // First pass: add GLOBAL
                     countryRates.forEach((r: any) => {
                         if (r.scope === 'GLOBAL') {
                             processed[r.category] = r;
+                            globalProcessed[r.category] = r;
                         }
                     });
                     
@@ -67,6 +71,7 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                     });
                     
                     newRatesByCountry[cc] = processed;
+                    newGlobalRatesByCountry[cc] = globalProcessed;
                 });
                 
                 setCountries(uniqueCountries.length ? uniqueCountries : ['IN']);
@@ -75,6 +80,7 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                 }
                 
                 setRatesByCountry(newRatesByCountry);
+                setGlobalRatesByCountry(newGlobalRatesByCountry);
             } else {
                 setError('Failed to fetch rates');
             }
@@ -87,14 +93,13 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
     };
 
     const handleRateChange = (category: string, value: string) => {
-        const val = parseFloat(value);
         setRatesByCountry(prev => ({
             ...prev,
             [selectedCountry]: {
                 ...prev[selectedCountry],
                 [category]: {
                     ...prev[selectedCountry]?.[category],
-                    platform_rate: isNaN(val) ? 0 : val,
+                    platform_rate: value === '' ? '' : parseFloat(value),
                     category,
                     country_code: selectedCountry,
                     scope: 'WORKSPACE'
@@ -115,6 +120,26 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
             Object.values(ratesByCountry).forEach(countryRates => {
                 ratesToSave = [...ratesToSave, ...Object.values(countryRates).filter(r => r.scope === 'WORKSPACE')];
             });
+
+            // Validation: Cannot be 0, cannot be < globalRate
+            const validationErrors: string[] = [];
+            for (const r of ratesToSave) {
+                if (r.platform_rate !== '') {
+                    const globalRate = globalRatesByCountry[r.country_code || 'IN']?.[r.category];
+                    const globalPlatformRate = globalRate && typeof globalRate.platform_rate === 'number' ? globalRate.platform_rate : 0;
+                    const minAllowed = globalPlatformRate > 0 ? globalPlatformRate : 0.0001;
+                    
+                    if (r.platform_rate < minAllowed) {
+                        validationErrors.push(`${r.category} (${r.country_code || 'IN'}) cannot be lower than ${minAllowed}`);
+                    }
+                }
+            }
+            
+            if (validationErrors.length > 0) {
+                setError(validationErrors.join(', '));
+                setIsSubmitting(false);
+                return;
+            }
             
             const res = await fetch('/api/wallet/admin/rates', {
                 method: 'POST',
@@ -195,14 +220,22 @@ const WalletRatesModal: React.FC<WalletRatesModalProps> = ({ isOpen, onClose, us
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-bold text-slate-600">₹</span>
-                                        <input
-                                            type="number"
-                                            step="0.0001"
-                                            min="0"
-                                            className={`w-24 px-2 py-1 text-right text-sm border rounded focus:ring-brand-500 outline-none ${isOverride ? 'border-brand-300 bg-white' : 'border-slate-300 bg-transparent'}`}
-                                            value={rate?.platform_rate || ''}
-                                            onChange={(e) => handleRateChange(category, e.target.value)}
-                                        />
+                                        {(() => {
+                                            const globalRateObj = globalRatesByCountry[selectedCountry]?.[category];
+                                            const globalPlatformRate = globalRateObj && typeof globalRateObj.platform_rate === 'number' ? globalRateObj.platform_rate : 0;
+                                            const minAllowed = globalPlatformRate > 0 ? globalPlatformRate : 0.0001;
+                                            return (
+                                                <input
+                                                    type="number"
+                                                    step="0.0001"
+                                                    min={minAllowed}
+                                                    placeholder={minAllowed.toString()}
+                                                    className={`w-24 px-2 py-1 text-right text-sm border rounded focus:ring-brand-500 outline-none ${isOverride ? 'border-brand-300 bg-white' : 'border-slate-300 bg-transparent'}`}
+                                                    value={rate?.platform_rate !== undefined && rate?.platform_rate !== null ? rate.platform_rate : ''}
+                                                    onChange={(e) => handleRateChange(category, e.target.value)}
+                                                />
+                                            );
+                                        })()}
                                         {isOverride && (
                                             <span className="text-[10px] font-bold text-brand-600 bg-brand-100 px-1.5 py-0.5 rounded ml-1">
                                                 OVERRIDE
