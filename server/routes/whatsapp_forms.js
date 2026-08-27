@@ -687,39 +687,39 @@ router.post('/:id/send', requirePermission('Whatsapp Forms', 'read_write'), asyn
 
         for (const number of numbers) {
             try {
-                const payload = {
-                    messaging_product: "whatsapp",
-                    recipient_type: "individual",
-                    to: number,
-                    type: "interactive",
-                    interactive: {
-                        type: "flow",
-                        header: { type: "text", text: header_text || "Flow" },
-                        body: { text: body_text },
-                        footer: { text: footer_text || "" },
-                        action: {
-                            name: "flow",
-                            parameters: {
-                                flow_message_version: "3",
-                                flow_token: `${Date.now()}__${id}`,
-                                flow_id: id,
-                                flow_cta: "Open Flow",
-                                flow_action: "navigate",
-                                flow_action_payload: {
-                                    screen: firstScreenId
-                                }
+                // Call the central whatsappService to enforce ATOMIC Wallet Pre-Debit logic
+                const whatsappService = require('../services/whatsappService');
+                const content = {
+                    type: "flow",
+                    header: { type: "text", text: header_text || "Flow" },
+                    body: { text: body_text },
+                    footer: { text: footer_text || "" },
+                    action: {
+                        name: "flow",
+                        parameters: {
+                            flow_message_version: "3",
+                            flow_token: `${Date.now()}__${id}`,
+                            flow_id: id,
+                            flow_cta: "Open Flow",
+                            flow_action: "navigate",
+                            flow_action_payload: {
+                                screen: firstScreenId
                             }
                         }
                     }
                 };
-
-                const response = await axios.post(`${GRAPH_API_URL}/${phoneNumberId}/messages`, payload, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-                results.push({ number, status: 'success', message_id: response.data.messages?.[0]?.id });
+                
+                const response = await whatsappService.sendMessage(
+                    req.user.id, 
+                    number, 
+                    'interactive', 
+                    content, 
+                    phoneNumberId, 
+                    false, 
+                    { walletSource: 'FLOW_MANUAL_SEND' }
+                );
+                
+                results.push({ number, status: 'success', message_id: response?.data?.messages?.[0]?.id || 'sent' });
             } catch (err) {
                 console.error(`Failed to send to ${number}:`, err.response?.data || err.message);
                 results.push({ number, status: 'failed', error: err.response?.data?.error?.message || err.message });

@@ -113,6 +113,13 @@ class WalletService {
             throw new Error(`Sending to country code ${countryCode} is not allowed by the platform. Please contact support.`);
         }
 
+        // ENFORCE META COST FLOOR TO PREVENT LOSSES
+        // Even if a bug or Super Admin sets the platform_rate to 0, we must never charge the user less than the cost we pay Meta!
+        if (selectedRate.platform_rate === 0 || selectedRate.platform_rate < selectedRate.meta_cost) {
+            console.warn(`[WalletService] ⚠️ Rate enforcement triggered for ${userId} (${category}). Original rate: ${selectedRate.platform_rate}, Meta cost: ${selectedRate.meta_cost}. Floor enforced.`);
+            selectedRate.platform_rate = selectedRate.meta_cost > 0 ? selectedRate.meta_cost : 0.0001;
+        }
+
         rateCache.set(cacheKey, { rate: selectedRate, expiresAt: Date.now() + CACHE_TTL_MS });
         return selectedRate;
     }
