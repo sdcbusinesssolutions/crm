@@ -124,6 +124,11 @@ class WhatsAppService {
             }
         } catch (err) {
             console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
+            // Briefly cache the failure to prevent rapid spam during rate limits or API issues
+            this.templateCategoryCache.set(cacheKey, {
+                category: null,
+                expiresAt: Date.now() + (60 * 1000) // 1 minute
+            });
         }
         return null;
     }
