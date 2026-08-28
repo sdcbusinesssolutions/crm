@@ -76,7 +76,8 @@ class WhatsAppService {
     // --- IN-MEMORY CACHE FOR TEMPLATE CATEGORIES ---
     // Prevents unwanted/duplicate calls to Meta API for the same template.
     templateCategoryCache = new Map();
-    CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+    templateCategoryPromises = new Map(); // For in-flight request deduplication (Cache Stampede prevention)
+    CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
     async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken, bypassCache = false) {
         if (!wabaId || !templateName || !metaToken) {
@@ -91,46 +92,60 @@ class WhatsAppService {
             if (cached && cached.expiresAt > Date.now()) {
                 return cached.category;
             }
+
+            // Prevent Cache Stampede: If a request is already in-flight for this template, await it
+            if (this.templateCategoryPromises.has(cacheKey)) {
+                return this.templateCategoryPromises.get(cacheKey);
+            }
         }
 
-        try {
-            const url = `${this.baseUrl}/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
-            console.log(`[WhatsAppService] 🔍 Checking live category for template '${templateName}' via: ${url}`);
-            
-            const axios = require('axios'); // Ensure axios is available
-            const res = await axios.get(url, {
-                headers: { 'Authorization': `Bearer ${metaToken}` },
-                timeout: 5000 // fail fast if Meta is slow
-            });
-            
-            if (res.data && res.data.data && res.data.data.length > 0) {
-                const fetchedCategory = res.data.data[0].category.toUpperCase();
+        const fetchPromise = (async () => {
+            try {
+                const url = `${this.baseUrl}/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
+                console.log(`[WhatsAppService] 🔍 Checking live category for template '${templateName}' via: ${url}`);
                 
-                // Save to cache
-                this.templateCategoryCache.set(cacheKey, {
-                    category: fetchedCategory,
-                    expiresAt: Date.now() + this.CACHE_TTL_MS
+                const axios = require('axios'); // Ensure axios is available
+                const res = await axios.get(url, {
+                    headers: { 'Authorization': `Bearer ${metaToken}` },
+                    timeout: 5000 // fail fast if Meta is slow
                 });
+                
+                if (res.data && res.data.data && res.data.data.length > 0) {
+                    const fetchedCategory = res.data.data[0].category.toUpperCase();
+                    
+                    // Save to cache
+                    this.templateCategoryCache.set(cacheKey, {
+                        category: fetchedCategory,
+                        expiresAt: Date.now() + this.CACHE_TTL_MS
+                    });
 
-                console.log(`[WhatsAppService] ✅ Live category for '${templateName}' returned as: ${fetchedCategory}`);
-                return fetchedCategory;
-            } else {
-                console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
-                // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
+                    console.log(`[WhatsAppService] ✅ Live category for '${templateName}' returned as: ${fetchedCategory}`);
+                    return fetchedCategory;
+                } else {
+                    console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
+                    // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
+                    this.templateCategoryCache.set(cacheKey, {
+                        category: null,
+                        expiresAt: Date.now() + (60 * 1000)
+                    });
+                }
+            } catch (err) {
+                console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
+                // Briefly cache the failure to prevent rapid spam during rate limits or API issues
                 this.templateCategoryCache.set(cacheKey, {
                     category: null,
-                    expiresAt: Date.now() + (60 * 1000)
+                    expiresAt: Date.now() + (60 * 1000) // 1 minute
                 });
+            } finally {
+                // Always clean up the in-flight promise cache
+                this.templateCategoryPromises.delete(cacheKey);
             }
-        } catch (err) {
-            console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
-            // Briefly cache the failure to prevent rapid spam during rate limits or API issues
-            this.templateCategoryCache.set(cacheKey, {
-                category: null,
-                expiresAt: Date.now() + (60 * 1000) // 1 minute
-            });
-        }
-        return null;
+            return null;
+        })();
+
+        // Store the promise so subsequent concurrent requests can hook into it
+        this.templateCategoryPromises.set(cacheKey, fetchPromise);
+        return fetchPromise;
     }
 
     /**
