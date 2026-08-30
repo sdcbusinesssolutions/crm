@@ -23,6 +23,7 @@ router.use((req, res, next) => {
 const realtimeSync = require('../services/realtimeSync');
 
 const DripTriggerService = require('../services/DripTriggerService');
+const { handleTemplateStatusUpdate } = require('../services/webhookTemplateHandler');
 
 // --- CONCURRENCY & NETWORK AGENTS ---
 const FLOW_CONCURRENCY_LIMIT = 20;
@@ -461,6 +462,13 @@ router.post('/webhook', async (req, res) => {
     try {
         const entry = rawBody.entry?.[0];
         const changes = entry?.changes?.[0];
+        
+        // --- 1. MODULAR HANDLERS (Pre-Metadata check) ---
+        if (await handleTemplateStatusUpdate(rawBody)) {
+            return res.sendStatus(200); // Successfully handled, stop processing
+        }
+
+        // --- 2. MESSAGE PROCESSING (Requires Metadata) ---
         const value = changes?.value;
         const metadata = value?.metadata;
 

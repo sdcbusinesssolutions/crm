@@ -86,7 +86,7 @@ class WhatsAppService {
     // Prevents unwanted/duplicate calls to Meta API for the same template across multiple workers.
     templateCategoryCache = new Map();
     templateCategoryPromises = new Map(); // For in-flight request deduplication (local Cache Stampede prevention)
-    CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    CACHE_TTL_MS = 90 * 1000; // 90 seconds (Strict financial verification without API spam)
 
     async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken, bypassCache = false) {
         if (!wabaId || !templateName || !metaToken) {
@@ -135,9 +135,9 @@ class WhatsAppService {
                 if (res.data && res.data.data && res.data.data.length > 0) {
                     const fetchedCategory = res.data.data[0].category.toUpperCase();
                     
-                    // Save to caches (5 mins)
+                    // Save to caches (90 secs)
                     if (this.redisClient && this.redisClient.isReady) {
-                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 300 }).catch(() => {});
+                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 90 }).catch(() => {});
                     }
                     this.templateCategoryCache.set(cacheKey, {
                         category: fetchedCategory,

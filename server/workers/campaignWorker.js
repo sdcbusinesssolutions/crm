@@ -551,13 +551,14 @@ class CampaignWorker {
         // Forces a cache update (bypassCache=true) at the start of EVERY batch.
         // This guarantees that if Meta reclassifies a template mid-campaign, the worker knows about it instantly 
         // before pulling the next 50 messages, ensuring early protection and accurate pre-debits.
+        let liveVerifiedCategory = null;
         if (config.whatsapp_business_account_id && config.meta_access_token) {
             try {
-                await whatsappService.fetchLiveTemplateCategoryFromMeta(
+                liveVerifiedCategory = await whatsappService.fetchLiveTemplateCategoryFromMeta(
                     config.whatsapp_business_account_id,
                     campaign.template_name,
                     config.meta_access_token,
-                    true // bypassCache = true
+                    false // bypassCache = false (Respect Global Redis Cache!)
                 );
             } catch (err) {
                 console.warn(`[Worker] Pre-tick live verification failed for campaign ${campaign.id}:`, err.message);
@@ -693,7 +694,7 @@ class CampaignWorker {
                         name: campaign.template_name,
                         language: localTmpl.language,
                         components: cachedComp.components,
-                        category: cachedComp.category || 'UNKNOWN',
+                        category: liveVerifiedCategory || cachedComp.category || 'UNKNOWN',
                         buttons: localTmpl.buttons || [],
                         body_text: localTmpl.body_text,
                         header_text: localTmpl.header_text,
