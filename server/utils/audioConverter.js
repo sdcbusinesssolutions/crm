@@ -27,8 +27,10 @@ async function convertWebmToOgg(inputBuffer) {
         
         execFile(ffmpegPath, [
             '-i', inputPath,
+            '-vn',                // CRITICAL: Strip video/metadata streams that MediaRecorder adds
             '-c:a', 'libopus',    // WhatsApp expects Opus codec for OGG voice notes
             '-b:a', '64k',        // Standard bitrate for voice
+            '-ar', '48000',       // Standard opus sample rate
             '-vbr', 'on',         // Variable bitrate
             '-compression_level', '10',
             '-y', outputPath      // Overwrite output

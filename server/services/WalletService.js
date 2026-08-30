@@ -194,24 +194,19 @@ class WalletService {
                 return; // Do not track in wallet ledger if user is paying Meta directly
             }
 
-            const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
-                p_user_id: userId,
-                p_amount: 0,
-                p_type: 'DEBIT',
-                p_source: source || 'API_SEND',
-                p_wa_category: category ? category.toUpperCase() : 'UTILITY',
-                p_wa_message_id: waMessageId,
-                p_wa_conversation_id: null,
-                p_conversation_expiry: null,
-                p_description: `Message sent via ${source || 'API'} (Pending Meta Delivery)`,
-                p_contact_phone: contactPhone || null,
-                p_campaign_id: null,
-                p_drip_campaign_id: null,
-                p_flow_id: null,
-                p_whatsapp_account_id: null,
-                p_meta_cost: 0,
-                p_created_by: null,
-                p_ip_address: null
+            const { data: profile } = await supabaseAdmin.from('profiles').select('signup_domain').eq('id', userId).maybeSingle();
+            const { error } = await supabaseAdmin.from('wallet_transactions').insert({
+                user_id: userId,
+                type: 'DEBIT',
+                amount: 0,
+                balance_before: wallet.balance,
+                balance_after: wallet.balance,
+                source: source || 'API_SEND',
+                wa_category: category ? category.toUpperCase() : 'UTILITY',
+                wa_message_id: waMessageId,
+                description: `Message sent via ${source || 'API'} (Pending Meta Delivery)`,
+                contact_phone: contactPhone || null,
+                tenant_domain: profile?.signup_domain || null
             });
             if (error) console.error('[WalletService] trackMessageSource error:', error);
         } catch (e) {

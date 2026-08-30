@@ -237,7 +237,25 @@ class WhatsAppService {
                     if (content.id) {
                         body[type].id = content.id;
                     } else if (content.link) {
-                        body[type].link = content.link;
+                        if (type === 'audio') {
+                            try {
+                                console.log(`[WhatsAppService] Intercepting Audio Link delivery. Converting to Media ID...`);
+                                const axios = require('axios');
+                                const response = await axios.get(content.link, { responseType: 'arraybuffer' });
+                                const buffer = Buffer.from(response.data);
+                                const url = new URL(content.link);
+                                const filename = url.pathname.split('/').pop() || 'audio.ogg';
+                                const mimeType = filename.endsWith('.mp3') ? 'audio/mpeg' : (filename.endsWith('.mp4') || filename.endsWith('.m4a') ? 'audio/mp4' : 'audio/ogg; codecs=opus');
+                                const mediaId = await this.uploadMediaToWhatsApp(userId, buffer, mimeType, filename);
+                                body[type].id = mediaId;
+                                console.log(`[WhatsAppService] Successfully intercepted audio and replaced with Media ID: ${mediaId}`);
+                            } catch (interceptErr) {
+                                console.error(`[WhatsAppService] Audio interception failed, falling back to link delivery:`, interceptErr.message);
+                                body[type].link = content.link;
+                            }
+                        } else {
+                            body[type].link = content.link;
+                        }
                     } else {
                         throw new Error(`Missing 'id' or 'link' for ${type} message.`);
                     }

@@ -552,13 +552,13 @@ router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('
         }
 
         // --- CONVERT WebM to OGG for Native WhatsApp Voice Notes ---
-        if (file.mimetype === 'audio/webm') {
+        if (file.mimetype.includes('webm') || (file.originalname && file.originalname.toLowerCase().endsWith('.webm'))) {
             try {
                 const { convertWebmToOgg } = require('../utils/audioConverter');
                 console.log(`[Inbox] Converting ${file.originalname} from WebM to OGG...`);
                 const oggBuffer = await convertWebmToOgg(file.buffer);
                 file.buffer = oggBuffer;
-                file.mimetype = 'audio/ogg';
+                file.mimetype = 'audio/ogg; codecs=opus';
                 file.originalname = file.originalname.replace(/\.webm$/i, '.ogg');
             } catch (convErr) {
                 console.error('[Inbox] WebM to OGG conversion failed, falling back to original file:', convErr);
@@ -576,7 +576,10 @@ router.post('/upload', requirePermission('Inbox', 'read_write'), upload.single('
 
         // Spoof mime type for unsupported formats because Supabase Storage bucket might restrict it
         let contentType = file.mimetype;
-        if (contentType === 'audio/webm') {
+        if (contentType.includes(';')) {
+            contentType = contentType.split(';')[0]; // Strip out codecs parameter for Supabase API compatibility
+        }
+        if (contentType.includes('webm')) {
             contentType = 'audio/mpeg'; // Spoof ONLY webm to ensure Supabase accepts the upload (will be sent as Document)
         }
 
