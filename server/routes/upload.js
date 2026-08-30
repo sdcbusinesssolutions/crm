@@ -11,7 +11,7 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 16 * 1024 * 1024 } // 16MB limit matches WhatsApp Video Max Limit
+    limits: { fileSize: 20 * 1024 * 1024 } // 20MB limit
 });
 
 // POST /api/upload
@@ -22,12 +22,12 @@ router.post('/', upload.single('file'), async (req, res) => {
         }
 
         // --- Video Validation ---
-        const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB
+        const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 20MB
         if (req.file.mimetype.startsWith('video/')) {
             // 1. Check Size
             if (req.file.size > MAX_VIDEO_SIZE) {
                 return res.status(400).json({ 
-                    error: `Video too large (${(req.file.size / 1024 / 1024).toFixed(2)}MB). WhatsApp limit is 16MB.` 
+                    error: `Video too large (${(req.file.size / 1024 / 1024).toFixed(2)}MB). WhatsApp limit is 20MB.` 
                 });
             }
 
