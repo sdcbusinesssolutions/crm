@@ -21,7 +21,7 @@ class WhatsAppService {
     constructor() {
         this.version = 'v21.0';
         this.baseUrl = `https://graph.facebook.com/${this.version}`;
-        
+
         // Initialize Redis if REDIS_URL is present
         if (process.env.REDIS_URL) {
             const { createClient } = require('redis');
@@ -63,7 +63,7 @@ class WhatsAppService {
                 .eq('phone_number_id', phoneNumberId)
                 .limit(1)
                 .single();
-                
+
             if (data && data.meta_access_token) {
                 return {
                     meta_access_token: data.meta_access_token,
@@ -95,7 +95,7 @@ class WhatsAppService {
         }
 
         const cacheKey = `whatsapp:template_category:${wabaId}:${templateName}`;
-        
+
         if (!bypassCache) {
             // 1. Check Global Redis Cache
             if (this.redisClient && this.redisClient.isReady) {
@@ -125,19 +125,19 @@ class WhatsAppService {
             try {
                 const url = `${this.baseUrl}/${wabaId}/message_templates?name=${encodeURIComponent(templateName)}`;
                 console.log(`[WhatsAppService] 🔍 Checking live category for template '${templateName}' via: ${url}`);
-                
+
                 const axios = require('axios'); // Ensure axios is available
                 const res = await axios.get(url, {
                     headers: { 'Authorization': `Bearer ${metaToken}` },
                     timeout: 5000 // fail fast if Meta is slow
                 });
-                
+
                 if (res.data && res.data.data && res.data.data.length > 0) {
                     const fetchedCategory = res.data.data[0].category.toUpperCase();
-                    
+
                     // Save to caches (90 secs)
                     if (this.redisClient && this.redisClient.isReady) {
-                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 90 }).catch(() => {});
+                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 90 }).catch(() => { });
                     }
                     this.templateCategoryCache.set(cacheKey, {
                         category: fetchedCategory,
@@ -150,7 +150,7 @@ class WhatsAppService {
                     console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
                     // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
                     if (this.redisClient && this.redisClient.isReady) {
-                        await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => {});
+                        await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => { });
                     }
                     this.templateCategoryCache.set(cacheKey, {
                         category: null,
@@ -161,7 +161,7 @@ class WhatsAppService {
                 console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
                 // Briefly cache the failure to prevent rapid spam during rate limits or API issues
                 if (this.redisClient && this.redisClient.isReady) {
-                    await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => {});
+                    await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => { });
                 }
                 this.templateCategoryCache.set(cacheKey, {
                     category: null,
@@ -195,7 +195,7 @@ class WhatsAppService {
 
             // Explicitly fetch config for the provided user to prevent cross-tenant abuse
             const config = await this.getConfig(userId, phoneNumberId);
-            
+
             const fromPhoneId = config.phone_number_id;
             const accessToken = config.meta_access_token;
 
@@ -263,9 +263,9 @@ class WhatsAppService {
             // 🚀 MARKETING MESSAGES API (MM LITE) OPTIMIZATION
             // Determine if we should use the specialized high-performance endpoint.
             // We prioritize the MM Lite endpoint for templates if they are categorized as MARKETING.
-            
-            let templateCategory = content?.category || null; 
-            
+
+            let templateCategory = content?.category || null;
+
             // --- ZERO-LOSS LIVE TEMPLATE CHECK ---
             if (type === 'template' && content?.name) {
                 try {
@@ -288,7 +288,7 @@ class WhatsAppService {
                     throw new Error(`LIVE_CATEGORY_FETCH_FAILED: Network or Meta error (${catErr.message})`);
                 }
             }
-            
+
             if (!templateCategory && type === 'template') {
                 throw new Error('LIVE_CATEGORY_FETCH_FAILED: Could not determine template category.');
             }
@@ -333,13 +333,13 @@ class WhatsAppService {
             // We lock funds BEFORE calling Meta API to prevent double-spend race conditions.
             const walletSource = options.walletSource || 'INBOX_SEND';
             const expectedCategory = (type === 'template') ? (templateCategory || 'MARKETING').toUpperCase() : 'SERVICE';
-            const tempWaMessageId = `pending_api_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
-            
+            const tempWaMessageId = `pending_api_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
             let preDebitTxId = null;
-            
+
             // Only perform pre-debit for template messages of specific billable categories
             const requiresWalletCheck = type === 'template' && ['UTILITY', 'MARKETING', 'AUTHENTICATION'].includes(expectedCategory);
-            
+
             if (requiresWalletCheck) {
                 try {
                     const preDebitResult = await WalletService.preDebit({
@@ -399,10 +399,22 @@ class WhatsAppService {
             }
 
             const waMessageId = response.data.messages?.[0]?.id;
-            
+
             // --- V2 ATOMIC: LINK SUCCESSFUL ID ---
-            if (waMessageId && preDebitTxId) {
-                await WalletService.updateTransactionMessageId(preDebitTxId, waMessageId);
+            if (waMessageId) {
+                if (preDebitTxId) {
+                    await WalletService.updateTransactionMessageId(preDebitTxId, waMessageId);
+                } else {
+                    // Message wasn't pre-debited (e.g. text/service message). 
+                    // Track it in DB so if webhook arrives with a billable charge, we know its source!
+                    await WalletService.trackMessageSource({
+                        userId: accountOwnerId,
+                        waMessageId: waMessageId,
+                        category: expectedCategory,
+                        source: walletSource,
+                        contactPhone: to
+                    });
+                }
             }
 
             console.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
@@ -479,7 +491,7 @@ class WhatsAppService {
                         }
                     }
                 }
-                
+
                 if (!mediaUrl && content._media_url) {
                     mediaUrl = content._media_url;
                 }
@@ -514,7 +526,7 @@ class WhatsAppService {
                         .select('*')
                         .eq('id', messageId)
                         .single();
-                    
+
                     if (savedMessage) {
                         const realtimeSync = require('./realtimeSync');
                         realtimeSync.emitMessage(userId, savedMessage, 'INSERT');

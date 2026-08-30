@@ -60,7 +60,7 @@ class WalletService {
      */
     static async getRate(userId, category, countryCode = 'IN', tenantId = null) {
         category = (category || 'MARKETING').toUpperCase();
-        
+
         let actualTenantId = tenantId;
         if (!actualTenantId) {
             try {
@@ -74,9 +74,9 @@ class WalletService {
                 // Ignore
             }
         }
-        
+
         const targetTenantId = actualTenantId || userId;
-        
+
         // 1. Fetch user's wallet to know their currency (INR vs USD)
         const wallet = await this.getWallet(userId);
         const currency = wallet.currency || 'INR';
@@ -183,13 +183,50 @@ class WalletService {
     }
 
     /**
+     * Tracks the source of an outgoing message (e.g., API_SEND, INBOX_SEND) 
+     * by creating a zero-amount ledger entry. This ensures the webhook knows exactly 
+     * where the message originated.
+     */
+    static async trackMessageSource({ userId, waMessageId, category, source, contactPhone }) {
+        try {
+            const wallet = await this.getWallet(userId);
+            if (!wallet || wallet.billing_mode === 'DIRECT_META') {
+                return; // Do not track in wallet ledger if user is paying Meta directly
+            }
+
+            const { error } = await supabaseAdmin.rpc('adjust_wallet_balance', {
+                p_user_id: userId,
+                p_amount: 0,
+                p_type: 'DEBIT',
+                p_source: source || 'API_SEND',
+                p_wa_category: category ? category.toUpperCase() : 'UTILITY',
+                p_wa_message_id: waMessageId,
+                p_wa_conversation_id: null,
+                p_conversation_expiry: null,
+                p_description: `Message sent via ${source || 'API'} (Pending Meta Delivery)`,
+                p_contact_phone: contactPhone || null,
+                p_campaign_id: null,
+                p_drip_campaign_id: null,
+                p_flow_id: null,
+                p_whatsapp_account_id: null,
+                p_meta_cost: 0,
+                p_created_by: null,
+                p_ip_address: null
+            });
+            if (error) console.error('[WalletService] trackMessageSource error:', error);
+        } catch (e) {
+            console.error('[WalletService] trackMessageSource exception:', e);
+        }
+    }
+
+    /**
      * PRE-DEBIT (V2 Architecture: Debits at ACTUAL expected template rate)
      */
     static async preDebit({ userId, waMessageId, category, source, contactPhone, campaignId, dripCampaignId, flowId, whatsappAccountId, createdBy, ipAddress }) {
         try {
             const countryCode = this.getCountryCode(contactPhone);
             const requestedCategory = (category || 'MARKETING').toUpperCase();
-            
+
             // Use the actual requested category for pre-debit to prevent blocking free SERVICE messages.
             // If Meta reclassifies it later, the webhook handler will charge the difference.
             const rate = await this.getRate(userId, requestedCategory, countryCode);
@@ -213,7 +250,7 @@ class WalletService {
             if (source !== 'CAMPAIGN_SEND') {
                 hasBalance = await this.hasSufficientBalance(userId, debitAmount);
             }
-            
+
             if (!hasBalance) {
                 // Log the failure to the wallet ledger so the user can see it in the UI
                 try {
@@ -238,7 +275,7 @@ class WalletService {
                 } catch (logErr) {
                     console.error('[WalletService] Failed to log insufficient balance transaction:', logErr);
                 }
-                
+
                 throw new Error('Insufficient Wallet Balance. Top-up required.');
             }
 
@@ -273,7 +310,7 @@ class WalletService {
                 logWalletEvent('PRE_DEBIT_ERROR', { userId, waMessageId, error: error.message });
                 throw error;
             }
-            
+
             const transactionId = data?.transaction_id;
 
             logWalletEvent('PRE_DEBIT_SUCCESS', { userId, waMessageId, amount: debitAmount, category: actualCategory });
@@ -287,14 +324,14 @@ class WalletService {
                         .select('signup_domain')
                         .eq('id', userId)
                         .single();
-                        
+
                     if (userProfile && userProfile.signup_domain) {
                         const { data: domainAdmins } = await supabaseAdmin
                             .from('profiles')
                             .select('id')
                             .eq('signup_domain', userProfile.signup_domain)
                             .in('role', ['admin', 'super_admin']);
-                            
+
                         if (domainAdmins && domainAdmins.length > 0) {
                             const adminIds = domainAdmins.map(a => a.id);
                             const { data: masterWallet } = await supabaseAdmin
@@ -304,34 +341,34 @@ class WalletService {
                                 .eq('is_tenant_master', true)
                                 .limit(1)
                                 .maybeSingle();
-                                
+
                             if (masterWallet) {
                                 // Fetch the specific rate the Super Admin set for this Tenant Admin
                                 const tenantRate = await this.getRate(masterWallet.user_id, actualCategory, countryCode);
                                 const markupFee = Math.max(roundMoney(tenantRate.platform_rate - tenantRate.meta_cost), 0);
-                                
+
                                 if (markupFee > 0) {
-                                    const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0,8)}...). Msg: ${waMessageId}`;
+                                    const markupDescription = `Software markup fee for message sent by user (ID: ${userId.substring(0, 8)}...). Msg: ${waMessageId}`;
                                     const { error: markupErr } = await supabaseAdmin.rpc('adjust_wallet_balance', {
                                         p_user_id: masterWallet.user_id,
                                         p_amount: markupFee,
-                                    p_type: 'DEBIT',
-                                    p_source: 'AGENCY_MARKUP',
-                                    p_wa_category: actualCategory,
-                                    p_wa_message_id: waMessageId + '_markup',
-                                    p_wa_conversation_id: null,
-                                    p_conversation_expiry: null,
-                                    p_description: markupDescription,
-                                    p_contact_phone: contactPhone,
-                                    p_campaign_id: campaignId || null,
-                                    p_drip_campaign_id: null,
-                                    p_flow_id: null,
-                                    p_whatsapp_account_id: null,
-                                    p_meta_cost: 0, // Meta is paid by Tenant directly
-                                    p_created_by: null,
-                                    p_ip_address: null
-                                });
-                                
+                                        p_type: 'DEBIT',
+                                        p_source: 'AGENCY_MARKUP',
+                                        p_wa_category: actualCategory,
+                                        p_wa_message_id: waMessageId + '_markup',
+                                        p_wa_conversation_id: null,
+                                        p_conversation_expiry: null,
+                                        p_description: markupDescription,
+                                        p_contact_phone: contactPhone,
+                                        p_campaign_id: campaignId || null,
+                                        p_drip_campaign_id: null,
+                                        p_flow_id: null,
+                                        p_whatsapp_account_id: null,
+                                        p_meta_cost: 0, // Meta is paid by Tenant directly
+                                        p_created_by: null,
+                                        p_ip_address: null
+                                    });
+
                                     if (markupErr) {
                                         logWalletEvent('AGENCY_MARKUP_ERROR', { masterUserId: masterWallet.user_id, waMessageId, error: markupErr.message });
                                     } else {
@@ -366,7 +403,7 @@ class WalletService {
                 .from('wallet_transactions')
                 .update({ wa_message_id: actualWaMessageId })
                 .eq('id', transactionId);
-            
+
             if (error) {
                 console.error(`[WalletService] Failed to link waMessageId ${actualWaMessageId} to tx ${transactionId}:`, error);
             }
@@ -387,7 +424,7 @@ class WalletService {
                 .select('*')
                 .eq('id', transactionId)
                 .single();
-                
+
             if (fetchErr || !tx) return;
 
             // Refund the user's wallet
@@ -414,7 +451,7 @@ class WalletService {
      */
     static async handleWebhookPricing(userId, waMessageId, pricing, waConversationId, conversationExpiry, contactPhone) {
         if (!userId || !waMessageId) return;
-        
+
         // --- 🚀 RAM LOCK (First Line of Defense) ---
         // If 1000 identical webhooks hit this container simultaneously, 
         // 999 will be instantly dropped in RAM without touching the Database.
@@ -422,7 +459,7 @@ class WalletService {
             return;
         }
         activeWebhookLocks.add(waMessageId);
-        
+
         // Auto-release the RAM lock after 2 minutes to prevent memory leaks
         setTimeout(() => activeWebhookLocks.delete(waMessageId), 120000);
 
@@ -437,9 +474,11 @@ class WalletService {
                 .maybeSingle();
 
             if (!originalTx) {
-                if (pricing.billable === true && pricing.category) {
-                    await this._handleUntrackedBillable(userId, waMessageId, pricing, waConversationId, conversationExpiry, contactPhone);
-                }
+                // GHOST PREVENTION: Since we now track 100% of wallet messages at the source 
+                // (via preDebit or trackMessageSource), any webhook WITHOUT an originalTx 
+                // MUST be a ghost from when the user was using DIRECT_META billing mode.
+                // We MUST ignore these to prevent double-charging the wallet for past card payments.
+                console.warn(`[WalletService] Ignored ghost webhook for ${waMessageId}. (No originalTx found - likely sent via DIRECT_META)`);
                 return;
             }
 
@@ -458,12 +497,12 @@ class WalletService {
 
             const preDebitAmount = roundMoney(originalTx.amount);
             const preDebitCategory = (originalTx.wa_category || '').toUpperCase();
-            
+
             // Determine actual category from webhook, default to original if missing
             const actualCategory = (pricing?.category || preDebitCategory).toUpperCase();
             const countryCode = this.getCountryCode(originalTx.contact_phone || contactPhone);
             const actualRate = await this.getRate(userId, actualCategory, countryCode);
-            
+
             // Calculate what the user SHOULD pay
             let finalUserCost = roundMoney(actualRate.platform_rate);
 
@@ -481,7 +520,7 @@ class WalletService {
                     .not('source', 'in', '("ADJUSTMENT","REFUND","ADMIN_TOPUP","RECHARGE","WEBHOOK_SYNC")')
                     .neq('wa_message_id', waMessageId)
                     .maybeSingle();
-                
+
                 if (existingWindowCharge) {
                     isFreeFromMeta = true;
                 }
@@ -510,7 +549,7 @@ class WalletService {
                 // We pre-debited too much, issue refund
                 const refundDiff = Math.abs(delta);
                 let description = `Category refund: Pre-debit ${preDebitCategory} ₹${preDebitAmount}, actual=${actualCategory} ₹${finalUserCost}. Refund: ₹${refundDiff.toFixed(4)}`;
-                
+
                 if (isFreeFromMeta) {
                     description = `Markup only charge: Message was free from Meta. Pre-debit ₹${preDebitAmount}, markup ₹${finalUserCost}. Refund: ₹${refundDiff.toFixed(4)}`;
                 }
@@ -524,12 +563,12 @@ class WalletService {
                     p_user_id: userId,
                     p_amount: delta,
                     p_type: 'DEBIT',
-                    p_source: 'ADJUSTMENT',
+                    p_source: originalTx.source || 'ADJUSTMENT',
                     p_wa_category: actualCategory,
                     p_wa_message_id: waMessageId,
                     p_wa_conversation_id: waConversationId,
                     p_conversation_expiry: null,
-                    p_description: `Reclassification charge: ${preDebitCategory} to ${actualCategory}. Delta: ₹${delta.toFixed(4)}`,
+                    p_description: `Webhook Sync: Late debit for ${originalTx.source || 'message'}. Delta: ₹${delta.toFixed(4)}`,
                     p_contact_phone: null,
                     p_campaign_id: null,
                     p_drip_campaign_id: null,
@@ -701,10 +740,10 @@ class WalletService {
     static sourceForContext(context) {
         const map = {
             campaign: 'CAMPAIGN_SEND',
-            drip:     'DRIP_SEND',
-            flow:     'FLOW_SEND',
-            inbox:    'INBOX_SEND',
-            api:      'API_SEND',
+            drip: 'DRIP_SEND',
+            flow: 'FLOW_SEND',
+            inbox: 'INBOX_SEND',
+            api: 'API_SEND',
         };
         return map[context] || 'INBOX_SEND';
     }

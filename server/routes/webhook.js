@@ -116,11 +116,11 @@ function downloadBinaryWithCurl(url, token, forceIPv4 = true) {
                 if (stdout && stdout.length > 0) {
                     const debugMarkerBuffer = Buffer.from(debugMarker);
                     const markerIndex = stdout.lastIndexOf(debugMarkerBuffer);
-                    
+
                     if (markerIndex !== -1) {
                         const debugPartBuffer = stdout.slice(markerIndex + debugMarkerBuffer.length);
                         const debugPart = debugPartBuffer.toString('utf8');
-                        
+
                         debugPart.split('|').forEach(pair => {
                             const [k, v] = pair.split(':');
                             if (k && v) debugInfo[k] = v.trim();
@@ -328,8 +328,8 @@ const downloadMedia = async (mediaId, accessToken, userId) => {
 
         const { error: uploadError } = await supabaseAdmin.storage
             .from(bucketName)
-            .upload(storagePath, buffer, { 
-                contentType: mimeType, 
+            .upload(storagePath, buffer, {
+                contentType: mimeType,
                 upsert: false,
                 cacheControl: '31536000'
             });
@@ -451,7 +451,7 @@ router.get('/:userId/:phoneNumberId/webhook', async (req, res) => {
 router.post('/webhook', async (req, res) => {
     const rawBody = req.body;
     console.log('[Global Webhook POST] Event received');
-    
+
     if (logWebhookEvent) {
         logWebhookEvent('GLOBAL_WEBHOOK', rawBody);
     }
@@ -462,7 +462,7 @@ router.post('/webhook', async (req, res) => {
     try {
         const entry = rawBody.entry?.[0];
         const changes = entry?.changes?.[0];
-        
+
         // --- 1. MODULAR HANDLERS (Pre-Metadata check) ---
         if (await handleTemplateStatusUpdate(rawBody)) {
             return res.sendStatus(200); // Successfully handled, stop processing
@@ -537,7 +537,7 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
                 .update({ assigned_to: existingAssignee })
                 .eq('id', conversationId);
             console.log(`[Global Auto-Assign] Lead already assigned. Synced conversation to ${existingAssignee}`);
-            
+
             const realtimeSync = require('../services/realtimeSync');
             realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
             return;
@@ -545,7 +545,7 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
 
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
         if (authError || !authData || !authData.user) return;
-        
+
         const settings = authData.user.user_metadata?.team_settings?.auto_assign;
         if (!settings || !settings.enabled || !settings.staff_ids || settings.staff_ids.length === 0) {
             return;
@@ -554,10 +554,10 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
         const pool = settings.staff_ids;
         let lastIndex = settings.last_assigned_index || 0;
         let nextIndex = (lastIndex + 1) % pool.length;
-        
+
         // Extra safety check in case of unexpected pool mutations
         if (isNaN(nextIndex) || nextIndex < 0) nextIndex = 0;
-        
+
         const assignedStaffId = pool[nextIndex];
         if (!assignedStaffId) return;
 
@@ -578,7 +578,7 @@ async function handleGlobalAutoAssign(userId, contactPhone, contactName, convers
         await supabaseAdmin.from('conversations')
             .update({ assigned_to: assignedStaffId })
             .eq('id', conversationId);
-            
+
         const realtimeSync = require('../services/realtimeSync');
         realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
 
@@ -620,7 +620,7 @@ router.post('/:userId/:phoneNumberId/webhook', async (req, res) => {
 // SHARED Webhook Event Handler
 async function handleWebhookEvent(req, res, userId, phoneNumberId) {
     const rawBody = req.body;
-    
+
     // Log raw webhook to rotating file
     if (logWebhookEvent) {
         logWebhookEvent('INCOMING_WEBHOOK', rawBody);
@@ -784,7 +784,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 // 2. Upsert Message
                 const extracted = extractMessageContent(echo); // Should work for standard types
- 
+
                 await supabaseAdmin.from('messages').upsert({
                     conversation_id: conversationId,
                     direction: 'out', // Enforce OUT for echoes
@@ -845,7 +845,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                     continue;
                                 }
                                 processedMessageIds.add(msg.id);
- 
+
                                 await supabaseAdmin.from('messages').upsert({
                                     conversation_id: conversationId,
                                     direction: direction,
@@ -878,13 +878,13 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // PREVENT DOWNGRADES (Out of Order Webhooks)
                 const statusRanks = { 'sent': 1, 'delivered': 2, 'read': 3, 'failed': 4 };
                 const newRank = statusRanks[newStatus] || 0;
-                
+
                 const { data: currentMessage } = await supabaseAdmin
                     .from('messages')
                     .select('status')
                     .eq('whatsapp_message_id', waMessageId)
                     .maybeSingle();
-                    
+
                 if (currentMessage) {
                     const currentRank = statusRanks[currentMessage.status] || 0;
                     if (newRank <= currentRank && currentRank > 0) {
@@ -915,7 +915,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
-                        
+
                         // --- WALLET SYSTEM: 24-HOUR CONVERSATION WINDOW BILLING ---
                         // Meta charges per CONVERSATION WINDOW (24h), not per MESSAGE.
                         // We pass both pricing (category, billable) and conversation
@@ -934,7 +934,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     } else {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}', but RPC returned false (likely not a campaign message).`);
                     }
-                    
+
                     // Fetch the updated message to emit via Socket.IO so ticks update in real-time
                     // We do this even if updateSuccess is false, because the message table update might have succeeded
                     // while the campaign_queue update affected 0 rows (returning false).
@@ -943,7 +943,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         .select('*')
                         .eq('whatsapp_message_id', waMessageId)
                         .maybeSingle();
-                        
+
                     if (updatedMsg) {
                         realtimeSync.emitMessage(userId, updatedMsg, 'UPDATE');
                     } else {
@@ -1247,7 +1247,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 processedMessageIds.add(message.id);
 
                 const extracted = extractMessageContent(message);
- 
+
                 // --- HANDLE REVOKE & EDIT ---
                 if (extracted.revoke && extracted.originalMessageId) {
                     console.log(`[Webhook] Revoking message: ${extracted.originalMessageId}`);
@@ -1258,7 +1258,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     }).eq('whatsapp_message_id', extracted.originalMessageId);
                     continue; // Skip further processing
                 }
- 
+
                 if (extracted.edit && extracted.originalMessageId) {
                     console.log(`[Webhook] Editing message: ${extracted.originalMessageId}`);
                     await supabaseAdmin.from('messages').update({
@@ -1294,7 +1294,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // Determine DB Text Content
                 let dbMessageText = extracted.text || extracted.caption;
                 let cleanTextContent = extracted.text || extracted.caption || '';
-                
+
                 if (!dbMessageText && extracted.type === 'interactive' && extracted.raw?.interactive) {
                     dbMessageText = JSON.stringify(extracted.raw.interactive);
                     if (extracted.interactive?.subtype === 'button_reply' || extracted.interactive?.subtype === 'list_reply') {
@@ -1437,7 +1437,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 // 1. Upsert Contact
                 let contactId = null;
                 const { data: contactDataList } = await supabaseAdmin.from('contacts').select('id, custom_data').eq('user_id', userId).eq('phone', contactPhone);
-                
+
                 if (contactDataList && contactDataList.length > 0) {
                     contactId = contactDataList[0].id;
                     // Update all duplicates to ensure UI always sees the updated status
@@ -1445,24 +1445,24 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                         let cData = c.custom_data || {};
                         if (isOptOut) cData.opted_out = true;
                         if (isOptIn) cData.opted_out = false;
-                        await supabaseAdmin.from('contacts').update({ 
-                            name: contactName !== '~' ? contactName : undefined, 
-                            last_active: new Date(extracted.timestamp * 1000).toISOString(), 
-                            status: 'active', 
-                            custom_data: cData 
+                        await supabaseAdmin.from('contacts').update({
+                            name: contactName !== '~' ? contactName : undefined,
+                            last_active: new Date(extracted.timestamp * 1000).toISOString(),
+                            status: 'active',
+                            custom_data: cData
                         }).eq('id', c.id);
                     }
                 } else {
                     let contactCustomData = {};
                     if (isOptOut) contactCustomData.opted_out = true;
                     if (isOptIn) contactCustomData.opted_out = false;
-                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({ 
-                        user_id: userId, 
-                        phone: contactPhone, 
-                        name: contactName, 
-                        last_active: new Date(extracted.timestamp * 1000).toISOString(), 
-                        status: 'active', 
-                        custom_data: contactCustomData 
+                    const { data: newContact } = await supabaseAdmin.from('contacts').insert({
+                        user_id: userId,
+                        phone: contactPhone,
+                        name: contactName,
+                        last_active: new Date(extracted.timestamp * 1000).toISOString(),
+                        status: 'active',
+                        custom_data: contactCustomData
                     }).select().single();
                     contactId = newContact?.id;
                 }
@@ -1484,7 +1484,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                 let conversationId = null;
                 const { data: convDataList } = await supabaseAdmin.from('conversations').select('id, unread_count, assigned_to').eq('user_id', userId).eq('contact_phone', contactPhone).limit(1);
                 const convData = convDataList && convDataList.length > 0 ? convDataList[0] : null;
-                
+
                 if (convData) {
                     conversationId = convData.id;
                     await supabaseAdmin.from('conversations').update({ last_message: lastMessagePreview, unread_count: (convData.unread_count || 0) + 1, updated_at: new Date(extracted.timestamp * 1000).toISOString(), contact_name: contactName !== '~' ? contactName : undefined }).eq('id', conversationId);
@@ -1492,7 +1492,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     const { data: newConv } = await supabaseAdmin.from('conversations').insert({ user_id: userId, contact_phone: contactPhone, contact_name: contactName, last_message: lastMessagePreview, unread_count: 1, updated_at: new Date(extracted.timestamp * 1000).toISOString() }).select().single();
                     conversationId = newConv?.id;
                 }
-                
+
                 if (conversationId) {
                     realtimeSync.emitConversation(userId, { id: conversationId }, 'UPDATE');
                 }
@@ -1522,7 +1522,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
 
                 const { data: result, error: rpcError } = await supabaseAdmin.from('messages').insert(insertPayload).select().single();
                 const savedMessageId = result?.id;
-                
+
                 if (result) {
                     realtimeSync.emitMessage(userId, result, 'INSERT');
                 }
