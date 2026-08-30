@@ -218,21 +218,22 @@ router.get('/:id/fields', requirePermission('Whatsapp Forms', 'read'), async (re
         const fields = [];
 
         // 3. Parse JSON for input fields
-        const findInputs = (node) => {
+        const findInputs = (node, screenId) => {
             if (!node || typeof node !== 'object') return;
-            const inputTypes = ['TextInput', 'TextArea', 'CheckboxGroup', 'RadioButtons', 'Dropdown', 'DatePicker'];
+            const inputTypes = ['TextInput', 'TextArea', 'CheckboxGroup', 'RadioButtons', 'RadioButtonsGroup', 'Dropdown', 'DatePicker', 'OptIn'];
             if (inputTypes.includes(node.type) && node.name) {
-                fields.push(node.name);
+                // The form builder sets the payload keys as screenId_name
+                fields.push(`${screenId}_${node.name}`);
             }
             if (node.children && Array.isArray(node.children)) {
-                node.children.forEach(findInputs);
+                node.children.forEach(child => findInputs(child, screenId));
             }
         };
 
         if (flowJson.screens) {
             flowJson.screens.forEach(screen => {
-                if (screen.children) screen.children.forEach(findInputs);
-                if (screen.layout && screen.layout.children) screen.layout.children.forEach(findInputs);
+                if (screen.children) screen.children.forEach(child => findInputs(child, screen.id));
+                if (screen.layout && screen.layout.children) screen.layout.children.forEach(child => findInputs(child, screen.id));
             });
         }
 
