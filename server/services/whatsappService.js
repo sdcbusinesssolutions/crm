@@ -21,6 +21,15 @@ class WhatsAppService {
     constructor() {
         this.version = 'v21.0';
         this.baseUrl = `https://graph.facebook.com/${this.version}`;
+        
+        // Initialize Redis if REDIS_URL is present
+        if (process.env.REDIS_URL) {
+            const { createClient } = require('redis');
+            this.redisClient = createClient({ url: process.env.REDIS_URL });
+            this.redisClient.on('error', (err) => console.error('[WhatsAppService] Redis Client Error', err));
+            this.redisClient.connect().catch(err => console.error('[WhatsAppService] Failed to connect to Redis:', err));
+            console.log('[WhatsAppService] Redis configured for Global Template Caching.');
+        }
     }
 
     /**
@@ -73,10 +82,10 @@ class WhatsAppService {
      * Fetch Live Template Category directly from Meta API
      * Guarantees 100% accurate rate deductions by checking the actual live category of the template.
      */
-    // --- IN-MEMORY CACHE FOR TEMPLATE CATEGORIES ---
-    // Prevents unwanted/duplicate calls to Meta API for the same template.
+    // --- IN-MEMORY & REDIS CACHE FOR TEMPLATE CATEGORIES ---
+    // Prevents unwanted/duplicate calls to Meta API for the same template across multiple workers.
     templateCategoryCache = new Map();
-    templateCategoryPromises = new Map(); // For in-flight request deduplication (Cache Stampede prevention)
+    templateCategoryPromises = new Map(); // For in-flight request deduplication (local Cache Stampede prevention)
     CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
     async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken, bypassCache = false) {
@@ -85,15 +94,28 @@ class WhatsAppService {
             return null;
         }
 
-        const cacheKey = `${wabaId}:${templateName}`;
+        const cacheKey = `whatsapp:template_category:${wabaId}:${templateName}`;
         
         if (!bypassCache) {
-            const cached = this.templateCategoryCache.get(cacheKey);
-            if (cached && cached.expiresAt > Date.now()) {
-                return cached.category;
+            // 1. Check Global Redis Cache
+            if (this.redisClient && this.redisClient.isReady) {
+                try {
+                    const redisCached = await this.redisClient.get(cacheKey);
+                    if (redisCached) {
+                        return redisCached === 'NULL_CACHE' ? null : redisCached;
+                    }
+                } catch (err) {
+                    console.error('[WhatsAppService] Redis GET error:', err);
+                }
+            } else {
+                // 2. Fallback to Local Memory Cache (if Redis is down or unavailable)
+                const cached = this.templateCategoryCache.get(cacheKey);
+                if (cached && cached.expiresAt > Date.now()) {
+                    return cached.category;
+                }
             }
 
-            // Prevent Cache Stampede: If a request is already in-flight for this template, await it
+            // Prevent Local Cache Stampede: If a request is already in-flight for this template, await it
             if (this.templateCategoryPromises.has(cacheKey)) {
                 return this.templateCategoryPromises.get(cacheKey);
             }
@@ -113,7 +135,10 @@ class WhatsAppService {
                 if (res.data && res.data.data && res.data.data.length > 0) {
                     const fetchedCategory = res.data.data[0].category.toUpperCase();
                     
-                    // Save to cache
+                    // Save to caches (5 mins)
+                    if (this.redisClient && this.redisClient.isReady) {
+                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 300 }).catch(() => {});
+                    }
                     this.templateCategoryCache.set(cacheKey, {
                         category: fetchedCategory,
                         expiresAt: Date.now() + this.CACHE_TTL_MS
@@ -124,6 +149,9 @@ class WhatsAppService {
                 } else {
                     console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
                     // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
+                    if (this.redisClient && this.redisClient.isReady) {
+                        await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => {});
+                    }
                     this.templateCategoryCache.set(cacheKey, {
                         category: null,
                         expiresAt: Date.now() + (60 * 1000)
@@ -132,6 +160,9 @@ class WhatsAppService {
             } catch (err) {
                 console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
                 // Briefly cache the failure to prevent rapid spam during rate limits or API issues
+                if (this.redisClient && this.redisClient.isReady) {
+                    await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => {});
+                }
                 this.templateCategoryCache.set(cacheKey, {
                     category: null,
                     expiresAt: Date.now() + (60 * 1000) // 1 minute
