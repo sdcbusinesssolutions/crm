@@ -547,6 +547,18 @@ class CampaignWorker {
             return;
         }
 
+        // --- BATCH SIZING ---
+        // We use a fixed batch size. The 'Atomic Reservation Hold' ensures funds are 
+        // locked safely upfront, eliminating the need for dynamic batch sizing based on live balance.
+        let safeBatchSize = DEFAULT_BATCH_SIZE;
+
+        // Check if THIS WABA is rate-limited BEFORE doing ANY work (including Meta API calls)
+        if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
+            const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
+            console.warn(`[Worker ${this.workerId}] ⏸️ WABA ${config.whatsapp_business_account_id} rate-limited ${waitSec}s. Skipping.`);
+            return;
+        }
+
         // --- PRE-TICK STRICT LIVE VERIFICATION ---
         // Forces a cache update (bypassCache=true) at the start of EVERY batch.
         // This guarantees that if Meta reclassifies a template mid-campaign, the worker knows about it instantly 
@@ -561,21 +573,19 @@ class CampaignWorker {
                     false // bypassCache = false (Respect Global Redis Cache!)
                 );
             } catch (err) {
+                const errCode = err.response?.data?.error?.code;
+                if (errCode === 80008) {
+                    const rateLimitInfo = parseMetaRateLimitHeader(err.response?.headers);
+                    const pauseMs = (rateLimitInfo?.waitMinutes > 0)
+                        ? rateLimitInfo.waitMinutes * 60 * 1000
+                        : RATE_LIMIT_DEFAULT_PAUSE_MS;
+                    console.error(`[Worker] 🚨 Rate Limit (80008) on pre-tick live category fetch! Pausing WABA ${config.whatsapp_business_account_id} for ${Math.ceil(pauseMs / 60000)}min.`);
+                    await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
+                    return; // Skip batch entirely, as WABA is now rate-limited
+                }
                 console.warn(`[Worker] Pre-tick live verification failed for campaign ${campaign.id}:`, err.message);
                 // We do not halt the campaign on transient Meta API errors, we let it fall back to Webhook protection.
             }
-        }
-
-        // --- BATCH SIZING ---
-        // We use a fixed batch size. The 'Atomic Reservation Hold' ensures funds are 
-        // locked safely upfront, eliminating the need for dynamic batch sizing based on live balance.
-        let safeBatchSize = DEFAULT_BATCH_SIZE;
-
-        // Check if THIS WABA is rate-limited BEFORE doing ANY work
-        if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
-            const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
-            console.warn(`[Worker ${this.workerId}] ⏸️ WABA ${config.whatsapp_business_account_id} rate-limited ${waitSec}s. Skipping.`);
-            return;
         }
 
         // --- PROACTIVE MEDIA HEALING (2026-04-17) ---
@@ -720,7 +730,7 @@ class CampaignWorker {
                             console.warn(`[Worker] ⚠️ Meta API at ${usageInfo.callCount}% usage.`);
                         }
 
-                        if (tmplRes.data?.data) {
+                        if (tmplRes.data?.data && tmplRes.data.data.length > 0) {
                             const metaDef = tmplRes.data.data.find(t => t.language === campaign.language_code) || tmplRes.data.data[0];
                             if (metaDef?.components) {
                                 templateDef = { ...metaDef, buttons: localTmpl.buttons || [] };
@@ -738,6 +748,18 @@ class CampaignWorker {
 
                                 console.log(`[Worker] 💾 Template components saved to cache. Future sends = 0 Meta calls.`);
                             }
+                        } else {
+                            // Negative Cache: Save empty components so we don't spam Meta
+                            await this.supabase
+                                .from('template_components_cache')
+                                .upsert({
+                                    user_id: campaign.user_id,
+                                    template_name: campaign.template_name,
+                                    components: [],
+                                    category: 'UNKNOWN',
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'user_id,template_name' });
+                            console.warn(`[Worker] ⚠️ Template not found on Meta. Saved empty cache to prevent API spam.`);
                         }
                     } catch (metaErr) {
                         const errCode = metaErr.response?.data?.error?.code;
@@ -748,8 +770,19 @@ class CampaignWorker {
                                 : RATE_LIMIT_DEFAULT_PAUSE_MS;
                             console.error(`[Worker] 🚨 Rate Limit (80008) on template fetch! Pausing WABA ${config.whatsapp_business_account_id} for ${Math.ceil(pauseMs / 60000)}min.`);
                             await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
+                            return; // Skip batch entirely, as WABA is now rate-limited
                         } else {
                             console.warn(`[Worker] Meta template fetch warning: ${metaErr.message}`);
+                            // Negative Cache on Error
+                            await this.supabase
+                                .from('template_components_cache')
+                                .upsert({
+                                    user_id: campaign.user_id,
+                                    template_name: campaign.template_name,
+                                    components: [],
+                                    category: 'UNKNOWN',
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'user_id,template_name' });
                         }
                         // Fall through — send with minimal payload
                     }

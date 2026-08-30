@@ -86,7 +86,7 @@ class WhatsAppService {
     // Prevents unwanted/duplicate calls to Meta API for the same template across multiple workers.
     templateCategoryCache = new Map();
     templateCategoryPromises = new Map(); // For in-flight request deduplication (local Cache Stampede prevention)
-    CACHE_TTL_MS = 90 * 1000; // 90 seconds (Strict financial verification without API spam)
+    CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour (Increased from 90s to avoid Rate Limiting 80008)
 
     async fetchLiveTemplateCategoryFromMeta(wabaId, templateName, metaToken, bypassCache = false) {
         if (!wabaId || !templateName || !metaToken) {
@@ -135,9 +135,9 @@ class WhatsAppService {
                 if (res.data && res.data.data && res.data.data.length > 0) {
                     const fetchedCategory = res.data.data[0].category.toUpperCase();
 
-                    // Save to caches (90 secs)
+                    // Save to caches (1 hour)
                     if (this.redisClient && this.redisClient.isReady) {
-                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 90 }).catch(() => { });
+                        await this.redisClient.set(cacheKey, fetchedCategory, { EX: 3600 }).catch(() => { });
                     }
                     this.templateCategoryCache.set(cacheKey, {
                         category: fetchedCategory,
@@ -148,25 +148,30 @@ class WhatsAppService {
                     return fetchedCategory;
                 } else {
                     console.warn(`[WhatsAppService] ⚠️ Meta API returned success but no templates found matching name '${templateName}'`);
-                    // Briefly cache the failure (1 minute) to prevent rapid spam of invalid templates
+                    // Briefly cache the failure (10 minutes) to prevent rapid spam of invalid templates
                     if (this.redisClient && this.redisClient.isReady) {
-                        await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => { });
+                        await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 600 }).catch(() => { });
                     }
                     this.templateCategoryCache.set(cacheKey, {
                         category: null,
-                        expiresAt: Date.now() + (60 * 1000)
+                        expiresAt: Date.now() + (600 * 1000)
                     });
                 }
             } catch (err) {
+                const isRateLimit = err.response?.data?.error?.code === 80008;
                 console.error(`[WhatsAppService] ❌ Failed to fetch live template category for ${templateName}:`, err.response?.data || err.message);
                 // Briefly cache the failure to prevent rapid spam during rate limits or API issues
                 if (this.redisClient && this.redisClient.isReady) {
-                    await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 60 }).catch(() => { });
+                    await this.redisClient.set(cacheKey, 'NULL_CACHE', { EX: 600 }).catch(() => { });
                 }
                 this.templateCategoryCache.set(cacheKey, {
                     category: null,
-                    expiresAt: Date.now() + (60 * 1000) // 1 minute
+                    expiresAt: Date.now() + (600 * 1000) // 10 minutes
                 });
+
+                if (isRateLimit) {
+                    throw err; // Bubble up rate limits so workers can back off
+                }
             } finally {
                 // Always clean up the in-flight promise cache
                 this.templateCategoryPromises.delete(cacheKey);
@@ -293,7 +298,16 @@ class WhatsAppService {
                         if (liveCategory) {
                             templateCategory = liveCategory;
                         } else {
-                            throw new Error('LIVE_CATEGORY_FETCH_FAILED: Meta API did not return a valid category.');
+                            // Meta API returned null (e.g. rate limit), try to fallback to DB or existing category
+                            const { data: dbTemplate } = await supabaseAdmin.from('whatsapp_templates').select('category').eq('name', content.name).eq('user_id', userId).maybeSingle();
+                            if (dbTemplate?.category) {
+                                templateCategory = dbTemplate.category;
+                                console.warn(`[WhatsAppService] Live category fetch returned null. Fallback to DB: ${templateCategory}`);
+                            } else if (templateCategory) {
+                                console.warn(`[WhatsAppService] Live category fetch returned null. Fallback to content category: ${templateCategory}`);
+                            } else {
+                                throw new Error('LIVE_CATEGORY_FETCH_FAILED: Meta API did not return a valid category and DB fallback failed.');
+                            }
                         }
                     } else {
                         throw new Error('LIVE_CATEGORY_FETCH_FAILED: WABA ID missing for live check.');
