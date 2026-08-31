@@ -1136,7 +1136,16 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
+                mimeType = 'audio/ogg; codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/webm; codecs=opus')) {
+                mimeType = 'audio/webm; codecs=opus';
+            }
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = mediaRecorder;
             const chunks: BlobPart[] = [];
 
@@ -1145,7 +1154,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
             };
 
             mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const blob = new Blob(chunks, { type: mimeType });
                 // Only send if it wasn't cancelled (checked via state in caller, but safely handled here)
                 // We'll rely on handleStopRecording to trigger the send if appropriate
                 stream.getTracks().forEach(track => track.stop());
@@ -1153,7 +1162,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
 
             // Custom method attached to the recorder to access chunks later if needed
             // @ts-ignore
-            mediaRecorder.getBlob = () => new Blob(chunks, { type: 'audio/webm' });
+            mediaRecorder.getBlob = () => new Blob(chunks, { type: mimeType });
 
             mediaRecorder.start();
             setIsRecording(true);

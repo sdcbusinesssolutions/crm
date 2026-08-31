@@ -1088,15 +1088,36 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                                 }
                                             }
 
-                                            console.log(`[Auto-Heal] Resending flawless payload using Media ID...`);
-                                            const resData = await whatsappService.sendMessage(
-                                                ownerId,
-                                                conv.contact_phone,
-                                                finalType,
-                                                finalContent,
-                                                logPhoneId,
-                                                true // skipDBLog = true -> prevent duplicate UI entries
-                                            );
+                                            console.log(`[Auto-Heal] Resending flawless payload using Media ID with exponential backoff...`);
+                                            
+                                            let resData = null;
+                                            let maxRetries = 3;
+                                            let delayMs = 3000;
+                                            
+                                            for (let i = 0; i < maxRetries; i++) {
+                                                try {
+                                                    // Wait before attempting to prevent rate limit hit (#131056)
+                                                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                                                    
+                                                    resData = await whatsappService.sendMessage(
+                                                        ownerId,
+                                                        conv.contact_phone,
+                                                        finalType,
+                                                        finalContent,
+                                                        logPhoneId,
+                                                        true // skipDBLog = true -> prevent duplicate UI entries
+                                                    );
+                                                    break; // Success, exit retry loop
+                                                } catch (retryErr) {
+                                                    const isRateLimit = retryErr.message && retryErr.message.includes('131056');
+                                                    if (isRateLimit && i < maxRetries - 1) {
+                                                        delayMs *= 2; // Exponential backoff (3s, 6s, 12s)
+                                                        console.warn(`[Auto-Heal] Rate limit hit on retry ${i + 1}. Backing off for ${delayMs}ms...`);
+                                                    } else {
+                                                        throw retryErr; // Propagate error if max retries reached or not a rate limit
+                                                    }
+                                                }
+                                            }
 
                                             // 7. Success! Update DB row quietly
                                             const healedWaMessageId = resData?.messages?.[0]?.id;

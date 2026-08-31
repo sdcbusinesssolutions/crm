@@ -551,12 +551,20 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' as any } : m));
         }
     };
-
     // Voice Recording Logic
     const handleStartRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')) {
+                mimeType = 'audio/ogg; codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            } else if (MediaRecorder.isTypeSupported('audio/webm; codecs=opus')) {
+                mimeType = 'audio/webm; codecs=opus';
+            }
+
+            const mediaRecorder = new MediaRecorder(stream, { mimeType });
             mediaRecorderRef.current = mediaRecorder;
             const chunks: BlobPart[] = [];
 
@@ -565,11 +573,12 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
             };
 
             mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
                 stream.getTracks().forEach(track => track.stop());
             };
 
             // @ts-ignore
-            mediaRecorder.getBlob = () => new Blob(chunks, { type: 'audio/webm' });
+            mediaRecorder.getBlob = () => new Blob(chunks, { type: mimeType });
 
             mediaRecorder.start();
             setIsRecording(true);

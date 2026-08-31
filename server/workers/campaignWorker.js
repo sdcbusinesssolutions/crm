@@ -1764,11 +1764,34 @@ class CampaignWorker {
                         };
 
                         // 6. Resend
-                        console.log(`[Auto-Heal] Resending healed payload to ${item.phone_number}...`);
-                        const retryResponse = await axios.post(url, healedPayload, {
-                            headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
-                            httpsAgent: httpsAgent
-                        });
+                        console.log(`[Auto-Heal] Resending healed payload to ${item.phone_number} with exponential backoff...`);
+                        
+                        let retryResponse = null;
+                        let maxRetries = 3;
+                        let delayMs = 3000;
+                        
+                        for (let i = 0; i < maxRetries; i++) {
+                            try {
+                                // Wait before attempting to prevent (#131056) rate limit hit
+                                await new Promise(resolve => setTimeout(resolve, delayMs));
+                                
+                                retryResponse = await axios.post(url, healedPayload, {
+                                    headers: { 'Authorization': `Bearer ${config.meta_access_token}` },
+                                    httpsAgent: httpsAgent
+                                });
+                                break; // Success, exit retry loop
+                            } catch (retryErr) {
+                                const errData = retryErr.response?.data?.error || {};
+                                const isRateLimit = errData.code === 131056 || (retryErr.message && retryErr.message.includes('131056'));
+                                
+                                if (isRateLimit && i < maxRetries - 1) {
+                                    delayMs *= 2; // Exponential backoff (3s, 6s, 12s)
+                                    console.warn(`[Auto-Heal] Rate limit hit on retry ${i + 1}. Backing off for ${delayMs}ms...`);
+                                } else {
+                                    throw retryErr; // Propagate error if max retries reached or not a rate limit
+                                }
+                            }
+                        }
 
                         // 7. Success! Update DB and Log normally
                         const newWaId = retryResponse.data.messages[0].id;
@@ -1830,41 +1853,10 @@ class CampaignWorker {
             let shouldRetry = false;
             let isRateLimit = false;
 
-            if (errorCode === 131047) {
-                // WhatsApp Cloud API messaging rate limit
-                isRateLimit = true;
-            } else if (errorCode === 80008) {
-                // WhatsApp Business Management API rate limit — pause ALL calls
-                isRateLimit = true;
-                const rateLimitInfo = parseMetaRateLimitHeader(error.response?.headers);
-                let pauseMs = RATE_LIMIT_DEFAULT_PAUSE_MS;
-                if (rateLimitInfo && rateLimitInfo.waitMinutes > 0) {
-                    pauseMs = rateLimitInfo.waitMinutes * 60 * 1000;
-                    console.error(`[Worker] 🚨 80008 on SEND! Meta says wait ${rateLimitInfo.waitMinutes} min. Pausing WABA ${config.whatsapp_business_account_id} until ${new Date(Date.now() + pauseMs).toISOString()}`);
-                } else {
-                    console.error(`[Worker] 🚨 80008 on SEND! Pausing WABA ${config.whatsapp_business_account_id} for ${RATE_LIMIT_DEFAULT_PAUSE_MS / 1000}s.`);
-                }
-                await setWabaRateLimit(config.whatsapp_business_account_id, pauseMs);
-                // ✅ FIX: Only clear cache for THIS WABA — not all other users' WABAs
-                for (const key of TEMPLATE_CACHE.keys()) {
-                    if (key.startsWith(`${config.whatsapp_business_account_id}:`)) {
-                        TEMPLATE_CACHE.delete(key);
-                    }
-                }
-            } else if (errorCode >= 500 || errorCode === 131006 || !error.response) {
-                shouldRetry = true;
-            } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
-                // Network-level failure (Meta's server refusing or dropping connection)
-                // This usually happens during or just after a rate limit period — always retry
-                console.warn(`[Worker] Network error (${error.code}) sending to ${item.phone_number}. Will retry.`);
-                shouldRetry = true;
-            } else if (errorMsg && errorMsg.includes('LIVE_CATEGORY_FETCH_FAILED')) {
-                // Meta API is down and we cannot verify the category.
-                // Do not assume a category to prevent over/under charging.
-                console.warn(`[Worker] 🛑 Meta live category fetch failed. Pausing campaign to prevent blind charging.`);
-                isRateLimit = true; // Treats it like a rate limit (pauses campaign, queues for retry)
-                shouldRetry = true;
-            }
+            // User requested to disable ALL retries and rate limit pausing.
+            // Any error will result in the message being marked as FAILED immediately.
+            isRateLimit = false;
+            shouldRetry = false;
 
             if (isRateLimit) {
                 console.warn(`⚠️ Pausing campaign ${campaign.id} due to rate limit or Meta API downtime.`);
