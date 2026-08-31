@@ -1014,7 +1014,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                         let finalMime = 'application/octet-stream';
                                         let finalFilename = `recovered_media_${Date.now()}`;
 
-                                        // 4. Force Transcode ONLY for Videos
+                                        // 4. Force Transcode ONLY for Videos and Audio
                                         if (origMsg.type === 'video') {
                                             console.log(`[Auto-Heal] Performing H.264 Transcode for video...`);
                                             const { transcodeToWhatsAppVideo } = require('../utils/videoTranscoder');
@@ -1027,14 +1027,14 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                                                 console.error('[Auto-Heal] FFmpeg Transcode failed. Message will permanently fail.', transcodeErr.message);
                                                 return;
                                             }
+                                        } else if (origMsg.type === 'audio') {
+                                            console.error('[Auto-Heal] Audio Auto-Heal disabled per user request. Audio message permanently failed with 131053.');
+                                            return;
                                         } else {
                                             // Determine MIME type for non-video types
                                             if (origMsg.type === 'image') {
                                                 finalMime = 'image/jpeg';
                                                 finalFilename = 'recovered_image.jpg';
-                                            } else if (origMsg.type === 'audio') {
-                                                finalMime = 'audio/mpeg';
-                                                finalFilename = 'recovered_audio.mp3';
                                             } else if (origMsg.type === 'document') {
                                                 finalMime = 'application/pdf';
                                                 finalFilename = 'recovered_doc.pdf';

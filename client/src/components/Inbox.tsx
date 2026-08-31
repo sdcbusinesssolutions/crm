@@ -1085,9 +1085,13 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     };
 
     const sendVoiceMessage = async (audioBlob: Blob) => {
-        // We use .webm because that is the actual format produced by MediaRecorder in most browsers.
-        // The server will handle converting/downgrading this to a 'Document' if WhatsApp doesn't support the audio format.
-        const file = new File([audioBlob], `voice_message_${Date.now()}.webm`, { type: 'audio/webm' });
+        const mimeType = audioBlob.type || 'audio/webm';
+        let extension = 'webm';
+        if (mimeType.includes('mp4')) extension = 'mp4';
+        else if (mimeType.includes('ogg')) extension = 'ogg';
+        else if (mimeType.includes('mpeg')) extension = 'mp3';
+        
+        const file = new File([audioBlob], `voice_message_${Date.now()}.${extension}`, { type: mimeType });
 
         // Optimistic UI
         const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;

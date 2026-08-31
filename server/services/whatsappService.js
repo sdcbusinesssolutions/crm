@@ -247,10 +247,44 @@ class WhatsAppService {
                                 console.log(`[WhatsAppService] Intercepting Audio Link delivery. Converting to Media ID...`);
                                 const axios = require('axios');
                                 const response = await axios.get(content.link, { responseType: 'arraybuffer' });
-                                const buffer = Buffer.from(response.data);
+                                let buffer = Buffer.from(response.data);
                                 const url = new URL(content.link);
-                                const filename = url.pathname.split('/').pop() || 'audio.ogg';
-                                const mimeType = filename.endsWith('.mp3') ? 'audio/mpeg' : (filename.endsWith('.mp4') || filename.endsWith('.m4a') ? 'audio/mp4' : 'audio/ogg; codecs=opus');
+                                let filename = url.pathname.split('/').pop() || 'audio.ogg';
+                                let mimeType = filename.endsWith('.mp3') ? 'audio/mpeg' : (filename.endsWith('.mp4') || filename.endsWith('.m4a') ? 'audio/mp4' : 'audio/ogg; codecs=opus');
+                                
+                                // FORCE TRANSCODE ALL AUDIO TO MP4/AAC TO PREVENT 131053 ERROR
+                                if (type === 'audio') {
+                                    console.log(`[WhatsAppService] Audio is ${filename}, forcing transcode to MP4/AAC for guaranteed delivery...`);
+                                    const fs = require('fs');
+                                    const path = require('path');
+                                    const os = require('os');
+                                    const ffmpeg = require('fluent-ffmpeg');
+                                    
+                                    const tmpInput = path.join(os.tmpdir(), `input_${Date.now()}_${filename}`);
+                                    const tmpOutput = path.join(os.tmpdir(), `output_${Date.now()}.mp4`);
+                                    
+                                    fs.writeFileSync(tmpInput, buffer);
+                                    
+                                    await new Promise((resolve, reject) => {
+                                        ffmpeg(tmpInput)
+                                            .audioCodec('aac')
+                                            .audioBitrate('128k')
+                                            .audioChannels(2)
+                                            .toFormat('mp4')
+                                            .on('end', () => resolve(tmpOutput))
+                                            .on('error', (err) => reject(err))
+                                            .save(tmpOutput);
+                                    });
+
+                                    console.log('[WhatsAppService] Audio transcode to MP4/AAC successful.');
+                                    buffer = fs.readFileSync(tmpOutput);
+                                    filename = `transcoded_audio_${Date.now()}.mp4`;
+                                    mimeType = 'audio/mp4';
+
+                                    fs.unlinkSync(tmpInput);
+                                    fs.unlinkSync(tmpOutput);
+                                }
+
                                 const mediaId = await this.uploadMediaToWhatsApp(userId, buffer, mimeType, filename);
                                 body[type].id = mediaId;
                                 console.log(`[WhatsAppService] Successfully intercepted audio and replaced with Media ID: ${mediaId}`);

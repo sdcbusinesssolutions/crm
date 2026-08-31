@@ -624,7 +624,13 @@ const SendWhatsAppMessageModal: React.FC<Props> = ({ isOpen, onClose, contactPho
             return;
         }
 
-        const file = new File([blob], 'voice-message.webm', { type: 'audio/webm' });
+        const mimeType = blob.type || 'audio/webm';
+        let extension = 'webm';
+        if (mimeType.includes('mp4')) extension = 'mp4';
+        else if (mimeType.includes('ogg')) extension = 'ogg';
+        else if (mimeType.includes('mpeg')) extension = 'mp3';
+        
+        const file = new File([blob], `voice-message.${extension}`, { type: mimeType });
         
         const tempId = 'temp-' + Date.now();
         const newMessage: Message = {
