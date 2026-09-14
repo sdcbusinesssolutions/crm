@@ -63,12 +63,26 @@ const MyPlan: React.FC = () => {
 
             if (subError) throw subError;
 
-            // Fetch All Active Plans for Upgrade
-            const { data: plans, error: planError } = await supabase
+            // Fetch user profile to get domain
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('signup_domain')
+                .eq('id', user.id)
+                .single();
+            
+            const userDomain = (profile as any)?.signup_domain;
+
+            // Fetch All Active Plans for Upgrade for specific domain
+            let planQuery = supabase
                 .from('plans')
                 .select('*')
-                .eq('is_active', true)
-                .order('pricing', { ascending: true }); // Attempt to order by pricing generally
+                .eq('is_active', true);
+                
+            if (userDomain) {
+                planQuery = planQuery.eq('domain', userDomain);
+            }
+
+            const { data: plans, error: planError } = await planQuery;
 
             if (planError) throw planError;
 
@@ -230,21 +244,32 @@ const MyPlan: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {availablePlans.map((plan) => {
+                            {availablePlans.filter((plan) => {
+                                if (Array.isArray(plan.pricing)) {
+                                    return plan.pricing.some(p => (p.id === billingCycle || p.name?.toLowerCase().replace('-', '_') === billingCycle) && p.enabled !== false);
+                                } else if (plan.pricing) {
+                                    const legacyOptions: any[] = [];
+                                    // @ts-ignore
+                                    if ((plan.pricing as any).monthly?.enabled) legacyOptions.push({ ...(plan.pricing as any).monthly, id: 'monthly' });
+                                    // @ts-ignore
+                                    if ((plan.pricing as any).yearly?.enabled) legacyOptions.push({ ...(plan.pricing as any).yearly, id: 'yearly' });
+                                    return legacyOptions.some(p => p.id === billingCycle);
+                                }
+                                return false;
+                            }).map((plan) => {
                                 const isCurrent = currentSubscription?.plan_id === plan.id;
                                 
                                 let price = null;
                                 if (Array.isArray(plan.pricing)) {
                                     price = plan.pricing.find(p => (p.id === billingCycle || p.name?.toLowerCase().replace('-', '_') === billingCycle) && p.enabled !== false);
-                                    if (!price && plan.pricing.length > 0) price = plan.pricing[0];
                                 } else if (plan.pricing) {
                                     // Handle legacy object format if still in DB
                                     const legacyOptions: any[] = [];
                                     // @ts-ignore
-                                    if (plan.pricing.monthly?.enabled) legacyOptions.push({ ...plan.pricing.monthly, id: 'monthly', interval: 'month', interval_count: 1 });
+                                    if ((plan.pricing as any).monthly?.enabled) legacyOptions.push({ ...(plan.pricing as any).monthly, id: 'monthly', interval: 'month', interval_count: 1 });
                                     // @ts-ignore
-                                    if (plan.pricing.yearly?.enabled) legacyOptions.push({ ...plan.pricing.yearly, id: 'yearly', interval: 'year', interval_count: 1 });
-                                    price = legacyOptions.find(p => p.id === billingCycle) || legacyOptions[0];
+                                    if ((plan.pricing as any).yearly?.enabled) legacyOptions.push({ ...(plan.pricing as any).yearly, id: 'yearly', interval: 'year', interval_count: 1 });
+                                    price = legacyOptions.find(p => p.id === billingCycle);
                                 }
 
                                 return (

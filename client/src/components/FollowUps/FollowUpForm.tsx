@@ -104,10 +104,8 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
     // --- Contact Helper Functions ---
     const addContact = (contact: any) => {
-        // De-duplicate by phone or ID
-        if (!selectedContacts.find(sc => (contact.id && sc.id === contact.id) || (contact.phone && sc.phone === contact.phone))) {
-            setSelectedContacts(prev => [...prev, contact]);
-        }
+        // Restrict to a single contact only
+        setSelectedContacts([contact]);
     };
 
     // --- Master Initialization & Persistence Effect ---
@@ -294,13 +292,11 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
         const value = contactSearch.trim();
         if (!value) return;
 
-        // Split by commas, spaces, or newlines
+        // Take only the first number to restrict to single number
         const parts = value.split(/[,\n\t\s]+/).filter(Boolean);
-        let addedCount = 0;
 
-        parts.forEach(p => {
-            const clean = p.replace(/[^0-9+]/g, '');
-            // Simple validation: at least 8 digits
+        if (parts.length > 0) {
+            const clean = parts[0].replace(/[^0-9+]/g, '');
             if (clean.length >= 4) {
                 addContact({
                     id: `temp_${Date.now()}_${Math.random()}`,
@@ -308,16 +304,8 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                     phone: clean,
                     is_new: true // Flag for bulk create later
                 });
-                addedCount++;
-            }
-        });
-
-        if (addedCount > 0) {
-            setContactSearch('');
-            setShowDropdown(false);
-            // Expert Suggestion: Auto-switch to WhatsApp for bulk lists
-            if (addedCount > 1 || selectedContacts.length > 1) {
-                setFormData(prev => ({ ...prev, type: 'WHATSAPP' }));
+                setContactSearch('');
+                setShowDropdown(false);
             }
         }
     };
@@ -702,7 +690,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                             onFocus={() => {
                                                 if (contacts.length > 0) setShowDropdown(true);
                                             }}
-                                            placeholder="Search name/phone or enter number(s)..."
+                                            placeholder="Search name/phone or enter number..."
                                             className="block w-full rounded-full border-2 border-slate-200 shadow-sm focus:border-[#00684A] focus:ring-[#00684A]/30 focus:ring-4 text-sm py-2 px-4 transition-all hover:border-[#00684A] bg-white text-slate-800 font-medium placeholder-slate-400"
                                         />
                                         {contactSearch.length > 0 && (
@@ -725,7 +713,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
                                     </div>
 
                                     <p className="text-[10px] text-slate-500 mt-2 ml-2 italic">
-                                        Tip: Paste comma-separated numbers (e.g. 9988776655, 1122334455) to bulk add.
+                                        Tip: Search by name or enter a valid phone number.
                                     </p>
 
                                     {(() => {

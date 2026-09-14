@@ -215,14 +215,14 @@ const PricingManager = () => {
         <div className="p-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">Pricing & Countries</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">Message Price</h1>
                     <p className="text-sm text-slate-500 mt-1">Manage allowed countries and WhatsApp message rates.</p>
                 </div>
                 <button 
                     onClick={openAddModal}
                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm"
                 >
-                    + Add Country
+                    + Add Price
                 </button>
             </div>
 

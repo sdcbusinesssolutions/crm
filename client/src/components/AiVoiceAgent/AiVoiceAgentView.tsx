@@ -241,13 +241,6 @@ const AiVoiceAgentView: React.FC = () => {
                     >
                         Active Agents
                     </button>
-                    <button 
-                        onClick={() => setActiveViewTab('analytics')}
-                        className={`pb-4 font-bold text-sm transition-colors border-b-2 flex items-center gap-2 ${activeViewTab === 'analytics' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-                    >
-                        Analytics & Leads
-                        <span className="bg-brand-100 text-brand-700 text-[10px] px-2 py-0.5 rounded-full">New</span>
-                    </button>
                 </div>
 
                 {activeViewTab === 'analytics' ? (

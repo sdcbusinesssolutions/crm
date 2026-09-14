@@ -225,39 +225,6 @@ const PlanEditor: React.FC<PlanEditorProps> = ({ plan, onSave, onCancel }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
-                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded font-bold">
-                        AI Chat Bot
-                    </span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={formData.ai_bot_enabled}
-                            onChange={e => handleChange('ai_bot_enabled', e.target.checked)}
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                        <span className="text-xs font-medium text-slate-600">Enable</span>
-                    </label>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm flex items-center justify-between">
-                    <span className="inline-block bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded font-bold">
-                        API & Webhook
-                    </span>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={formData.api_access_enabled}
-                            onChange={e => handleChange('api_access_enabled', e.target.checked)}
-                        />
-                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
-                        <span className="text-xs font-medium text-slate-600">Enable</span>
-                    </label>
-                </div>
-            </div>
 
             <div>
                 <div className="flex justify-between items-center mb-4">
