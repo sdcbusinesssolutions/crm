@@ -36,7 +36,7 @@ const BILLING_MODE_OPTIONS = [
 const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, user, onSuccess, isSuperAdmin = false }) => {
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('Admin Top-up');
-    const [walletEnforced, setWalletEnforced] = useState(false);
+    const [walletEnforced, setWalletEnforced] = useState(true);
     const [billingMode, setBillingMode] = useState('CREDIT_LINE_SUPER');
     const [initialBillingMode, setInitialBillingMode] = useState('CREDIT_LINE_SUPER');
     const [currentBalance, setCurrentBalance] = useState<string | number>('Loading...');
@@ -240,7 +240,13 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
                                 // STRICT ISOLATION: Show the EXACT billing mode assigned to the domain.
                                 // However, if the Super Admin enabled "allowTenantControl", also allow the Tenant to switch users to DIRECT_META (User Pays Meta).
                                 if (mode.value === domainDefaultBillingMode) return true;
-                                if (allowTenantControl && mode.value === 'DIRECT_META') return true;
+                                if (allowTenantControl && mode.value === 'DIRECT_META') {
+                                    // If user is already on a credit line, do not show the debit card option
+                                    if (initialBillingMode === 'CREDIT_LINE_SUPER' || initialBillingMode === 'CREDIT_LINE_TENANT') {
+                                        return false;
+                                    }
+                                    return true;
+                                }
                                 
                                 return false;
                             }).map(mode => (
@@ -337,13 +343,13 @@ const WalletTopupModal: React.FC<WalletTopupModalProps> = ({ isOpen, onClose, us
 
                 {/* Enforcement Toggle for Super Admin */}
                 {isSuperAdmin && billingMode !== 'DIRECT_META' && (
-                    <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors">
+                    <label className="flex items-start gap-3 p-4 border border-slate-200 rounded-xl bg-slate-50 cursor-not-allowed opacity-80">
                         <div className="flex items-center h-5 mt-0.5">
                             <input
                                 type="checkbox"
                                 checked={walletEnforced}
-                                onChange={e => setWalletEnforced(e.target.checked)}
-                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500"
+                                disabled
+                                className="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500 cursor-not-allowed"
                             />
                         </div>
                         <div>
