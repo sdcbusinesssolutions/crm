@@ -278,7 +278,7 @@ const WalletReport = () => {
                         <p className="text-sm text-slate-500 mt-1">When you send messages or receive top-ups, they will appear here.</p>
                     </div>
                 ) : (
-                    <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
+                    <div className="w-full overflow-x-auto">
                         <table className="w-full divide-y divide-slate-100 min-w-[900px]">
                             <thead className="bg-slate-50/80 sticky top-0 z-10">
                                 <tr>
@@ -384,20 +384,22 @@ const WalletReport = () => {
                 )}
 
                 {/* Pagination */}
-                <div className="px-4 py-3 border-t border-slate-200 bg-white flex flex-col sm:flex-row gap-3 justify-between items-center rounded-b-2xl">
-                    <div className="text-[11px] font-medium text-slate-500">
-                        Showing page <span className="font-bold text-slate-700">{page}</span> of <span className="font-bold text-slate-700">{Math.max(1, totalPages)}</span> · {totalTransactions} total
+                <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-b-2xl shrink-0">
+                    <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
+                        <span>
+                            Showing <span className="font-bold text-slate-700">{totalTransactions > 0 ? (page - 1) * limit + 1 : 0}</span> to <span className="font-bold text-slate-700">{Math.min(page * limit, totalTransactions)}</span> of <span className="font-bold text-slate-700">{totalTransactions}</span> entries
+                        </span>
                     </div>
-                    <div className="flex gap-1.5 items-center">
+                    <div className="flex items-center gap-1">
                         <button
                             onClick={() => setPage(p => Math.max(1, p - 1))}
                             disabled={page <= 1}
-                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 text-xs font-bold bg-white transition-colors"
+                            className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs font-bold shadow-sm transition-all"
                         >
-                            ← Prev
+                            Prev
                         </button>
                         
-                        <div className="hidden sm:flex gap-1.5 mx-2">
+                        <div className="hidden sm:flex items-center gap-1 mx-2">
                             {Array.from({ length: Math.min(5, Math.max(1, totalPages)) }, (_, i) => {
                                 let startPage = Math.max(1, page - 2);
                                 if (startPage + 4 > Math.max(1, totalPages)) startPage = Math.max(1, Math.max(1, totalPages) - 4);
@@ -408,10 +410,10 @@ const WalletReport = () => {
                                     <button
                                         key={p}
                                         onClick={() => setPage(p)}
-                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-colors ${
+                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold transition-all shadow-sm border ${
                                             page === p 
-                                                ? 'bg-brand-600 text-white border border-brand-600' 
-                                                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                                ? 'bg-brand-600 text-white border-brand-600 shadow-brand-200 shadow-md transform scale-105' 
+                                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                                         }`}
                                     >
                                         {p}
@@ -423,9 +425,9 @@ const WalletReport = () => {
                         <button
                             onClick={() => setPage(p => Math.min(Math.max(1, totalPages), p + 1))}
                             disabled={page >= Math.max(1, totalPages)}
-                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-40 text-xs font-bold bg-white transition-colors"
+                            className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 text-xs font-bold shadow-sm transition-all"
                         >
-                            Next →
+                            Next
                         </button>
                     </div>
                 </div>

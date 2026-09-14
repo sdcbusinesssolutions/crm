@@ -801,7 +801,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-orange-100 via-orange-50 to-orange-100 p-8 rounded-[2rem] border-2 border-orange-300 shadow-lg shadow-orange-500/20">
+      <div className="hidden bg-gradient-to-br from-orange-100 via-orange-50 to-orange-100 p-8 rounded-[2rem] border-2 border-orange-300 shadow-lg shadow-orange-500/20">
         {/* Time Series Graph Section */}
         <div className="relative group">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 rounded-3xl -z-10"></div>
@@ -932,7 +932,7 @@ const ClickToWhatsAppAnalytics = ({ accountId, adAccounts }) => {
         </div>
 
         {/* AdSet Comparison Graph Section */}
-        <div className="mt-10 pt-10 border-t border-slate-100">
+        <div className="hidden mt-10 pt-10 border-t border-slate-100">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-base font-black text-slate-800 uppercase tracking-widest flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
