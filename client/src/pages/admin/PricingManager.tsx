@@ -31,8 +31,7 @@ const PricingManager = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [selectedCurrency, setSelectedCurrency] = useState('INR');
-    
-    const AVAILABLE_CURRENCIES = ['INR', 'USD', 'AED', 'EUR', 'GBP', 'SGD', 'IDR', 'MYR', 'BRL', 'MXN', 'ARS', 'CLP', 'COP', 'PEN', 'SAR', 'AUD'];
+    const AVAILABLE_CURRENCIES = ['INR'];
 
     // Form state
     const [formData, setFormData] = useState({

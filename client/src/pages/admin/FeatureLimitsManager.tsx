@@ -36,7 +36,9 @@ const FeatureLimitsManager: React.FC = () => {
                 const data = await res.json();
                 console.log('[FeatureLimitsManager] Features data:', data);
                 if (Array.isArray(data) && data.length > 0) {
-                    setFeatures(data);
+                    // Only show STAFF as requested
+                    const filteredData = data.filter((f: string) => f === 'STAFF');
+                    setFeatures(filteredData.length > 0 ? filteredData : ['STAFF']);
                 }
             } else {
                 console.error('[FeatureLimitsManager] Failed to fetch features, status:', res.status, await res.text());
@@ -154,7 +156,7 @@ const FeatureLimitsManager: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-lg p-6 mt-8 animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Feature Limits Manager</h2>
+                    <h2 className="text-2xl font-bold text-gray-800">Staff Limit Manager</h2>
                     <p className="text-gray-500">Override default limits for specific users or domains.</p>
                 </div>
                 
