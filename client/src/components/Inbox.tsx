@@ -2263,15 +2263,11 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                     </div>
 
                     <div className="flex items-center space-x-2 mb-4 overflow-x-auto no-scrollbar pb-1 pt-2 pr-2">
-                        {['All', 'Unread', 'AI Chats', 'Quick Reply'].map(f => {
+                        {['All', 'Unread', 'Quick Reply'].map(f => {
                             const isActive = quickFilter === f;
 
                             const handleClick = () => {
-                                if (f === 'AI Chats') {
-                                    window.location.href = '/?view=AI+Buddy';
-                                } else {
-                                    setQuickFilter(f as any);
-                                }
+                                setQuickFilter(f as any);
                             };
 
                             let activeClasses = 'bg-[#00684a] text-white shadow-md shadow-[#00684a]/20 scale-[1.02] border border-[#00684a]';
@@ -2284,9 +2280,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                 inactiveClasses = 'bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20 hover:bg-[#F97316]/20';
                                 badgeActiveText = 'text-[#F97316]';
                                 badgeInactiveBg = 'bg-[#F97316]';
-                            } else if (f === 'AI Chats') {
-                                activeClasses = 'bg-[#AD46FF] text-white shadow-md shadow-[#AD46FF]/20 scale-[1.02] border border-[#AD46FF]';
-                                inactiveClasses = 'bg-[#AD46FF]/10 text-[#AD46FF] border border-[#AD46FF]/20 hover:bg-[#AD46FF]/20';
                             } else if (f === 'Quick Reply') {
                                 activeClasses = 'bg-[#3B82F6] text-white shadow-md shadow-[#3B82F6]/20 scale-[1.02] border border-[#3B82F6]';
                                 inactiveClasses = 'bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20 hover:bg-[#3B82F6]/20';
