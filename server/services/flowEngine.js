@@ -24,10 +24,10 @@ const manageGroupsExecutor = require('./flow/executors/manageGroups');
 const askInputExecutor = require('./flow/executors/askInput');
 const newLeadExecutor = require('./flow/executors/newLead');
 const contactPipelineExecutor = require('./flow/executors/contactPipeline');
-const gsheetExecutor = require('./flow/executors/gsheet');
+
 const gmailExecutor = require('./flow/executors/gmail');
 const calendarExecutor = require('./flow/executors/calendar');
-const aiAgentExecutor = require('./flow/executors/aiAgent');
+
 const notifyExecutor = require('./flow/executors/notify');
 const assignLeadExecutor = require('./flow/executors/assignLead');
 
@@ -54,11 +54,10 @@ const EXECUTORS = {
     'askInput': askInputExecutor,
     'newLead': newLeadExecutor,
     'contactPipeline': contactPipelineExecutor,
-    'gsheet': gsheetExecutor,
+
     'gmail': gmailExecutor,
     'smtp': require('./flow/executors/smtp'),
     'calendar': calendarExecutor,
-    'aiAgent': aiAgentExecutor,
     'notify': notifyExecutor,
     'assignLead': assignLeadExecutor
 };
@@ -371,50 +370,7 @@ class FlowEngine {
         console.log(`[FlowEngine] Processing message from ${contactPhone}: ${messageText} (Interaction: ${interactionId})`);
         const rpcClient = supabaseAdmin || supabase;
         
-        // 0. Check Manual AI Assignment
-        try {
-            const { data: convData, error: convError } = await rpcClient.from('conversations')
-                .select('assigned_ai_agent_id, bot_paused_until')
-                .eq('user_id', userId)
-                .eq('contact_phone', contactPhone)
-                .maybeSingle();
-                
-            if (convError) throw convError;
-            if (convData && convData.assigned_ai_agent_id) {
-                let isPaused = false;
-                if (convData.bot_paused_until) {
-                    const pausedUntil = new Date(convData.bot_paused_until);
-                    if (pausedUntil > new Date()) {
-                        isPaused = true;
-                    }
-                }
-                
-                if (isPaused) {
-                    console.log(`[FlowEngine] AI Agent is manually paused for ${contactPhone}. Falling back to standard flow.`);
-                } else {
-                    console.log(`[FlowEngine] Conversation is manually assigned to AI Agent ${convData.assigned_ai_agent_id}. Bypassing flow builder.`);
-                    
-                    const aiAgentExecutor = require('./flow/executors/aiAgent');
-                    const fakeSession = { user_id: userId, contact_phone: contactPhone };
-                    const fakeNode = { data: { agentId: convData.assigned_ai_agent_id, userQuery: messageText } };
-                    
-                    try {
-                        const result = await aiAgentExecutor.execute(fakeSession, fakeNode, {});
-                        if (result && result.success && result.response) {
-                            const whatsappService = require('./whatsappService');
-                            await whatsappService.sendMessage(userId, contactPhone, 'text', { body: result.response }, interactionId);
-                        }
-                        return; // Stop processing further flows
-                    } catch (err) {
-                        console.error('[FlowEngine] Error executing assigned AI agent:', err);
-                        return;
-                    }
-                }
-            }
-        } catch (dbErr) {
-            console.error('[FlowEngine] Error checking manual AI assignment (DB):', dbErr);
-            // Swallow error and fallback to standard flow
-        }
+
 
         const keyword = typeof messageText === 'string' ? messageText.toLowerCase().trim() : '';
 

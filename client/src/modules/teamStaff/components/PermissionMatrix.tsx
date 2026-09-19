@@ -60,11 +60,6 @@ const getModuleBadge = (module: string) => {
         icon: <LinkIcon className={iconClass} />,
         style: 'bg-teal-50 text-teal-600 border border-teal-100'
       };
-    case 'AI Buddy':
-      return {
-        icon: <SparklesIcon className={iconClass} />,
-        style: 'bg-violet-50 text-violet-600 border border-violet-100'
-      };
     case 'Gallery':
       return {
         icon: <GalleryIcon className={iconClass} />,

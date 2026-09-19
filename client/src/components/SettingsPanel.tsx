@@ -4304,9 +4304,6 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
                             ...agents.map(a => ({ label: a.name, value: a.id }))
                         ]}
                     />
-                    <p className="text-[10px] text-slate-500 mt-2">
-                        create agents in <span className="font-bold text-brand-400">AI Buddy</span> section.
-                    </p>
                 </div>
 
                 <div>

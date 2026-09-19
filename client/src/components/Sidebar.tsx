@@ -31,7 +31,6 @@ export type MenuItem =
     | 'Webhook Events'
     | 'Gallery'
     | 'FAQ Bot'
-    | 'AI Buddy'
     | 'Flows'
     | 'Pipelines'
     | 'Follow-up'
@@ -43,11 +42,9 @@ export type MenuItem =
     | 'Knowledge Base'
     | 'Developers'
     | 'WhatsApp API'
-    | 'Drip Campaigns'
     | 'Team Staff'
     | 'My Plan'
     | 'Wallet & Billing'
-    | 'G Automation'
     | 'Click to WhatsApp Ads'
     | 'Campaign Analytics'
     | 'Quick Reply'
@@ -197,7 +194,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'Columns': return <ListIcon className={baseClass} />;
             case 'Opts Management': return <CheckSquareIcon className={baseClass} />;
             case 'Webhook Events': return <WebhookIcon className={baseClass} />;
-            case 'G Automation': return <ListIcon className={baseClass} />;
 
             case 'Branding & Appearance': return <EyeIcon className={baseClass} />;
             case 'WhatsApp API': return <CodeIcon className={baseClass} />;
@@ -206,8 +202,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'Wallet & Billing': return <CreditCardIcon className={baseClass} />;
             case 'Integrations': return <LinkIcon className={baseClass} />;
             case 'Gallery': return <GalleryIcon className={baseClass} />;
-            case 'AI Buddy': return <SparklesIcon className={baseClass} />;
-            case 'Drip Campaigns': return <TriggerIcon className={baseClass} />;
             default: return null;
         }
     };
@@ -227,9 +221,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Input Fields': 'Input Fields',
             'Campaigns': 'Campaigns',
             'Flows': 'Flows',
-            'Drip Campaigns': 'Drip Campaigns',
-            'G Automation': 'G+Automation',
-            'AI Buddy': 'AI Buddy',
             'Gallery': 'Gallery',
             'Manage': 'Whatsapp Templates', // Using templates as proxy for manage parent
             'Whatsapp Templates': 'Whatsapp Templates',
@@ -476,19 +467,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
 
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Automation</p>}
                         {renderItem('Flows', <TriggerIcon className="w-5 h-5" />)}
-                        {renderItem('Drip Campaigns', <ClockIcon className="w-5 h-5" />)}
 
-                        {renderItem('G Automation', <ListIcon className="w-5 h-5" />)}
                         {renderItem('Manage', <BriefcaseIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isManageOpen && <div className="space-y-1 mt-2 mb-2.5">{manageSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}
                         {renderItem('Integrations', <LinkIcon className="w-5 h-5" />, false, false, false)}
 
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">AI & Tools</p>}
-                        {renderItem('AI Buddy', <SparklesIcon className="w-5 h-5" />, false, false, true)}
-
+                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />, false, false, true)}
 
-                        {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Wallet & Billing', <CreditCardIcon className="w-5 h-5" />)}
                         {renderItem('Team Staff', <UsersIcon className="w-5 h-5" />)}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}

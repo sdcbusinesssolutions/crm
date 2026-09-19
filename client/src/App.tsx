@@ -36,8 +36,7 @@ import { ContactForms } from './components/ContactForms/ContactForms';
 import ContactTags from './components/ContactTags';
 import WhatsAppApiSettings from './components/WhatsAppApiSettings';
 import CreateCampaignComponent from './components/Campaigns/CreateCampaign';
-import { SheetAutomationList, SheetAutomationWizard } from './components/SheetAutomation';
-import DripCampaignManager from './components/DripCampaigns/DripCampaignManager';
+
 import GoogleCallbackPage from './components/GoogleCallbackPage';
 import AuthCentralCallback from './components/AuthCentralCallback';
 import StaffManagement from './modules/teamStaff/pages/StaffManagement';
@@ -62,7 +61,7 @@ const FlowList = React.lazy(() => import('./components/FlowList'));
 const FlowEditor = React.lazy(() => import('./components/FlowEditor'));
 const QuickReply = React.lazy(() => import('./components/QuickReply'));
 const FormBuilder = React.lazy(() => import('./components/FormBuilder'));
-const AiVoiceAgentView = React.lazy(() => import('./components/AiVoiceAgent/AiVoiceAgentView'));
+
 
 const MainApp: React.FC = () => {
     // --- BOUNCE INTERCEPTOR (Master Domain Only) ---
@@ -119,10 +118,7 @@ const MainApp: React.FC = () => {
     const [currentCampaignId, setCurrentCampaignId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('campaignId'));
     const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('pipelineId'));
     const [isSidebarOpen, setSidebarOpen] = useState(false); // UI state, no need to persist
-    const [isCreatingSheetAutomation, setIsCreatingSheetAutomation] = useState(() => new URLSearchParams(window.location.search).get('createSheetAuto') === 'true');
-    const [editingSheetAutomationId, setEditingSheetAutomationId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('editSheetAutoId'));
-    const [isCreatingDrip, setIsCreatingDrip] = useState(false);
-    const [selectedDripId, setSelectedDripId] = useState<string | null>(null);
+
     const [followUpInitialView, setFollowUpInitialView] = useState<'list' | 'form'>('list');
     const [createCampaignData, setCreateCampaignData] = useState<{
         templateId?: string;
@@ -434,10 +430,6 @@ const MainApp: React.FC = () => {
         // Pipelines
         if (currentPipelineId) params.set('pipelineId', currentPipelineId); else params.delete('pipelineId');
 
-        // Sheet Automation
-        if (isCreatingSheetAutomation) params.set('createSheetAuto', 'true'); else params.delete('createSheetAuto');
-        if (editingSheetAutomationId) params.set('editSheetAutoId', editingSheetAutomationId); else params.delete('editSheetAutoId');
-
         const newSearch = params.toString();
         const currentSearch = window.location.search.replace('?', '');
 
@@ -450,7 +442,7 @@ const MainApp: React.FC = () => {
     }, [
         activeMenuItem, currentFlowId, currentWhatsAppFlowId, currentTemplateId,
         isTemplateBuilderOpen, currentCampaignId, isCreatingCampaign,
-        currentPipelineId, isCreatingSheetAutomation, editingSheetAutomationId,
+        currentPipelineId,
         isAuthLoading, session, staffSession
     ]);
 
@@ -468,8 +460,6 @@ const MainApp: React.FC = () => {
             setCurrentCampaignId(params.get('campaignId'));
             setIsCreatingCampaign(params.get('createCampaign') === 'true');
             setCurrentPipelineId(params.get('pipelineId'));
-            setIsCreatingSheetAutomation(params.get('createSheetAuto') === 'true');
-            setEditingSheetAutomationId(params.get('editSheetAutoId'));
         };
 
         window.addEventListener('popstate', handlePopState);
@@ -486,27 +476,7 @@ const MainApp: React.FC = () => {
         setActiveMenuItem('Flows');
     }, []);
 
-    const handleMenuNavigation = useCallback((item: MenuItem | 'CREATE_DRIP' | 'EDIT_DRIP', extraData?: any) => {
-        if (item === 'CREATE_DRIP') {
-            setIsCreatingDrip(true);
-            setSelectedDripId(null);
-            setActiveMenuItem('Drip Campaigns');
-            setSidebarOpen(false);
-            return;
-        }
-
-        if (item === 'EDIT_DRIP') {
-            setIsCreatingDrip(false);
-            setSelectedDripId(extraData as string);
-            setActiveMenuItem('Drip Campaigns');
-            setSidebarOpen(false);
-            return;
-        }
-
-        // Reset States on every navigation
-        setIsCreatingDrip(false);
-        setSelectedDripId(null);
-        setFollowUpInitialView('list');
+    const handleMenuNavigation = useCallback((item: MenuItem, extraData?: any) => {
         setActiveMenuItem(item);
 
         // Feature-specific resets
@@ -524,16 +494,12 @@ const MainApp: React.FC = () => {
         setCreateCampaignData(undefined);
         setCurrentCampaignId(null);
 
-        if (item !== 'G Automation') {
-            setIsCreatingSheetAutomation(false);
-        }
-
         setSidebarOpen(false);
     }, [
-        setIsCreatingDrip, setActiveMenuItem, setSidebarOpen, setFollowUpInitialView,
+        setActiveMenuItem, setSidebarOpen,
         setCurrentFlowId, setCurrentPipelineId, setCurrentWhatsAppFlowId,
         setCurrentTemplateId, setIsTemplateBuilderOpen, setIsCreatingCampaign,
-        setCreateCampaignData, setCurrentCampaignId, setIsCreatingSheetAutomation
+        setCreateCampaignData, setCurrentCampaignId
     ]);
 
     const handleLogout = useCallback(async () => {
@@ -721,82 +687,14 @@ const MainApp: React.FC = () => {
             return <IntegrationsView onToggleSidebar={() => setSidebarOpen(true)} onNavigate={handleMenuNavigation} />;
         }
 
-        if (activeMenuItem === 'AI Buddy') {
-            return <AiVoiceAgentView />;
-        }
+
 
         if (activeMenuItem === 'Quick Reply') {
             return <QuickReply onToggleSidebar={() => setSidebarOpen(true)} />;
         }
 
-        // ... (rest of code)
-        // ...
-        // Note: I will only replace the render logic and state initialization part if possible, 
-        // or just the block where SheetAutomationWizard is rendered.
 
-        // I need to be careful with line numbers.
-        // Let's scroll down to SheetAutomation render block.
 
-        if (activeMenuItem === 'G Automation') {
-            if (isCreatingSheetAutomation) {
-                return (
-                    <div className="p-4 md:p-8 h-full overflow-y-auto bg-slate-50 container-mobile-fix">
-                        <div className="max-w-4xl mx-auto">
-                            <button onClick={() => {
-                                setIsCreatingSheetAutomation(false);
-                                setEditingSheetAutomationId(null);
-                            }} className="mb-4 text-slate-500 hover:text-slate-800 flex items-center gap-1 text-sm bg-white/50 p-2 rounded-lg lg:bg-transparent lg:p-0">
-                                <span className="text-xl">←</span> Back to List
-                            </button>
-                            <SheetAutomationWizard
-                                editId={editingSheetAutomationId || undefined}
-                                onClose={() => {
-                                    setIsCreatingSheetAutomation(false);
-                                    setEditingSheetAutomationId(null);
-                                }}
-                                onSave={() => {
-                                    setIsCreatingSheetAutomation(false);
-                                    setEditingSheetAutomationId(null);
-                                }}
-                            />
-                        </div>
-                    </div>
-                );
-            }
-            return (
-                <SheetAutomationList
-                    onCreate={() => {
-                        setEditingSheetAutomationId(null);
-                        setIsCreatingSheetAutomation(true);
-                    }}
-                    onEdit={(id) => {
-                        setEditingSheetAutomationId(id);
-                        setIsCreatingSheetAutomation(true);
-                    }}
-                    onToggleSidebar={() => setSidebarOpen(true)}
-                />
-            );
-        }
-
-        if (activeMenuItem === 'Drip Campaigns') {
-            return (
-                <DripCampaignManager
-                    initialView={(isCreatingDrip || selectedDripId) ? 'builder' : 'list'}
-                    initialCampaignId={selectedDripId}
-                    onToggleSidebar={() => setSidebarOpen(true)}
-                    onExit={() => {
-                        if (isCreatingDrip || selectedDripId) {
-                            setFollowUpInitialView('form');
-                            setActiveMenuItem('Follow-up');
-                            setIsCreatingDrip(false);
-                            setSelectedDripId(null);
-                        } else {
-                            setActiveMenuItem('Drip Campaigns');
-                        }
-                    }}
-                />
-            );
-        }
         if (activeMenuItem === 'Team Staff') {
             return <StaffManagement />;
         }
@@ -875,7 +773,7 @@ const MainApp: React.FC = () => {
             />
             <div className="flex-1 flex flex-col overflow-hidden relative w-full min-h-0">
                 {!isEditingFlow && !isEditingWhatsAppFlow && !isEditingTemplate &&
-                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'G Automation', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing', 'Custom Menu'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
+                    !['Inbox', 'Dashboard', 'Overview', 'Contacts', 'Contact List', 'Contact Groups', 'Pipelines', 'Flows', 'Campaigns', 'Settings', 'Branding & Appearance', 'Integrations', 'Follow-up', 'Input Fields', 'Form Builder', 'Quick Reply', 'Wallet & Billing', 'Custom Menu'].map(s => s.toLowerCase()).includes((activeMenuItem || '').toLowerCase()) &&
                     (
                         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-canvas-surface border-b border-slate-200 z-20 shadow-sm shrink-0">
                             <div className="flex items-center space-x-3">

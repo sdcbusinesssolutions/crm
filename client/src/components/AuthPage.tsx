@@ -443,19 +443,13 @@ const AuthPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Track 3 - Outer (Campaigns & AI Buddy) */}
+                        {/* Track 3 - Outer (Campaigns) */}
                         <div className="w-[440px] h-[440px] absolute animate-[spin_30s_linear_infinite]">
                             <div className="w-full h-full rounded-full border border-dashed border-white/10 absolute"></div>
                             {/* Campaigns */}
                             <div className="absolute -top-7 left-1/2 -translate-x-1/2" style={{ animation: 'spin 30s linear infinite reverse' }}>
                                 <div className="w-14 h-14 bg-[#0B141A] rounded-full shadow-[0_0_15px_rgba(244,63,94,0.3)] border border-rose-500/40 flex items-center justify-center relative">
                                     <svg className="w-7 h-7 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>
-                                </div>
-                            </div>
-                            {/* AI Buddy */}
-                            <div className="absolute -bottom-7 left-1/2 -translate-x-1/2" style={{ animation: 'spin 30s linear infinite reverse' }}>
-                                <div className="w-14 h-14 bg-gradient-to-tr from-[#25D366] to-[#128C7E] rounded-full shadow-[0_0_20px_rgba(37,211,102,0.6)] border border-white/40 flex items-center justify-center relative">
-                                    <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
                                 </div>
                             </div>
                         </div>
@@ -474,9 +468,6 @@ const AuthPage: React.FC = () => {
                         </div>
                         <div className="absolute bottom-[20%] right-[10%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-3">
                             <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">Campaigns</span>
-                        </div>
-                        <div className="absolute top-[5%] right-[40%] bg-black/30 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 animate-popup-4">
-                            <span className="text-sm font-bold text-white drop-shadow-md tracking-wide">AI Buddy</span>
                         </div>
                     </div>
 

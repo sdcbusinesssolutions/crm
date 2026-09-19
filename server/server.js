@@ -248,7 +248,7 @@ const authNotificationsRoutes = require('./routes/auth_notifications');
 
 // Admin Routes
 const followUpRoutes = require('./routes/followUps');
-const dripCampaignRoutes = require('./routes/dripCampaigns');
+
 
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
@@ -291,7 +291,7 @@ router.use('/appointments', requireAuth, appointmentsRoutes);
 router.use('/call-logs', requireAuth, callLogsRoutes);
 
 router.use('/follow-ups', requireAuth, followUpRoutes);
-router.use('/drip-campaigns', requireAuth, dripCampaignRoutes);
+
 
 // Soft-Auth Branding Route (Must be before protected /settings mount to function correctly)
 const brandingRoutes = require('./routes/branding');
@@ -332,8 +332,8 @@ router.use('/admin/video-guides', tenantVideoGuides);
 console.log('✅ Integrations Route Mounted at /api/integrations');
 app.use('/api/integrations', requireAuth, integrationsRoutes);
 
-app.use('/api/sheet-automations', requireAuth, require('./routes/sheet_automations'));
-app.use('/api/ai-agents', requireAuth, require('./routes/ai_agents'));
+
+
 app.use('/api/quick-replies', requireAuth, require('./routes/quick_replies'));
 app.use('/api/click-to-whatsapp', requireAuth, require('./routes/clickToWhatsApp'));
 app.use('/api', router);
@@ -449,31 +449,12 @@ if (require.main === module) {
       const scheduler = new Scheduler(supabaseUrl, serviceKey);
       scheduler.start();
 
-      // Start Drip Campaign Engine (New)
-      const dripEngine = require('./workers/dripProcessor');
-      const workerCount = parseInt(process.env.DRIP_WORKER_COUNT || '1');
-      console.log(`[DripEngine] Starting ${workerCount} worker(s)...`);
-      for (let i = 0; i < workerCount; i++) {
-        setTimeout(() => dripEngine.start(), i * 2000); // Stagger start by 2s
-      }
+
     } else {
       console.warn('⚠️ Campaign Worker not started: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    // Start Sheet Automation Scheduler with Jitter
-    const SheetAutomationService = require('./services/SheetAutomationService');
-    const sheetJitterMs = Math.floor(Math.random() * 15000); // 0-15s Jitter
-    console.log(`[SheetScheduler] Applying random startup jitter of ${sheetJitterMs}ms...`);
-    
-    setTimeout(() => {
-        // Initial run
-        SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
-        
-        // Then start interval
-        setInterval(() => {
-            SheetAutomationService.processJobs().catch(e => console.error('[SheetScheduler] Error:', e));
-        }, 60000); // Check every minute
-    }, sheetJitterMs);
+
 
     // Log Automation Status
     const clientUrl = process.env.CLIENT_URL;
