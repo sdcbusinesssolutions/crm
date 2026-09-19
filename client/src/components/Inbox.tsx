@@ -815,53 +815,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
         }
     }, [messages.length]);
 
-    const toggleAiPause = async () => {
-        if (!activeChatId) return;
-        const isPaused = !!activeChat?.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
-        const newState = !isPaused;
-        const previousState = activeChat?.bot_paused_until;
-        
-        // Optimistic UI update
-        const pauseUntil = newState ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : null;
-        setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, bot_paused_until: pauseUntil } : c));
-        
-        try {
-            const response = await fetch(`/api/inbox/messages/${activeChatId}/toggle-ai`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenService.getAccessToken()}` },
-                body: JSON.stringify({ paused: newState })
-            });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        } catch (e) {
-            console.error('Failed to toggle AI state', e);
-            // Revert on failure
-            setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, bot_paused_until: previousState } : c));
-            alert('Failed to toggle AI state. Please try again.');
-        }
-    };
 
-    const handleAssignAi = async (agentId: string) => {
-        if (!activeChatId) return;
-        
-        const previousAgentId = activeChat?.assigned_ai_agent_id;
-        
-        // Optimistic UI update
-        setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, assigned_ai_agent_id: agentId || null } : c));
-        
-        try {
-            const response = await fetch(`/api/inbox/messages/${activeChatId}/assign-ai`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenService.getAccessToken()}` },
-                body: JSON.stringify({ agentId })
-            });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        } catch (e) {
-            console.error('Failed to assign AI agent', e);
-            // Revert on failure
-            setConversations(prev => prev.map(c => c.id === activeChatId ? { ...c, assigned_ai_agent_id: previousAgentId } : c));
-            alert('Failed to assign AI agent. Please try again.');
-        }
-    };
 
     const handleSendMessage = async () => {
         if (!messageInput.trim() || !activeChatId || isSendingRef.current) return;
@@ -2517,33 +2471,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                             </div>
                             <div className="flex items-center gap-2 lg:mr-24">
                                 {/* AI Pause Toggle */}
-                                {(() => {
-                                    const isPaused = !!activeChat.bot_paused_until && new Date(activeChat.bot_paused_until) > new Date();
-                                    return (
-                                        <div 
-                                            className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full cursor-pointer text-xs font-bold border transition-all shadow-sm ${
-                                                isPaused 
-                                                    ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600' 
-                                                    : 'bg-indigo-500 text-white border-indigo-600 hover:bg-indigo-600 hover:shadow-md'
-                                            }`}
-                                            onClick={toggleAiPause}
-                                        >
-                                            {isPaused ? (
-                                                <>
-                                                    <span className="text-[14px]">⏸️</span>
-                                                    <span>AI Paused</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                    </svg>
-                                                    <span className="text-white">AI Active</span>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })()}
+
                                 
                                 {/* Opt In/Out Toggle */}
                                 <div 
