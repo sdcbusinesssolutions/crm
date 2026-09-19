@@ -24,7 +24,7 @@ import LeadAssignment from '../modules/teamStaff/components/LeadAssignment';
 import PermissionGate from '../modules/teamStaff/components/PermissionGate';
 import { contactService } from '../services/contactService';
 import { tokenService } from '../services/tokenService';
-import { aiAgentService, Agent } from '../services/aiAgentService';
+
 import { reminderManager } from '../utils/reminderManager';
 import { followUpService } from '../services/followUpService';
 import { socket } from '../lib/socket';
@@ -144,7 +144,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     const [assignedStaffNames, setAssignedStaffNames] = useState<string[]>([]);
     const [contactNotes, setContactNotes] = useState('');
     const [isSavingNotes, setIsSavingNotes] = useState(false);
-    const [aiAgents, setAiAgents] = useState<Agent[]>([]);
     
     // Reminder state
     const [showLocalReminder, setShowLocalReminder] = useState(false);
@@ -583,15 +582,6 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
     }, [activeChat]);
 
     useEffect(() => {
-        const fetchAgents = async () => {
-            try {
-                const agents = await aiAgentService.listAgents();
-                setAiAgents(agents);
-            } catch (err) {
-                console.error("Failed to fetch AI agents", err);
-            }
-        };
-        fetchAgents();
     }, []);
 
     // Now that we have server-side filtering, filteredChats is just conversations
@@ -2585,21 +2575,7 @@ const Inbox: React.FC<InboxProps> = ({ onToggleSidebar }) => {
                                     )}
                                 </div>
                                 
-                                {/* Assign AI Dropdown */}
-                                <div className="hidden md:flex items-center">
-                                    <select
-                                        value={activeChat.assigned_ai_agent_id || ''}
-                                        onChange={(e) => handleAssignAi(e.target.value)}
-                                        className="text-xs font-bold border border-[#1FBE6D] rounded-full px-3 py-1.5 h-8 bg-[#1FBE6D] text-white focus:outline-none focus:ring-2 focus:ring-[#1FBE6D]/50 shadow-sm transition-all cursor-pointer"
-                                    >
-                                        <option value="">No AI Assigned</option>
-                                        {aiAgents.map(agent => (
-                                            <option key={agent.id} value={agent.id}>
-                                                {agent.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+
                                 
                                 {/* 24h Window Timer */}
                                 {(() => {

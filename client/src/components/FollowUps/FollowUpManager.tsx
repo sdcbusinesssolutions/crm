@@ -410,13 +410,7 @@ const FollowUpManager: React.FC<FollowUpManagerProps> = ({ onNavigate, initialVi
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                         Export
                     </button>
-                    <button
-                        onClick={() => onNavigate && onNavigate('Drip Campaigns')}
-                        className="px-4 py-2 bg-white border border-purple-500 text-purple-600 rounded-lg hover:bg-purple-50 font-bold flex items-center gap-2 shadow-sm transition"
-                    >
-                        <TriggerIcon className="w-4 h-4" />
-                        Drip Campaigns
-                    </button>
+
                     {canWrite && (
                         <button
                             onClick={() => { setEditingFollowUp(null); setView('form'); }}

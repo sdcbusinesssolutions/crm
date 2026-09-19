@@ -243,7 +243,7 @@ const leadDashboardRoutes = require('./routes/lead_dashboard'); // New optimized
 const integrationsRoutes = require('./routes/integrations'); // New: Import integrations router
 const clientLogRoutes = require('./routes/client_logs'); // New: Client Logging
 const staffRoutes = require('./modules/teamStaff/routes/staff.routes');
-const walletRoutes = require('./routes/walletRoutes'); // New: Wallet System
+
 const authNotificationsRoutes = require('./routes/auth_notifications');
 
 // Admin Routes
@@ -252,7 +252,7 @@ const followUpRoutes = require('./routes/followUps');
 
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminDashboardRoutes = require('./routes/admin/dashboardRoutes');
-const walletAdminRoutes = require('./routes/admin/walletAdminRoutes');
+
 const pricingAdminRoutes = require('./routes/admin/pricingAdminRoutes');
 const reportRoutes = require('./routes/admin/reportRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
@@ -308,16 +308,13 @@ router.use('/inbox', requireAuth, inboxRoutes);
 router.use('/test-request', requireAuth, testRequestRoutes);
 router.use('/upload', requireAuth, uploadRoutes);
 
-const financialReportRoutes = require('./routes/admin/financialReportRoutes');
+
 
 // Admin Routes (Mounted under /admin)
 router.use('/admin/auth', adminAuthRoutes); // Auth has its own middleware or none for login
 router.use('/admin/dashboard', adminDashboardRoutes);
-router.use('/wallet/admin', verifyAdminToken, walletAdminRoutes);
+
 router.use('/admin/pricing', verifySuperAdmin, pricingAdminRoutes);
-router.use('/wallet/admin/finance-report', verifyAdminToken, financialReportRoutes);
-router.use('/wallet/admin/reports', verifyAdminToken, reportRoutes);
-router.use('/wallet', requireAuth, walletRoutes); // Protected wallet routes
 app.use('/api/public-settings', require('./routes/publicSettings'));
 router.use('/admin/users', adminUserRoutes);
 router.use('/admin/plans', adminPlanRoutes);

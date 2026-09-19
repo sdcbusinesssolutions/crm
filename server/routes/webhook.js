@@ -8,7 +8,7 @@ const { execFile } = require('child_process');
 const { supabaseAdmin, supabase } = require('../lib/supabaseClient');
 const flowEngine = require('../services/flowEngine');
 const { executeFlowInternal } = require('../services/flowEngine');
-const WalletService = require('../services/WalletService');
+
 const { logInboxMessage, logWebhookEvent, logMetaEvent } = require('../utils/logger');
 const { extractMessageContent } = require('../utils/whatsappParser');
 const fs = require('fs');
@@ -916,21 +916,7 @@ async function handleWebhookEvent(req, res, userId, phoneNumberId) {
                     if (updateSuccess) {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}' (Rows updated: true)`);
 
-                        // --- WALLET SYSTEM: 24-HOUR CONVERSATION WINDOW BILLING ---
-                        // Meta charges per CONVERSATION WINDOW (24h), not per MESSAGE.
-                        // We pass both pricing (category, billable) and conversation
-                        // (id, expiration_timestamp) so WalletService can correctly
-                        // check if this window was already billed before charging.
-                        if (['sent', 'delivered', 'read'].includes(newStatus) && status.pricing) {
-                            WalletService.handleWebhookPricing(
-                                userId, waMessageId, status.pricing, status.conversation || null
-                            ).catch(err => console.error('[Wallet] Error handling webhook pricing:', err));
-                        } else if (newStatus === 'failed') {
-                            // FAILED MESSAGE: Full refund of pre-debit
-                            WalletService.handleWebhookFailure(
-                                userId, waMessageId
-                            ).catch(err => console.error('[Wallet] Error handling webhook failure:', err));
-                        }
+
                     } else {
                         console.log(`[Webhook] Message ${waMessageId} updated to '${newStatus}', but RPC returned false (likely not a campaign message).`);
                     }

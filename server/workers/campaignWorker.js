@@ -13,8 +13,7 @@ const httpsAgent = new https.Agent({
 
 const { logCampaignRequest } = require('../utils/logger');
 const whatsappService = require('../services/whatsappService');
-const WalletService = require('../services/WalletService');
-const CampaignWalletService = require('../services/CampaignWalletService');
+
 
 // --- Configuration ---
 const GRAPH_API_URL = 'https://graph.facebook.com/v18.0';
@@ -384,29 +383,7 @@ class CampaignWorker {
                     continue;
                 }
 
-                // 2. Fetch Wallet Billing Mode
-                const { data: wallet } = await this.supabase
-                    .from('user_wallets')
-                    .select('billing_mode')
-                    .eq('user_id', campaign.user_id)
-                    .single();
-
                 let estimatedCost = 0;
-                
-                if (wallet?.billing_mode !== 'DIRECT_META') {
-                    // Determine category and rate
-                    const { data: cachedComp } = await this.supabase
-                        .from('template_components_cache')
-                        .select('category')
-                        .eq('user_id', campaign.user_id)
-                        .eq('template_name', campaign.template_name)
-                        .maybeSingle();
-                    
-                    // Fallback to MARKETING for safety if not cached
-                    const category = (cachedComp?.category || 'MARKETING').toUpperCase();
-                    const rateInfo = await WalletService.getRate(campaign.user_id, category, 'IN'); 
-                    estimatedCost = queueCount * Number(rateInfo.platform_rate);
-                }
 
                 // 3. Place Atomic Hold
                 if (estimatedCost > 0) {
@@ -1009,7 +986,6 @@ class CampaignWorker {
             const releaseAmount = totalHeld - totalDebited;
             
             if (releaseAmount > 0) {
-                await WalletService.releaseCampaignReservation(userId, campaignId, releaseAmount);
                 console.log(`[Worker] Released unused reservation of ₹${releaseAmount} for campaign ${campaignId}`);
             }
         } catch (e) {
@@ -1319,50 +1295,6 @@ class CampaignWorker {
                 });
             } catch (ignore) { }
 
-            // --- CONSERVATIVE WALLET PRE-DEBIT (at MARKETING rate) ---
-            // We must debit BEFORE hitting the Meta API to enforce strict country blocking 
-            // and prevent negative balances.
-            const tempWaMessageId = `pending_camp_${Date.now()}_${Math.random().toString(36).substring(2,9)}`;
-            let preDebitTxId = null;
-            
-            try {
-                const preDebitResult = await WalletService.preDebit({
-                     userId: campaign.user_id,
-                     waMessageId: tempWaMessageId,
-                     category: templateDef?.category || 'MARKETING',
-                     source: 'CAMPAIGN_SEND',
-                     contactPhone: item.phone_number,
-                     campaignId: campaign.id,
-                     whatsappAccountId: config.id
-                });
-                preDebitTxId = preDebitResult?.transactionId;
-            } catch (walletErr) {
-                console.warn(`[Worker] 🚫 Skipping send to ${item.phone_number} — PRE-DEBIT FAILED: ${walletErr.message}`);
-                
-                let categorizedError = `Failed: ${walletErr.message}`;
-                if (walletErr.message.includes('not allowed by the platform')) {
-                    categorizedError = `Country Not Allowed: ${walletErr.message}`;
-                } else if (walletErr.message.includes('Insufficient Wallet Balance')) {
-                    categorizedError = `Billing Error: ${walletErr.message}`;
-                } else {
-                    categorizedError = `Wallet Error: ${walletErr.message}`;
-                }
-
-                await this.supabase.from('campaign_queue').update({
-                    status: 'FAILED',
-                    error_message: categorizedError
-                }).eq('id', item.id);
-                
-                // If it's a balance issue, pause the entire campaign
-                if (walletErr.message.includes('Insufficient Wallet Balance')) {
-                    await this.supabase.from('campaigns').update({
-                        status: 'PAUSED'
-                    }).eq('id', campaign.id);
-                }
-                
-                return; // Stop processing this item
-            }
-
             // Guard: Don't send if we are currently rate-limited by Meta
             if (await isWabaRateLimited(config.whatsapp_business_account_id)) {
                 const waitSec = getWabaRateLimitWaitSec(config.whatsapp_business_account_id);
@@ -1421,11 +1353,10 @@ class CampaignWorker {
                             }
                         );
                     } catch (fallbackErr) {
-                        if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
                         throw fallbackErr;
                     }
                 } else {
-                    if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
+
                     throw postErr; // Re-throw other errors
                 }
             }
@@ -1456,10 +1387,7 @@ class CampaignWorker {
 
             await this.supabase.rpc('increment_campaign_success', { row_id: campaign.id });
 
-            // --- ATOMIC: LINK SUCCESSFUL ID ---
-            if (response.data.messages?.[0]?.id && preDebitTxId) {
-                await WalletService.updateTransactionMessageId(preDebitTxId, response.data.messages[0].id);
-            }
+
 
             // Render Body Text for Inbox Preview
             let renderedBody = null;

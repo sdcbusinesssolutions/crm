@@ -55,7 +55,7 @@ const FollowUpManager: React.FC = () => {
                     // 2. Search raw Contacts (Address Book)
                     // We only search contacts if we have a search term, to avoid fetching all contacts unnecessarily
                     const contactsPromise = searchTerm
-                        ? contactService.getContactsPaginated(1, 10, searchTerm).then(res => res.data)
+                        ? contactService.getContactsPaginated(1, 10, { search: searchTerm }).then(res => res.data)
                         : Promise.resolve([]);
 
                     const [leadResults, contactResults] = await Promise.all([leadsPromise, contactsPromise]);
@@ -889,6 +889,13 @@ const FollowUpManager: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <SendWhatsAppMessageModal
+                isOpen={isWhatsAppModalOpen}
+                onClose={() => setIsWhatsAppModalOpen(false)}
+                contactPhone={selectedChatPhone}
+                contactName={selectedChatName}
+            />
         </div>
     );
 };
@@ -916,13 +923,6 @@ const StatCard: React.FC<{ label: string; count: number; active: boolean; onClic
             <div className={`text-xs font-bold uppercase tracking-wider mb-1 ${colors.text}`}>{label}</div>
             <div className={`text-2xl font-black ${colors.textDark}`}>{count}</div>
         </div>
-
-            <SendWhatsAppMessageModal
-                isOpen={isWhatsAppModalOpen}
-                onClose={() => setIsWhatsAppModalOpen(false)}
-                contactPhone={selectedChatPhone}
-                contactName={selectedChatName}
-            />
     );
 };
 

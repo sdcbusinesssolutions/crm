@@ -44,7 +44,6 @@ export type MenuItem =
     | 'WhatsApp API'
     | 'Team Staff'
     | 'My Plan'
-    | 'Wallet & Billing'
     | 'Click to WhatsApp Ads'
     | 'Campaign Analytics'
     | 'Quick Reply'
@@ -199,7 +198,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             case 'WhatsApp API': return <CodeIcon className={baseClass} />;
             case 'WhatsApp Management': return <BriefcaseIcon className={baseClass} />;
             case 'My Plan': return <BadgeIcon className={baseClass} />;
-            case 'Wallet & Billing': return <CreditCardIcon className={baseClass} />;
             case 'Integrations': return <LinkIcon className={baseClass} />;
             case 'Gallery': return <GalleryIcon className={baseClass} />;
             default: return null;
@@ -230,8 +228,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
             'Settings': 'Settings',
             'Branding & Appearance': 'Settings',
             'WhatsApp API': 'Settings',
-            'WhatsApp Management': 'WhatsApp Management',
-            'Wallet & Billing': 'Settings'
+            'WhatsApp Management': 'WhatsApp Management'
         };
 
         const moduleName = moduleMap[item];
@@ -475,7 +472,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeItem, onNavigate, isOpen, onClo
                         {!showCollapsed && <p className="px-5 text-[9px] font-bold text-white uppercase tracking-widest mb-2 mt-4.5 truncate">Workspace</p>}
                         {renderItem('Click to WhatsApp Ads', <MegaphoneIcon className="w-5 h-5" />, false, false, true)}
 
-                        {renderItem('Wallet & Billing', <CreditCardIcon className="w-5 h-5" />)}
                         {renderItem('Team Staff', <UsersIcon className="w-5 h-5" />)}
                         {renderItem('Settings', <SettingsIcon className="w-5 h-5" />, true)}
                         {!showCollapsed && isSettingsOpen && <div className="space-y-1 mt-2 mb-2.5">{settingsSubItems.map(subItem => renderItem(subItem, null, false, true))}</div>}

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { tagService, Tag } from '../services/tagService';
 import { contactGroupService } from '../services/contactGroupService';
 import { integrationsService } from '../services/integrationsService';
-import { aiAgentService } from '../services/aiAgentService';
+
 import { staffApi } from '../modules/teamStaff/api/staffApi';
 import DroppableInput from './DroppableInput';
 import VariableSidebar from './VariableSidebar';
@@ -4287,8 +4287,7 @@ const AIAgentSettingsPanel: React.FC<{ selectedNode: Node & { data: AIAgentData 
         if (!data.outputVariableName) {
             handleUpdate({ outputVariableName: 'ai_response' });
         }
-        // Fetch Agents
-        aiAgentService.listAgents().then(setAgents).catch(err => console.error("Failed to fetch agents", err));
+        // Fetch Agents removed
     }, []);
 
     return (

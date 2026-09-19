@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FollowUp } from '../../services/followUpService';
 import { contactService } from '../../services/contactService';
-import { dripCampaignService, DripCampaign } from '../../services/dripCampaignService';
 import { supabase } from '../../lib/supabase';
 
 interface FollowUpFormProps {
@@ -69,7 +68,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
     const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
     // Drip Selection
-    const [activeCampaigns, setActiveCampaigns] = useState<DripCampaign[]>([]);
+    const [activeCampaigns, setActiveCampaigns] = useState<any[]>([]);
     const [selectedCampaignId, setSelectedCampaignId] = useState(() => {
         if (!initialData?.id || !initialData?.contacts) return '';
         const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
@@ -366,7 +365,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
     const loadCampaigns = async () => {
         try {
-            const all = await dripCampaignService.getCampaigns();
+            const all = [];
             const manual = all.filter(c => c.status === 'ACTIVE' && c.trigger_type === 'MANUAL');
             setActiveCampaigns(manual);
             // Auto-select first campaign if none currently selected and not editing
@@ -519,37 +518,7 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
             } : null
         };
 
-        // 2. Handle Drip Enrollment
-        let dripEnrolled = false;
 
-        // Stop old enrollment if editing and the campaign changed or was removed
-        if (initialData?.id && initialData?.contacts) {
-            const contact = Array.isArray(initialData.contacts) ? initialData.contacts[0] : initialData.contacts;
-            const oldEnrollment = contact?.drip_enrollments?.find((e: any) => ['ACTIVE', 'PAUSED', 'PROCESSING'].includes(e.status));
-            
-            if (oldEnrollment && oldEnrollment.drip_campaign_id !== selectedCampaignId) {
-                try {
-                    await dripCampaignService.stopEnrollment(oldEnrollment.id);
-                } catch (e) {
-                    console.error('Failed to stop old drip enrollment', e);
-                }
-            }
-        }
-
-        if (selectedCampaignId && allContactIds.length > 0) {
-            try {
-                await dripCampaignService.enrollContacts(
-                    selectedCampaignId,
-                    allContactIds,
-                    formData.scheduled_at,
-                    notificationRules.filter(r => r.phone && r.value),
-                    isLooping
-                );
-                dripEnrolled = true;
-            } catch (e) {
-                console.error('Failed to auto-enroll in drip', e);
-            }
-        }
 
         // 3. Save the Follow-Up Task(s)
         await onSave({
@@ -559,58 +528,9 @@ const FollowUpForm: React.FC<FollowUpFormProps> = ({ initialData, onSave, onCanc
 
         clearDraft();
         setIsBulkCreating(false);
-
-        // 4. Show success banner
-        if (dripEnrolled) {
-            setSavedWithDrip(true);
-        }
     };
 
-    // ✅ Success banner after save with drip enrolled
-    if (savedWithDrip) {
-        const enrolledCampaign = activeCampaigns.find(c => c.id === selectedCampaignId);
-        return (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-6">
-                {/* Success Icon */}
-                <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center shadow-lg">
-                    <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
 
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-800 mb-2">Follow-Up Saved! 🎉</h2>
-                    <p className="text-slate-700 text-sm">
-                        Your follow-up has been created and the contact has been enrolled in
-                    </p>
-                    <p className="text-purple-700 font-bold text-lg mt-1">
-                        📣 {enrolledCampaign?.name || 'Nurture Sequence'}
-                    </p>
-                    <p className="text-slate-600 text-xs mt-2">The sequence started running immediately.</p>
-                </div>
-
-                <div className="flex gap-3 flex-wrap justify-center">
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 transition-all shadow-sm"
-                    >
-                        ← Back to Follow-Ups
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onNavigate && onNavigate('Drip Campaigns')}
-                        className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 text-white rounded-xl font-bold hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-200 hover:shadow-purple-300 transform active:scale-[0.98] transition-all flex items-center gap-2"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                        </svg>
-                        View Nurture sequences →
-                    </button>
-                </div>
-            </div>
-        );
-    }
     return (
         <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden bg-slate-50/50">
             <div className="flex-1 overflow-y-auto custom-scrollbar pt-6 px-4 md:px-6 w-full pb-20">

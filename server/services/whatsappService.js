@@ -15,7 +15,7 @@ const httpsAgent = new https.Agent({
 const { supabase, supabaseAdmin } = require('../lib/supabaseClient');
 const FormData = require('form-data'); // Ensure FormData is available for Node.js
 const { logInboxMessage } = require('../utils/logger');
-const WalletService = require('./WalletService'); // New: Wallet System
+
 
 class WhatsAppService {
     constructor() {
@@ -401,32 +401,6 @@ class WhatsAppService {
             const expectedCategory = (type === 'template') ? (templateCategory || 'MARKETING').toUpperCase() : 'SERVICE';
             const tempWaMessageId = `pending_api_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-            let preDebitTxId = null;
-
-            // Only perform pre-debit for template messages of specific billable categories
-            const requiresWalletCheck = type === 'template' && ['UTILITY', 'MARKETING', 'AUTHENTICATION'].includes(expectedCategory);
-
-            if (requiresWalletCheck) {
-                try {
-                    const preDebitResult = await WalletService.preDebit({
-                        userId: accountOwnerId,
-                        waMessageId: tempWaMessageId,
-                        category: expectedCategory,
-                        source: walletSource,
-                        contactPhone: to,
-                        flowId: options.flowId || null,
-                        dripCampaignId: options.dripCampaignId || null,
-                        whatsappAccountId: waConfigId || null,
-                        createdBy: options.createdBy,
-                        ipAddress: options.ipAddress
-                    });
-                    preDebitTxId = preDebitResult?.transactionId;
-                } catch (err) {
-                    console.warn(`[WhatsAppService] 🚫 Blocked send to ${to} — PRE-DEBIT FAILED: ${err.message}`);
-                    // Pass the specific error message (e.g., country blocking) up to the user
-                    throw new Error(err.message || 'Insufficient Wallet Balance. Top-up required.');
-                }
-            }
 
             let response;
             try {
@@ -458,30 +432,12 @@ class WhatsAppService {
                         httpsAgent: httpsAgent
                     });
                 } else {
-                    // If it was already the standard endpoint, we throw the error.
-                    if (preDebitTxId) await WalletService.refundFailedApiCall(preDebitTxId);
+
                     throw postErr;
                 }
             }
 
             const waMessageId = response.data.messages?.[0]?.id;
-
-            // --- V2 ATOMIC: LINK SUCCESSFUL ID ---
-            if (waMessageId) {
-                if (preDebitTxId) {
-                    await WalletService.updateTransactionMessageId(preDebitTxId, waMessageId);
-                } else {
-                    // Message wasn't pre-debited (e.g. text/service message). 
-                    // Track it in DB so if webhook arrives with a billable charge, we know its source!
-                    await WalletService.trackMessageSource({
-                        userId: accountOwnerId,
-                        waMessageId: waMessageId,
-                        category: expectedCategory,
-                        source: walletSource,
-                        contactPhone: to
-                    });
-                }
-            }
 
             console.log('WhatsApp API Response:', JSON.stringify(response.data, null, 2));
 
