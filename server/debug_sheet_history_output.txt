@@ -1,3 +1,0 @@
-Found 2 history entries in last 24h.
-[2026-02-03T17:59:49.026+00:00] AutoID: d56da418-d36a-45c4-a344-e4f11bdc1af3 | Status: sent | Phone: 910000000000
-[2026-02-03T17:59:47.753+00:00] AutoID: d56da418-d36a-45c4-a344-e4f11bdc1af3 | Status: sent | Phone: 918408907516
