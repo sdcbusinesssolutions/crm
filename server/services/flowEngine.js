@@ -26,7 +26,7 @@ const newLeadExecutor = require('./flow/executors/newLead');
 const contactPipelineExecutor = require('./flow/executors/contactPipeline');
 
 const gmailExecutor = require('./flow/executors/gmail');
-const calendarExecutor = require('./flow/executors/calendar');
+
 
 const notifyExecutor = require('./flow/executors/notify');
 const assignLeadExecutor = require('./flow/executors/assignLead');
@@ -57,7 +57,7 @@ const EXECUTORS = {
 
     'gmail': gmailExecutor,
     'smtp': require('./flow/executors/smtp'),
-    'calendar': calendarExecutor,
+
     'notify': notifyExecutor,
     'assignLead': assignLeadExecutor
 };

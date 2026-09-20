@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { getAuthenticatedSupabase, supabaseAdmin } = require('../lib/supabaseClient');
 const requireAuth = require('../middleware/requireAuth');
-const facebookService = require('../services/FacebookLeadService');
+
 const GRAPH_API_URL = 'https://graph.facebook.com/v25.0';
 
 // ============================================================
@@ -408,9 +408,8 @@ router.get('/connections', requireAuth, async (req, res) => {
         }
 
         const supabase = supabaseAdmin;
-        const [{ data: waConfigData }, facebookStatus] = await Promise.all([
-            supabase.from('whatsapp_config').select('phone_number_id, whatsapp_business_account_id, meta_access_token').eq('user_id', userId).limit(1),
-            facebookService.getUserConnectedStatus(userId).catch(() => ({ connected: false }))
+        const [{ data: waConfigData }] = await Promise.all([
+            supabase.from('whatsapp_config').select('phone_number_id, whatsapp_business_account_id, meta_access_token').eq('user_id', userId).limit(1)
         ]);
 
         const config      = waConfigData?.[0];
@@ -460,7 +459,7 @@ router.get('/connections', requireAuth, async (req, res) => {
         }
 
         const data = {
-            integrationStats: { facebook: facebookStatus.connected ? 1 : 0 },
+            integrationStats: { facebook: 0 },
             connection: phoneHealth
         };
 
