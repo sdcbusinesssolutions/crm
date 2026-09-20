@@ -202,7 +202,7 @@ const AdminSignupNotifications: React.FC = () => {
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white">
                 <div>
                     <h3 className="text-2xl font-black text-black tracking-tight">Platform Signup Notifications</h3>
-                    <p className="text-black text-sm mt-1 font-bold">Configure automated WhatsApp, Email, & Webhook alerts for new user signups.</p>
+                    <p className="text-black text-sm mt-1 font-bold">Configure automated WhatsApp & Email alerts for new user signups.</p>
                 </div>
                 <button
                     onClick={handleSaveNotificationSettings}
@@ -231,12 +231,7 @@ const AdminSignupNotifications: React.FC = () => {
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg> Email Alerts
                 </button>
-                <button
-                    onClick={() => setActiveTab('webhook')}
-                    className={`px-5 py-2 text-sm font-bold rounded-full transition-all flex items-center gap-2 border ${activeTab === 'webhook' ? 'bg-[#006B4D]/10 border-[#006B4D]/50 text-[#006B4D] shadow-[0_0_15px_rgba(0,107,77,0.15)]' : 'bg-white border-[var(--border-color)] text-black hover:bg-slate-100 hover:text-black'}`}
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg> Webhook Alerts
-                </button>
+                
             </div>
 
             <div className="p-8 space-y-8">
@@ -614,62 +609,7 @@ const AdminSignupNotifications: React.FC = () => {
                     </div>
                 )}
 
-                {/* --- WEBHOOK SECTION --- */}
-                {activeTab === 'webhook' && (
-                    <div className="bg-white p-6 rounded-2xl border border-[var(--border-color)] shadow-sm hover:shadow-md transition-all space-y-6">
-                        <h4 className="text-lg font-bold text-black mb-6 flex items-center pb-4 border-b border-slate-100">
-                            <svg className="w-6 h-6 mr-3 text-[#006B4D] drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                            <span className="tracking-tight">Webhook Notification Settings</span>
-                        </h4>
-
-                        <div className="flex items-center justify-between mb-2">
-                            <div>
-                                <label className="block text-sm font-bold text-black">Trigger Webhook on Signup</label>
-                                <p className="text-xs text-black">Send an HTTP POST request to a custom webhook URL when a new user signs up.</p>
                             </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" className="sr-only peer" checked={notificationSettings.trigger_webhook_on_signup} onChange={(e) => setNotificationSettings({ ...notificationSettings, trigger_webhook_on_signup: e.target.checked })} />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#006B4D]"></div>
-                            </label>
-                        </div>
-
-                        {notificationSettings.trigger_webhook_on_signup && (
-                            <div className="space-y-4 bg-slate-50/80 p-5 rounded-xl border-2 border-[#006B4D]/30 shadow-sm mt-4">
-                                <div>
-                                    <label className="block text-[11px] font-black text-black uppercase tracking-[0.08em] mb-2">Admin Webhook URL</label>
-                                    <input
-                                        type="url"
-                                        value={notificationSettings.admin_webhook_url}
-                                        onChange={(e) => setNotificationSettings({ ...notificationSettings, admin_webhook_url: e.target.value })}
-                                        className="w-full px-4 py-3 bg-white border-2 border-[#006B4D]/40 rounded-lg text-sm font-bold text-black focus:ring-2 focus:ring-[#006B4D]/20 focus:border-[#006B4D] outline-none transition-all"
-                                        placeholder="https://hooks.zapier.com/hooks/catch/..."
-                                    />
-                                </div>
-                                <p className="text-xs text-black mt-3">
-                                    The webhook will receive a POST request with the following JSON format:
-                                    <pre className="mt-2 p-3 bg-slate-900 text-emerald-400 rounded-lg text-[10px] overflow-x-auto">
-{`{
-  "event": "new_user_signup",
-  "domain": "yourtenantdomain.com",
-  "contact_phone": "1234567890",
-  "admin": {
-    "email": "admin@example.com",
-    "whatsapp_number": "+1234567890"
-  },
-  "user": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "contact_number": "1234567890"
-  },
-  "timestamp": "2026-06-11T12:00:00.000Z"
-}`}
-                                    </pre>
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
         </div>
     );
 };

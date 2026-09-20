@@ -152,38 +152,7 @@ class NotificationEngine {
             }
         }
 
-        // ==========================================
-        // WEBHOOK NOTIFICATION
-        // ==========================================
-        if (settings.trigger_webhook_on_signup && settings.admin_webhook_url) {
-            try {
-                const payload = {
-                    event: 'new_user_signup',
-                    domain: requestDomain,
-                    contact_phone: contact_number || '', // Added to match the active session requirement
-                    admin: {
-                        email: settings.admin_email_address || null,
-                        whatsapp_number: settings.admin_whatsapp_number || null
-                    },
-                    user: {
-                        name: name || 'N/A',
-                        email: email,
-                        contact_number: contact_number || 'N/A',
-                    },
-                    timestamp: new Date().toISOString()
-                };
 
-                await axios.post(settings.admin_webhook_url, payload, {
-                    headers: { 'Content-Type': 'application/json' },
-                    timeout: 5000 // 5 second timeout so it doesn't hang
-                });
-                
-                notificationsSent++;
-            } catch (err) {
-                logger.error(`NotificationEngine: Failed to trigger webhook at ${settings.admin_webhook_url}:`, { error: err.message });
-                // We do NOT throw here so other processes aren't blocked
-            }
-        }
 
         logger.info(`NotificationEngine DEBUG: requestDomain='${requestDomain}', integrationUserId='${integrationUserId}'`);
         
