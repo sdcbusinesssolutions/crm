@@ -155,18 +155,7 @@ echo "📄 Copying Configs..."
 [ -f "bulk_deploy.sh" ] && cp "bulk_deploy.sh" "$BUILD_DIR/"
 [ -f "domains.csv" ] && cp "domains.csv" "$BUILD_DIR/"
 [ -f ".dockerignore" ] && cp ".dockerignore" "$BUILD_DIR/"
-[ -f "docker-compose-backup.yml" ] && cp "docker-compose-backup.yml" "$BUILD_DIR/"
 [ -f "entrypoint.sh" ] && cp "entrypoint.sh" "$BUILD_DIR/"
-
-mkdir -p "$BUILD_DIR/backup"
-if [ -d "backup" ]; then
-    if command -v rsync >/dev/null 2>&1; then
-        rsync -a backup/ "$BUILD_DIR/backup/"
-    else
-        cp -R backup/* "$BUILD_DIR/backup/" 2>/dev/null || true
-    fi
-fi
-
 # 5. Create Zip from Clean Folder
 echo ""
 echo "🗜️  Compressing optimized files..."
