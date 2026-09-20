@@ -15,7 +15,6 @@ import TenantVideoGuides from './pages/admin/TenantVideoGuides';
 import SuperVideoGuides from './pages/admin/super/SuperVideoGuides';
 import AdminLayout from './layouts/admin/AdminLayout';
 import FeatureLimitsManager from './pages/admin/FeatureLimitsManager';
-import FinanceReport from './pages/admin/FinanceReport';
 import PricingManager from './pages/admin/PricingManager';
 import { Session } from '@supabase/supabase-js';
 import Sidebar, { MenuItem } from './components/Sidebar';
@@ -820,8 +819,7 @@ const App: React.FC = () => {
                     <Route path="super" element={<SuperDashboard />} />
                     <Route path="super/video-guides" element={<SuperVideoGuides />} />
                     <Route path="limits" element={<FeatureLimitsManager />} />
-                    <Route path="finance" element={<FinanceReport />} />
-                    <Route path="pricing" element={<PricingManager />} />
+                                        <Route path="pricing" element={<PricingManager />} />
                 </Route>
 
                 {/* Public Form Route */}

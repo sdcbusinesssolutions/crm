@@ -25,10 +25,8 @@ import {
 } from '../../../components/icons';
 import Toast from '../../../components/Toast';
 import Modal from '../../../components/Modal';
-import WalletTopupModal from './WalletTopupModal';
 import WalletRatesModal from './WalletRatesModal';
 import AdminWalletLedger from './AdminWalletLedger';
-import DomainLedgerModal from './DomainLedgerModal';
 
 const Users = () => {
     const [users, setUsers] = useState<any[]>([]);
@@ -71,15 +69,13 @@ const Users = () => {
     const [isCustomDuration, setIsCustomDuration] = useState(false);
 
     // Wallet State
-    const [isWalletTopupOpen, setIsWalletTopupOpen] = useState(false);
-    const [isWalletRatesOpen, setIsWalletRatesOpen] = useState(false);
+        const [isWalletRatesOpen, setIsWalletRatesOpen] = useState(false);
     const [isWalletLedgerOpen, setIsWalletLedgerOpen] = useState(false);
     const [isDomainLedgerOpen, setIsDomainLedgerOpen] = useState(false);
     const [selectedWalletUser, setSelectedWalletUser] = useState<any>(null);
 
     // Master Wallet State
-    const [isMasterTopupOpen, setIsMasterTopupOpen] = useState(false);
-    const [masterTopupAmount, setMasterTopupAmount] = useState('');
+        const [masterTopupAmount, setMasterTopupAmount] = useState('');
     const [masterTopupDescription, setMasterTopupDescription] = useState('Monthly wholesale recharge');
 
 
@@ -846,28 +842,7 @@ const Users = () => {
                                                         fetchPlans();
                                                         setIsPlanModalOpen(true);
                                                     }} className="flex items-center gap-1 px-1.5 py-1 text-blue-700 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"><ArchiveIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Plan</span></button>
-                                                    {isSuperAdmin ? (
-                                                        <>
-                                                            <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">{user.billing_mode === 'DIRECT_META' ? 'Billing' : 'Top-up'}</span></button>
-                                                            {user.is_tenant_admin && (
-                                                                <button onClick={() => handleAction('MasterTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-purple-700 bg-purple-50 rounded-md hover:bg-purple-100 transition-colors animate-pulse-subtle"><BriefcaseIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Agency</span></button>
-                                                            )}
-                                                            <button onClick={() => handleAction('WalletRates', user)} className="flex items-center gap-1 px-1.5 py-1 text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"><TagIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Rates</span></button>
-                                                            <button onClick={() => handleAction('WalletLedger', user)} className="flex items-center gap-1 px-1.5 py-1 text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><ListIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Ledger</span></button>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            {loggedInMasterBalance !== null && loggedInMasterBalance <= 0 ? (
-                                                                <button disabled className="flex items-center gap-1 px-1.5 py-1 text-slate-400 bg-slate-100 cursor-not-allowed rounded-md" title="Agency Wallet Depleted. Contact Super Admin.">
-                                                                    <PaymentIcon className="w-3.5 h-3.5 opacity-50" /><span className="text-[10px] font-bold leading-none">Top-up</span>
-                                                                </button>
-                                                            ) : (
-                                                                <button onClick={() => handleAction('WalletTopup', user)} className="flex items-center gap-1 px-1.5 py-1 text-emerald-700 bg-emerald-50 rounded-md hover:bg-emerald-100 transition-colors"><PaymentIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">{user.billing_mode === 'DIRECT_META' ? 'Billing' : 'Top-up'}</span></button>
-                                                            )}
-                                                            <button onClick={() => handleAction('WalletRates', user)} className="flex items-center gap-1 px-1.5 py-1 text-indigo-700 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors"><TagIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Rates</span></button>
-                                                            <button onClick={() => handleAction('WalletLedger', user)} className="flex items-center gap-1 px-1.5 py-1 text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"><ListIcon className="w-3.5 h-3.5" /><span className="text-[10px] font-bold leading-none">Ledger</span></button>
-                                                        </>
-                                                    )}
+
 
 
                                                     <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
@@ -1250,91 +1225,6 @@ const Users = () => {
                 </form>
             </Modal>
 
-            {/* Wallet Modals */}
-            {isWalletTopupOpen && selectedWalletUser && (
-                <WalletTopupModal
-                    isOpen={isWalletTopupOpen}
-                    onClose={() => setIsWalletTopupOpen(false)}
-                    user={selectedWalletUser}
-                    isSuperAdmin={isSuperAdmin}
-                    onSuccess={() => {
-                        setToast({ type: 'success', title: 'Success', message: 'Wallet updated successfully' });
-                    }}
-                />
-            )}
-
-            {isWalletRatesOpen && selectedWalletUser && (
-                <WalletRatesModal
-                    isOpen={isWalletRatesOpen}
-                    onClose={() => { setIsWalletRatesOpen(false); setSelectedWalletUser(null); }}
-                    user={selectedWalletUser}
-                    onSuccess={() => {
-                        setToast({ type: 'success', title: 'Success', message: 'Rates updated successfully' });
-                    }}
-                />
-            )}
-
-            {/* Wallet Ledger — full transaction history for a user */}
-            {isWalletLedgerOpen && selectedWalletUser && (
-                <AdminWalletLedger
-                    user={selectedWalletUser}
-                    onClose={() => { setIsWalletLedgerOpen(false); setSelectedWalletUser(null); }}
-                />
-            )}
-
-
-            <Modal isOpen={isMasterTopupOpen} onClose={() => setIsMasterTopupOpen(false)} title={`Recharge Agency Wallet`}>
-                <form onSubmit={handleMasterTopupSubmit} className="p-6 space-y-6">
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                        <div className="text-sm font-bold text-amber-800 mb-1">🏛 Wholesale Credit Pool</div>
-                        <p className="text-xs text-amber-700">
-                            You are adding credits directly to the Master Wallet for <strong>{selectedWalletUser?.name} ({selectedWalletUser?.signupDomain})</strong>. They will use this balance to top-up their sub-users.
-                        </p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Amount (₹)</label>
-                            <input
-                                type="number"
-                                required
-                                min="1"
-                                value={masterTopupAmount}
-                                onChange={(e) => setMasterTopupAmount(e.target.value)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                                placeholder="e.g. 5000"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 mb-1">Description</label>
-                            <input
-                                type="text"
-                                required
-                                value={masterTopupDescription}
-                                onChange={(e) => setMasterTopupDescription(e.target.value)}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
-                                placeholder="Monthly wholesale recharge"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                        <button type="button" onClick={() => setIsMasterTopupOpen(false)} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
-                            Cancel
-                        </button>
-                        <button type="submit" disabled={isSubmitting} className="px-4 py-2 text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2">
-                            {isSubmitting ? 'Recharging...' : 'Confirm Recharge'}
-                        </button>
-                    </div>
-                </form>
-            </Modal>
-            {isDomainLedgerOpen && (
-                <DomainLedgerModal 
-                    isSuperAdmin={isSuperAdmin}
-                    domainFilter={domainFilter !== 'all' ? domainFilter : undefined}
-                    onClose={() => setIsDomainLedgerOpen(false)} 
-                />
-            )}
         </div>
     );
 };
