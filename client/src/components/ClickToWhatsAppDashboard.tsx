@@ -4,7 +4,6 @@ import ClickToWhatsAppLauncher from './ClickToWhatsAppLauncher';
 import ClickToWhatsAppAnalytics from './ClickToWhatsAppAnalytics';
 import { settingsService } from '../services/settingsService';
 import { tokenService } from '../services/tokenService';
-import FacebookLeadForms from './FacebookLeadForms';
 
 declare global {
   interface Window {
@@ -246,13 +245,7 @@ const ClickToWhatsAppDashboard = () => {
             >
               Analytics
             </button>
-            <button 
-              className={`ctwa-tab-btn ${activeTab === 'leads' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('leads'); setSelectedAdAccount(null); setSearchTerm(''); }}
-            >
-              Leads
-            </button>
-          </div>
+                      </div>
 
           {activeTab === 'ads' ? (
             <button className="ctwa-btn ctwa-btn-secondary" onClick={handleSyncPages}>
@@ -543,10 +536,7 @@ const ClickToWhatsAppDashboard = () => {
         </div>
       )}
 
-      {activeTab === 'leads' && (
-        <FacebookLeadForms pages={pages} />
-      )}
-    </div>
+          </div>
   );
 };
 
