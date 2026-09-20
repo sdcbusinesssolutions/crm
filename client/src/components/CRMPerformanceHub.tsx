@@ -139,8 +139,7 @@ const CRMPerformanceHub: React.FC<{ stats: DashboardStats | null; onNavigate: (i
     // Animation Effect
     const [displayedPercent, setDisplayedPercent] = useState(0);
     const [animatedFollowupWidths, setAnimatedFollowupWidths] = useState<number[]>([0, 0, 0, 0]);
-    const [showVideo, setShowVideo] = useState(false);
-    const [breathingOffset, setBreathingOffset] = useState(0);
+        const [breathingOffset, setBreathingOffset] = useState(0);
 
     // Breathing Animation Loop
     useEffect(() => {

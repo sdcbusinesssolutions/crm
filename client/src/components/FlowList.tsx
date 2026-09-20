@@ -55,8 +55,7 @@ const FlowList: React.FC<FlowListProps> = ({ onNavigateToFlow, onToggleSidebar }
     // Delete Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [flowToDelete, setFlowToDelete] = useState<string | null>(null);
-    const [showVideo, setShowVideo] = useState(false);
-
+    
     useEffect(() => {
         loadFlows();
         checkServerStatus();

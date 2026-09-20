@@ -25,8 +25,7 @@ const CampaignList: React.FC<CampaignListProps> = ({ onCreate, onSelect, onToggl
     const [isLoading, setIsLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'Active' | 'Archive'>('Active');
-    const [showVideo, setShowVideo] = useState(false);
-
+    
     useEffect(() => {
         fetchCampaigns();
     }, []);
