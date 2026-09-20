@@ -131,11 +131,7 @@ const AdminLayout = () => {
         { path: '/admin/references', label: 'References', icon: '🔗' },
             ];
 
-    if (isAdminSuper) {
-        menuItems.push({ path: '/admin/pricing', label: 'Message Price', icon: '💰' });
-        menuItems.push({ path: '/admin/super', label: 'Super Panel', icon: '🚀' });
-        menuItems.push({ path: '/admin/limits', label: 'Staff Limit', icon: '🚧' });
-            }
+    
 
     return (
         <div className="admin-layout flex h-screen bg-[var(--bg-color)] text-[var(--text-color)] font-sans">
